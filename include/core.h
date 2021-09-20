@@ -700,6 +700,7 @@ private:
 
 	float m_moveSpeed; // current speed forward/backward
 	float m_strafeSpeed; // current speed sideways
+	float m_tempstrafeSpeed; // temp speed sideways
 	float m_minSpeed; // minimum speed in normal mode
 	float m_oldCombatDesire; // holds old desire for filtering
 
@@ -881,6 +882,7 @@ private:
 	void ZmCampPointAction(int mode = 0);
 
 	void CheckSilencer(void);
+	bool CheckWallOnBehind(void);
 	bool CheckWallOnLeft(void);
 	bool CheckWallOnRight(void);
 	void ChooseAimDirection(void);
@@ -1497,8 +1499,8 @@ extern bool IsDeathmatchMode(void);
 extern bool IsValidWaypoint(int index);
 extern bool ChanceOf(int number);
 extern float Squared(float number);
-extern float GetDistance(Vector a, Vector b);
 extern float GetDistanceSquared(Vector a, Vector b);
+extern float GetDistanceSquared2D(Vector a, Vector b);
 
 extern int GetEntityWaypoint(edict_t* ent);
 extern int SetEntityWaypoint(edict_t* ent, int mode = -1);
