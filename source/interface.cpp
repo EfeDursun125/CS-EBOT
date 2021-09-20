@@ -2634,7 +2634,7 @@ void StartFrame(void)
 	// for example if a new player joins the server, we should disconnect a bot, and if the
 	// player population decreases, we should fill the server with other bots.
 
-	if(g_analyzewaypoints == true)
+	if (g_analyzewaypoints == true)
 		g_waypoint->Analyze();
 
 	// SyPB Pro P.37 - Lock Add Zbot

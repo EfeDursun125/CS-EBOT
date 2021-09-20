@@ -145,6 +145,9 @@ bool IsVisible(const Vector& origin, edict_t* ent)
 // ebot 1.56 - return walkable position on ground
 Vector GetWalkablePosition(const Vector& origin, edict_t* ent)
 {
+	if (FNullEnt(ent))
+		return nullvec;
+
 	TraceResult tr;
 	TraceLine(origin, Vector(origin.x, origin.y, -9999.0f), true, true, ent, &tr);
 
@@ -157,6 +160,9 @@ Vector GetWalkablePosition(const Vector& origin, edict_t* ent)
 // ebot 1.57 - same with GetWalkablePosition but gets nearest walkable position
 Vector GetNearestWalkablePosition(const Vector& origin, edict_t* ent)
 {
+	if (FNullEnt(ent))
+		return nullvec;
+
 	TraceResult tr;
 	TraceLine(origin, Vector(origin.x, origin.y, -9999.0f), true, true, ent, &tr);
 
@@ -239,6 +245,9 @@ Vector GetBottomOrigin(edict_t* ent)
 // SyPB Pro P.42 - Get Player Head Origin 
 Vector GetPlayerHeadOrigin(edict_t* ent)
 {
+	if (FNullEnt(ent))
+		return nullvec;
+
 	Vector headOrigin = GetTopOrigin(ent);
 
 	if (!(ent->v.flags & FL_DUCKING))
@@ -1006,15 +1015,6 @@ bool ChanceOf(int number)
 	return engine->RandomInt(1, 100) <= number;
 }
 
-float GetDistance(Vector a, Vector b)
-{
-	float dx = a.x - b.x;
-	float dy = a.y - b.y;
-	float dz = a.z - b.z;
-
-	return dx + dy + dz;
-}
-
 float GetDistanceSquared(Vector a, Vector b)
 {
 	float dx = a.x - b.x;
@@ -1022,6 +1022,14 @@ float GetDistanceSquared(Vector a, Vector b)
 	float dz = a.z - b.z;
 
 	return (dx * dx) + (dy * dy) + (dz * dz);
+}
+
+float GetDistanceSquared2D(Vector a, Vector b)
+{
+	float dx = a.x - b.x;
+	float dy = a.y - b.y;
+
+	return (dx * dx) + (dy * dy);
 }
 
 float Squared(float number)

@@ -335,10 +335,10 @@ void BotControl::Think(void)
 
 		if (runThink)
 		{
-			m_bots[i]->m_thinkTimer = engine->GetTime() + (engine->RandomFloat(0.9f, 1.1f) / ebot_think_fps.GetFloat());
+			m_bots[i]->m_thinkTimer = engine->GetTime() + (engine->RandomFloat(0.95f, 1.05f) / ebot_think_fps.GetFloat());
 			m_bots[i]->Think();
 		}
-		else if (!ebot_stopbots.GetBool())
+		else if (!ebot_stopbots.GetBool() && m_bots[i]->m_notKilled && !m_bots[i]->m_isSlowThink)
 			m_bots[i]->FacePosition();
 
 		m_bots[i]->m_moveAnglesForRunMove = m_bots[i]->m_moveAngles;
@@ -663,9 +663,9 @@ void BotControl::RemoveFromTeam(Team team, bool removeAll)
 {
 	// this function remove random bot from specified team (if removeAll value = 1 then removes all players from team)
 
-	for (const auto& client : g_clients)
+	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
-		Bot* bot = g_botManager->GetBot(client.ent);
+		Bot* bot = g_botManager->GetBot(i);
 
 		if (bot != null && team == bot->m_team)
 		{
@@ -739,9 +739,9 @@ void BotControl::KillAll(int team)
 {
 	// this function kills all bots on server (only this dll controlled bots)
 
-	for (const auto& client : g_clients)
+	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
-		Bot* bot = g_botManager->GetBot(client.ent);
+		Bot* bot = g_botManager->GetBot(i);
 
 		if (bot != null)
 		{
@@ -759,9 +759,9 @@ void BotControl::RemoveRandom(void)
 {
 	// this function removes random bot from server (only ebot's)
 
-	for (const auto& client : g_clients)
+	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
-		Bot* bot = g_botManager->GetBot(client.ent);
+		Bot* bot = g_botManager->GetBot(i);
 
 		if (bot != null)  // is this slot used?
 		{
@@ -846,9 +846,9 @@ int BotControl::GetBotsNum(void)
 
 	int count = 0;
 
-	for (const auto& client : g_clients)
+	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
-		Bot* bot = g_botManager->GetBot(client.ent);
+		Bot* bot = g_botManager->GetBot(i);
 
 		if (bot != null)
 			count++;
@@ -1136,7 +1136,7 @@ void Bot::NewRound(void)
 	switch (m_personality)
 	{
 	case PERSONALITY_NORMAL:
-		m_pathType = engine->RandomInt(0, 100) > 50 ? 0 : 1;
+		m_pathType = engine->RandomInt(0, 1) < m_agressionLevel ? 1 : 0;
 		break;
 
 	case PERSONALITY_RUSHER:
@@ -1318,12 +1318,21 @@ void Bot::NewRound(void)
 
 	// and put buying into its message queue
 	PushMessageQueue(CMENU_BUY);
-	PushTask(TASK_NORMAL, TASKPRI_NORMAL, -1, 0.0, true);
+	PushTask(TASK_NORMAL, TASKPRI_NORMAL, -1, 1.0f, true);
 
-	// ebot 1.0 - hear range based on difficulty
+	// hear range based on difficulty
 	m_maxhearrange = float(m_skill * engine->RandomFloat(7.0f, 15.0f));
-
 	m_moveSpeed = pev->maxspeed;
+
+	m_tempstrafeSpeed = engine->RandomInt(1, 2) == 1 ? pev->maxspeed : -pev->maxspeed;
+
+	// find shortest path for start
+	if (GetGameMod() == MODE_BASE)
+	{
+		int index = g_waypoint->FindNearest(m_destOrigin);
+		if (IsValidWaypoint(index))
+			FindShortestPath(m_currentWaypointIndex, index);
+	}
 }
 
 void Bot::Kill(void)

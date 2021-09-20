@@ -335,9 +335,6 @@ void Engine::PrintAllClients(PrintType printType, const char* format, ...)
 }
 
 #pragma warning (disable : 4172)
-
-// it's not temporary! engine holds own list of entites and returns pointer to the list using this func
-
 const Entity& Engine::GetEntityByIndex(int index)
 {
     return g_engfuncs.pfnPEntityOfEntIndex(index);

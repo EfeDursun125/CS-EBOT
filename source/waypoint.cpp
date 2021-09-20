@@ -598,11 +598,11 @@ int Waypoint::FindFarest(const Vector& origin, float maxDistance)
     // find the farest node to that origin, and return the index to this node
 
     int index = -1;
-    maxDistance = maxDistance;
+    maxDistance = Squared(maxDistance);
 
     for (int i = 0; i < g_numWaypoints; i++)
     {
-        float distance = (m_paths[i]->origin - origin).GetLength();
+        float distance = GetDistanceSquared(m_paths[i]->origin, origin);
 
         if (distance > maxDistance)
         {
@@ -729,7 +729,7 @@ int Waypoint::FindNearest(Vector origin, float minDistance, int flags, edict_t* 
 
             for (int z = checkPoint - 1; z >= y; z--)
             {
-                if (z == checkPoint - 1 || wpIndex[z] == -1)
+                if (z == checkPoint - 1 || !IsValidWaypoint(wpIndex[z]))
                     continue;
 
                 wpIndex[z + 1] = wpIndex[z];
@@ -755,7 +755,7 @@ int Waypoint::FindNearest(Vector origin, float minDistance, int flags, edict_t* 
 
         for (int i = 0; i < checkPoint; i++)
         {
-            if (wpIndex[i] < 0 || wpIndex[i] >= g_numWaypoints)
+            if (!IsValidWaypoint(wpIndex[i]))
                 continue;
 
             float distance = g_waypoint->GetPathDistanceFloat(wpIndex[i], mode);
@@ -766,7 +766,7 @@ int Waypoint::FindNearest(Vector origin, float minDistance, int flags, edict_t* 
 
                 for (int z = checkPoint - 1; z >= y; z--)
                 {
-                    if (z == checkPoint - 1 || cdWPIndex[z] == -1)
+                    if (z == checkPoint - 1 || !IsValidWaypoint(cdWPIndex[z]))
                         continue;
 
                     cdWPIndex[z + 1] = cdWPIndex[z];
@@ -800,7 +800,7 @@ int Waypoint::FindNearest(Vector origin, float minDistance, int flags, edict_t* 
             if (findWaypointPoint == (int*)-2)
                 return wpIndex[i];
 
-            if (firsIndex == -1)
+            if (!IsValidWaypoint(firsIndex))
             {
                 firsIndex = wpIndex[i];
                 continue;
@@ -811,7 +811,7 @@ int Waypoint::FindNearest(Vector origin, float minDistance, int flags, edict_t* 
         }
     }
 
-    if (firsIndex == -1)
+    if (!IsValidWaypoint(firsIndex))
         firsIndex = wpIndex[0];
 
     return firsIndex;
@@ -2423,7 +2423,6 @@ void Waypoint::Think(void)
 
     float nearestDistance = FLT_MAX;
 
-    // SyPB Pro P.37 - new save jump point
     if (m_learnJumpWaypoint)
     {
         if (!m_endJumpPoint)
@@ -2617,10 +2616,10 @@ void Waypoint::ShowWaypointMsg(void)
     // now iterate through all waypoints in a map, and draw required ones
     for (int i = 0; i < g_numWaypoints; i++)
     {
-        float distance = GetDistanceSquared(m_paths[i]->origin, GetEntityOrigin(g_hostEntity));
+        float distance = (m_paths[i]->origin - GetEntityOrigin(g_hostEntity)).GetLength();
 
         // check if waypoint is whitin a distance, and is visible
-        if (distance < Squared(500) && ((::IsVisible(m_paths[i]->origin, g_hostEntity) && IsInViewCone(m_paths[i]->origin, g_hostEntity)) || !IsAlive(g_hostEntity) || distance < 2500))
+        if (distance < 500 && ((::IsVisible(m_paths[i]->origin, g_hostEntity) && IsInViewCone(m_paths[i]->origin, g_hostEntity)) || !IsAlive(g_hostEntity) || distance < 2500))
         {
             // check the distance
             if (distance < nearestDistance)
@@ -2734,7 +2733,7 @@ void Waypoint::ShowWaypointMsg(void)
             if (path->index[i] == -1)
                 continue;
 
-            
+
             // jump connection
             if (path->connectionFlags[i] & PATHFLAG_JUMP)
                 engine->DrawLine(g_hostEntity, path->origin, m_paths[path->index[i]]->origin, Color(255, 0, 0, 255), 5, 0, 0, 10);
@@ -2889,13 +2888,13 @@ bool Waypoint::NodesValid(void)
                 if (m_paths[i]->index[j] > g_numWaypoints)
                 {
                     AddLogEntry(LOG_WARNING, "Waypoint %d connected with invalid Waypoint #%d!", i, m_paths[i]->index[j]);
+                    (*g_engfuncs.pfnSetOrigin) (g_hostEntity, m_paths[i]->origin);
                     haveError = true;
                     if (g_sgdWaypoint)
                         ChartPrint("[SgdWP] Waypoint %d connected with invalid Waypoint #%d!", i, m_paths[i]->index[j]);
                 }
 
                 connections++;
-
                 break;
             }
         }
@@ -2905,6 +2904,7 @@ bool Waypoint::NodesValid(void)
             if (!IsConnected(i))
             {
                 AddLogEntry(LOG_WARNING, "Waypoint %d isn't connected with any other Waypoint!", i);
+                (*g_engfuncs.pfnSetOrigin) (g_hostEntity, m_paths[i]->origin);
                 haveError = true;
                 if (g_sgdWaypoint)
                     ChartPrint("[SgdWP] Waypoint %d isn't connected with any other Waypoint!", i);
@@ -2914,6 +2914,7 @@ bool Waypoint::NodesValid(void)
         if (m_paths[i]->pathNumber != i)
         {
             AddLogEntry(LOG_WARNING, "Waypoint %d pathnumber differs from index!", i);
+            (*g_engfuncs.pfnSetOrigin) (g_hostEntity, m_paths[i]->origin);
             haveError = true;
             if (g_sgdWaypoint)
                 ChartPrint("[SgdWP] Waypoint %d pathnumber differs from index!", i);
@@ -3341,7 +3342,7 @@ Path* Waypoint::GetPath(int id)
 void Waypoint::EraseFromHardDisk(void)
 {
     // this function removes waypoint file from the hard disk
-    
+
     String deleteList[5];
 
     // if we're delete waypoint, delete all corresponding to it files
