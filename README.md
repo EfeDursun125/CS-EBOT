@@ -1,5 +1,5 @@
 # CS 1.6 E-BOT
-AI Bot for Counter-Strike based on SyPB/YaPB
+AI Bot for Counter-Strike based on SyPB
 
 This bot can be used for default gamemodes, deathmatch and zombie.
 
