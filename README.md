@@ -12,4 +12,4 @@ This bot can be used for default gamemodes, deathmatch and zombie.
    (For Windows) Add that line "win32 addons\ebot\dlls\ebot.dll" and save it.
    (For Linux) Add that line "linux addons\ebot\dlls\ebot.so" and save it.
    
-Linux version is unoffical!
+Linux version is unoffical! not tested by me.
