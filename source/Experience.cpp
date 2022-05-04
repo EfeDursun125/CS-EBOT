@@ -211,7 +211,7 @@ void BotExperience::Load(void)
     m_data = new ExpData[g_numWaypoints * g_numWaypoints];
 
     if (m_data == null)
-        TerminateOnMalloc();
+        return;
 
     // initialize table by hand to correct values, and NOT zero it out
     for (int t = 0; t < TEAM_COUNT; t++)

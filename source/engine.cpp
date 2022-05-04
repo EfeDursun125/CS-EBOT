@@ -97,7 +97,7 @@ float Engine::GetVectorDotProduct(Vector first, Vector second)
 void Engine::NormalizeVector(Vector vector, Vector output)
 {
     Vector result;
-    float length = float(sqrt((vector.x * vector.x) + (vector.y * vector.y) + (vector.z * vector.z)));
+    float length = Q_rsqrt((vector.x * vector.x) + (vector.y * vector.y) + (vector.z * vector.z));
 
     result.x = (vector.x / length);
     result.y = (vector.y / length);

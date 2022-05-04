@@ -473,6 +473,10 @@ void Bot::ChatSay(bool teamSay, const char* text)
     if (!IsNullString(m_lastStrings) && m_lastStrings == text)
         return;
 
+    // humanize chat
+    if (m_lastChatEnt == GetEntity())
+        return;
+
     char botName[80];
     char botTeam[22];
     char tempMessage[256];
@@ -505,6 +509,7 @@ void Bot::ChatSay(bool teamSay, const char* text)
         }
 
         m_lastStrings[160] = *text;
+        m_lastChatEnt = GetEntity();
 
         MESSAGE_BEGIN(MSG_ONE, g_netMsg->GetId(NETMSG_SAYTEXT), null, client.ent);
         WRITE_BYTE(GetIndex());

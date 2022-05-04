@@ -109,7 +109,7 @@ void Waypoint::Analyze(void)
 
                                     TraceLine(TargetPosition, GetEntityOrigin(ent), true, true, g_hostEntity, &vis);
 
-                                    if (IsNodeReachable(g_waypoint->GetPath(FindNearest(TargetPosition, 250.0f))->origin, TargetPosition) && IsNodeReachable(TargetPosition, g_waypoint->GetPath(FindNearest(TargetPosition, 250.0f))->origin) && vis.flFraction == 1.0f && GetDistanceSquared(TargetPosition, GetEntityOrigin(ent)) <= Squared(ebot_analyze_goal_check_distance.GetFloat()))
+                                    if (IsNodeReachable(g_waypoint->GetPath(FindNearest(TargetPosition, 250.0f))->origin, TargetPosition) && IsNodeReachable(TargetPosition, g_waypoint->GetPath(FindNearest(TargetPosition, 250.0f))->origin) && vis.flFraction == 1.0f && (TargetPosition - GetEntityOrigin(ent)).GetLength() <= ebot_analyze_goal_check_distance.GetFloat())
                                     {
                                         lastwaypointaddtime = engine->GetTime();
                                         Add(100, TargetPosition);
@@ -122,7 +122,7 @@ void Waypoint::Analyze(void)
 
                                     TraceLine(TargetPosition, GetEntityOrigin(ent), true, true, g_hostEntity, &vis);
 
-                                    if (IsNodeReachable(g_waypoint->GetPath(FindNearest(TargetPosition, 250.0f))->origin, TargetPosition) && IsNodeReachable(TargetPosition, g_waypoint->GetPath(FindNearest(TargetPosition, 250.0f))->origin) && vis.flFraction == 1.0f && GetDistanceSquared(TargetPosition, GetEntityOrigin(ent)) <= Squared(ebot_analyze_goal_check_distance.GetFloat()))
+                                    if (IsNodeReachable(g_waypoint->GetPath(FindNearest(TargetPosition, 250.0f))->origin, TargetPosition) && IsNodeReachable(TargetPosition, g_waypoint->GetPath(FindNearest(TargetPosition, 250.0f))->origin) && vis.flFraction == 1.0f && (TargetPosition - GetEntityOrigin(ent)).GetLength() <= ebot_analyze_goal_check_distance.GetFloat())
                                     {
                                         lastwaypointaddtime = engine->GetTime();
                                         Add(100, TargetPosition);
@@ -135,7 +135,7 @@ void Waypoint::Analyze(void)
 
                                     TraceLine(TargetPosition, GetEntityOrigin(ent), true, true, g_hostEntity, &vis);
 
-                                    if (IsNodeReachable(g_waypoint->GetPath(FindNearest(TargetPosition, 250.0f))->origin, TargetPosition) && IsNodeReachable(TargetPosition, g_waypoint->GetPath(FindNearest(TargetPosition, 250.0f))->origin) && vis.flFraction == 1.0f && GetDistanceSquared(TargetPosition, GetEntityOrigin(ent)) <= Squared(ebot_analyze_goal_check_distance.GetFloat()))
+                                    if (IsNodeReachable(g_waypoint->GetPath(FindNearest(TargetPosition, 250.0f))->origin, TargetPosition) && IsNodeReachable(TargetPosition, g_waypoint->GetPath(FindNearest(TargetPosition, 250.0f))->origin) && vis.flFraction == 1.0f && (TargetPosition - GetEntityOrigin(ent)).GetLength() <= ebot_analyze_goal_check_distance.GetFloat())
                                     {
                                         lastwaypointaddtime = engine->GetTime();
                                         Add(100, TargetPosition);
@@ -429,10 +429,6 @@ void Waypoint::AddPath(int addIndex, int pathIndex, float distance, int type)
         {
             path->index[i] = static_cast <int16> (pathIndex);
             path->distances[i] = abs(static_cast <int> (distance));
-
-            if (type == 3 || g_onlyvispath)
-                path->connectionFlags[i] |= PATHFLAG_VISIBLE;
-
             AddLogEntry(LOG_DEFAULT, "Path added from %d to %d", addIndex, pathIndex);
             return;
         }
@@ -454,10 +450,6 @@ void Waypoint::AddPath(int addIndex, int pathIndex, float distance, int type)
     if (slotID != -1)
     {
         AddLogEntry(LOG_DEFAULT, "Path added from %d to %d", addIndex, pathIndex);
-
-        if (type == 3 || g_onlyvispath)
-            path->connectionFlags[slotID] |= PATHFLAG_VISIBLE;
-
         path->index[slotID] = static_cast <int16> (pathIndex);
         path->distances[slotID] = abs(static_cast <int> (distance));
     }
@@ -593,24 +585,19 @@ void Waypoint::AddPathBoost(int addIndex, int pathIndex, float distance)
     }
 }
 
+// find the farest node to that origin, and return the index to this node
 int Waypoint::FindFarest(const Vector& origin, float maxDistance)
 {
-    // find the farest node to that origin, and return the index to this node
-
     int index = -1;
-    maxDistance = Squared(maxDistance);
-
     for (int i = 0; i < g_numWaypoints; i++)
     {
-        float distance = GetDistanceSquared(m_paths[i]->origin, origin);
-
+        float distance = (m_paths[i]->origin - origin).GetLength();
         if (distance > maxDistance)
         {
             index = i;
             maxDistance = distance;
         }
     }
-
     return index;
 }
 
@@ -716,10 +703,9 @@ int Waypoint::FindNearest(Vector origin, float minDistance, int flags, edict_t* 
         if (distance > minDistance)
             continue;
 
-        // SyPB Pro P.43 - Find Waypoint improve
         Vector dest = m_paths[i]->origin;
         float distance2D = (dest - origin).GetLength2D();
-        if (((dest.z > origin.z + 62.0f || dest.z < origin.z - 100.0f) && !(m_paths[i]->flags & WAYPOINT_LADDER)) && Squared(distance2D) <= Squared(130.0f))
+        if (((dest.z > origin.z + 62.0f || dest.z < origin.z - 100.0f) && !(m_paths[i]->flags & WAYPOINT_LADDER)) && distance2D <= 130.0f)
             continue;
 
         for (int y = 0; y < checkPoint; y++)
@@ -1028,7 +1014,7 @@ void Waypoint::Add(int flags, Vector waypointOrigin)
         m_paths[index] = new Path;
 
         if (m_paths[index] == null)
-            TerminateOnMalloc();
+            return;
 
         path = m_paths[index];
 
@@ -1434,13 +1420,11 @@ void Waypoint::ToggleFlags(int toggleFlag)
     }
 }
 
+// this function allow manually setting the zone radius
 void Waypoint::SetRadius(int radius)
 {
-    // this function allow manually setting the zone radius
-
     int index = FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
 
-    // SyPB Pro P.37 - SgdWP
     if (g_sautoWaypoint)
     {
         m_sautoRadius = radius;
@@ -1449,7 +1433,6 @@ void Waypoint::SetRadius(int radius)
 
     if (index != -1)
     {
-        // SyPB Pro P.30 - SgdWP
         if (g_sautoWaypoint)
         {
             if (m_paths[index]->radius > 0)
@@ -1457,36 +1440,31 @@ void Waypoint::SetRadius(int radius)
         }
 
         m_paths[index]->radius = static_cast <float> (radius);
-
-        // play "done" sound...
         PlaySound(g_hostEntity, "common/wpn_hudon.wav");
     }
 }
 
+// this function checks if waypoint A has a connection to waypoint B
 bool Waypoint::IsConnected(int pointA, int pointB)
 {
-    // this function checks if waypoint A has a connection to waypoint B
-
     for (int i = 0; i < Const_MaxPathIndex; i++)
     {
         if (m_paths[pointA]->index[i] == pointB)
             return true;
     }
-
     return false;
 }
 
+// this function finds waypoint the user is pointing at.
 int Waypoint::GetFacingIndex(void)
 {
-    // this function finds waypoint the user is pointing at.
-
     int pointedIndex = -1;
     float viewCone[3] = { 0.0, 0.0, 0.0 };
 
     // find the waypoint the user is pointing at
     for (int i = 0; i < g_numWaypoints; i++)
     {
-        if (GetDistanceSquared(m_paths[i]->origin, GetEntityOrigin(g_hostEntity)) > 250000)
+        if ((m_paths[i]->origin - GetEntityOrigin(g_hostEntity)).GetLengthSquared() > 250000)
             continue;
 
         // get the current view cone
@@ -1827,7 +1805,7 @@ bool Waypoint::Load(int mode)
                     m_paths[i] = new Path;
 
                     if (m_paths[i] == null)
-                        TerminateOnMalloc();
+                        return false;
 
                     fp.Read(m_paths[i], sizeof(Path));
                 }
@@ -1839,16 +1817,7 @@ bool Waypoint::Load(int mode)
         {
             if (strncmp(header.header, FH_WAYPOINTOLD, strlen(FH_WAYPOINTOLD)) == 0)
             {
-                if (header.fileVersion > FV_WAYPOINT && mode == 0)
-                {
-                    m_badMapName = true;
-                    sprintf(m_infoBuffer, "%s.pwf - incorrect waypoint file version (expected '%i' found '%i')", GetMapName(), FV_WAYPOINT, static_cast <int> (header.fileVersion));
-                    AddLogEntry(LOG_ERROR, m_infoBuffer);
-
-                    fp.Close();
-                    return false;
-                }
-                else if (header.fileVersion < FV_WAYPOINT && mode == 0) // lower .pwf versions can be updated.
+                if (header.fileVersion < FV_WAYPOINT && mode == 0) // lower .pwf versions can be updated.
                 {
                     header.fileVersion = FV_WAYPOINT;
 
@@ -1863,10 +1832,12 @@ bool Waypoint::Load(int mode)
                         m_paths[i] = new Path;
 
                         if (m_paths[i] == null)
-                            TerminateOnMalloc();
+                            return false;
 
                         fp.Read(m_paths[i], sizeof(Path));
                     }
+
+                    Save();
 
                     m_waypointPaths = true;
                 }
@@ -1890,10 +1861,12 @@ bool Waypoint::Load(int mode)
                         m_paths[i] = new Path;
 
                         if (m_paths[i] == null)
-                            TerminateOnMalloc();
+                            return false;
 
                         fp.Read(m_paths[i], sizeof(Path));
                     }
+
+                    Save();
 
                     m_waypointPaths = true;
                 }
@@ -1953,13 +1926,8 @@ void Waypoint::Save(void)
     memset(header.author, 0, sizeof(header.author));
     memset(header.header, 0, sizeof(header.header));
 
-    // SyPB Pro P.40 - SgdWP MSG
     char waypointAuthor[32];
-
-    if (g_sgdWaypoint)
-        sprintf(waypointAuthor, "[SgdWP] %s", GetEntityName(g_hostEntity));
-    else
-        sprintf(waypointAuthor, "%s", GetEntityName(g_hostEntity));
+    sprintf(waypointAuthor, "%s", GetEntityName(g_hostEntity));
 
     strcpy(header.header, FH_WAYPOINT);
     strcpy(header.author, waypointAuthor);
@@ -1988,12 +1956,28 @@ void Waypoint::Save(void)
     }
     else
         AddLogEntry(LOG_ERROR, "Error writing '%s.ewp' waypoint file", GetMapName());
+
+    strcpy(header.header, FH_WAYPOINTOLD);
+    header.fileVersion = FV_WAYPOINT - 1;
+
+    // save as .pwf for older versions
+    File fp2(CheckSubfolderFileOld(), "wb");
+    if (fp2.IsValid())
+    {
+        // write the waypoint header to the file...
+        fp2.Write(&header, sizeof(header), 1);
+
+        // save the waypoint paths...
+        for (int i = 0; i < g_numWaypoints; i++)
+            fp2.Write(m_paths[i], sizeof(Path));
+
+        fp2.Close();
+    }
 }
 
 String Waypoint::CheckSubfolderFile(void)
 {
     String returnFile = "";
-
     returnFile = FormatBuffer("%s/%s.ewp", GetWaypointDir(), GetMapName());
 
     if (TryFileOpen(returnFile))
@@ -2007,6 +1991,17 @@ String Waypoint::CheckSubfolderFile(void)
     }
 
     return FormatBuffer("%s%s.ewp", GetWaypointDir(), GetMapName());
+}
+
+String Waypoint::CheckSubfolderFileOld(void)
+{
+    String returnFile = "";
+    returnFile = FormatBuffer("%s/%s.pwf", GetWaypointDir(), GetMapName());
+
+    if (TryFileOpen(returnFile))
+        return returnFile;
+
+    return FormatBuffer("%s%s.pwf", GetWaypointDir(), GetMapName());
 }
 
 void Waypoint::SaveXML(void)
@@ -2601,7 +2596,6 @@ void Waypoint::Think(void)
     ShowWaypointMsg();
 }
 
-// SyPB Pro P.38 - Show Waypoint Msg
 void Waypoint::ShowWaypointMsg(void)
 {
     if (FNullEnt(g_hostEntity))
@@ -2672,11 +2666,11 @@ void Waypoint::ShowWaypointMsg(void)
 
                 // draw node without additional flags
                 if (nodeFlagColor.red == -1)
-                    engine->DrawLine(g_hostEntity, m_paths[i]->origin - Vector(0.0f, 0.0f, nodeHalfHeight), m_paths[i]->origin + Vector(0.0f, 0.0f, nodeHalfHeight), nodeColor, 15, 0, 0, 10);
+                    engine->DrawLine(g_hostEntity, m_paths[i]->origin - Vector(0.0f, 0.0f, nodeHalfHeight), m_paths[i]->origin + Vector(0.0f, 0.0f, nodeHalfHeight), nodeColor, 7, 0, 0, 10);
                 else // draw node with flags
                 {
-                    engine->DrawLine(g_hostEntity, m_paths[i]->origin - Vector(0.0f, 0.0f, nodeHalfHeight), m_paths[i]->origin - Vector(0.0f, 0.0f, nodeHalfHeight - nodeHeight * 0.75f), nodeColor, 14, 0, 0, 10); // draw basic path
-                    engine->DrawLine(g_hostEntity, m_paths[i]->origin - Vector(0.0f, 0.0f, nodeHalfHeight - nodeHeight * 0.75f), m_paths[i]->origin + Vector(0.0f, 0.0f, nodeHalfHeight), nodeFlagColor, 14, 0, 0, 10); // draw additional path
+                    engine->DrawLine(g_hostEntity, m_paths[i]->origin - Vector(0.0f, 0.0f, nodeHalfHeight), m_paths[i]->origin - Vector(0.0f, 0.0f, nodeHalfHeight - nodeHeight * 0.75f), nodeColor, 6, 0, 0, 10); // draw basic path
+                    engine->DrawLine(g_hostEntity, m_paths[i]->origin - Vector(0.0f, 0.0f, nodeHalfHeight - nodeHeight * 0.75f), m_paths[i]->origin + Vector(0.0f, 0.0f, nodeHalfHeight), nodeFlagColor, 6, 0, 0, 10); // draw additional path
                 }
 
                 m_waypointDisplayTime[i] = engine->GetTime();
@@ -2740,8 +2734,6 @@ void Waypoint::ShowWaypointMsg(void)
             // boosting friend connection
             else if (path->connectionFlags[i] & PATHFLAG_DOUBLE)
                 engine->DrawLine(g_hostEntity, path->origin, m_paths[path->index[i]]->origin, Color(0, 0, 255, 255), 5, 0, 0, 10);
-            else if (path->connectionFlags[i] & PATHFLAG_VISIBLE)
-                engine->DrawLine(g_hostEntity, path->origin, m_paths[path->index[i]]->origin, Color(165, 225, 0, 255), 5, 0, 0, 10);
             else if (IsConnected(path->index[i], nearestIndex)) // twoway connection
                 engine->DrawLine(g_hostEntity, path->origin, m_paths[path->index[i]]->origin, Color(255, 255, 0, 255), 5, 0, 0, 10);
             else // oneway connection
@@ -2761,7 +2753,7 @@ void Waypoint::ShowWaypointMsg(void)
         // if radius is nonzero, draw a square
         if (path->radius > 0.0f)
         {
-            const float root = sqrtf(path->radius * path->radius * 0.6f);
+            const float root = path->radius;
             const Color& def = Color(0, 0, 255, 255);
 
             engine->DrawLine(g_hostEntity, origin + Vector(root, root, 0), origin + Vector(-root, root, 0), def, 5, 0, 0, 10);
@@ -2771,7 +2763,7 @@ void Waypoint::ShowWaypointMsg(void)
         }
         else
         {
-            const float root = sqrtf(32.0f);
+            const float root = 5.0f;
             const Color& def = Color(0, 0, 255, 255);
 
             engine->DrawLine(g_hostEntity, origin + Vector(root, -root, 0), origin + Vector(-root, root, 0), def, 5, 0, 0, 10);
@@ -3024,7 +3016,7 @@ void Waypoint::InitPathMatrix(void)
     m_pathMatrix = new int[g_numWaypoints * g_numWaypoints];
 
     if (m_distMatrix == null || m_pathMatrix == null)
-        TerminateOnMalloc();
+        return;
 
     if (LoadPathMatrix())
         return; // matrix loaded from file

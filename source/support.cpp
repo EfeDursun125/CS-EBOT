@@ -399,10 +399,9 @@ void DecalTrace(entvars_t* pev, TraceResult* trace, int logotypeIndex)
 	}
 }
 
+// this function free's all allocated memory
 void FreeLibraryMemory(void)
 {
-	// this function free's all allocated memory
-
 	g_botManager->Free();
 	g_waypoint->Initialize(); // frees waypoint data
 }
@@ -425,12 +424,9 @@ void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
 	// supply directly the whole string as if you were typing it in the bot's "console". It
 	// is supposed to work exactly like the pfnClientCommand (server-sided client command).
 
-	// This Use YaPB Lastly Version 
-
 	if (FNullEnt(fakeClient))
 		return; // reliability check
 
-	// SyPB Pro P.42 - Base Fixed
 	if (!IsValidBot(fakeClient))
 		return;
 
@@ -668,13 +664,11 @@ void CreatePath(char* path)
 #endif
 }
 
+// this is called at the start of each round
 void RoundInit(void)
 {
-	// this is called at the start of each round
-
 	g_roundEnded = false;
 
-	// SyPB Pro P.35 - Game Mode Setting
 	if (GetGameMod() == MODE_BASE)
 	{
 		// check team economics
@@ -693,7 +687,6 @@ void RoundInit(void)
 	g_waypoint->SetBombPosition(true);
 	g_waypoint->ClearGoalScore();
 
-	// SyPB Pro P.38 - Zombie Mode Human Camp 
 	g_waypoint->InitTypes(1);
 
 	g_bombSayString = false;
@@ -715,22 +708,17 @@ void RoundInit(void)
 	g_timeRoundEnd = g_timeRoundStart + engine->GetRoundTime() * 60;
 }
 
-// SyPB Pro P.43 - Game Mode Setting
 void AutoLoadGameMode(void)
 {
-	// SyPB Pro P.47 - Game Mode Check
 	if (!g_isMetamod)
 		return;
 
-	// SyPB Pro P.45 - Game Mode Check Num
 	static int checkShowTextTime = 0;
 	checkShowTextTime++;
 
 	// CS:BTE Support 
 	char* Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/bte_player.ini", GetModName());
-	if (TryFileOpen(Plugin_INI) ||
-		// SyPB Pro P.45 - BTE Facebook Version Support
-		TryFileOpen(FormatBuffer("%s/addons/amxmodx/configs/bte_config/bte_blockresource.txt", GetModName())))
+	if (TryFileOpen(Plugin_INI) || TryFileOpen(FormatBuffer("%s/addons/amxmodx/configs/bte_config/bte_blockresource.txt", GetModName())))
 	{
 		const int Const_GameModes = 13;
 		int bteGameModAi[Const_GameModes] =
@@ -775,23 +763,21 @@ void AutoLoadGameMode(void)
 					g_DelayTimer = engine->GetTime() + 20.0f + CVAR_GET_FLOAT("mp_freezetime");
 
 				if (checkShowTextTime < 3 || GetGameMod() != bteGameModAi[i])
-					ServerPrint("*** ebot Auto Game Mode Setting: CS:BTE [%s] [%d] ***", bteGameINI[i], bteGameModAi[i]);
+					ServerPrint("*** E-BOT Auto Game Mode Setting: CS:BTE [%s] [%d] ***", bteGameINI[i], bteGameModAi[i]);
 
 				if (i == 3 || i == 9)
 				{
-					ServerPrint("***** ebot not support the mode now :( *****");
-					ServerPrint("***** ebot not support the mode now :( *****");
-					ServerPrint("***** ebot not support the mode now :( *****");
+					ServerPrint("***** E-BOT not support the mode now :( *****");
+					ServerPrint("***** E-BOT not support the mode now :( *****");
+					ServerPrint("***** E-BOT not support the mode now :( *****");
 
 					SetGameMod(MODE_TDM);
 				}
 				else
 					SetGameMod(bteGameModAi[i]);
 
-				// SyPB Pro P.36 - bte support 
 				g_gameVersion = CSVER_CZERO;
 
-				// SyPB Pro P.46 - BTE support improve
 				// Only ZM3 need restart the round
 				if (checkShowTextTime < 3 && i == 7)
 					ServerCommand("sv_restart 1");
@@ -803,18 +789,20 @@ void AutoLoadGameMode(void)
 		goto lastly;
 	}
 
-	// ZP
+	// Zombie
 	char* zpGameVersion[] =
 	{
-		"plugins-zplague",  // ZP4.3
-		"plugins-zp50_ammopacks", // ZP5.0
-		"plugins-zp50_money", // ZP5.0
-		"plugins-ze",
-		"plugins-zp",
-		"plugins-zescape"
+		"plugins-zplague",  // ZP 4.3
+		"plugins-zp50_ammopacks", // ZP 5.0
+		"plugins-zp50_money", // ZP 5.0
+		"plugins-ze", // ZE
+		"plugins-zp", // ZP
+		"plugins-zescape", // ZE
+		"plugins-escape", // ZE
+		"plugins-plague" // ZP
 	};
 
-	for (int i = 0; i < 6; i++)
+	for (int i = 0; i < 8; i++)
 	{
 		Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/%s.ini", GetModName(), zpGameVersion[i]);
 		if (TryFileOpen(Plugin_INI))
@@ -827,7 +815,7 @@ void AutoLoadGameMode(void)
 			if (delayTime > 0)
 			{
 				if (checkShowTextTime < 3 || GetGameMod() != MODE_ZP)
-					ServerPrint("*** ebot Auto Game Mode Setting: Zombie Mode (ZP) ***");
+					ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Mode (Zombie Plague/Escape) ***");
 
 				SetGameMod(MODE_ZP);
 
@@ -839,7 +827,7 @@ void AutoLoadGameMode(void)
 		}
 	}
 
-	// BB
+	// Base Builder
 	char* bbVersion[] =
 	{
 		"plugins-basebuilder",
@@ -856,7 +844,7 @@ void AutoLoadGameMode(void)
 			if (delayTime > 0)
 			{
 				if (checkShowTextTime < 3 || GetGameMod() != MODE_ZP)
-					ServerPrint("*** ebot Auto Game Mode Setting: Zombie Mode (ZP) ***");
+					ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Mode (Base Builder) ***");
 
 				SetGameMod(MODE_ZP);
 
@@ -871,17 +859,17 @@ void AutoLoadGameMode(void)
 	Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/plugins-dmkd.ini", GetModName());
 	if (TryFileOpen(Plugin_INI))
 	{
-		if (CVAR_GET_FLOAT("HsK_Deathmatch_Plugin_load_ebot") == 1 || CVAR_GET_FLOAT("DMKD_DMMODE") == 1)
+		if (CVAR_GET_FLOAT("HsK_Deathmatch_Plugin_load_sypb") == 1 || CVAR_GET_FLOAT("DMKD_DMMODE") == 1)
 		{
 			if (checkShowTextTime < 3 || GetGameMod() != MODE_DM)
-				ServerPrint("*** ebot Auto Game Mode Setting: DM:KD-DM ***");
+				ServerPrint("*** E-BOT Auto Game Mode Setting: DM:KD-DM ***");
 
 			SetGameMod(MODE_DM);
 		}
 		else
 		{
 			if (checkShowTextTime < 3 || GetGameMod() != MODE_TDM)
-				ServerPrint("*** ebot Auto Game Mode Setting: DM:KD-TDM ***");
+				ServerPrint("*** E-BOT Auto Game Mode Setting: DM:KD-TDM ***");
 
 			SetGameMod(MODE_TDM);
 		}
@@ -894,7 +882,7 @@ void AutoLoadGameMode(void)
 	if (TryFileOpen(Plugin_INI) && CVAR_GET_FLOAT("zh_zombie_maxslots") > 0)
 	{
 		if (checkShowTextTime < 3 || GetGameMod() != MODE_ZH)
-			ServerPrint("*** ebot Auto Game Mode Setting: Zombie Hell ***");
+			ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Hell ***");
 
 		SetGameMod(MODE_ZH);
 
@@ -913,7 +901,7 @@ void AutoLoadGameMode(void)
 		if (delayTime > 0)
 		{
 			if (GetGameMod() != MODE_ZP)
-				ServerPrint("*** ebot Auto Game Mode Setting: Zombie Mode (Biohazard) ***");
+				ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Mode (Biohazard) ***");
 
 			SetGameMod(MODE_ZP);
 
@@ -931,10 +919,9 @@ void AutoLoadGameMode(void)
 
 		ebot_anti_block.SetInt(1);
 
-		ServerPrint("*** ebot Anti-Block Enabled ***");
+		ServerPrint("*** E-BOT Anti-Block Enabled ***");
 	}
 
-	// SyPB Pro P.47 - CSDM Mode Check
 	static auto dmActive = g_engfuncs.pfnCVarGetPointer("csdm_active");
 	static auto freeForAll = g_engfuncs.pfnCVarGetPointer("mp_freeforall");
 
@@ -945,14 +932,14 @@ void AutoLoadGameMode(void)
 			if (freeForAll->value > 0.0f)
 			{
 				if (checkShowTextTime < 3 || GetGameMod() != MODE_DM)
-					ServerPrint("*** ebot Auto Game Mode Setting: CSDM-DM ***");
+					ServerPrint("*** E-BOT Auto Game Mode Setting: CSDM-DM ***");
 
 				SetGameMod(MODE_DM);
 			}
 			else
 			{
 				if (checkShowTextTime < 3 || GetGameMod() != MODE_TDM)
-					ServerPrint("*** ebot Auto Game Mode Setting: CSDM-TDM ***");
+					ServerPrint("*** E-BOT Auto Game Mode Setting: CSDM-TDM ***");
 
 				SetGameMod(MODE_TDM);
 			}
@@ -962,9 +949,9 @@ void AutoLoadGameMode(void)
 	if (checkShowTextTime < 3)
 	{
 		if (GetGameMod() == MODE_BASE)
-			ServerPrint("*** ebot Auto Game Mode Setting: Base Mode ***");
+			ServerPrint("*** E-BOT Auto Game Mode Setting: Base Mode ***");
 		else
-			ServerPrint("*** ebot Auto Game Mode Setting: N/A ***");
+			ServerPrint("*** E-BOT Auto Game Mode Setting: N/A ***");
 	}
 
 lastly:
@@ -1012,57 +999,42 @@ bool IsDeathmatchMode(void)
 
 bool ChanceOf(int number)
 {
-	return engine->RandomInt(1, 100) <= number;
-}
-
-float GetDistanceSquared(Vector a, Vector b)
-{
-	float dx = a.x - b.x;
-	float dy = a.y - b.y;
-	float dz = a.z - b.z;
-
-	return (dx * dx) + (dy * dy) + (dz * dz);
-}
-
-float GetDistanceSquared2D(Vector a, Vector b)
-{
-	float dx = a.x - b.x;
-	float dy = a.y - b.y;
-
-	return (dx * dx) + (dy * dy);
-}
-
-float Squared(float number)
-{
-	return (number * number);
+	srand(time(0));
+	return (1 + (rand() % 100)) <= number;
 }
 
 bool IsValidWaypoint(int index)
 {
 	if (index < 0 || index > g_numWaypoints)
 		return false;
-
 	return true;
 }
 
 int GetGameMod(void)
 {
-	// SyPB Pro P.2
-	// return the gamemod
-
 	return ebot_gamemod.GetInt();
 }
 
+float Q_rsqrt(float number)
+{
+	long i;
+	float x2, y;
+	const float threehalfs = 1.5F;
+	x2 = number * 0.5F;
+	y = number;
+	i = *(long*)&y;
+	i = 0x5f3759df - (i >> 1);
+	y = *(float*)&i;
+	y = y * (threehalfs - (x2 * y * y));
+	return y * number;
+}
+
+// new get team off set, return player true team
 int GetTeam(edict_t* ent)
 {
-	// SyPB Pro P.1
-	// new get team off set, return player true team
 	int client = ENTINDEX(ent) - 1, player_team = TEAM_COUNT;
-
-	// SyPB Pro P.5
 	if (!IsValidPlayer(ent))
 	{
-		// SyPB Pro P.42 - Entity Team
 		player_team = 0;
 		for (int i = 0; i < entityNum; i++)
 		{
@@ -1079,7 +1051,6 @@ int GetTeam(edict_t* ent)
 		return player_team;
 	}
 
-	// SyPB Pro P.42 - Small Change 
 	if (GetGameMod() == MODE_DM)
 		player_team = client + 10;
 	else if (GetGameMod() == MODE_ZP)
@@ -1101,7 +1072,6 @@ int GetTeam(edict_t* ent)
 	return player_team;
 }
 
-// SyPB Pro P.42 - Base Waypoint improve
 int SetEntityWaypoint(edict_t* ent, int mode)
 {
 	if (FNullEnt(ent))
@@ -1118,7 +1088,6 @@ int SetEntityWaypoint(edict_t* ent, int mode)
 		i = ENTINDEX(ent) - 1;
 	else
 	{
-		// SyPB Pro P.45 - Small Bug Fixed
 		for (int j = 0; j < entityNum; j++)
 		{
 			if (g_entityId[j] == -1 || ent != INDEXENT(g_entityId[j]))
@@ -1218,7 +1187,6 @@ int SetEntityWaypoint(edict_t* ent, int mode)
 	return wpIndex;
 }
 
-// SyPB Pro P.41 - Base Waypoint improve
 int GetEntityWaypoint(edict_t* ent)
 {
 	if (FNullEnt(ent))
@@ -1226,7 +1194,6 @@ int GetEntityWaypoint(edict_t* ent)
 
 	if (!IsValidPlayer(ent))
 	{
-		// SyPB Pro P.42 - Entity TraceLine improve
 		for (int i = 0; i < entityNum; i++)
 		{
 			if (g_entityId[i] == -1)
@@ -1244,7 +1211,6 @@ int GetEntityWaypoint(edict_t* ent)
 		return g_waypoint->FindNearest(GetEntityOrigin(ent), 9999.0f, -1, ent);
 	}
 
-	// SyPB Pro P.42 - Base Waypoint improve
 	int client = ENTINDEX(ent) - 1;
 	if (g_clients[client].getWPTime < engine->GetTime() + 1.5f || (g_clients[client].wpIndex == -1 && g_clients[client].wpIndex2 == -1))
 		SetEntityWaypoint(ent);
@@ -1257,7 +1223,6 @@ bool IsZombieEntity(edict_t* ent)
 	if (FNullEnt(ent))
 		return false;
 
-	// SyPB Pro P.40 - NPC Fixed
 	if (!IsValidPlayer(ent))
 		return false;
 
@@ -1266,11 +1231,9 @@ bool IsZombieEntity(edict_t* ent)
 	if (g_clients[playerId].isZombiePlayerAPI != -1)
 		return (g_clients[playerId].isZombiePlayerAPI == 1) ? true : false;
 
-	// SyPB Pro P.38 - Knife Mode Use Zombie Ai
 	if (ebot_knifemode.GetBool())
 		return true;
 
-	// SyPB Pro P.12
 	if (IsZombieMode()) // Zombie Mod
 		return (GetTeam(ent) == TEAM_TERRORIST);
 
@@ -1281,11 +1244,8 @@ bool IsValidPlayer(edict_t* ent)
 {
 	if (FNullEnt(ent))
 		return false;
-
-	// SyPB Pro P.23 - Fixed
 	if ((ent->v.flags & (FL_CLIENT | FL_FAKECLIENT)) || (strcmp(STRING(ent->v.classname), "player") == 0))
 		return true;
-
 	return false;
 }
 
@@ -1293,23 +1253,19 @@ bool IsValidBot(edict_t* ent)
 {
 	if (g_botManager->GetBot(ent) != null || (!FNullEnt(ent) && (ent->v.flags & FL_FAKECLIENT)))
 		return true;
-
 	return false;
 }
 
+// return true if server is dedicated server, false otherwise
 bool IsDedicatedServer(void)
 {
-	// return true if server is dedicated server, false otherwise
-
 	return (IS_DEDICATED_SERVER() > 0); // ask engine for this
 }
 
+// this function tests if a file exists by attempting to open it
 bool TryFileOpen(char* fileName)
 {
-	// this function tests if a file exists by attempting to open it
-
 	File fp;
-
 	// check if got valid handle
 	if (fp.Open(fileName, "rb"))
 	{
@@ -1463,9 +1419,9 @@ void ClientPrint(edict_t* ent, int dest, const char* format, ...)
 
 }
 
+// this function returns true if server is running under linux, and false otherwise (i.e. win32)
 bool IsLinux(void)
 {
-	// this function returns true if server is running under linux, and false otherwise (i.e. win32)
 #ifndef PLATFORM_WIN32
 	return true;
 #else
@@ -1473,10 +1429,9 @@ bool IsLinux(void)
 #endif
 }
 
+// this function asks the engine to execute a server command
 void ServerCommand(const char* format, ...)
 {
-	// this function asks the engine to execute a server command
-
 	va_list ap;
 	static char string[1024];
 
@@ -1490,7 +1445,6 @@ void ServerCommand(const char* format, ...)
 
 const char* GetEntityName(edict_t* entity)
 {
-	// SyPB Pro P.48 - Name Fixed 
 	static char entityName[256];
 	if (FNullEnt(entity))
 		strcpy(entityName, "NULL");
@@ -1498,14 +1452,12 @@ const char* GetEntityName(edict_t* entity)
 		strcpy(entityName, (char*)STRING(entity->v.netname));
 	else
 		strcpy(entityName, (char*)STRING(entity->v.classname));
-
 	return &entityName[0];
 }
 
+// this function gets the map name and store it in the map_name global string variable.
 const char* GetMapName(void)
 {
-	// this function gets the map name and store it in the map_name global string variable.
-
 	static char mapName[256];
 	strcpy(mapName, STRING(g_pGlobals->mapname));
 
@@ -1521,8 +1473,7 @@ bool OpenConfig(const char* fileName, char* errorIfNotExists, File* outFile, boo
 	{
 		extern ConVar ebot_language;
 
-		if (strcmp(fileName, "lang.cfg") <= 0 && //ebot_language.GetString () == "en")
-			ebot_language.GetString()[0] == 'e' && ebot_language.GetString()[1] == 'n')
+		if (strcmp(fileName, "lang.cfg") <= 0 && ebot_language.GetString () == "en")
 			return false;
 
 		char* languageDependantConfigFile = FormatBuffer("%s/addons/ebot/language/%s_%s", GetModName(), ebot_language.GetString(), fileName);
@@ -1549,21 +1500,17 @@ const char* GetWaypointDir(void)
 	return FormatBuffer("%s/addons/ebot/waypoints/", GetModName());
 }
 
-
+// this function tells the engine that a new server command is being declared, in addition
+// to the standard ones, whose name is command_name. The engine is thus supposed to be aware
+// that for every "command_name" server command it receives, it should call the function
+// pointed to by "function" in order to handle it.
 void RegisterCommand(char* command, void funcPtr(void))
 {
-	// this function tells the engine that a new server command is being declared, in addition
-	// to the standard ones, whose name is command_name. The engine is thus supposed to be aware
-	// that for every "command_name" server command it receives, it should call the function
-	// pointed to by "function" in order to handle it.
-
 	if (IsNullString(command) || funcPtr == null)
 		return; // reliability check
-
 	REG_SVR_COMMAND(command, funcPtr); // ask the engine to register this new command
 }
 
-// SyPB Pro P.47 - Small Welcome Msg improve
 void CheckWelcomeMessage(void)
 {
 	static float receiveTime = -1.0f;
@@ -1655,15 +1602,11 @@ void PlaySound(edict_t* ent, const char* name)
 {
 	// TODO: make this obsolete
 	EMIT_SOUND_DYN2(ent, CHAN_WEAPON, name, 1.0, ATTN_NORM, 0, 100);
-
-	return;
 }
 
-
+// this function logs a message to the message log file root directory.
 void AddLogEntry(int logLevel, const char* format, ...)
 {
-	// this function logs a message to the message log file root directory.
-
 	va_list ap;
 	char buffer[512] = { 0, }, levelString[32] = { 0, }, logLine[1024] = { 0, };
 
@@ -1692,9 +1635,6 @@ void AddLogEntry(int logLevel, const char* format, ...)
 
 	sprintf(logLine, "%s%s", levelString, buffer);
 	MOD_AddLogEntry(-1, logLine);
-
-	if (logLevel == LOG_FATAL)
-		FreeLibraryMemory();
 }
 
 void MOD_AddLogEntry(int mod, char* format)
@@ -1753,7 +1693,7 @@ void MOD_AddLogEntry(int mod, char* format)
 	sprintf(logLine, "[%02d:%02d:%02d] %s", time->tm_hour, time->tm_min, time->tm_sec, format);
 	fp.Print("%s\n", logLine);
 	if (mod != -1)
-		fp.Print("ebot Build: %u.%u.%u.%u  \n", bV16[0], bV16[1], bV16[2], bV16[3]);
+		fp.Print("E-BOT Build: %u.%u.%u.%u  \n", bV16[0], bV16[1], bV16[2], bV16[3]);
 	fp.Print("----------------------------- \n");
 	fp.Close();
 }
@@ -1790,12 +1730,11 @@ char* Localizer::TranslateInput(const char* input)
 	return const_cast <char*> (&input[0]); // nothing found
 }
 
+// this function finds nearest to to, player with set of parameters, like his
+// team, live status, search distance etc. if needBot is true, then pvHolder, will
+// be filled with bot pointer, else with edict pointer(!).
 bool FindNearestPlayer(void** pvHolder, edict_t* to, float searchDistance, bool sameTeam, bool needBot, bool isAlive, bool needDrawn)
 {
-	// this function finds nearest to to, player with set of parameters, like his
-	// team, live status, search distance etc. if needBot is true, then pvHolder, will
-	// be filled with bot pointer, else with edict pointer(!).
-
 	edict_t* ent = null, * survive = null; // pointer to temporaly & survive entity
 	float nearestPlayer = 4096.0f; // nearest player
 
@@ -1828,11 +1767,10 @@ bool FindNearestPlayer(void** pvHolder, edict_t* to, float searchDistance, bool 
 	return true;
 }
 
+// this function called by the sound hooking code (in emit_sound) enters the played sound into
+// the array associated with the entity
 void SoundAttachToThreat(edict_t* ent, const char* sample, float volume)
 {
-	// this function called by the sound hooking code (in emit_sound) enters the played sound into
-	// the array associated with the entity
-
 	if (FNullEnt(ent) || IsNullString(sample))
 		return; // reliability check
 
@@ -1860,7 +1798,6 @@ void SoundAttachToThreat(edict_t* ent, const char* sample, float volume)
 		}
 	}
 
-	// SyPB Pro P.29 - Debug (player plug-in/maps bug)
 	if (index < 0 || index >= engine->GetMaxClients())
 		return;
 
@@ -1915,11 +1852,10 @@ void SoundAttachToThreat(edict_t* ent, const char* sample, float volume)
 	}
 }
 
+// this function tries to simulate playing of sounds to let the bots hear sounds which aren't
+// captured through server sound hooking
 void SoundSimulateUpdate(int playerIndex)
 {
-	// this function tries to simulate playing of sounds to let the bots hear sounds which aren't
-	// captured through server sound hooking
-
 	InternalAssert(playerIndex >= 0);
 	InternalAssert(playerIndex < engine->GetMaxClients());
 
@@ -1994,10 +1930,9 @@ void SoundSimulateUpdate(int playerIndex)
 	}
 }
 
+// this function returning weapon id from the weapon alias and vice versa.
 int GetWeaponReturn(bool needString, const char* weaponAlias, int weaponID)
 {
-	// this function returning weapon id from the weapon alias and vice versa.
-
 	// structure definition for weapon tab
 	struct WeaponTab_t
 	{

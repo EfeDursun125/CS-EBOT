@@ -24,11 +24,9 @@
 
 #include <core.h>
 
-ConVar ebot_quota("ebot_quota", "20");
+ConVar ebot_quota("ebot_quota", "10");
 ConVar ebot_forceteam("ebot_forceteam", "any");
 ConVar ebot_auto_players("ebot_auto_players", "-1");
-
-// SyPB Pro P.47 - New Cvar 'ebot_quota_save'
 ConVar ebot_quota_save("ebot_quota_save", "-1");
 
 ConVar ebot_difficulty("ebot_difficulty", "4");
@@ -39,7 +37,7 @@ ConVar ebot_nametag("ebot_nametag", "2");
 
 ConVar ebot_join_after_player("ebot_join_after_player", "0");
 
-ConVar ebot_think_fps("ebot_think_fps", "24.0");
+ConVar ebot_think_fps("ebot_think_fps", "20.0");
 
 ConVar ebot_ping("ebot_fake_ping", "1");
 
@@ -152,7 +150,6 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 		return -1;
 	}
 
-	// SyPB Pro P.35 - New skill level
 	if (skill <= 0 || skill > 100)
 	{
 		if (ebot_difficulty.GetInt() >= 4)
@@ -163,7 +160,6 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 			skill = engine->RandomInt(50, 79);
 		else if (ebot_difficulty.GetInt() == 1)
 			skill = engine->RandomInt(30, 50);
-		// SyPB Pro P.37 - skill level improve
 		else if (ebot_difficulty.GetInt() == 0)
 			skill = engine->RandomInt(1, 30);
 		else
@@ -223,12 +219,11 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 			}
 		}
 		else
-			sprintf(outputName, "bot%i", engine->RandomInt(-9999, 9999)); // just pick ugly random name
+			sprintf(outputName, "e-bot %i", engine->RandomInt(1, 9999)); // just pick ugly random name
 	}
 	else
 		sprintf(outputName, "%s", (char*)name);
 
-	// SyPB Pro P.37 - Bot Name / Tag
 	char botName[64];
 	if (ebot_nametag.GetInt() == 2)
 		snprintf(botName, sizeof botName, "[E-BOT] %s (%d)", outputName, skill);
@@ -251,7 +246,7 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 	m_bots[index] = new Bot(bot, skill, personality, team, member);
 
 	if (m_bots == null)
-		TerminateOnMalloc();
+		return -1;
 
 	ServerPrint("Connecting Bot - [%s] Skill (%d)", GetEntityName(bot), skill);
 
@@ -378,10 +373,10 @@ void BotControl::AddBot(const String& name, const String& skill, const String& p
 	const String& any = "*";
 
 	queueID.name = (name.IsEmpty() || (name == any)) ? String("\0") : name;
-	queueID.skill = (skill.IsEmpty() || (skill == any)) ? -1 : skill;
-	queueID.team = (team.IsEmpty() || (team == any)) ? -1 : team;
-	queueID.member = (member.IsEmpty() || (member == any)) ? -1 : member;
-	queueID.personality = (personality.IsEmpty() || (personality == any)) ? -1 : personality;
+	queueID.skill = (skill.IsEmpty() || (skill == any)) ? -1 : int(skill);
+	queueID.team = (team.IsEmpty() || (team == any)) ? -1 : int(team);
+	queueID.member = (member.IsEmpty() || (member == any)) ? -1 : int(member);
+	queueID.personality = (personality.IsEmpty() || (personality == any)) ? -1 : int(personality);
 
 	m_creationTab.Push(queueID);
 

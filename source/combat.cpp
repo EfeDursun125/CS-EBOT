@@ -38,7 +38,7 @@ int Bot::GetNearbyFriendsNearPosition(Vector origin, int radius)
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != m_team || client.ent == GetEntity())
 			continue;
 
-		if (GetDistanceSquared(client.origin, origin) < float(radius * radius))
+		if ((client.origin - origin).GetLength() <= radius)
 			count++;
 	}
 
@@ -53,14 +53,13 @@ int Bot::GetNearbyEnemiesNearPosition(Vector origin, int radius)
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team == m_team)
 			continue;
 
-		if (GetDistanceSquared(client.origin, origin) < float(radius * radius))
+		if ((client.origin - origin).GetLength() <= radius)
 			count++;
 	}
 
 	return count;
 }
 
-// SyPB Pro P.42 - Find Enemy Ai improve
 float Bot::GetEntityDistance(edict_t* entity)
 {
 	if (FNullEnt(entity))
@@ -249,13 +248,6 @@ bool Bot::LookupEnemy(void)
 				if (m_allEnemyDistance[i] > m_enemyEntityDistance[y])
 					continue;
 
-				if (m_allEnemyDistance[i] == m_enemyEntityDistance[y])
-				{
-					if ((pev->origin - GetEntityOrigin(INDEXENT(m_allEnemyId[i])).GetLength()) >
-						(pev->origin - GetEntityOrigin(INDEXENT(m_enemyEntityId[y])).GetLength()))
-						continue;
-				}
-
 				for (int z = allEnemy - 1; z >= y; z--)
 				{
 					if (z == allEnemy - 1 || m_enemyEntityId[z] == -1)
@@ -272,7 +264,6 @@ bool Bot::LookupEnemy(void)
 			}
 		}
 
-		// SyPB Pro P.42 - Look up enemy improve
 		bool allCheck = false;
 		if ((m_isZombieBot || (m_currentWaypointIndex == WEAPON_KNIFE && targetEntity == m_moveTargetEntity)) && FNullEnt(m_enemy) && !FNullEnt(m_moveTargetEntity))
 		{
@@ -349,7 +340,6 @@ bool Bot::LookupEnemy(void)
 			targetEntity = null;
 	}
 
-	// SyPB Pro P.48 - Shootable Thru Obstacle improve
 	if (!FNullEnt(m_enemy) && FNullEnt(targetEntity))
 	{
 		if (m_isZombieBot || (m_currentWaypointIndex == WEAPON_KNIFE && targetEntity == m_moveTargetEntity))
@@ -369,15 +359,10 @@ bool Bot::LookupEnemy(void)
 
 	if (!FNullEnt(targetEntity))
 	{
-		// SyPB Pro P.34 - Zombie Ai
 		if (m_isZombieBot || m_currentWeapon == WEAPON_KNIFE)
 		{
-			// SyPB Pro P.38 - Zombie Ai
 			bool moveTotarget = true;
 			int movePoint = 0;
-
-			// SyPB Pro P.42 - Zombie Ai improve
-			// SyPB Pro P.48 - Zombie Ai improve
 			int srcIndex = GetEntityWaypoint(GetEntity());
 			int destIndex = GetEntityWaypoint(targetEntity);
 			if ((m_currentTravelFlags & PATHFLAG_JUMP))
@@ -534,9 +519,9 @@ Vector Bot::GetAimPosition(void)
 	return m_enemyOrigin = m_lastEnemyOrigin = enemyOrigin;
 }
 
+// bot can't hurt teammates, if friendly fire is not enabled...
 bool Bot::IsFriendInLineOfFire(float distance)
 {
-	// bot can't hurt teammates, if friendly fire is not enabled...
 	if (!engine->IsFriendlyFireOn() || GetGameMod() == MODE_DM)
 		return false;
 
@@ -545,7 +530,6 @@ bool Bot::IsFriendInLineOfFire(float distance)
 	TraceResult tr;
 	TraceLine(EyePosition(), EyePosition() + pev->v_angle.Normalize() * distance, false, false, GetEntity(), &tr);
 
-	// SyPB Pro P.42 - The Bot cannot Team Damage improve
 	int i;
 	if (!FNullEnt(tr.pHit))
 	{
@@ -575,9 +559,8 @@ bool Bot::IsFriendInLineOfFire(float distance)
 			continue;
 
 		float friendDistance = (GetEntityOrigin(entity) - pev->origin).GetLength();
-		float squareDistance = sqrtf(1089.0f + (friendDistance * friendDistance));
+		float squareDistance = Q_rsqrt(1089.0f + (friendDistance * friendDistance));
 
-		// SyPB Pro P.41 - VS LOG
 		if (friendDistance <= distance)
 		{
 			Vector entOrigin = GetEntityOrigin(entity);
@@ -590,7 +573,6 @@ bool Bot::IsFriendInLineOfFire(float distance)
 	return false;
 }
 
-// SyPB Pro P.29 - new value for correct gun
 int CorrectGun(int weaponID)
 {
 	if (GetGameMod() != MODE_BASE)
@@ -732,7 +714,7 @@ void Bot::FireWeapon(void)
 	int selectId = WEAPON_KNIFE, selectIndex = 0, chosenWeaponIndex = 0;
 	int weapons = pev->weapons;
 
-	// SyPB Pro P.43 - Attack Ai improve
+
 	if (m_isZombieBot || ebot_knifemode.GetBool())
 		goto WeaponSelectEnd;
 	else if (!FNullEnt(enemy) && m_skill >= 80 && !IsZombieEntity(enemy) && IsOnAttackDistance(enemy, 120.0f) &&
@@ -959,10 +941,8 @@ WeaponSelectEnd:
 	}
 }
 
-// SyPB Pro P.32 - Knife Attack Ai
 bool Bot::KnifeAttack(float attackDistance)
 {
-	// SyPB Pro P.40 - Knife Attack Ai
 	edict_t* entity = null;
 	float distance = 9999.0f;
 	if (!FNullEnt(m_enemy))
@@ -989,11 +969,9 @@ bool Bot::KnifeAttack(float attackDistance)
 	float kad1 = (m_knifeDistance1API <= 0) ? 64.0f : m_knifeDistance1API;; // Knife Attack Distance (API)
 	float kad2 = (m_knifeDistance2API <= 0) ? 64.0f : m_knifeDistance2API;
 
-	// SyPB Pro P.40 - Touch Entity Attack Action
 	if (attackDistance != 0.0f)
 		kad1 = attackDistance;
 
-	// SyPB Pro P.42 - Knife Attack Ai improve
 	int kaMode = 0;
 	if (IsOnAttackDistance(entity, kad1))
 		kaMode = 1;
@@ -1003,17 +981,11 @@ bool Bot::KnifeAttack(float attackDistance)
 	if (kaMode > 0)
 	{
 		float distanceSkipZ = (pev->origin - GetEntityOrigin(entity)).GetLength2D();
-		//if (distanceSkipZ < distance && pev->origin.z > GetEntityOrigin(entity).z)
-		// pev->button |= IN_DUCK;
 
-		// SyPB Pro P.35 - Knife Attack Change
 		if (pev->origin.z > GetEntityOrigin(entity).z && distanceSkipZ < 64.0f)
 		{
 			pev->button |= IN_DUCK;
-			// SyPB Pro P.40 - Knife Attack Change
 			m_campButtons |= IN_DUCK;
-
-			// SyPB Pro P.48 - Knife Attack Change
 			pev->button &= ~IN_JUMP;
 		}
 		else
@@ -1027,8 +999,6 @@ bool Bot::KnifeAttack(float attackDistance)
 
 		if (m_isZombieBot)
 		{
-			//if (kaMode == 1)
-			// SyPB Pro P.46 - Zombie Attack Fixed
 			if (kaMode != 2)
 				pev->button |= IN_ATTACK;
 			else
@@ -1040,7 +1010,7 @@ bool Bot::KnifeAttack(float attackDistance)
 				pev->button |= IN_ATTACK;
 			else if (kaMode == 2)
 				pev->button |= IN_ATTACK2;
-			else if (engine->RandomInt(1, 100) < 30 || HasShield())
+			else if (engine->RandomInt(1, 10) < 3 || HasShield())
 				pev->button |= IN_ATTACK;
 			else
 				pev->button |= IN_ATTACK2;
@@ -1151,7 +1121,6 @@ void Bot::FocusEnemy(void)
 	}
 }
 
-// SyPB Pro P.30 - Attack Ai
 void Bot::CombatFight(void)
 {
 	// our last enemy can change teams in fun modes
@@ -1169,18 +1138,16 @@ void Bot::CombatFight(void)
 
 	m_seeEnemyTime = engine->GetTime();
 
-	// SyPB Pro P.47 - Attack Ai improve
 	if ((m_moveSpeed != 0.0f || m_strafeSpeed != 0.0f) && IsValidWaypoint(m_currentWaypointIndex) && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_CROUCH && (pev->velocity.GetLength() < 2.0f))
 		pev->button |= IN_DUCK;
 
-	// ebot 1.53 AI improve
 	if (m_isZombieBot) // zombie ai
 	{
 		m_destOrigin = GetEntityOrigin(m_enemy);
 		m_moveSpeed = pev->maxspeed;
 
-		const float targetdist = Squared(128.0f);
-		if (GetDistanceSquared(pev->origin, m_destOrigin) <= targetdist || GetDistanceSquared(pev->origin, GetEntityOrigin(m_moveTargetEntity)) <= targetdist)
+		const float targetdist = 128.0f;
+		if ((pev->origin - m_destOrigin).GetLength() <= targetdist || (pev->origin - GetEntityOrigin(m_moveTargetEntity)).GetLength() <= targetdist)
 			pev->button |= IN_ATTACK;
 
 		return;
@@ -1207,9 +1174,8 @@ void Bot::CombatFight(void)
 						baseDistance = -1.0f;
 				}
 
-				const float distance = GetDistanceSquared(pev->origin, enemyOrigin);
-
-				if (m_isSlowThink && distance <= Squared(1024.0f) && engine->RandomInt(1, 1000) <= ebot_zp_use_grenade_percent.GetInt())
+				const float distance = (pev->origin - enemyOrigin).GetLength();
+				if (m_isSlowThink && distance <= 1024.0f && engine->RandomInt(1, 1000) <= ebot_zp_use_grenade_percent.GetInt())
 				{
 					if (engine->RandomInt(1, 2) == 1)
 						ThrowFrostNade();
@@ -1219,10 +1185,10 @@ void Bot::CombatFight(void)
 
 				if (baseDistance != -1.0f)
 				{
-					// ebot 1.52 - better human escape ai
-					if (ebot_escape.GetInt() == 0 && distance <= Squared(baseDistance))
+					// better human escape ai
+					if (ebot_escape.GetInt() == 0 && distance <= baseDistance)
 					{
-						m_destOrigin = GetEntityOrigin(m_enemy); //g_waypoint->GetPath(g_waypoint->FindSafestForHuman(m_enemy, GetEntity(), 768.0f))->origin;
+						m_destOrigin = GetEntityOrigin(m_enemy);
 						m_moveSpeed = -pev->maxspeed;
 						m_checkFall = true;
 						m_moveToGoal = false;
@@ -1235,7 +1201,7 @@ void Bot::CombatFight(void)
 
 						return;
 					}
-					else if (ebot_escape.GetInt() == 0 && distance <= Squared(baseDistance + (baseDistance / 10)))
+					else if (ebot_escape.GetInt() == 0 && distance <= (baseDistance + (baseDistance / 10)))
 					{
 						m_moveToGoal = false;
 						m_moveSpeed = 0.0f;
@@ -1279,19 +1245,16 @@ void Bot::CombatFight(void)
 		}
 
 		DeleteSearchNodes();
-
 		SetLastEnemy(m_enemy);
-
 		m_destOrigin = GetEntityOrigin(m_enemy);
 
-		if (m_currentWeapon != WEAPON_KNIFE && GetDistanceSquared2D(pev->origin, m_enemy->v.origin) <= Squared(512.0f)) // get back!
+		float distance = (pev->origin - m_lookAt).GetLength();  // how far away is the enemy scum?
+
+		if (m_currentWeapon != WEAPON_KNIFE && distance <= 256.0f) // get back!
 		{
 			m_moveSpeed = -pev->maxspeed;
-
 			return;
 		}
-
-		float distance = GetDistanceSquared2D(m_lookAt, EyePosition());  // how far away is the enemy scum?
 
 		m_timeWaypointMove = 0.0f;
 
@@ -1340,9 +1303,9 @@ void Bot::CombatFight(void)
 				{
 					if (ChanceOf(75))
 					{
-						if (distance < Squared(768.0f))
+						if (distance < 768.0f)
 							m_fightStyle = 0;
-						else if (distance < Squared(1024.0f))
+						else if (distance < 1024.0f)
 						{
 							if (ChanceOf(UsesSubmachineGun() ? 50 : 30))
 								m_fightStyle = 0;
@@ -1377,7 +1340,7 @@ void Bot::CombatFight(void)
 				}
 			}
 
-			if (m_fightStyle == 0 || ((pev->button & IN_RELOAD) || m_isReloading) || (UsesPistol() && distance < Squared(768.0f)) || m_currentWeapon == WEAPON_KNIFE)
+			if (m_fightStyle == 0 || ((pev->button & IN_RELOAD) || m_isReloading) || (UsesPistol() && distance < 768.0f) || m_currentWeapon == WEAPON_KNIFE)
 			{
 				if (m_strafeSetTime < engine->GetTime())
 				{
@@ -1422,7 +1385,7 @@ void Bot::CombatFight(void)
 				if (m_jumpTime + 10.0f < engine->GetTime() && IsOnFloor() && ChanceOf(m_isReloading ? 5 : 2) && pev->velocity.GetLength2D() > float(m_skill + 50.0f) && !UsesSniper())
 					pev->button |= IN_JUMP;
 
-				if (m_moveSpeed > 0.0f && distance > Squared(512.0f) && m_currentWeapon != WEAPON_KNIFE)
+				if (m_moveSpeed > 0.0f && distance > 512.0f && m_currentWeapon != WEAPON_KNIFE)
 					m_moveSpeed = 0.0f;
 
 				if (m_currentWeapon == WEAPON_KNIFE)
@@ -1612,14 +1575,13 @@ void Bot::SelectBestWeapon(void)
 	if (FNullEnt(m_enemy) && m_isReloading)
 		return;
 
-	// ebot 1.56 - fix
 	if (m_isZombieBot && IsZombieMode())
 	{
 		SelectWeaponByName("weapon_knife");
 		return;
 	}
 
-	if (!FNullEnt(m_enemy) && GetDistanceSquared(pev->origin, GetEntityOrigin(m_enemy)) <= Squared(128.0f))
+	if (!FNullEnt(m_enemy) && (pev->origin - GetEntityOrigin(m_enemy)).GetLength() <= 128.0f)
 	{
 		SelectWeaponByName("weapon_knife");
 		return;

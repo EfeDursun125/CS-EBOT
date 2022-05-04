@@ -28,7 +28,7 @@
 ConVar ebot_password("ebot_password", "", VARTYPE_PASSWORD);
 ConVar ebot_password_key("ebot_password_key", "ebot_wp");
 
-ConVar ebot_language("ebot_language", "tr");
+ConVar ebot_language("ebot_language", "en");
 ConVar ebot_version("ebot_version", PRODUCT_VERSION, VARTYPE_READONLY);
 
 ConVar ebot_lockzbot("ebot_lock_zbot", "1");
@@ -347,20 +347,6 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 			g_waypoint->AnalyzeDeleteUselessWaypoints();
 
 			ServerCommand("ebot wp on");
-		}
-
-		else if (stricmp(arg1, "onlyvispath") == 0)
-		{
-			ServerPrint("Only visible paths are enabled");
-
-			g_onlyvispath = true;
-		}
-
-		else if (stricmp(arg1, "novispath") == 0)
-		{
-			ServerPrint("Only visible paths are disabled");
-
-			g_onlyvispath = false;
 		}
 
 		else if (stricmp(arg1, "on") == 0)
@@ -894,7 +880,7 @@ void InitConfig(void)
 				for (int i = 0; i < 3; i++)
 					g_grenadeBuyPrecent[i] = splitted[i];
 			}
-			else if (pair[0] == "GrenadeMoney") // SyPB Pro P.24 - New general
+			else if (pair[0] == "GrenadeMoney")
 			{
 				if (splitted.GetElementNumber() != 3)
 					AddLogEntry(LOG_FATAL, "%s entry in general config is not valid.", &pair[0][0]);
@@ -1011,7 +997,7 @@ void InitConfig(void)
 				if (!IsNullString(buffer))
 				{
 					strtrim(buffer);
-					temp.translated = strdup(buffer);
+					temp.translated = buffer;
 					buffer[0] = 0x0;
 				}
 
@@ -1021,7 +1007,7 @@ void InitConfig(void)
 			else if (strncmp(line, "[TRANSLATED]", 12) == 0)
 			{
 				strtrim(buffer);
-				temp.original = strdup(buffer);
+				temp.original = buffer;
 				buffer[0] = 0x0;
 
 				langState = Lang_Translate;
@@ -1078,14 +1064,12 @@ void GameDLLInit(void)
 
 	engine->PushRegisteredConVarsToEngine();
 
-	// SyPB Pro P.35 - new command
 	RegisterCommand("ebot_about", ebot_Version_Command);
 
 	RegisterCommand("ebot_add_t", AddBot_TR);
 	RegisterCommand("ebot_add_ct", AddBot_CT);
 	RegisterCommand("ebot_add", AddBot);
 
-	// SyPB Pro P.46 - Entity Action Check Cvar
 	RegisterCommand("ebot_entity_check", CheckEntityAction);
 
 	// register server command(s)
@@ -4164,7 +4148,7 @@ DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* 
 	g_serverBlendingAPI = (BlendAPI_t)g_gameLib->GetFunctionAddr("Server_GetBlendingInterface");
 
 	if (!g_funcPointers || !g_entityAPI || !g_getNewEntityAPI || !g_serverBlendingAPI)
-		TerminateOnMalloc();
+		return;
 
 	GetEngineFunctions(functionTable, null);
 
@@ -4182,7 +4166,6 @@ DLL_ENTRYPOINT
 	if (DLL_DETACHING)
 	{
 	   FreeLibraryMemory(); // free everything that's freeable
-
 	   if (g_gameLib != null)
 		  delete g_gameLib; // if dynamic link library of mod is load, free it
 	}
