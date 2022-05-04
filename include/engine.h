@@ -254,7 +254,17 @@ public:
 
     inline float Length(void) const
     {
-        return sqrtf(x * x + y * y);
+        float number = x * x + y * y;
+        long i;
+        float x2, y;
+        const float threehalfs = 1.5F;
+        x2 = number * 0.5F;
+        y = number;
+        i = *(long*)&y;
+        i = 0x5f3759df - (i >> 1);
+        y = *(float*)&i;
+        y = y * (threehalfs - (x2 * y * y));
+        return y * number;
     }
 
     inline Vector2D Normalize(void) const
@@ -348,7 +358,17 @@ public:
     }
     inline float Length(void) const
     {
-        return sqrtf(x * x + y * y + z * z);
+        float number = x * x + y * y + z * z;
+        long i;
+        float x2, y;
+        const float threehalfs = 1.5F;
+        x2 = number * 0.5F;
+        y = number;
+        i = *(long*)&y;
+        i = 0x5f3759df - (i >> 1);
+        y = *(float*)&i;
+        y = y * (threehalfs - (x2 * y * y));
+        return y * number;
     }
     operator float* ()
     {
@@ -387,7 +407,17 @@ public:
     }
     inline float Length2D(void) const
     {
-        return sqrtf(x * x + y * y);
+        float number = x * x + y * y;
+        long i;
+        float x2, y;
+        const float threehalfs = 1.5F;
+        x2 = number * 0.5F;
+        y = number;
+        i = *(long*)&y;
+        i = 0x5f3759df - (i >> 1);
+        y = *(float*)&i;
+        y = y * (threehalfs - (x2 * y * y));
+        return y * number;
     }
 
     // Members

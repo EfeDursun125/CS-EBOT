@@ -49,7 +49,6 @@ extern bool g_isFakeCommand;
 extern bool g_leaderChoosen[2];
 extern bool g_analyzewaypoints;
 extern bool g_analyzeputrequirescrouch;
-extern bool g_onlyvispath;
 
 extern bool g_sgdWaypoint;
 extern bool g_sautoWaypoint;
@@ -87,8 +86,7 @@ extern int g_modelIndexLaser;
 extern int g_modelIndexArrow;
 extern char g_fakeArgv[256];
 
-// SyPB Pro P.42 - Entity Action
-extern const int entityNum = 256;
+const int entityNum = 256;
 extern int g_entityId[entityNum];
 extern int g_entityTeam[entityNum];
 extern int g_entityAction[entityNum];

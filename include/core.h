@@ -97,7 +97,7 @@ enum LogLevel
 	LOG_WARNING = 2, // warning log message
 	LOG_ERROR = 3, // error log message
 	LOG_IGNORE = 4, // additional flag
-	LOG_FATAL = 5  // fatal error log message (terminate the game!)
+	LOG_FATAL = 5  // fatal error log message
 
 };
 
@@ -385,7 +385,7 @@ enum WaypointFlag
 	WAYPOINT_RESCUE = (1 << 6), // waypoint is a hostage rescue point
 	WAYPOINT_CAMP = (1 << 7), // waypoint is a camping point
 	WAYPOINT_DJUMP = (1 << 9), // bot help's another bot (requster) to get somewhere (using djump)
-	WAYPOINT_ZMHMCAMP = (1 << 10), // SyPB Pro P.24 - Zombie Mod Human Camp
+	WAYPOINT_ZMHMCAMP = (1 << 10), // bots will camp at this waypoint
 	WAYPOINT_AVOID = (1 << 11), // bots will avoid these waypoints mostly
 	WAYPOINT_USEBUTTON = (1 << 12), // bots will use button
 	WAYPOINT_FALLCHECK = (1 << 26), // bots will check ground
@@ -400,7 +400,6 @@ enum PathFlag
 {
 	PATHFLAG_JUMP = (1 << 0), // must jump for this connection
 	PATHFLAG_DOUBLE = (1 << 1), // must use friend for this connection
-	PATHFLAG_VISIBLE = (1 << 1) // must be visible
 };
 
 // defines waypoint connection types
@@ -414,7 +413,7 @@ enum PathConnection
 	PATHCON_VISIBLE
 };
 
-// ebot Support Game Mode
+// E-BOT Supported Game Modes
 enum GameMode
 {
 	MODE_DM = 1,
@@ -606,11 +605,9 @@ struct Client_old
 	float hearingDistance; // distance this sound is heared
 	float timeSoundLasting; // time sound is played/heared
 
-	// SyPB Pro P.41 - Get Waypoint improve
 	int wpIndex;
 	int wpIndex2;
 	float getWPTime;
-	// SyPB Pro P.42 - Get Waypoint improve
 	Vector getWpOrigin;
 
 	// SyPB Pro P.38 - AMXX API
@@ -708,11 +705,8 @@ private:
 	bool m_checkTerrain; // check for terrain
 	bool m_moveToC4; // ct is moving to bomb
 
-	// SyPB Pro P.37 - Fall Ai
 	bool m_checkFall; // check bot fall
 	Vector m_checkFallPoint[2];
-	// ---
-
 	float m_prevTime; // time previously checked movement speed
 	float m_prevSpeed; // speed some frames before
 	Vector m_prevOrigin; // origin some frames before
@@ -720,6 +714,7 @@ private:
 	int m_messageQueue[32]; // stack for messages
 	char m_tempStrings[160]; // space for strings (say text...)
 	char m_lastStrings[160]; // for block looping same text
+	edict_t* m_lastChatEnt; // for block looping message from same bot
 	int m_radioSelect; // radio entry
 
 	float m_blindRecognizeTime; // time to recognize enemy
@@ -738,7 +733,6 @@ private:
 	float m_knifeAttackTime; // time to rush with knife (at the beginning of the round)
 	bool m_defendedBomb; // defend action issued
 
-	// SyPB Pro P.24 - Move Target
 	float m_damageTime;
 
 	float m_askCheckTime; // time to ask team
@@ -799,7 +793,7 @@ private:
 	bool m_duckDefuse; // should or not bot duck to defuse bomb
 	float m_duckDefuseCheckTime; // time to check for ducking for defuse
 
-	float m_GetNewEnemyTimer; // ebot AIM
+	float m_GetNewEnemyTimer; // ebot aim
 
 	int m_msecBuiltin; // random msec method for this bot
 	//uint8_t m_msecVal; // calculated msec value
@@ -850,8 +844,8 @@ private:
 	float m_randomizeAnglesTime; // time last randomized location
 	float m_playerTargetTime; // time last targeting
 
-	float m_checkCampPointTime; // SyPB Pro P.30 - Zombie Mode Human Camp
-	int m_zhCampPointIndex; // SyPB Pro P.38 - Zombie Mode Human Camp
+	float m_checkCampPointTime;
+	int m_zhCampPointIndex;
 
 	Vector m_moveAnglesForRunMove;
 	float m_moveSpeedForRunMove, m_strafeSpeedForRunMove;
@@ -1064,7 +1058,7 @@ public:
 	float m_blindMoveSpeed; // mad speeds when bot is blind
 	float m_blindSidemoveSpeed; // mad side move speeds when bot is blind
 	int m_blindButton; // buttons bot press, when blind
-	int m_blindCampPoint; // SyPB Pro P.48 - Blind Action improve
+	int m_blindCampPoint; // blind action
 
 	edict_t* m_doubleJumpEntity; // pointer to entity that request double jump
 	edict_t* m_radioEntity; // pointer to entity issuing a radio command
@@ -1136,7 +1130,7 @@ public:
 
 	bool m_isSlowThink;
 
-	float m_backCheckEnemyTime; // SyPB Pro P.37 - Aim OS
+	float m_backCheckEnemyTime;
 
 	edict_t* m_lastEnemy; // pointer to last enemy entity
 	edict_t* m_lastVictim; // pointer to killed entity
@@ -1153,7 +1147,6 @@ public:
 	int m_ammoInClip[Const_MaxWeapons]; // ammo in clip for each weapons
 	int m_ammo[MAX_AMMO_SLOTS]; // total ammo amounts
 
-	// SyPB Pro P.42 - Entity Action 
 	int m_allEnemyId[checkEnemyNum];
 	float m_allEnemyDistance[checkEnemyNum];
 
@@ -1312,7 +1305,6 @@ private:
 	Bot* m_bot;
 	int m_state;
 	int m_message;
-	// SyPB Pro P.48 - Base improve
 	int m_registerdMessages[NETMSG_NUM];
 
 public:
@@ -1337,8 +1329,6 @@ class Waypoint : public Singleton <Waypoint>
 
 private:
 	Path* m_paths[Const_MaxWaypoints];
-
-	// SyPB Pro P.40 - Waypoint Name Change?
 	bool m_badMapName;
 
 	bool m_waypointPaths;
@@ -1384,8 +1374,8 @@ private:
 	Array <int> m_sniperPoints;
 	Array <int> m_rescuePoints;
 	Array <int> m_visitedGoals;
-	Array <int> m_zmHmPoints;  // SyPB Pro P.30 - Zombie Mode Human Camp
-	Array <int> m_otherPoints; // ebot 1.56
+	Array <int> m_zmHmPoints;
+	Array <int> m_otherPoints;
 
 public:
 	bool m_redoneVisibility;
@@ -1439,12 +1429,11 @@ public:
 	void Save(void);
 	void SaveXML(void);
 
-	//bool Reachable (Bot *bot, int index, Vector origin = nullvec);
 	bool Reachable(edict_t* entity, int index);
 	bool IsNodeReachable(Vector src, Vector destination);
 	bool IsNodeReachableWithJump(Vector src, Vector destination, int flags);
 	void Think(void);
-	void ShowWaypointMsg(void); // SyPB Pro P.38 - Show Waypoint Msg
+	void ShowWaypointMsg(void);
 	bool NodesValid(void);
 	void CreateBasic(void);
 	void EraseFromHardDisk(void);
@@ -1471,6 +1460,7 @@ public:
 	Vector GetBombPosition(void) { return m_foundBombOrigin; }
 	void SetBombPosition(bool shouldReset = false);
 	String CheckSubfolderFile(void);
+	String CheckSubfolderFileOld(void);
 
 	int* GetWaypointPath() { return m_pathMatrix; }
 	int* GetWaypointDist() { return m_distMatrix; }
@@ -1498,9 +1488,7 @@ extern bool IsZombieMode(void);
 extern bool IsDeathmatchMode(void);
 extern bool IsValidWaypoint(int index);
 extern bool ChanceOf(int number);
-extern float Squared(float number);
-extern float GetDistanceSquared(Vector a, Vector b);
-extern float GetDistanceSquared2D(Vector a, Vector b);
+extern float Q_rsqrt(float number);
 
 extern int GetEntityWaypoint(edict_t* ent);
 extern int SetEntityWaypoint(edict_t* ent, int mode = -1);
@@ -1582,8 +1570,6 @@ inline bool IsNullString(const char* input)
 // very global convars
 extern ConVar ebot_knifemode;
 extern ConVar ebot_gamemod;
-extern ConVar ebot_debug_print;
-extern ConVar ebot_debug_print_chance;
 
 #include <callbacks.h>
 #include <globals.h>
@@ -1594,4 +1580,4 @@ extern ConVar ebot_debug_print_chance;
 #include <Experience.h>
 
 
-#endif // ebot_INCLUDED
+#endif // EBOT_INCLUDED
