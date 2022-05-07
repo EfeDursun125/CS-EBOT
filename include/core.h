@@ -424,15 +424,11 @@ enum GameMode
 	MODE_BASE = 0
 };
 
-// bot known file headers
-const char FH_WAYPOINT[] = "EBOTWAY!";
-const char FH_VISTABLE[] = "EBOTVIS!";
+// bot known file 
+const char FH_WAYPOINT[] = "PODWAY!";
+const char FH_VISTABLE[] = "PODVIS!";
 
-const char FH_WAYPOINTOLD[] = "PODWAY!";
-const char FH_VISTABLEOLD[] = "PODVIS!";
-
-const int FV_WAYPOINT = 8;
-const int FV_VISTABLE = 2;
+const int FV_WAYPOINT = 7;
 
 // some hardcoded desire defines used to override calculated ones
 const float TASKPRI_NORMAL = 35.0f;
@@ -906,7 +902,7 @@ private:
 	int FindGoal(void);
 	void FindItem(void);
 
-	void CheckCloseAvoidance(const Vector& dirNormal);
+	bool CheckCloseAvoidance(const Vector& dirNormal);
 
 	void GetCampDirection(Vector* dest);
 	int GetMessageQueue(void);
@@ -1389,8 +1385,6 @@ public:
 	void AnalyzeDeleteUselessWaypoints(void);
 	void InitTypes(int mode);
 	void AddPath(int addIndex, int pathIndex, float distance, int type = 0);
-	void AddPathJump(int addIndex, int pathIndex, float distance);
-	void AddPathBoost(int addIndex, int pathIndex, float distance);
 
 	int GetFacingIndex(void);
 	int FindFarest(const Vector& origin, float maxDistance = 9999.0);
@@ -1499,6 +1493,7 @@ extern bool IsLinux(void);
 extern bool TryFileOpen(char* fileName);
 extern bool IsDedicatedServer(void);
 extern bool IsVisible(const Vector& origin, edict_t* ent);
+extern bool IsVisibleForKnifeAttack(const Vector& origin, edict_t* ent);
 extern Vector GetWalkablePosition(const Vector& origin, edict_t* ent = null);
 extern Vector GetNearestWalkablePosition(const Vector& origin, edict_t* ent = null);
 extern bool IsAlive(edict_t* ent);
