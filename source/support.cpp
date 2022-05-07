@@ -142,14 +142,28 @@ bool IsVisible(const Vector& origin, edict_t* ent)
 	return true; // line of sight is valid.
 }
 
-// ebot 1.56 - return walkable position on ground
+bool IsVisibleForKnifeAttack(const Vector& origin, edict_t* ent)
+{
+	if (FNullEnt(ent))
+		return false;
+
+	TraceResult tr;
+	TraceHull(GetEntityOrigin(ent), origin, true, human_hull, ent, &tr);
+
+	if (tr.flFraction != 1.0f)
+		return false; // line of sight is not established
+
+	return true; // line of sight is valid.
+}
+
+// return walkable position on ground
 Vector GetWalkablePosition(const Vector& origin, edict_t* ent)
 {
 	if (FNullEnt(ent))
 		return nullvec;
 
 	TraceResult tr;
-	TraceLine(origin, Vector(origin.x, origin.y, -9999.0f), true, true, ent, &tr);
+	TraceLine(origin, Vector(origin.x, origin.y, -9999.0f), true, false, ent, &tr);
 
 	if (tr.flFraction != 1.0f)
 		return tr.vecEndPos; // walkable ground
@@ -157,14 +171,14 @@ Vector GetWalkablePosition(const Vector& origin, edict_t* ent)
 	return origin; // return original origin, we cant hit to ground
 }
 
-// ebot 1.57 - same with GetWalkablePosition but gets nearest walkable position
+// same with GetWalkablePosition but gets nearest walkable position
 Vector GetNearestWalkablePosition(const Vector& origin, edict_t* ent)
 {
 	if (FNullEnt(ent))
 		return nullvec;
 
 	TraceResult tr;
-	TraceLine(origin, Vector(origin.x, origin.y, -9999.0f), true, true, ent, &tr);
+	TraceLine(origin, Vector(origin.x, origin.y, -9999.0f), true, false, ent, &tr);
 
 	Vector BestOrigin = origin;
 
@@ -172,7 +186,7 @@ Vector GetNearestWalkablePosition(const Vector& origin, edict_t* ent)
 	Vector SecondOrigin;
 
 	if (tr.flFraction != 1.0f)
-		FirstOrigin = tr.vecEndPos; // walkable ground rigth?
+		FirstOrigin = tr.vecEndPos; // walkable ground?
 	else
 		FirstOrigin = nullvec;
 
@@ -211,7 +225,7 @@ Vector GetEntityOrigin(edict_t* ent)
 	return entityOrigin;
 }
 
-// SyPB Pro P.42 - Get Entity Top/Bottom Origin
+// Get Entity Top/Bottom Origin
 Vector GetTopOrigin(edict_t* ent)
 {
 	if (FNullEnt(ent))
@@ -242,7 +256,7 @@ Vector GetBottomOrigin(edict_t* ent)
 	return bottomOrigin;
 }
 
-// SyPB Pro P.42 - Get Player Head Origin 
+// Get Player Head Origin 
 Vector GetPlayerHeadOrigin(edict_t* ent)
 {
 	if (FNullEnt(ent))
@@ -329,9 +343,7 @@ void DecalTrace(entvars_t* pev, TraceResult* trace, int logotypeIndex)
 	static Array <String> logotypes;
 
 	if (logotypes.IsEmpty())
-	{
 		logotypes = String("{biohaz;{graf004;{graf005;{lambda06;{target;{hand1").Split(";");
-	}
 
 	int entityIndex = -1, message = TE_DECAL;
 	int decalIndex = (*g_engfuncs.pfnDecalIndex) (logotypes[logotypeIndex]);
@@ -1643,14 +1655,14 @@ void MOD_AddLogEntry(int mod, char* format)
 	uint16 mod_bV16[4];
 	if (mod == -1)
 	{
-		sprintf(modName, "ebot");
+		sprintf(modName, "E-BOT");
 		int buildVersion[4] = { PRODUCT_VERSION_DWORD };
 		for (int i = 0; i < 4; i++)
 			mod_bV16[i] = (uint16)buildVersion[i];
 	}
 	else if (mod == 0)
 	{
-		sprintf(modName, "ebot_API");
+		sprintf(modName, "EBOT_API");
 		for (int i = 0; i < 4; i++)
 			mod_bV16[i] = amxxDLL_bV16[i];
 	}

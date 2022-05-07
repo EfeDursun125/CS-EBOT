@@ -491,7 +491,6 @@ float Client::GetShootingConeDeviation(const Vector& pos) const
 bool Client::IsInViewCone(const Vector& pos) const
 {
     engine->BuildGlobalVectors(GetViewAngles());
-
     return ((pos - GetHeadOrigin()).Normalize() | g_pGlobals->v_forward) >= cosf(Math::DegreeToRadian((GetFOV() > 0.0f ? GetFOV() : 90.0f) * 0.5f));
 }
 

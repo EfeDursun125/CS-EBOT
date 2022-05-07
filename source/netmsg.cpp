@@ -267,7 +267,6 @@ void NetworkMsg::Execute(void* p)
             break;
 
         case 2:
-            // SyPB Pro P.45 - Death Msg improve 
             edict_t * victim = INDEXENT(victimIndex);
             if (FNullEnt(victim) || !IsValidPlayer(victim))
                 break;

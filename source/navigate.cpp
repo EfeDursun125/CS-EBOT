@@ -24,8 +24,7 @@
 
 #include <core.h>
 
-ConVar ebot_dangerfactor_min("ebot_dangerfactor_min", "600");
-ConVar ebot_dangerfactor_max("ebot_dangerfactor_max", "1000");
+ConVar ebot_dangerfactor("ebot_dangerfactor", "400");
 ConVar ebot_aimbot("ebot_aimbot", "0");
 ConVar ebot_aiming_type("ebot_aiming_type", "1");
 
@@ -83,7 +82,6 @@ int Bot::FindGoal(void)
 	Array <int> offensiveWpts;
 	Array <int> defensiveWpts;
 
-	// SyPB Pro P.28 - Game Mode
 	if (GetGameMod() == MODE_BASE)
 	{
 		switch (m_team)
@@ -847,32 +845,8 @@ void PriorityQueue::HeapSiftUp(void)
 	}
 }
 
-inline const float GF_CostNormal(int index, int parent, int team, float offset)
+inline const float GF_Cost(int index, int parent, int team, float offset)
 {
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_FALLCHECK)
-	{
-		TraceResult tr;
-		Vector src = g_waypoint->GetPath(index)->origin;
-		src.z -= 40.0f;
-
-		TraceLine(src, g_waypoint->GetPath(index)->origin, true, false, null, &tr);
-
-		if (tr.flFraction == 1.0f)
-			return 65355.0f;
-	}
-
-	if (team == TEAM_COUNTER ? g_waypoint->GetPath(index)->flags & WAYPOINT_TERRORIST : g_waypoint->GetPath(index)->flags & WAYPOINT_COUNTER)
-		return 65355.0f;
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_AVOID)
-		return 65355.0f;
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_DJUMP)
-		return 65355.0f;
-
-	if (g_waypoint->GetPath(index)->connectionFlags[index] & PATHFLAG_DOUBLE)
-		return 65355.0f;
-
 	float baseCost = g_exp.GetAStarValue(index, team, false);
 
 	for (int i = 0; i < Const_MaxPathIndex; i++)
@@ -880,46 +854,18 @@ inline const float GF_CostNormal(int index, int parent, int team, float offset)
 		int neighbour = g_waypoint->GetPath(index)->index[i];
 
 		if (neighbour != -1)
-			baseCost += (g_exp.GetDamage(neighbour, neighbour, team) / 2);
+			baseCost += g_exp.GetDamage(neighbour, neighbour, team);
 	}
-
 	float pathDist = g_waypoint->GetPathDistanceFloat(parent, index);
 
 	if (g_waypoint->GetPath(index)->flags & WAYPOINT_LADDER)
-		baseCost += pathDist * 1.5f;
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_CROUCH && g_waypoint->GetPath(index)->flags & WAYPOINT_CAMP)
 		baseCost += pathDist * 2.0f;
 
-	return pathDist + (baseCost * (engine->RandomFloat(ebot_dangerfactor_min.GetFloat(), ebot_dangerfactor_max.GetFloat()) * 2.0f / offset));
+	return pathDist + (baseCost * (ebot_dangerfactor.GetFloat() * 2.0f / offset));
 }
 
-inline const float GF_CostDistNormal(int index, int parent, int team, float offset)
+inline const float GF_CostDist(int index, int parent, int team, float offset)
 {
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_FALLCHECK)
-	{
-		TraceResult tr;
-		Vector src = g_waypoint->GetPath(index)->origin;
-		src.z -= 40.0f;
-
-		TraceLine(src, g_waypoint->GetPath(index)->origin, true, false, null, &tr);
-
-		if (tr.flFraction == 1.0f)
-			return 65355.0f;
-	}
-
-	if (team == TEAM_COUNTER ? g_waypoint->GetPath(index)->flags & WAYPOINT_TERRORIST : g_waypoint->GetPath(index)->flags & WAYPOINT_COUNTER)
-		return 65355.0f;
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_AVOID)
-		return 65355.0f;
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_DJUMP)
-		return 65355.0f;
-
-	if (g_waypoint->GetPath(index)->connectionFlags[index] & PATHFLAG_DOUBLE)
-		return 65355.0f;
-
 	float baseCost = g_exp.GetAStarValue(index, team, true);
 
 	for (int i = 0; i < Const_MaxPathIndex; i++)
@@ -927,187 +873,56 @@ inline const float GF_CostDistNormal(int index, int parent, int team, float offs
 		int neighbour = g_waypoint->GetPath(index)->index[i];
 
 		if (neighbour != -1)
-			baseCost += (g_exp.GetDamage(neighbour, neighbour, team) / 2);
+			baseCost += g_exp.GetDamage(neighbour, neighbour, team);
 	}
-
-	float pathDist = g_waypoint->GetPathDistanceFloat(parent, index);
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_LADDER)
-		baseCost += pathDist * 1.5f;
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_CROUCH && g_waypoint->GetPath(index)->flags & WAYPOINT_CAMP)
-		baseCost += pathDist * 2.0f;
-
-	return pathDist + (baseCost * (engine->RandomFloat(ebot_dangerfactor_min.GetFloat(), ebot_dangerfactor_max.GetFloat()) * 2.0f / offset));
-}
-
-inline const float GF_CostRusher(int index, int parent, int team, float offset)
-{
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_FALLCHECK)
-	{
-		TraceResult tr;
-		Vector src = g_waypoint->GetPath(index)->origin;
-		src.z -= 40.0f;
-
-		TraceLine(src, g_waypoint->GetPath(index)->origin, true, false, null, &tr);
-
-		if (tr.flFraction == 1.0f)
-			return 65355.0f;
-	}
-
-	if (team == TEAM_COUNTER ? g_waypoint->GetPath(index)->flags & WAYPOINT_TERRORIST : g_waypoint->GetPath(index)->flags & WAYPOINT_COUNTER)
-		return 65355.0f;
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_AVOID)
-		return 65355.0f;
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_DJUMP)
-		return 65355.0f;
-
-	if (g_waypoint->GetPath(index)->connectionFlags[index] & PATHFLAG_DOUBLE)
-		return 65355.0f;
-
-	float baseCost = g_exp.GetAStarValue(index, team, false);
-
 	float pathDist = g_waypoint->GetPathDistanceFloat(parent, index);
 
 	if (g_waypoint->GetPath(index)->flags & WAYPOINT_CROUCH)
 		baseCost += pathDist * 2.0f;
 
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_CROUCH && g_waypoint->GetPath(index)->flags & WAYPOINT_CAMP)
-		baseCost += pathDist * 2.0f;
-
-	return pathDist + (baseCost * (ebot_dangerfactor_min.GetFloat() * 2.0f / offset));
-}
-
-inline const float GF_CostDistRusher(int index, int parent, int team, float offset)
-{
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_FALLCHECK)
-	{
-		TraceResult tr;
-		Vector src = g_waypoint->GetPath(index)->origin;
-		src.z -= 40.0f;
-
-		TraceLine(src, g_waypoint->GetPath(index)->origin, true, false, null, &tr);
-
-		if (tr.flFraction == 1.0f)
-			return 65355.0f;
-	}
-
-	if (team == TEAM_COUNTER ? g_waypoint->GetPath(index)->flags & WAYPOINT_TERRORIST : g_waypoint->GetPath(index)->flags & WAYPOINT_COUNTER)
-		return 65355.0f;
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_AVOID)
-		return 65355.0f;
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_DJUMP)
-		return 65355.0f;
-
-	if (g_waypoint->GetPath(index)->connectionFlags[index] & PATHFLAG_DOUBLE)
-		return 65355.0f;
-
-	float baseCost = g_exp.GetAStarValue(index, team, true);
-
-	float pathDist = g_waypoint->GetPathDistanceFloat(parent, index);
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_CROUCH)
-		baseCost += pathDist * 2.0f;
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_CROUCH && g_waypoint->GetPath(index)->flags & WAYPOINT_CAMP)
-		baseCost += pathDist * 2.0f;
-
-	return pathDist + (baseCost * (ebot_dangerfactor_min.GetFloat() * 2.0f / offset));
-}
-
-inline const float GF_CostCareful(int index, int parent, int team, float offset)
-{
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_FALLCHECK)
-	{
-		TraceResult tr;
-		Vector src = g_waypoint->GetPath(index)->origin;
-		src.z -= 40.0f;
-
-		TraceLine(src, g_waypoint->GetPath(index)->origin, true, false, null, &tr);
-
-		if (tr.flFraction == 1.0f)
-			return 65355.0f;
-	}
-
-	if (team == TEAM_COUNTER ? g_waypoint->GetPath(index)->flags & WAYPOINT_TERRORIST : g_waypoint->GetPath(index)->flags & WAYPOINT_COUNTER)
-		return 65355.0f;
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_AVOID)
-		return 65355.0f;
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_DJUMP)
-		return 65355.0f;
-
-	if (g_waypoint->GetPath(index)->connectionFlags[index] & PATHFLAG_DOUBLE)
-		return 65355.0f;
-
-	float baseCost = g_exp.GetAStarValue(index, team, false);
-
-	for (int i = 0; i < Const_MaxPathIndex; i++)
-	{
-		int neighbour = g_waypoint->GetPath(index)->index[i];
-
-		if (neighbour != -1)
-			baseCost += (g_exp.GetDamage(neighbour, neighbour, team) + g_exp.GetKillHistory());
-	}
-
-	float pathDist = g_waypoint->GetPathDistanceFloat(parent, index);
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_CROUCH && g_waypoint->GetPath(index)->flags & WAYPOINT_CAMP)
-		baseCost += pathDist * 2.0f;
-
-	return pathDist + (baseCost * (ebot_dangerfactor_max.GetFloat() * 2.0f / offset));
-}
-
-inline const float GF_CostDistCareful(int index, int parent, int team, float offset)
-{
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_FALLCHECK)
-	{
-		TraceResult tr;
-		Vector src = g_waypoint->GetPath(index)->origin;
-		src.z -= 40.0f;
-
-		TraceLine(src, g_waypoint->GetPath(index)->origin, true, false, null, &tr);
-
-		if (tr.flFraction == 1.0f)
-			return 65355.0f;
-	}
-
-	if (team == TEAM_COUNTER ? g_waypoint->GetPath(index)->flags & WAYPOINT_TERRORIST : g_waypoint->GetPath(index)->flags & WAYPOINT_COUNTER)
-		return 65355.0f;
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_AVOID)
-		return 65355.0f;
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_DJUMP)
-		return 65355.0f;
-
-	if (g_waypoint->GetPath(index)->connectionFlags[index] & PATHFLAG_DOUBLE)
-		return 65355.0f;
-
-	float baseCost = g_exp.GetAStarValue(index, team, true);
-
-	for (int i = 0; i < Const_MaxPathIndex; i++)
-	{
-		int neighbour = g_waypoint->GetPath(index)->index[i];
-
-		if (neighbour != -1)
-			baseCost += (g_exp.GetDamage(neighbour, neighbour, team) + g_exp.GetKillHistory());
-	}
-
-	float pathDist = g_waypoint->GetPathDistanceFloat(parent, index);
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_CROUCH && g_waypoint->GetPath(index)->flags & WAYPOINT_CAMP)
-		baseCost += pathDist * 2.0f;
-
-	return pathDist + (baseCost * (ebot_dangerfactor_max.GetFloat() * 2.0f / offset));
+	return pathDist + (baseCost * (ebot_dangerfactor.GetFloat() * 2.0f / offset));
 }
 
 inline const float GF_CostNoHostage(int index, int parent, int team, float offset)
+{
+	Path* path = g_waypoint->GetPath(index);
+
+	if (path->flags & WAYPOINT_CROUCH)
+		return 65355.0f;
+
+	if (path->flags & WAYPOINT_LADDER)
+		return 65355.0f;
+
+	if (path->flags & WAYPOINT_AVOID)
+		return 65355.0f;
+
+	if (path->flags & WAYPOINT_FALLCHECK)
+		return 65355.0f;
+
+	if (path->flags & WAYPOINT_JUMP)
+		return 65355.0f;
+
+	if (path->flags & WAYPOINT_DJUMP)
+		return 65355.0f;
+
+	for (int i = 0; i < Const_MaxPathIndex; i++)
+	{
+		int neighbour = g_waypoint->GetPath(index)->index[i];
+
+		if (IsValidWaypoint(neighbour) && (path->connectionFlags[neighbour] & PATHFLAG_JUMP || path->connectionFlags[neighbour] & PATHFLAG_DOUBLE))
+			return 65355.0f;
+	}
+
+	float baseCost = g_exp.GetDamage(index, index, team);
+	float pathDist = g_waypoint->GetPathDistanceFloat(parent, index);
+
+	if (g_waypoint->GetPath(index)->flags & WAYPOINT_CROUCH && g_waypoint->GetPath(index)->flags & WAYPOINT_CAMP)
+		baseCost += pathDist * 2.0f;
+
+	return pathDist + (baseCost * (ebot_dangerfactor.GetFloat() * 2.0f / offset));
+}
+
+inline const float GF_CostNoHostageDist(int index, int parent, int team, float offset)
 {
 	Path* path = g_waypoint->GetPath(index);
 
@@ -1143,32 +958,39 @@ inline const float GF_CostNoHostage(int index, int parent, int team, float offse
 	if (g_waypoint->GetPath(index)->flags & WAYPOINT_CROUCH && g_waypoint->GetPath(index)->flags & WAYPOINT_CAMP)
 		baseCost += pathDist * 2.0f;
 
-	return pathDist + (baseCost * (ebot_dangerfactor_max.GetFloat() * 2.0f / offset));
-}
-
-inline const float GF_CostCTFastDefuse(int index, int parent, int team, float offset)
-{
-	Path* path = g_waypoint->GetPath(index);
-
-	if (path->flags & WAYPOINT_TERRORIST)
-		return 65355.0f;
-
-	if (path->flags & WAYPOINT_AVOID)
-		return 65355.0f;
-
-	if (path->flags & WAYPOINT_DJUMP)
-		return 65355.0f;
-
-	float baseCost = g_exp.GetAStarValue(index, team, true);
-	float pathDist = g_waypoint->GetPathDistanceFloat(parent, index);
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_CROUCH)
-		baseCost += pathDist * 2.0f;
-
-	return pathDist + (baseCost * (ebot_dangerfactor_min.GetFloat() / offset));
+	return pathDist + (baseCost * (ebot_dangerfactor.GetFloat() * 2.0f / offset));
 }
 
 inline const float HF_PathDist(int start, int goal)
+{
+	Path* pathStart = g_waypoint->GetPath(start);
+	Path* pathGoal = g_waypoint->GetPath(goal);
+
+	return fabsf(pathGoal->origin.x - pathStart->origin.x) + fabsf(pathGoal->origin.y - pathStart->origin.y) + fabsf(pathGoal->origin.z - pathStart->origin.z);
+}
+
+inline const float HF_NumberNodes(int start, int goal)
+{
+	return HF_PathDist(start, goal) / 128.0f * g_exp.GetKillHistory();
+}
+
+inline const float HF_None(int start, int goal)
+{
+	return HF_PathDist(start, goal) / (128.0f * 100.0f);
+}
+
+inline const float GF_CostZB(int index, int parent, int team, float offset)
+{
+	float baseCost = g_exp.GetAStarValue(index, team, false);
+	float pathDist = g_waypoint->GetPathDistanceFloat(parent, index);
+
+	if (g_waypoint->GetPath(index)->flags & WAYPOINT_CROUCH)
+		baseCost += pathDist * 1.5f;
+
+	return pathDist + (baseCost * (ebot_dangerfactor.GetFloat() * 2.3f / offset));
+}
+
+inline const float HF_ZB(int start, int goal)
 {
 	Path* pathStart = g_waypoint->GetPath(start);
 	Path* pathGoal = g_waypoint->GetPath(goal);
@@ -1183,244 +1005,23 @@ inline const float HF_PathDist(int start, int goal)
 	return 1.4f * xDist + (yDist - xDist) + zDist;
 }
 
-inline const float HF_NumberNodes(int start, int goal)
-{
-	return HF_PathDist(start, goal) / 128.0f * g_exp.GetKillHistory();
-}
-
-inline const float HF_None(int start, int goal)
-{
-	return HF_PathDist(start, goal) / (128.0f * 100.0f);
-}
-
-inline const float GF_CostZBNormal(int index, int parent, int team, float offset)
-{
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_FALLCHECK)
-	{
-		TraceResult tr;
-		Vector src = g_waypoint->GetPath(index)->origin;
-		src.z -= 40.0f;
-
-		TraceHull(src, g_waypoint->GetPath(index)->origin, true, human_hull, null, &tr);
-
-		if (tr.flFraction == 1.0f)
-			return 65355.0f;
-	}
-
-	if (g_waypoint->GetPath(parent)->connectionFlags[index] & PATHCON_VISIBLE)
-	{
-		TraceResult tr;
-
-		TraceHull(g_waypoint->GetPath(parent)->origin, g_waypoint->GetPath(index)->origin, true, human_hull, null, &tr);
-
-		// hit something, we cant reach to this path
-		if (tr.flFraction != 1.0f)
-			return 65355.0f;
-	}
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_COUNTER)
-		return 65355.0f;
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_AVOID)
-		return 65355.0f;
-
-	if (ebot_anti_block.GetInt() == 1 && g_waypoint->GetPath(index)->flags & WAYPOINT_DJUMP)
-		return 65355.0f;
-
-	float baseCost = g_exp.GetAStarValue(index, team, false);
-
-	for (int i = 0; i < Const_MaxPathIndex; i++)
-	{
-		int neighbour = g_waypoint->GetPath(index)->index[i];
-
-		if (neighbour != -1)
-			baseCost += g_exp.GetDamage(neighbour, neighbour, team);
-	}
-
-	float pathDist = g_waypoint->GetPathDistanceFloat(parent, index);
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_DJUMP)
-		baseCost += pathDist * 4.0f;
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_CROUCH)
-		baseCost += pathDist * 1.25f;
-
-	int count = 0;
-
-	for (const auto& client : g_clients)
-	{
-		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE))
-			continue;
-
-		if ((client.origin - g_waypoint->GetPath(index)->origin).GetLength() <= 96.0f)
-			count++;
-
-		baseCost += pathDist * (count * count);
-	}
-
-	return pathDist + (baseCost * (engine->RandomFloat(ebot_dangerfactor_min.GetFloat(), ebot_dangerfactor_max.GetFloat()) * 2.0f / offset));
-}
-
-inline const float GF_CostZBRusher(int index, int parent, int team, float offset)
-{
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_FALLCHECK)
-	{
-		TraceResult tr;
-		Vector src = g_waypoint->GetPath(index)->origin;
-		src.z -= 40.0f;
-
-		TraceHull(src, g_waypoint->GetPath(index)->origin, true, human_hull, null, &tr);
-
-		if (tr.flFraction == 1.0f)
-			return 65355.0f;
-	}
-
-	if (g_waypoint->GetPath(parent)->connectionFlags[index] & PATHCON_VISIBLE)
-	{
-		TraceResult tr;
-
-		TraceHull(g_waypoint->GetPath(parent)->origin, g_waypoint->GetPath(index)->origin, true, human_hull, null, &tr);
-
-		// hit something, we cant reach to this path
-		if (tr.flFraction != 1.0f)
-			return 65355.0f;
-	}
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_COUNTER)
-		return 65355.0f;
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_AVOID)
-		return 65355.0f;
-
-	float baseCost = g_exp.GetAStarValue(index, team, false);
-
-	float pathDist = g_waypoint->GetPathDistanceFloat(parent, index);
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_DJUMP)
-		baseCost += pathDist * 5.0f;
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_CROUCH)
-		baseCost += pathDist * 1.75f;
-
-	return pathDist + (baseCost * (ebot_dangerfactor_min.GetFloat() * 2.0f / offset));
-}
-
-inline const float GF_CostZBCareful(int index, int parent, int team, float offset)
-{
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_FALLCHECK)
-	{
-		TraceResult tr;
-		Vector src = g_waypoint->GetPath(index)->origin;
-		src.z -= 40.0f;
-
-		TraceHull(src, g_waypoint->GetPath(index)->origin, true, human_hull, null, &tr);
-
-		if (tr.flFraction == 1.0f)
-			return 65355.0f;
-	}
-
-	if (g_waypoint->GetPath(parent)->connectionFlags[index] & PATHCON_VISIBLE)
-	{
-		TraceResult tr;
-
-		TraceHull(g_waypoint->GetPath(parent)->origin, g_waypoint->GetPath(index)->origin, true, human_hull, null, &tr);
-
-		// hit something, we cant reach to this path
-		if (tr.flFraction != 1.0f)
-			return 65355.0f;
-	}
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_COUNTER)
-		return 65355.0f;
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_AVOID)
-		return 65355.0f;
-
-	if (ebot_anti_block.GetInt() == 1 && g_waypoint->GetPath(index)->flags & WAYPOINT_DJUMP)
-		return 65355.0f;
-
-	float baseCost = g_exp.GetAStarValue(index, team, false);
-
-	for (int i = 0; i < Const_MaxPathIndex; i++)
-	{
-		int neighbour = g_waypoint->GetPath(index)->index[i];
-
-		if (neighbour != -1)
-			baseCost += (g_exp.GetDamage(neighbour, neighbour, team) + g_exp.GetKillHistory());
-	}
-
-	float pathDist = g_waypoint->GetPathDistanceFloat(parent, index);
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_LADDER)
-		baseCost += pathDist * 2.0f;
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_DJUMP)
-		baseCost += pathDist * 3.0f;
-
-	return pathDist + (baseCost * (ebot_dangerfactor_min.GetFloat() * 2.0f / offset));
-}
-
-inline const float GF_CostHM(int index, int parent, int team, float offset)
-{
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_FALLCHECK)
-	{
-		TraceResult tr;
-		Vector src = g_waypoint->GetPath(index)->origin;
-		src.z -= 40.0f;
-
-		TraceHull(src, g_waypoint->GetPath(index)->origin, true, human_hull, null, &tr);
-
-		if (tr.flFraction == 1.0f)
-			return 65355.0f;
-	}
-
-	for (int i = 0; i < Const_MaxPathIndex; i++)
-	{
-		int neighbour = g_waypoint->GetPath(index)->index[i];
-
-		if (IsValidWaypoint(neighbour))
-		{
-			if (g_waypoint->GetPath(index)->connectionFlags[neighbour] & PATHCON_VISIBLE)
-			{
-				TraceResult tr;
-
-				TraceHull(g_waypoint->GetPath(index)->origin, g_waypoint->GetPath(neighbour)->origin, true, human_hull, null, &tr);
-
-				// hit something, we cant reach to this path
-				if (tr.flFraction != 1.0f)
-					return 65355.0f;
-			}
-		}
-	}
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_TERRORIST)
-		return 65350.0f;
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_AVOID)
-		return 65350.0f;
-
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_DJUMP)
-		return 65350.0f;
-
-	float baseCost = g_exp.GetAStarValue(index, team, false);
-	float pathDist = g_waypoint->GetPathDistanceFloat(parent, index);
-
-	return pathDist + (baseCost * (ebot_dangerfactor_min.GetFloat() * 2.0f / offset));
-}
-
+// this function finds a path from srcIndex to destIndex
 void Bot::FindPath(int srcIndex, int destIndex, uint8_t pathType)
 {
-	// this function finds a path from srcIndex to destIndex
-	if (m_pathtimer + 1.0 > engine->GetTime())
+	// this pathfinder can crash the game due this priority queue may memory allocation fail... so use fastest one for stability.
+	if (GetGameMod() != MODE_BASE)
 	{
-		if (!HasNextPath() && !IsZombieMode() && !HasHostage()) // take care about that
-			FindShortestPath(srcIndex, destIndex);
+		FindShortestPath(srcIndex, destIndex);
 		return;
 	}
 
-	m_pathtimer = engine->GetTime();
+	if (m_pathtimer + 1.0 > engine->GetTime())
+	{
+		if (!HasNextPath()) // take care about that
+			return;
+	}
 
-	if (!IsValidWaypoint(srcIndex) || m_isStuck) // if we're stuck, find nearest waypoint
+	if (srcIndex > g_numWaypoints - 1 || srcIndex < 0 || m_isStuck) // if we're stuck, find nearest waypoint
 	{
 		if (IsValidWaypoint(m_currentWaypointIndex) && !m_isStuck) // did we have a current waypoint?
 			srcIndex = m_currentWaypointIndex;
@@ -1437,26 +1038,15 @@ void Bot::FindPath(int srcIndex, int destIndex, uint8_t pathType)
 		}
 	}
 
-	if (!IsValidWaypoint(destIndex)) // we can try find our dest waypoint for avoid errors
+	if (destIndex > g_numWaypoints - 1 || destIndex < 0)
 	{
 		AddLogEntry(LOG_ERROR, "Pathfinder destination path index not valid (%d)", destIndex);
 		return;
 	}
 
-	if (m_isStuck)
-	{
-		DeleteSearchNodes();
-		GetValidWaypoint();
-	}
+	m_pathtimer = engine->GetTime();
 
-	if (HasHostage())
-		DeleteSearchNodes();
-
-	if (!IsAlive(GetEntity()))
-		DeleteSearchNodes();
-
-	if (!IsOnFloor())
-		DeleteSearchNodes();
+	DeleteSearchNodes();
 
 	m_chosenGoalIndex = srcIndex;
 	m_goalValue = 0.0f;
@@ -1469,8 +1059,11 @@ void Bot::FindPath(int srcIndex, int destIndex, uint8_t pathType)
 		float g;
 		float f;
 		int parent;
+
 		AStarState_t state;
 	} astar[Const_MaxWaypoints];
+
+	PriorityQueue openList;
 
 	for (int i = 0; i < Const_MaxWaypoints; i++)
 	{
@@ -1485,57 +1078,23 @@ void Bot::FindPath(int srcIndex, int destIndex, uint8_t pathType)
 
 	float offset = 1.0f;
 
-	// ct bots have a time limit, they must care about that when bomb planted.
-	if (g_bombPlanted && m_team == TEAM_COUNTER)
+	if (m_isZombieBot && m_personality != PERSONALITY_CAREFUL)
 	{
-		gcalc = GF_CostCTFastDefuse;
-		hcalc = HF_NumberNodes;
-
+		gcalc = GF_CostZB;
+		hcalc = HF_ZB;
 		offset = static_cast <float> (m_skill / 20);
 	}
-	else if (HasHostage())
-	{ 
-		gcalc = GF_CostNoHostage;
-		hcalc = HF_None;
-
-		offset = static_cast <float> (m_skill / 25);
-	}
-	else if (m_isZombieBot)
+	else if (pathType == 1)
 	{
-		if (m_personality == PERSONALITY_RUSHER)
-			gcalc = GF_CostZBRusher;
-		else if (m_personality == PERSONALITY_CAREFUL)
-			gcalc = GF_CostZBCareful;
-		else
-			gcalc = GF_CostZBNormal;
-
-		if (pathType == 1)
-			hcalc = HF_PathDist;
-		else
-			hcalc = HF_None;
-
-		offset = static_cast <float> (m_skill / 25);
-	}
-	else if (IsZombieMode() && !m_isZombieBot)
-	{
-		gcalc = GF_CostHM;
-		hcalc = HF_None;
-
+		gcalc = HasHostage() ? GF_CostNoHostageDist : GF_CostDist;
+		hcalc = HF_NumberNodes;
 		offset = static_cast <float> (m_skill / 25);
 	}
 	else
 	{
-		if (m_isVIP || m_isReloading || m_isBomber)
-			gcalc = GF_CostCareful;
-		else
-			gcalc = m_personality == PERSONALITY_CAREFUL ? GF_CostCareful : m_personality == PERSONALITY_RUSHER ? GF_CostRusher : GF_CostNormal;
-
-		if (m_isStuck)
-			hcalc = HF_None;
-		else
-			hcalc = HF_PathDist;
-
-		offset = static_cast <float> (m_skill / 25);
+		gcalc = HasHostage() ? GF_CostNoHostage : GF_Cost;
+		hcalc = HF_PathDist;
+		offset = static_cast <float> (m_skill / 20);
 	}
 
 	// put start node into open list
@@ -1543,8 +1102,8 @@ void Bot::FindPath(int srcIndex, int destIndex, uint8_t pathType)
 	astar[srcIndex].f = astar[srcIndex].g + hcalc(srcIndex, destIndex);
 	astar[srcIndex].state = OPEN;
 
-	PriorityQueue openList;
 	openList.Insert(srcIndex, astar[srcIndex].f);
+
 	while (!openList.Empty())
 	{
 		// remove the first node from the open list
@@ -1555,17 +1114,22 @@ void Bot::FindPath(int srcIndex, int destIndex, uint8_t pathType)
 		{
 			// build the complete path
 			m_navNode = null;
+
 			do
 			{
 				PathNode* path = new PathNode;
-				if (path != null)
-				{
-					path->index = currentIndex;
-					path->next = m_navNode;
-					m_navNode = path;
-					currentIndex = astar[currentIndex].parent;
-				}
-			} while (IsValidWaypoint(currentIndex));
+
+				if (path == null)
+					return;
+
+				path->index = currentIndex;
+				path->next = m_navNode;
+
+				m_navNode = path;
+				currentIndex = astar[currentIndex].parent;
+
+			} while (currentIndex != -1);
+
 			m_navNodeStart = m_navNode;
 			return;
 		}
@@ -1581,7 +1145,7 @@ void Bot::FindPath(int srcIndex, int destIndex, uint8_t pathType)
 		{
 			int self = g_waypoint->GetPath(currentIndex)->index[i];
 
-			if (!IsValidWaypoint(self))
+			if (self == -1)
 				continue;
 
 			// calculate the F value as F = G + H
@@ -1603,7 +1167,7 @@ void Bot::FindPath(int srcIndex, int destIndex, uint8_t pathType)
 		}
 	}
 
-	FindShortestPath(srcIndex, destIndex); // A* found no path, try Floyd Warshall instead
+	FindShortestPath(srcIndex, destIndex); // A* found no path, try floyd pathfinder instead
 }
 
 void Bot::DeleteSearchNodes(void)
@@ -1671,7 +1235,6 @@ void Bot::CheckTouchEntity(edict_t* entity)
 	m_checktouch = engine->GetTime();
 }
 
-// SyPB Pro P.47 - Base improve
 void Bot::SetEnemy(edict_t* entity)
 {
 	if (FNullEnt(entity) || !IsAlive(entity))
@@ -1688,14 +1251,12 @@ void Bot::SetEnemy(edict_t* entity)
 		return;
 	}
 
-	// SyPB Pro P.48 - Base improve
 	if (m_enemy != entity)
 		m_enemyReachableTimer = 0.0f;
 
 	m_enemy = entity;
 }
 
-// SyPB Pro P.42 - NPC Fixed
 void Bot::SetLastEnemy(edict_t* entity)
 {
 	if (FNullEnt(entity) || !IsValidPlayer(entity) || !IsAlive(entity))
@@ -1709,7 +1270,6 @@ void Bot::SetLastEnemy(edict_t* entity)
 	m_lastEnemyOrigin = GetEntityOrigin(entity);
 }
 
-// SyPB Pro P.40 - Move Target
 void Bot::SetMoveTarget(edict_t* entity)
 {
 	m_moveTargetOrigin = GetEntityOrigin(entity);
@@ -1718,29 +1278,22 @@ void Bot::SetMoveTarget(edict_t* entity)
 		m_moveTargetEntity = null;
 		m_moveTargetOrigin = nullvec;
 
-		// SyPB Pro P.42 - Small Change
 		if (GetCurrentTask()->taskID == TASK_MOVETOTARGET)
 		{
 			RemoveCertainTask(TASK_MOVETOTARGET);
-
-			// SyPB Pro P.43 - Move Target improve
 			m_prevGoalIndex = -1;
 			GetCurrentTask()->data = -1;
-
-			DeleteSearchNodes();
 		}
 
 		return;
 	}
 
-	// SyPB Pro P.43 - Fixed 
 	m_states &= ~STATE_SEEINGENEMY;
 	SetEnemy(null);
 	SetLastEnemy(null);
 	m_enemyUpdateTime = 0.0f;
 	m_aimFlags &= ~AIM_ENEMY;
 
-	// SyPB Pro P.42 - Move Target
 	if (m_moveTargetEntity == entity)
 		return;
 
@@ -1936,7 +1489,6 @@ void Bot::IgnoreCollisionShortly(void)
 	m_checkTerrain = false;
 }
 
-// SyPB Pro P.40 - Base Change for Waypoint OS
 void Bot::SetWaypointOrigin(void)
 {
 	extern ConVar ebot_think_fps;
@@ -1995,7 +1547,6 @@ void Bot::GetValidWaypoint(void)
 {
 	// checks if the last waypoint the bot was heading for is still valid
 
-	// SyPB Pro P.38 - Find Waypoint Improve
 	bool needFindWaypont = false;
 	if (!IsValidWaypoint(m_currentWaypointIndex))
 		needFindWaypont = true;
@@ -2016,16 +1567,13 @@ void Bot::GetValidWaypoint(void)
 		if (IsValidWaypoint(m_currentWaypointIndex) && !IsZombieMode())
 			g_exp.CollectValidDamage(m_currentWaypointIndex, m_team);
 
-		DeleteSearchNodes();
 		FindWaypoint();
-
 		SetWaypointOrigin();
 	}
 }
 
 void Bot::ChangeWptIndex(int waypointIndex)
 {
-	// SyPB Pro P.48 - Base Change for Waypoint OS
 	bool badPrevWpt = true;
 	for (int i = 0; (IsValidWaypoint(m_currentWaypointIndex) && i < Const_MaxPathIndex); i++)
 	{
@@ -2820,13 +2368,17 @@ bool Bot::IsDeadlyDrop(Vector targetOriginPos)
 	return false;
 }
 
-void Bot::CheckCloseAvoidance(const Vector& dirNormal)
+bool Bot::CheckCloseAvoidance(const Vector& dirNormal)
 {
-	if (m_seeEnemyTime + 2.0f < engine->GetTime())
-		return;
+	// :)
+	if (IsAntiBlock(GetEntity()))
+		return false;
+
+	if (m_seeEnemyTime + 3.0f < engine->GetTime())
+		return false;
 
 	edict_t* hindrance = nullptr;
-	float distance = 300.0f;
+	float distance = 300.0f * 300.0f;
 
 	// find nearest player to bot
 	for (const auto& client : g_clients)
@@ -2843,9 +2395,8 @@ void Bot::CheckCloseAvoidance(const Vector& dirNormal)
 		if (client.team != m_team || client.ent == GetEntity())
 			continue;
 
-		auto nearest = (client.ent->v.origin - pev->origin).GetLength2D();
-
-		if (nearest < pev->maxspeed && nearest < distance)
+		float nearest = (pev->origin - client.ent->v.origin).GetLengthSquared();
+		if (nearest < (pev->maxspeed * pev->maxspeed) && nearest < distance)
 		{
 			hindrance = client.ent;
 			distance = nearest;
@@ -2854,9 +2405,31 @@ void Bot::CheckCloseAvoidance(const Vector& dirNormal)
 
 	// found somebody?
 	if (!hindrance)
-		return;
+		return false;
 
-	const float interval = m_frameInterval;
+	// don't get stuck in small areas, follow the same goal
+	if (m_isStuck)
+	{
+		Bot* otherBot = g_botManager->GetBot(hindrance);
+		if (otherBot != null)
+		{
+			m_tasks->data = otherBot->m_tasks->data;
+			m_prevGoalIndex = otherBot->m_prevGoalIndex;
+			m_chosenGoalIndex = otherBot->m_chosenGoalIndex;
+			int index = m_tasks->data;
+			if (index == -1)
+				index = m_chosenGoalIndex;
+			if (index == -1)
+				index = m_prevGoalIndex;
+			if (index != -1)
+			{
+				FindShortestPath(m_currentWaypointIndex, index);
+				otherBot->FindShortestPath(m_currentWaypointIndex, index);
+			}
+		}
+	}
+
+	const float interval = m_frameInterval * 4.0f;
 
 	// use our movement angles, try to predict where we should be next frame
 	Vector right, forward;
@@ -2867,12 +2440,12 @@ void Bot::CheckCloseAvoidance(const Vector& dirNormal)
 	predict += right * m_strafeSpeed * interval;
 	predict += pev->velocity * interval;
 
-	auto movedDistance = (hindrance->v.origin - predict).GetLength2D();
-	auto nextFrameDistance = ((hindrance->v.origin + hindrance->v.velocity * interval) - pev->origin).GetLength2D();
+	float movedDistance = (predict - hindrance->v.origin).GetLengthSquared();
+	float nextFrameDistance = (pev->origin - (hindrance->v.origin + hindrance->v.velocity * interval)).GetLengthSquared();
 
 	// is player that near now or in future that we need to steer away?
-	if (movedDistance <= 48.0f || distance <= 64.0f && nextFrameDistance < distance)
- {
+	if (movedDistance <= (48.0f * 48.0f) || (distance <= (56.0f * 56.0f) && nextFrameDistance < distance))
+	{
 		auto dir = (pev->origin - hindrance->v.origin).Normalize2D();
 
 		// to start strafing, we have to first figure out if the target is on the left side or right side
@@ -2880,14 +2453,23 @@ void Bot::CheckCloseAvoidance(const Vector& dirNormal)
 			SetStrafeSpeed(dirNormal, pev->maxspeed);
 		else
 			SetStrafeSpeed(dirNormal, -pev->maxspeed);
+
+		if (distance < (56.0f * 56.0f))
+		{
+			if ((dir | forward.GetLength2D()) < 0.0f)
+				m_moveSpeed = -pev->maxspeed;
+		}
+
+		return true;
 	}
+
+	return false;
 }
 
 int Bot::GetCampAimingWaypoint(void)
 {
 	Array <int> BestWaypoints;
 	Array <int> OkWaypoints;
-	Array <int> WorstWaypoints;
 
 	int currentWay = m_currentWaypointIndex;
 
@@ -2895,7 +2477,6 @@ int Bot::GetCampAimingWaypoint(void)
 		currentWay = g_waypoint->FindNearest(pev->origin);
 
 	int DangerWaypoint = -1;
-
 	for (int i = 0; i < g_numWaypoints; i++)
 	{
 		if (!IsValidWaypoint(i))
@@ -2904,12 +2485,10 @@ int Bot::GetCampAimingWaypoint(void)
 		if (currentWay == i)
 			continue;
 
-		if (IsWaypointOccupied(i))
-			continue;
-
 		int index = -1;
 		float maxdamage = 99999.0f;
 		float damage = g_exp.GetDamage(i, i, m_team);
+		
 
 		if (damage > maxdamage)
 		{
@@ -2919,35 +2498,37 @@ int Bot::GetCampAimingWaypoint(void)
 
 		DangerWaypoint = index;
 
-		if (IsVisible(g_waypoint->GetPath(i)->origin, GetEntity()) && (g_waypoint->GetPath(i)->origin - pev->origin).GetLength() > 512.0f)
+		if (!IsVisible(g_waypoint->GetPath(i)->origin, GetEntity()))
+			continue;
+
+		if ((g_waypoint->GetPath(i)->origin - pev->origin).GetLength() > 512.0f)
 			BestWaypoints.Push(i);
-		else if (IsVisible(g_waypoint->GetPath(i)->origin, GetEntity()))
-			OkWaypoints.Push(i);
 		else
-			WorstWaypoints.Push(i);
+			OkWaypoints.Push(i);
 	}
 
-	if (ChanceOf(25) && IsValidWaypoint(DangerWaypoint) && IsVisible(g_waypoint->GetPath(DangerWaypoint)->origin, GetEntity()))
+	int dangerIndex = g_exp.GetDangerIndex(currentWay, currentWay, TEAM_COUNTER);
+	if (ChanceOf(20) && IsValidWaypoint(dangerIndex) && IsVisible(g_waypoint->GetPath(dangerIndex)->origin, GetEntity()))
+		return dangerIndex;
+	else if (ChanceOf(20) && IsValidWaypoint(DangerWaypoint) && IsVisible(g_waypoint->GetPath(DangerWaypoint)->origin, GetEntity()))
 		return DangerWaypoint;
 	else if (!BestWaypoints.IsEmpty())
 		return BestWaypoints.GetRandomElement();
 	else if (!OkWaypoints.IsEmpty())
 		return OkWaypoints.GetRandomElement();
-	else if (!WorstWaypoints.IsEmpty())
-		return WorstWaypoints.GetRandomElement();
 
 	return g_waypoint->m_otherPoints.GetRandomElement();
 }
 
-// ebot 1.0 - more human like aiming.
+// more human like aiming
 void Bot::FacePosition(void)
 {
 	if (!FNullEnt(m_enemy) || !FNullEnt(m_enemyAPI))
 	{
-		if (m_aimstoptime + 0.25f > engine->GetTime())
+		if (m_aimstoptime + 0.3f > engine->GetTime())
 			m_aimstoptime = engine->GetTime();
 
-		m_aimstopdelay = IsZombieMode() ? 0.1f : engine->RandomFloat(0.1f, 0.25f);
+		m_aimstopdelay = IsZombieMode() ? 0.05f : engine->RandomFloat(0.1f, 0.3f);
 	}
 	else
 		m_aimstopdelay = engine->RandomFloat(0.5f, 1.25f);
@@ -3058,9 +2639,11 @@ void Bot::SetStrafeSpeed(Vector moveDir, float strafeSpeed)
 		m_strafeSpeed = strafeSpeed;
 	else if (!CheckWallOnLeft())
 		m_strafeSpeed = -strafeSpeed;
+	else if (GetCurrentTask()->taskID == TASK_CAMP)
+		m_lastEnemy = null;
 }
 
-// ebot 1.55 - find hostage improve
+// find hostage improve
 int Bot::FindHostage(void)
 {
 	if (m_team != TEAM_COUNTER || !(g_mapType & MAP_CS) || m_isZombieBot)

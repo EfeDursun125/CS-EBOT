@@ -36,7 +36,6 @@ ConVar ebot_showwp("ebot_show_waypoints", "0");
 
 ConVar ebot_analyze_create_goal_waypoints("ebot_analyze_starter_waypoints", "1");
 
-// SyPB Pro P.47 - ebot Version MSG
 void ebotVersionMSG(edict_t* entity = null)
 {
 	int buildVersion[4] = { PRODUCT_VERSION_DWORD };
@@ -1099,7 +1098,7 @@ int Spawn(edict_t* ent)
 	// Spawn() function is one of the functions any entity is supposed to have in the game DLL,
 	// and any MOD is supposed to implement one for each of its entities.
 
-	// ebot 1.52 - zp & biohazard flashlight support
+	// zp & biohazard flashlight support
 	if (ebot_force_flashlight.GetInt() == 1 && !(ent->v.effects & EF_DIMLIGHT))
 		ent->v.impulse = 100;
 
@@ -2535,13 +2534,11 @@ void KeyValue(edict_t* ent, KeyValueData* data)
 	(*g_functionTable.pfnKeyValue) (ent, data);
 }
 
-// SyPB Pro P.48 - Entity Base improve
 void LoadEntityData(void)
 {
 	edict_t* entity;
 	int i;
 
-	// SyPB Pro P.43 - Entity Action 
 	for (i = 0; i < entityNum; i++)
 	{
 		if (g_entityId[i] == -1)
@@ -2586,12 +2583,10 @@ void LoadEntityData(void)
 		if (g_clients[i].flags & CFLAG_ALIVE)
 		{
 			// keep the clipping mode enabled, or it can be turned off after new round has started
-			if (g_hostEntity == entity && g_editNoclip && g_waypointOn)  // SyPB Pro P.12
+			if (g_hostEntity == entity && g_editNoclip && g_waypointOn)
 				g_hostEntity->v.movetype = MOVETYPE_NOCLIP;
 
 			g_clients[i].origin = GetEntityOrigin(entity);
-
-			// SyPB Pro P.41 - Get Waypoint improve
 			if (g_clients[i].getWPTime + 1.2f < engine->GetTime() || (g_clients[i].wpIndex == -1 && g_clients[i].wpIndex2 == -1))
 				SetEntityWaypoint(entity);
 
@@ -2608,6 +2603,7 @@ void LoadEntityData(void)
 	}
 }
 
+static float secondTimer = 0.0;
 void StartFrame(void)
 {
 	// this function starts a video frame. It is called once per video frame by the engine. If
@@ -2621,62 +2617,22 @@ void StartFrame(void)
 	if (g_analyzewaypoints == true)
 		g_waypoint->Analyze();
 
-	// SyPB Pro P.37 - Lock Add Zbot
 	if (ebot_lockzbot.GetBool())
 	{
 		if (CVAR_GET_FLOAT("bot_quota") > 0)
 		{
 			CVAR_SET_FLOAT("ebot_quota", CVAR_GET_FLOAT("bot_quota"));
-
-			// SyPB Pro P.39 - Add Msg
-			ServerPrint("ebot_lockzbot is on, you cannot add ZBot");
-			ServerPrint("You can input ebot_lockzbot unlock add Zbot");
-			ServerPrint("But, If you have use AMXX plug-in, I think this is not good choice");
-
+			ServerPrint("ebot_lockzbot is 1, you cannot add Z-Bot");
+			ServerPrint("You can input ebot_lockzbot unlock add Z-Bot");
+			ServerPrint("But, If you have use AMXX plug-in or Zombie Mod, I think this is not good choice");
 			CVAR_SET_FLOAT("bot_quota", 0);
 		}
 	}
 
-	LoadEntityData();
-	int i;
-
-	static float secondTimer = 0.0f;
-
-	// **** AI EXECUTION STARTS ****
-	//g_botManager->Think ();
-	// **** AI EXECUTION FINISH ****
-
-	if (!IsDedicatedServer() && !FNullEnt(g_hostEntity))
-	{
-		if (g_waypointOn)
-		{
-			// SyPB Pro P.30 - small change
-			bool hasBot = false;
-			for (i = 0; i < engine->GetMaxClients(); i++)
-			{
-				if (g_botManager->GetBot(i))
-				{
-					hasBot = true;
-					g_botManager->RemoveAll();
-					break;
-				}
-			}
-
-			if (!hasBot)
-				g_waypoint->Think();
-
-			if (ebot_showwp.GetBool() == true)
-				ebot_showwp.SetInt(0);
-		}
-		// SyPB Pro P.38 - Show Waypoint Msg
-		else if (ebot_showwp.GetBool() == true)
-			g_waypoint->ShowWaypointMsg();
-
-		CheckWelcomeMessage();
-	}
-
 	if (secondTimer < engine->GetTime())
 	{
+		int i;
+		LoadEntityData();
 		if (IsDedicatedServer())
 		{
 			for (i = 0; i < engine->GetMaxClients(); i++)
@@ -2710,18 +2666,42 @@ void StartFrame(void)
 				}
 			}
 		}
+		else if (!FNullEnt(g_hostEntity))
+		{
+			if (g_waypointOn)
+			{
+				bool hasBot = false;
+				for (i = 0; i < engine->GetMaxClients(); i++)
+				{
+					if (g_botManager->GetBot(i))
+					{
+						hasBot = true;
+						g_botManager->RemoveAll();
+						break;
+					}
+				}
 
-		extern ConVar ebot_dangerfactor_min;
+				if (!hasBot)
+					g_waypoint->Think();
 
-		extern ConVar ebot_dangerfactor_max;
+				if (ebot_showwp.GetBool() == true)
+					ebot_showwp.SetInt(0);
+			}
+			else if (ebot_showwp.GetBool() == true)
+				g_waypoint->ShowWaypointMsg();
 
-		if (ebot_dangerfactor_min.GetFloat() >= 4096.0f)
-			ebot_dangerfactor_min.SetFloat(4096.0f);
+			CheckWelcomeMessage();
+		}
 
-		if (ebot_dangerfactor_max.GetFloat() >= 4096.0f)
-			ebot_dangerfactor_max.SetFloat(4096.0f);
+		extern ConVar ebot_dangerfactor;
 
-		secondTimer = engine->GetTime() + 3.0f;
+		if (ebot_dangerfactor.GetFloat() > 1024.0f)
+			ebot_dangerfactor.SetFloat(1024.0f);
+
+		if (ebot_dangerfactor.GetFloat() < 256.0f)
+			ebot_dangerfactor.SetFloat(256.0f);
+
+		secondTimer = engine->GetTime() + 1.0f;
 	}
 
 	if (g_bombPlanted)

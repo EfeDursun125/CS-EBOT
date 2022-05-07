@@ -40,10 +40,12 @@ ConVar ebot_camp_max("ebot_camp_time_max", "48");
 ConVar ebot_use_radio("ebot_use_radio", "1");
 ConVar ebot_anti_block("ebot_anti_block", "0");
 ConVar ebot_zm_dark_mode("ebot_zm_dark_mode", "0");
+ConVar ebot_zm_fov("ebot_zm_fov", "90");
 ConVar ebot_force_flashlight("ebot_force_flashlight", "0");
 ConVar ebot_use_flare("ebot_zombie_mode_use_flares", "1");
 ConVar ebot_chat_percent("ebot_chat_percent", "20");
 ConVar ebot_eco_rounds("ebot_eco_rounds", "1");
+ConVar ebot_human_side_movement("ebot_human_side_movement_while_camping", "1");
 
 //
 // This AI based on SyPB.
@@ -54,7 +56,7 @@ ConVar ebot_eco_rounds("ebot_eco_rounds", "1");
 // in the start of the project i wanted make the ai compatible with api & swnpc.
 // SyPB supports max 1024 waypoints but ebot supports 2048 max waypoints, this is the base incompatibile with swnpc.
 //
-// 
+
 // this function get the current message from the bots message queue
 int Bot::GetMessageQueue(void)
 {
@@ -112,11 +114,9 @@ float Bot::InFieldOfView(Vector destination)
 
 bool Bot::IsInViewCone(Vector origin)
 {
-	// this function returns true if the spatial vector location origin is located inside
-	// the field of view cone of the bot entity, false otherwise. It is assumed that entities
-	// have a human-like field of view, that is, about 90 degrees.
-
-	return ::IsInViewCone(origin, GetEntity());
+	auto ent = GetEntity();
+	engine->BuildGlobalVectors(ent->v.v_angle);
+	return ((origin - GetTopOrigin(ent)).Normalize() | g_pGlobals->v_forward) >= cosf(Math::DegreeToRadian(ebot_zm_fov.GetFloat() * 0.5f));
 }
 
 bool Bot::CheckVisibility(entvars_t* targetEntity, Vector* origin, uint8_t* bodyPart)
@@ -240,7 +240,7 @@ bool Bot::ItemIsVisible(Vector destination, char* itemName)//, bool bomb)
 	TraceResult tr;
 
 	// trace a line from bot's eyes to destination..
-	TraceLine(EyePosition(), destination, true, true, GetEntity(), &tr);
+	TraceLine(EyePosition(), destination, true, false, GetEntity(), &tr);
 
 	// check if line of sight to object is not blocked (i.e. visible)
 	if (tr.flFraction < 1.0f)
@@ -386,7 +386,6 @@ void Bot::ZmCampPointAction(int mode)
 			}
 		}
 	}
-	// -----
 
 	if (campAction == 0.0f || !IsValidWaypoint(m_currentWaypointIndex))
 		m_checkCampPointTime = 0.0f;
@@ -407,7 +406,7 @@ void Bot::ZmCampPointAction(int mode)
 		m_camp.y = g_waypoint->GetPath(m_zhCampPointIndex)->campStartY;
 		m_camp.z = 0;
 
-		m_aimFlags |= AIM_LASTENEMY;
+		m_aimFlags |= AIM_CAMP;
 		m_campDirection = 0;
 
 		m_moveToGoal = false;
@@ -894,7 +893,7 @@ void Bot::FindItem(void)
 					m_defendedBomb = true;
 
 					int index = FindDefendWaypoint(entityOrigin);
-					float timeMidBlowup = g_timeBombPlanted + ((engine->GetC4TimerTime() / 2) + engine->GetC4TimerTime() / 4) - g_waypoint->GetTravelTime(pev->maxspeed, pev->origin, g_waypoint->GetPath(index)->origin);
+					float timeMidBlowup = g_timeBombPlanted + ((engine->GetC4TimerTime() / 2) + engine->GetC4TimerTime() / 4) - g_waypoint->GetTravelTime(m_moveSpeed, pev->origin, g_waypoint->GetPath(index)->origin);
 
 					if (timeMidBlowup > engine->GetTime())
 					{
@@ -1022,7 +1021,7 @@ void Bot::GetCampDirection(Vector* dest)
 	TraceResult tr;
 	Vector src = EyePosition();
 
-	TraceLine(src, *dest, true, GetEntity(), &tr);
+	TraceLine(src, *dest, true, true, GetEntity(), &tr);
 
 	// check if the trace hit something...
 	if (tr.flFraction < 1.0f)
@@ -1833,7 +1832,7 @@ void Bot::SetConditions(void)
 	if (FNullEnt(m_enemy) && !FNullEnt(m_lastEnemy) && m_lastEnemyOrigin != nullvec && (GetGameMod() == MODE_BASE || IsDeathmatchMode()) && (pev->origin - m_lastEnemyOrigin).GetLength() < 1600.0f)
 	{
 		TraceResult tr;
-		TraceLine(EyePosition(), m_lastEnemyOrigin, true, GetEntity(), &tr);
+		TraceLine(EyePosition(), m_lastEnemyOrigin, true, true, GetEntity(), &tr);
 
 		if ((tr.flFraction >= 0.2f || tr.pHit != g_worldEdict))
 		{
@@ -2130,10 +2129,9 @@ void Bot::PushTask(BotTask taskID, float desire, int data, float time, bool canC
 	PushTask(&task); // use standard function to start task
 }
 
+// this function adds task pointer on the bot task stack
 void Bot::PushTask(Task* task)
 {
-	// this function adds task pointer on the bot task stack.
-
 	bool newTaskDifferent = false;
 	bool foundTaskExisting = false;
 	bool checkPriorities = false;
@@ -2307,8 +2305,6 @@ Task* Bot::GetCurrentTask(void)
 
 	m_tasks = newTask;
 	m_lastCollTime = engine->GetTime() + 0.5f;
-
-	DeleteSearchNodes();
 	return m_tasks;
 }
 
@@ -2594,8 +2590,8 @@ bool Bot::EnemyIsThreat(void)
 	if (GetCurrentTask()->taskID == TASK_CAMP && m_zhCampPointIndex == -1)
 		return false;
 
-	// if enemy is near or facing us directly
-	if ((m_enemy->v.origin - pev->origin).GetLength() <= 256.0f || (m_currentWeapon != WEAPON_KNIFE && IsInViewCone(GetEntityOrigin(m_enemy))))
+	// if enemy is near or we're aiming to him
+	if (IsOnAttackDistance(m_enemy, 256.0f) || (m_currentWaypointIndex != WEAPON_KNIFE && IsInViewCone(GetEntityOrigin(m_enemy))))
 		return true;
 
 	return false;
@@ -2607,27 +2603,30 @@ bool Bot::ReactOnEnemy(void)
 	if (!EnemyIsThreat() || FNullEnt(m_enemy))
 		return false;
 
-	float enemydistance = (pev->origin - GetEntityOrigin(m_enemy)).GetLength();
+	Vector enemyHead = GetPlayerHeadOrigin(m_enemy);
+	float enemydistance = (pev->origin - enemyHead).GetLength();
 	if (m_enemyReachableTimer < engine->GetTime())
 	{
-		if (m_isZombieBot || enemydistance <= 128.0f)
+		if (m_isZombieBot)
 		{
-			m_isEnemyReachable = true;
-
-			// if we're still following path, there's a distance between humans and we must check safety for best result.
-			if (!(pev->flags & FL_DUCKING) && m_numFriendsLeft != 0)
+			m_isEnemyReachable = false;
+			if (IsVisibleForKnifeAttack(enemyHead, GetEntity()))
 			{
-				if (m_isZombieBot && HasNextPath())
+				if (pev->flags & FL_DUCKING)
 				{
-					if (IsValidWaypoint(m_currentWaypointIndex) && (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_FALLCHECK || g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_LADDER || m_currentTravelFlags & PATHFLAG_JUMP))
-						m_isEnemyReachable = false;
-					else if(!IsValidBot(m_enemy)) // do not check this for bots, bots aren't smart like humans.
-					{
-						Vector origin = GetBottomOrigin(m_enemy);
-						if (!IsVisible(Vector(origin.x, origin.y, (origin.z + 5.0f)), GetEntity()))
-							m_isEnemyReachable = false;
-					}
+					if (enemydistance <= 48.0f)
+						m_isEnemyReachable = true;
 				}
+				else
+				{
+					float radius = 48.0f;
+					if (IsValidWaypoint(m_currentWaypointIndex) && !(g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_FALLCHECK))
+						radius += g_waypoint->GetPath(m_currentWaypointIndex)->radius;
+
+					if (enemydistance > radius)
+						m_isEnemyReachable = true;
+				}
+				goto last;
 			}
 		}
 		else if (!m_isZombieBot)
@@ -2653,7 +2652,7 @@ bool Bot::ReactOnEnemy(void)
 							Vector origin = GetBottomOrigin(GetEntity());
 
 							TraceResult tr;
-							TraceLine(Vector(origin.x, origin.y, (origin.z + 5.0f)), GetTopOrigin(m_enemy), true, true, GetEntity(), &tr);
+							TraceLine(Vector(origin.x, origin.y, (origin.z + 5.0f)), enemyHead, true, false, GetEntity(), &tr);
 
 							if (tr.flFraction == 1.0f && g_waypoint->GetPath(enemyIndex)->index[j] == ownIndex && !(g_waypoint->GetPath(enemyIndex)->connectionFlags[j] & PATHFLAG_JUMP))
 							{
@@ -2672,7 +2671,7 @@ bool Bot::ReactOnEnemy(void)
 					Vector origin = GetBottomOrigin(GetEntity());
 
 					TraceResult tr;
-					TraceLine(Vector(origin.x, origin.y, (origin.z + 5.0f)), GetTopOrigin(m_enemy), true, true, GetEntity(), &tr);
+					TraceLine(Vector(origin.x, origin.y, (origin.z + 5.0f)), enemyHead, true, false, GetEntity(), &tr);
 
 					// human improve
 					if (ebot_escape.GetInt() != 1 && enemydistance <= (fabsf(m_enemy->v.speed) + 400.0f) && tr.flFraction == 1.0f)
@@ -2684,10 +2683,8 @@ bool Bot::ReactOnEnemy(void)
 				}
 			}
 
-			float lineDist = (m_enemy->v.origin - pev->origin).GetLength();
 			float pathDist = g_waypoint->GetPathDistanceFloat(ownIndex, enemyIndex);
-
-			if (pathDist - lineDist < 128.0f && !IsOnLadder())
+			if (pathDist - enemydistance < 128.0f && !IsOnLadder())
 				m_isEnemyReachable = true;
 		}
 
@@ -2699,7 +2696,6 @@ bool Bot::ReactOnEnemy(void)
 	{
 		m_navTimeset = engine->GetTime(); // override existing movement by attack movement
 		IgnoreCollisionShortly();
-
 		return true;
 	}
 
@@ -3465,7 +3461,7 @@ void Bot::ChooseAimDirection(void)
 	{
 		if (FNullEnt(m_enemy) && (pev->origin - m_lastEnemyOrigin).GetLength() >= 1600.0f && m_seeEnemyTime + 7.0f < engine->GetTime())
 		{
-			TraceLine(EyePosition(), m_lastEnemyOrigin, false, true, GetEntity(), &tr);
+			TraceLine(EyePosition(), m_lastEnemyOrigin, true, true, GetEntity(), &tr);
 			if (!UsesSniper() || (tr.flFraction <= 0.2f && tr.pHit == g_hostEntity))
 			{
 				if ((m_aimFlags & (AIM_LASTENEMY | AIM_PREDICTENEMY)) && m_wantsToFire)
@@ -3512,7 +3508,7 @@ void Bot::ChooseAimDirection(void)
 	}
 	else if (flags & AIM_PREDICTENEMY)
 	{
-		TraceLine(EyePosition(), m_lastEnemyOrigin, false, true, GetEntity(), &tr);
+		TraceLine(EyePosition(), m_lastEnemyOrigin, true, true, GetEntity(), &tr);
 		if (((pev->origin - m_lastEnemyOrigin).GetLength() < 1600.0f || UsesSniper()) && (tr.flFraction >= 0.2f || tr.pHit != g_worldEdict))
 		{
 			bool recalcPath = true;
@@ -3544,13 +3540,36 @@ void Bot::ChooseAimDirection(void)
 		}
 	}
 	else if (flags & AIM_CAMP)
-		m_lookAt = m_camp;
+	{
+		if (IsZombieMode())
+		{
+			if (m_nextCampDirTime < engine->GetTime())
+			{
+				if (m_seeEnemyTime + 5.0f > engine->GetTime() && m_lastEnemyOrigin != nullvec)
+				{
+					m_lookAt = m_lastEnemyOrigin;
+					return;
+				}
+
+				if (m_lastEnemyOrigin != nullvec && ChanceOf(30))
+					m_lookAt = m_lastEnemyOrigin;
+				else
+				{
+					int aimIndex = GetCampAimingWaypoint();
+					if (IsValidWaypoint(aimIndex))
+						m_lookAt = g_waypoint->GetPath(aimIndex)->origin;
+				}
+				m_nextCampDirTime = engine->GetTime() + engine->RandomFloat(1.5f, 5.0f);
+			}
+		}
+		else
+			m_lookAt = m_camp;
+	}
 	else if (flags & AIM_NAVPOINT)
 	{
 		if (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_USEBUTTON)
 		{
 			edict_t* button = null;
-
 			button = FindNearestButton("func_button");
 
 			if (button != null && (g_waypoint->GetPath(m_currentWaypointIndex)->origin - GetEntityOrigin(button)).GetLength2D() <= 100.0f)
@@ -3775,7 +3794,6 @@ void Bot::Think(void)
 	if (secondThinkTimer < engine->GetTime())
 	{
 		SecondThink();
-
 		secondThinkTimer = engine->GetTime() + 2.0f;
 	}
 
@@ -3791,6 +3809,9 @@ void Bot::Think(void)
 		MoveAction();
 		DebugModeMsg();
 	}
+
+	if (!FNullEnt(m_enemy))
+		m_seeEnemyTime = engine->GetTime();
 }
 
 void Bot::SecondThink(void)
@@ -4175,11 +4196,8 @@ void Bot::RunTask(void)
 
 		if (engine->IsFootstepsOn() && m_skill > 50 && !(m_aimFlags & AIM_ENEMY) && (m_heardSoundTime + 13.0f >= engine->GetTime() || (m_states & (STATE_HEARENEMY))) && GetNearbyEnemiesNearPosition(pev->origin, 1024) >= 1 && !(m_currentTravelFlags & PATHFLAG_JUMP) && !(pev->button & IN_DUCK) && !(pev->flags & FL_DUCKING) && !g_bombPlanted && !m_isZombieBot)
 		{
-			if (FNullEnt(m_enemy)) // don't walk if theres a enemy SyBPM 1.52
-			{
+			if (FNullEnt(m_enemy)) // don't walk if theres a enemy
 				m_moveSpeed = GetWalkSpeed();
-				SelectBestWeapon();
-			}
 			else
 				m_moveSpeed = pev->maxspeed;
 		}
@@ -4555,6 +4573,17 @@ void Bot::RunTask(void)
 
 		// planting the bomb right now
 	case TASK_CAMP:
+		if (IsZombieMode() && ebot_human_side_movement.GetInt() == 1)
+		{
+			if (!FNullEnt(m_enemy) && !IsVisible(m_lastEnemyOrigin, GetEntity()) && m_lastEnemyOrigin != nullvec)
+			{
+				Vector directionOld = m_lastEnemyOrigin - (pev->origin + pev->velocity * m_frameInterval);
+				Vector directionNormal = directionOld.Normalize();
+				directionNormal.z = 0.0f;
+				SetStrafeSpeed(directionNormal, pev->maxspeed);
+			}
+		}
+
 		if (GetGameMod() == MODE_BASE && (g_mapType & MAP_DE))
 		{
 			if (g_bombPlanted && OutOfBombTimer())
@@ -5873,10 +5902,8 @@ void Bot::RunTask(void)
 	}
 }
 
-// SyPB Pro P.30 - debug
 void Bot::DebugModeMsg(void)
 {
-	// SyPB Pro P.48 - Debug Msg
 	int debugMode = ebot_debug.GetInt();
 	if (FNullEnt(g_hostEntity) || debugMode <= 0 || debugMode == 2)
 		return;
@@ -6166,7 +6193,6 @@ void Bot::DebugModeMsg(void)
 		// now draw line from source to destination
 		PathNode* node = &m_navNode[0];
 
-		// SyPB Pro P.40 - Debug MSG
 		Vector src = nullvec;
 		while (node != null)
 		{
@@ -6312,7 +6338,6 @@ void Bot::BotAI(void)
 		m_prevTime = engine->GetTime() + 0.2f;
 	}
 
-	// SyPB Pro P.30 - Block Radio
 	// if there's some radio message to respond, check it
 	if (m_radioOrder != 0 && (GetGameMod() == MODE_BASE || GetGameMod() == MODE_TDM || (IsZombieMode() && !m_isZombieBot && g_waypoint->m_zmHmPoints.IsEmpty())))
 		CheckRadioCommands();
@@ -6320,7 +6345,6 @@ void Bot::BotAI(void)
 	// do all sensing, calculate/filter all actions here
 	SetConditions();
 
-	// SyPB Pro P.30 - Zombie Mode Ai
 	if (IsZombieMode())
 		ZombieModeAi();
 
@@ -6359,7 +6383,6 @@ void Bot::BotAI(void)
 	m_moveAngles.ClampAngles();
 	m_moveAngles.x *= -1.0f; // invert for engine
 
-	// SyPB Pro P.50 - Base improve 
 	if (!IsOnLadder() && GetCurrentTask()->taskID != TASK_CAMP && !FNullEnt(m_enemy) && (m_skill >= 50 || m_isZombieBot || (m_isEnemyReachable && (IsZombieEntity(m_enemy) || !IsValidPlayer(m_enemy)))))
 	{
 		m_moveToGoal = false; // don't move to goal
@@ -6369,7 +6392,6 @@ void Bot::BotAI(void)
 			CombatFight();
 	}
 
-	// SyPB Pro P.42 - Miss C4 Action improve
 	if ((g_mapType & MAP_DE) && g_bombPlanted && m_notKilled && OutOfBombTimer())
 	{
 		if (GetCurrentTask()->taskID != TASK_ESCAPEFROMBOMB && GetCurrentTask()->taskID != TASK_CAMP)
@@ -6436,7 +6458,6 @@ void Bot::BotAI(void)
 		}
 	}
 
-	// SyPB Pro P.40 - Fall Ai
 	bool fixFall = false;
 	if (!m_checkFall)
 	{
@@ -6501,12 +6522,10 @@ void Bot::BotAI(void)
 
 	if (fixFall)
 	{
-		// SyPB Pro P.42 - Fall Ai improve
 		SetEntityWaypoint(GetEntity(), -2);
 		m_currentWaypointIndex = -1;
 		GetValidWaypoint();
 
-		// SyPB Pro P.39 - Fall Ai improve
 		if (!FNullEnt(m_enemy) || !FNullEnt(m_moveTargetEntity))
 			m_enemyUpdateTime = engine->GetTime();
 	}
@@ -6514,17 +6533,14 @@ void Bot::BotAI(void)
 	if (m_moveAIAPI) // SyPB Pro P.30 - AMXX API
 		m_checkTerrain = false;
 
-	// SyPB Pro P.27 - new check terrain
 	if (m_checkTerrain)
 	{
 		m_isStuck = false;
 		CheckCloseAvoidance(directionNormal);
 
-		// SyPB Pro P.42 - Bot Stuck improve
 		if ((m_moveSpeed <= -10 || m_moveSpeed >= 10 || m_strafeSpeed >= 10 || m_strafeSpeed <= -10) &&
 			m_lastCollTime < engine->GetTime())
 		{
-			// SyPB Pro P.38 - Get Stuck improve
 			if (m_damageTime >= engine->GetTime() && m_isZombieBot)
 			{
 				m_lastCollTime = m_damageTime + 1.0f;
@@ -6575,7 +6591,6 @@ void Bot::BotAI(void)
 				}
 			}
 		}
-		// SyPB Pro P.47 - Base improve
 		else
 		{
 			if (!IsValidWaypoint(m_currentWaypointIndex))
@@ -6945,26 +6960,20 @@ int Bot::GetAmmo(void)
 	return m_ammo[g_weaponDefs[m_currentWeapon].ammo1];
 }
 
-// SyPB Pro P.28 - New Damage Msg
 void Bot::TakeDamage(edict_t* inflictor, int /*damage*/, int /*armor*/, int bits)
 {
 	if (FNullEnt(inflictor) || inflictor == GetEntity())
 		return;
 
-	if (m_blindTime > engine->GetTime()) // SyPB Pro P.34 - Flash Fixed
+	if (m_blindTime > engine->GetTime())
 		return;
 
-	// SyPB Pro P.28 - Msg Debug
 	if (!IsValidPlayer(inflictor))
-		return;
-
-	if (m_blockCheckEnemyTime > engine->GetTime())  // SyPB Pro P.30 - AMXX API
 		return;
 
 	m_lastDamageOrigin = GetPlayerHeadOrigin(inflictor);
 
-	// SyPB Pro P.23 - Bot Ai
-	m_damageTime = engine->GetTime() + 0.5f;
+	m_damageTime = engine->GetTime() + 1.0f;
 	m_aimstoptime = engine->GetTime();
 
 	if (GetTeam(inflictor) == m_team)
@@ -6979,7 +6988,6 @@ void Bot::TakeDamage(edict_t* inflictor, int /*damage*/, int /*armor*/, int bits
 	RemoveCertainTask(TASK_DOUBLEJUMP);
 	RemoveCertainTask(TASK_SPRAYLOGO);
 
-	// SyPB Pro P.43 - Zombie Ai improve
 	if (m_isZombieBot)
 	{
 		if (FNullEnt(m_enemy) && FNullEnt(m_moveTargetEntity))
@@ -7219,7 +7227,7 @@ Vector Bot::CheckBombAudible(void)
 	return nullvec;
 }
 
-// ebot 1.55 - better move ai
+// better move ai
 void Bot::MoveToVector(Vector to)
 {
 	if (to == nullvec)
@@ -7254,7 +7262,6 @@ void Bot::RunPlayerMovement(void)
 	// elapses, that bot will behave like a ghost : no movement, but bullets and players can
 	// pass through it. Then, when the next frame will begin, the stucking problem will arise !
 
-	// SyPB Pro P.41 - Run Player Move
 	m_msecVal = static_cast <uint8_t> ((engine->GetTime() - m_msecInterval) * 1000.0f);
 	m_msecInterval = engine->GetTime();
 
@@ -7265,11 +7272,9 @@ void Bot::RunPlayerMovement(void)
 		static_cast <uint8_t> (m_msecVal));
 }
 
-
+// this function checks burst mode, and switch it depending distance to to enemy
 void Bot::CheckBurstMode(float distance)
 {
-	// this function checks burst mode, and switch it depending distance to to enemy.
-
 	if (HasShield())
 		return; // no checking when shiled is active
 
@@ -7321,7 +7326,6 @@ float Bot::GetBombTimeleft(void)
 
 float Bot::GetEstimatedReachTime(void)
 {
-	// SyPB Pro P.48 - Zombie Ai improve
 	if (m_damageTime + 1.0f > engine->GetTime() && m_isZombieBot)
 		return engine->GetTime();
 
@@ -7345,7 +7349,7 @@ float Bot::GetEstimatedReachTime(void)
 		float distance = (g_waypoint->GetPath(m_prevWptIndex[0])->origin - g_waypoint->GetPath(m_currentWaypointIndex)->origin).GetLength();
 
 		// caclulate estimated time
-		estimatedTime = 3.0f * distance / fabsf(m_moveSpeed);
+		estimatedTime = 3.0f * distance / fabsf(m_isZombieBot ? pev->speed : m_moveSpeed);
 
 		bool longTermReachability = ((g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_CROUCH) || (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_LADDER) || (pev->button & IN_DUCK) || (pev->oldbuttons & IN_DUCK));
 
@@ -7421,10 +7425,6 @@ void Bot::ReactOnSound(void)
 		return;
 
 	if (!m_isSlowThink)
-		return;
-
-	// SyPB Pro P.30 - AMXX API
-	if (m_blockCheckEnemyTime > engine->GetTime())
 		return;
 
 	if (!FNullEnt(m_enemy))
@@ -7507,7 +7507,6 @@ void Bot::ReactOnSound(void)
 	}
 }
 
-// SyPB Pro P.47 - Breakable improve
 bool Bot::IsShootableBreakable(edict_t* ent)
 {
 	if (FNullEnt(ent))
@@ -7522,10 +7521,9 @@ bool Bot::IsShootableBreakable(edict_t* ent)
 	return false;
 }
 
+// this function is gets called when bot enters a buyzone, to allow bot to buy some stuff
 void Bot::EquipInBuyzone(int iBuyCount)
 {
-	// this function is gets called when bot enters a buyzone, to allow bot to buy some stuff
-
 	static float lastEquipTime = 0.0f;
 
 	// if bot is in buy zone, try to buy ammo for this weapon...

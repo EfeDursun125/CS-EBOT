@@ -403,7 +403,6 @@ bool Bot::LookupEnemy(void)
 
 			if (moveTotarget)
 			{
-				// SyPB Pro P.35 - Fixed
 				if (IsOnAttackDistance(targetEntity, 80.0f))
 					KnifeAttack();
 
@@ -418,7 +417,6 @@ bool Bot::LookupEnemy(void)
 				return false;
 			}
 
-			// SyPB Pro P.37 - Zombie Ai
 			if (m_enemyUpdateTime < engine->GetTime() + 3.0f)
 				m_enemyUpdateTime = engine->GetTime() + 2.5f;
 		}
@@ -475,7 +473,6 @@ bool Bot::LookupEnemy(void)
 	return false;
 }
 
-// SyPB Pro P.42 - Aim OS improve 
 Vector Bot::GetAimPosition(void)
 {
 	Vector enemyOrigin = GetEntityOrigin(m_enemy);
@@ -1085,7 +1082,6 @@ void Bot::FocusEnemy(void)
 	{
 		if (m_currentWeapon == WEAPON_KNIFE)
 		{
-			// SyPB Pro P.42 - Knife Attack improve
 			if (IsOnAttackDistance(m_enemy, (m_knifeDistance1API <= 0) ? 64.0f : m_knifeDistance1API))
 				m_wantsToFire = true;
 		}
@@ -1123,31 +1119,33 @@ void Bot::FocusEnemy(void)
 
 void Bot::CombatFight(void)
 {
+	// our enemy can change teams in fun modes
+	if (!FNullEnt(m_enemy) && m_team == GetTeam(m_enemy))
+		SetEnemy(null);
+
 	// our last enemy can change teams in fun modes
 	if (!FNullEnt(m_lastEnemy) && m_team == GetTeam(m_lastEnemy))
 		SetLastEnemy(m_enemy);
-
-	if (FNullEnt(m_enemy))
-	{
-		// if we can see our last enemy, attack last enemy
-		if (!FNullEnt(m_lastEnemy) && IsVisible(GetEntityOrigin(m_lastEnemy), GetEntity()))
-			m_enemy = m_lastEnemy;
-
-		return;
-	}
-
-	m_seeEnemyTime = engine->GetTime();
 
 	if ((m_moveSpeed != 0.0f || m_strafeSpeed != 0.0f) && IsValidWaypoint(m_currentWaypointIndex) && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_CROUCH && (pev->velocity.GetLength() < 2.0f))
 		pev->button |= IN_DUCK;
 
 	if (m_isZombieBot) // zombie ai
 	{
+		DeleteSearchNodes();
+		m_moveToGoal = false;
 		m_destOrigin = GetEntityOrigin(m_enemy);
 		m_moveSpeed = pev->maxspeed;
+		if (m_isSlowThink && pev->speed >= pev->maxspeed)
+		{
+			if (engine->RandomInt(1, 2) == 1)
+				pev->button |= IN_JUMP;
+			else
+				pev->button |= IN_DUCK;
+		}
 
 		const float targetdist = 128.0f;
-		if ((pev->origin - m_destOrigin).GetLength() <= targetdist || (pev->origin - GetEntityOrigin(m_moveTargetEntity)).GetLength() <= targetdist)
+		if ((pev->origin - m_destOrigin).GetLength() <= targetdist)
 			pev->button |= IN_ATTACK;
 
 		return;
@@ -1175,7 +1173,7 @@ void Bot::CombatFight(void)
 				}
 
 				const float distance = (pev->origin - enemyOrigin).GetLength();
-				if (m_isSlowThink && distance <= 1024.0f && engine->RandomInt(1, 1000) <= ebot_zp_use_grenade_percent.GetInt())
+				if (m_isSlowThink && distance <= 1024.0f && !FNullEnt(m_lastEnemy) && m_lastEnemyOrigin != nullvec && engine->RandomInt(1, 1000) <= ebot_zp_use_grenade_percent.GetInt())
 				{
 					if (engine->RandomInt(1, 2) == 1)
 						ThrowFrostNade();

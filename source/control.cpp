@@ -310,7 +310,6 @@ Bot* BotControl::FindOneValidAliveBot(void)
 	return null;
 }
 
-// SyPB Pro P.45 - Bot think improve
 void BotControl::Think(void)
 {
 	extern ConVar ebot_stopbots;
@@ -1079,13 +1078,10 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 
 Bot::~Bot(void)
 {
-	// this is bot destructor
-
 	// SwitchChatterIcon (false); // crash on CTRL+C'ing win32 console hlds
 	DeleteSearchNodes();
 	ResetTasks();
 
-	// SyPB Pro P.43 - Bot Name Fixed
 	char botName[64];
 	ITERATE_ARRAY(g_botNames, j)
 	{
@@ -1100,10 +1096,9 @@ Bot::~Bot(void)
 	}
 }
 
+// this function initializes a bot after creation & at the start of each round
 void Bot::NewRound(void)
 {
-	// this function initializes a bot after creation & at the start of each round
-
 	int i = 0;
 
 	// delete all allocated path nodes
@@ -1235,7 +1230,6 @@ void Bot::NewRound(void)
 
 	m_buyState = 0;
 
-	// SyPB Pro P.47 - Base improve
 	m_damageTime = 0.0f;
 	m_zhCampPointIndex = -1;
 	m_checkCampPointTime = 0.0f;
@@ -1244,7 +1238,6 @@ void Bot::NewRound(void)
 	{
 		memset(&m_ammoInClip, 0, sizeof(m_ammoInClip));
 		memset(&m_ammo, 0, sizeof(m_ammo));
-
 		m_currentWeapon = 0;
 	}
 
@@ -1320,14 +1313,6 @@ void Bot::NewRound(void)
 	m_moveSpeed = pev->maxspeed;
 
 	m_tempstrafeSpeed = engine->RandomInt(1, 2) == 1 ? pev->maxspeed : -pev->maxspeed;
-
-	// find shortest path for start
-	if (GetGameMod() == MODE_BASE)
-	{
-		int index = g_waypoint->FindNearest(m_destOrigin);
-		if (IsValidWaypoint(index))
-			FindShortestPath(m_currentWaypointIndex, index);
-	}
 }
 
 void Bot::Kill(void)
