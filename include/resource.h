@@ -42,17 +42,17 @@
 #endif
 
 // AMXX API Version
-#define SUPPORT_API_VERSION "1.48" // ebot API_P
-#define SUPPORT_API_VERSION_F 1.48 // ebot API_P
+#define SUPPORT_API_VERSION "1.48"
+#define SUPPORT_API_VERSION_F 1.48
 
 // SwNPC Version
 #define SUPPORT_SWNPC_VERSION "1.48"
 #define SUPPORT_SWNPC_VERSION_F 1.48
 
-// ebot Version
-#define PRODUCT_VERSION_DWORD 1,01,20210920,2 // yyyy/mm/dd
-#define PRODUCT_VERSION "1.01"
-#define PRODUCT_VERSION_F 1.01
+// E-BOT Version
+#define PRODUCT_VERSION_DWORD 1,02,20210920,3 // yyyy/mm/dd
+#define PRODUCT_VERSION "1.02"
+#define PRODUCT_VERSION_F 1.02
 
 // general product information
 #define PRODUCT_NAME "E-BOT"
@@ -60,8 +60,8 @@
 #define PRODUCT_URL ""
 #define PRODUCT_EMAIL "efedursun91@gmail.com"
 #define PRODUCT_LOGTAG "ebot"
-#define PRODUCT_DESCRIPTION PRODUCT_NAME " " PRODUCT_VERSION PRODUCT_DEV_VERSION_FORTEST " (API: " SUPPORT_API_VERSION " | SwNPC: " SUPPORT_SWNPC_VERSION ")"
-#define PRODUCT_COPYRIGHT PRODUCT_AUTHOR " & YaPB Team"
+#define PRODUCT_DESCRIPTION "AI bot for Counter-Strike Series"
+#define PRODUCT_COPYRIGHT PRODUCT_AUTHOR
 #define PRODUCT_LEGAL "Half-Life, Counter-Strike, Steam, Valve is a trademark of Valve Corporation"
 #define PRODUCT_ORIGINAL_NAME "ebot.dll"
 #define PRODUCT_INTERNAL_NAME "ebot"
