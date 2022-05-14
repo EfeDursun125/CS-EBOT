@@ -1137,7 +1137,6 @@ void Waypoint::DeleteByIndex(int index)
     PlaySound(g_hostEntity, "weapons/mine_activate.wav");
 }
 
-// SyPB Pro P.30 - SgdWP
 void Waypoint::DeleteFlags(void)
 {
     int index = FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
@@ -2270,7 +2269,7 @@ void Waypoint::ShowWaypointMsg(void)
         float distance = (m_paths[i]->origin - GetEntityOrigin(g_hostEntity)).GetLength();
 
         // check if waypoint is whitin a distance, and is visible
-        if (distance < 500 && ((::IsVisible(m_paths[i]->origin, g_hostEntity) && IsInViewCone(m_paths[i]->origin, g_hostEntity)) || !IsAlive(g_hostEntity) || distance < 2500))
+        if (distance <= (m_paths[i]->radius + 32.0f) || (distance <= 768.0f && ::IsVisible(m_paths[i]->origin, g_hostEntity) && IsInViewCone(m_paths[i]->origin, g_hostEntity)))
         {
             // check the distance
             if (distance < nearestDistance)
@@ -2279,7 +2278,7 @@ void Waypoint::ShowWaypointMsg(void)
                 nearestDistance = distance;
             }
 
-            if (m_waypointDisplayTime[i] + 1.0f < engine->GetTime())
+            if (m_waypointDisplayTime[i] + 0.5f < engine->GetTime())
             {
                 float nodeHeight = (m_paths[i]->flags & WAYPOINT_CROUCH) ? 36.0f : 72.0f; // check the node height
                 float nodeHalfHeight = nodeHeight * 0.5f;
@@ -2366,7 +2365,7 @@ void Waypoint::ShowWaypointMsg(void)
     // draw a paths, camplines and danger directions for nearest waypoint
     if (nearestDistance < 4096 && m_pathDisplayTime <= engine->GetTime())
     {
-        m_pathDisplayTime = engine->GetTime() + 1.0f;
+        m_pathDisplayTime = engine->GetTime() + 0.5f;
 
         // draw the camplines
         if (path->flags & WAYPOINT_SNIPER)
@@ -2383,7 +2382,6 @@ void Waypoint::ShowWaypointMsg(void)
         {
             if (path->index[i] == -1)
                 continue;
-
 
             // jump connection
             if (path->connectionFlags[i] & PATHFLAG_JUMP)
@@ -2456,8 +2454,6 @@ void Waypoint::ShowWaypointMsg(void)
                 "      Flags: %s\n", m_facingAtIndex, g_numWaypoints, m_paths[m_facingAtIndex]->radius, GetWaypointInfo(m_facingAtIndex));
         }
 
-        // SyPB Pro P.23 - SgdWP      
-        // SyPB Pro P.45 - SgdWP
         if (g_sgdWaypoint)
         {
             length += sprintf(&tempMessage[length], "    Hold 'E' Call [SgdWP] Menu \n"

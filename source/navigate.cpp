@@ -715,11 +715,10 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 		srcIndex = *(g_waypoint->m_pathMatrix + (srcIndex * g_numWaypoints) + destIndex);
 
 		node->next = new PathNode;
-		node = node->next;
-
 		if (node == null)
 			return;
 
+		node = node->next;
 		node->index = srcIndex;
 		node->next = null;
 	}
@@ -1008,13 +1007,6 @@ inline const float HF_ZB(int start, int goal)
 // this function finds a path from srcIndex to destIndex
 void Bot::FindPath(int srcIndex, int destIndex, uint8_t pathType)
 {
-	// this pathfinder can crash the game due this priority queue may memory allocation fail... so use fastest one for stability.
-	if (GetGameMod() != MODE_BASE)
-	{
-		FindShortestPath(srcIndex, destIndex);
-		return;
-	}
-
 	if (m_pathtimer + 1.0 > engine->GetTime())
 	{
 		if (!HasNextPath()) // take care about that
@@ -1167,7 +1159,8 @@ void Bot::FindPath(int srcIndex, int destIndex, uint8_t pathType)
 		}
 	}
 
-	FindShortestPath(srcIndex, destIndex); // A* found no path, try floyd pathfinder instead
+	// sadly this causing the CRASH
+	//	FindShortestPath(srcIndex, destIndex); // A* found no path, try floyd pathfinder instead 
 }
 
 void Bot::DeleteSearchNodes(void)
@@ -2000,8 +1993,6 @@ bool Bot::HeadTowardWaypoint(void)
 	if (IsOnLadder())
 	{
 		TraceLine(Vector(pev->origin.x, pev->origin.y, pev->absmin.z), m_waypointOrigin, false, false, GetEntity(), &tr);
-
-		// SyPB Pro P.36 - ladder improve
 		if (tr.flFraction < 1.0f)
 		{
 			if (m_waypointOrigin.z >= pev->origin.z)
@@ -2423,8 +2414,8 @@ bool Bot::CheckCloseAvoidance(const Vector& dirNormal)
 				index = m_prevGoalIndex;
 			if (index != -1)
 			{
-				FindShortestPath(m_currentWaypointIndex, index);
-				otherBot->FindShortestPath(m_currentWaypointIndex, index);
+				FindPath(m_currentWaypointIndex, index, 0);
+				otherBot->FindPath(m_currentWaypointIndex, index, 0);
 			}
 		}
 	}

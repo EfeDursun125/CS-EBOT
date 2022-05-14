@@ -4173,7 +4173,7 @@ void Bot::RunTask(void)
 			if (destIndex != m_currentWaypointIndex && IsValidWaypoint(destIndex))
 			{
 				if ((g_bombPlanted && m_team == TEAM_COUNTER) || (!g_bombPlanted && m_isBomber))
-					FindShortestPath(m_currentWaypointIndex, destIndex);
+					FindPath(m_currentWaypointIndex, destIndex);
 				else
 					FindPath(m_currentWaypointIndex, destIndex, m_pathType);
 			}
@@ -5468,7 +5468,7 @@ void Bot::RunTask(void)
 
 		// bot helps human player (or other bot) to get somewhere
 	case TASK_DOUBLEJUMP:
-		if (FNullEnt(m_doubleJumpEntity) || !IsAlive(m_doubleJumpEntity) || !IsVisible(GetEntityOrigin(m_doubleJumpEntity), GetEntity()) || (m_aimFlags & AIM_ENEMY) || (IsValidWaypoint(m_travelStartIndex) && GetCurrentTask()->time + (g_waypoint->GetTravelTime(pev->maxspeed, g_waypoint->GetPath(m_travelStartIndex)->origin, m_doubleJumpOrigin) + 11.0f) < engine->GetTime()))
+		if (FNullEnt(m_doubleJumpEntity) || !IsAlive(m_doubleJumpEntity) || !IsVisible(GetEntityOrigin(m_doubleJumpEntity), GetEntity()) || (m_aimFlags & AIM_ENEMY) || (IsValidWaypoint(m_travelStartIndex) && GetCurrentTask()->time + (g_waypoint->GetTravelTime(m_moveSpeed, g_waypoint->GetPath(m_travelStartIndex)->origin, m_doubleJumpOrigin) + 11.0f) < engine->GetTime()))
 		{
 			ResetDoubleJumpState();
 

@@ -1060,7 +1060,6 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	m_currentWeapon = 0; // current weapon is not assigned at start
 	m_voicePitch = engine->RandomInt(166, 250) / 2; // assign voice pitch
 
-													// copy them over to the temp level variables
 	m_agressionLevel = m_baseAgressionLevel;
 	m_fearLevel = m_baseFearLevel;
 	m_nextEmotionUpdate = engine->GetTime() + 0.5f;
