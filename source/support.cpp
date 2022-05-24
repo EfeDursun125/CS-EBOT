@@ -948,13 +948,6 @@ void AutoLoadGameMode(void)
 
 				SetGameMod(MODE_DM);
 			}
-			else
-			{
-				if (checkShowTextTime < 3 || GetGameMod() != MODE_TDM)
-					ServerPrint("*** E-BOT Auto Game Mode Setting: CSDM-TDM ***");
-
-				SetGameMod(MODE_TDM);
-			}
 		}
 	}
 
@@ -1237,14 +1230,6 @@ bool IsZombieEntity(edict_t* ent)
 
 	if (!IsValidPlayer(ent))
 		return false;
-
-	// SyPB Pro P.38 - AMXX API
-	int playerId = ENTINDEX(ent) - 1;
-	if (g_clients[playerId].isZombiePlayerAPI != -1)
-		return (g_clients[playerId].isZombiePlayerAPI == 1) ? true : false;
-
-	if (ebot_knifemode.GetBool())
-		return true;
 
 	if (IsZombieMode()) // Zombie Mod
 		return (GetTeam(ent) == TEAM_TERRORIST);

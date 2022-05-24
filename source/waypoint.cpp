@@ -589,12 +589,10 @@ void Waypoint::FindInRadius(Array <int>& queueID, float radius, Vector origin)
     }
 }
 
-// SyPB Pro P.20 - SgdWP
 void Waypoint::SgdWp_Set(const char* modset)
 {
     if (stricmp(modset, "on") == 0)
     {
-        // SyPB Pro P.40 - Waypoint Name Change?
         if (m_badMapName)
         {
             Initialize();
@@ -2269,7 +2267,7 @@ void Waypoint::ShowWaypointMsg(void)
         float distance = (m_paths[i]->origin - GetEntityOrigin(g_hostEntity)).GetLength();
 
         // check if waypoint is whitin a distance, and is visible
-        if (distance <= (m_paths[i]->radius + 32.0f) || (distance <= 768.0f && ::IsVisible(m_paths[i]->origin, g_hostEntity) && IsInViewCone(m_paths[i]->origin, g_hostEntity)))
+        if (distance <= 768 && ((::IsVisible(m_paths[i]->origin, g_hostEntity) && IsInViewCone(m_paths[i]->origin, g_hostEntity)) || !IsAlive(g_hostEntity) || distance <= 512))
         {
             // check the distance
             if (distance < nearestDistance)
@@ -2278,7 +2276,7 @@ void Waypoint::ShowWaypointMsg(void)
                 nearestDistance = distance;
             }
 
-            if (m_waypointDisplayTime[i] + 0.5f < engine->GetTime())
+            if (m_waypointDisplayTime[i] + 1.0f < engine->GetTime())
             {
                 float nodeHeight = (m_paths[i]->flags & WAYPOINT_CROUCH) ? 36.0f : 72.0f; // check the node height
                 float nodeHalfHeight = nodeHeight * 0.5f;
@@ -2363,9 +2361,9 @@ void Waypoint::ShowWaypointMsg(void)
     Path* path = m_paths[nearestIndex];
 
     // draw a paths, camplines and danger directions for nearest waypoint
-    if (nearestDistance < 4096 && m_pathDisplayTime <= engine->GetTime())
+    if (nearestDistance <= 2048 && m_pathDisplayTime <= engine->GetTime())
     {
-        m_pathDisplayTime = engine->GetTime() + 0.5f;
+        m_pathDisplayTime = engine->GetTime() + 1.0f;
 
         // draw the camplines
         if (path->flags & WAYPOINT_SNIPER)

@@ -34,12 +34,10 @@ ConVar ebot_minskill("ebot_minskill", "1");
 ConVar ebot_maxskill("ebot_maxskill", "100");
 
 ConVar ebot_nametag("ebot_nametag", "2");
-
 ConVar ebot_join_after_player("ebot_join_after_player", "0");
-
 ConVar ebot_think_fps("ebot_think_fps", "20.0");
-
 ConVar ebot_ping("ebot_fake_ping", "1");
+ConVar ebot_autovacate("ebot_autovacate", "1");
 
 BotControl::BotControl(void)
 {
@@ -87,36 +85,11 @@ void BotControl::CallGameEntity(entvars_t* vars)
 		(*playerFunction) (vars);
 }
 
-// SyPB Pro P.20 - Bot Name
 int BotControl::CreateBot(String name, int skill, int personality, int team, int member)
 {
 	// this function completely prepares bot entity (edict) for creation, creates team, skill, sets name etc, and
 	// then sends result to bot constructor
-
-#if defined(PRODUCT_DEV_VERSION)
-	// SyPB Pro P.34 - Preview DeadLine
-	time_t rawtime;
-	struct tm* timeinfo;
-	time(&rawtime);
-	timeinfo = localtime(&rawtime);
-	int year = timeinfo->tm_year + 1900, mon = timeinfo->tm_mon + 1, day = timeinfo->tm_mday;
-	int today = (year * 10000) + (mon * 100) + (day);
-	int deadline = (PV_VERSION_YEAR * 10000) + (PV_VERSION_MON * 100) + PV_VERSION_DAY;
-
-	if ((deadline - today) < 0)
-	{
-		m_creationTab.RemoveAll(); // something wrong with waypoints, reset tab of creation
-		ebot_quota.SetInt(0); // reset quota
-		ebot_auto_players.SetInt(-1);
-
-		//ChartPrint("[E-BOT Preview] This Preview version outdate *****");
-		//ChartPrint("[E-BOT Preview] This Preview version outdate *****");
-		//ChartPrint("[E-BOT Preview] This Preview version outdate *****");
-		return -3;
-	}
-#endif
-
-	// SyPB Pro P.22 - join after player
+	
 	if (ebot_join_after_player.GetBool() == true)
 	{
 		int playerNum = GetHumansNum(1);
@@ -128,7 +101,6 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 
 	if (g_numWaypoints < 1) // don't allow creating bots with no waypoints loaded
 	{
-		// SyPB Pro P.39 - Add Msg
 		ServerPrint("No any waypoints for this map, Cannot Add E-BOT");
 		ServerPrint("You can input 'ebot wp menu' to make waypoint");
 		CenterPrint("No any waypoints for this map, Cannot Add E-BOT");
@@ -507,8 +479,6 @@ int BotControl::AddBotAPI(const String& name, int skill, int team)
 	{
 		m_creationTab.RemoveAll(); // something wrong with waypoints, reset tab of creation
 		ebot_quota.SetInt(0); // reset quota
-
-		// SyPB Pro P.23 - SgdWP
 		ChartPrint("[E-BOT] You can input [ebot sgdwp on] make the new waypoints!!");
 	}
 	else if (resultOfCall == -2)
@@ -538,8 +508,7 @@ void BotControl::MaintainBotQuota(void)
 		{
 			m_creationTab.RemoveAll(); // something wrong with waypoints, reset tab of creation
 			ebot_quota.SetInt(0); // reset quota
-
-			// SyPB Pro P.23 - SgdWP
+			
 			ChartPrint("[E-BOT] You can input [ebot sgdwp on] make the new waypoints.");
 		}
 		else if (resultOfCall == -2)
@@ -550,24 +519,28 @@ void BotControl::MaintainBotQuota(void)
 
 		m_maintainTime = engine->GetTime() + 0.15f;
 	}
-
-	// SyPB Pro P.43 - Base improve and New Cvar Setting
+	
 	g_botManager->CheckBotNum();
 	if (m_maintainTime < engine->GetTime())
 	{
 		int botNumber = GetBotsNum();
-
-		if (botNumber > ebot_quota.GetInt())
+		int maxClients = engine->GetMaxClients();
+		int desiredBotCount = ebot_quota.GetInt();
+		
+		if (ebot_autovacate.GetBool())
+			desiredBotCount = engine->MinInt(desiredBotCount, maxClients - (GetHumansNum() + 1));
+		
+		if (botNumber > desiredBotCount)
 			RemoveRandom();
-		else if (botNumber < ebot_quota.GetInt() && botNumber < engine->GetMaxClients())
+		else if (botNumber < desiredBotCount && botNumber < maxClients)
 			AddRandom();
 
-		if (ebot_quota.GetInt() > engine->GetMaxClients())
-			ebot_quota.SetInt(engine->GetMaxClients());
+		if (ebot_quota.GetInt() > maxClients)
+			ebot_quota.SetInt(maxClients);
 		else if (ebot_quota.GetInt() < 0)
 			ebot_quota.SetInt(0);
 
-		m_maintainTime = engine->GetTime() + 0.18f;
+		m_maintainTime = engine->GetTime() + 0.5f;
 	}
 }
 
@@ -575,8 +548,6 @@ void BotControl::InitQuota(void)
 {
 	m_maintainTime = engine->GetTime() + 2.0f;
 	m_creationTab.RemoveAll();
-
-	// SyPB Pro P.42 - Entity Action - Reset
 	for (int i = 0; i < entityNum; i++)
 		SetEntityActionData(i);
 }
@@ -585,7 +556,10 @@ void BotControl::FillServer(int selection, int personality, int skill, int numTo
 {
 	// this function fill server with bots, with specified team & personality
 
-	if (GetBotsNum() >= engine->GetMaxClients() - GetHumansNum())
+	// always keep one slot
+	int maxClients = ebot_autovacate.GetBool() ? engine->GetMaxClients() - 1 - (IsDedicatedServer() ? 0 : GetHumansNum()) : engine->GetMaxClients();
+
+	if (GetBotsNum() >= maxClients - GetHumansNum())
 		return;
 
 	if (selection == 1 || selection == 2)
@@ -606,7 +580,7 @@ void BotControl::FillServer(int selection, int personality, int skill, int numTo
 	   {"Random"},
 	};
 
-	int toAdd = numToAdd == -1 ? engine->GetMaxClients() - (GetHumansNum() + GetBotsNum()) : numToAdd;
+	int toAdd = numToAdd == -1 ? maxClients - (GetHumansNum() + GetBotsNum()) : numToAdd;
 
 	for (int i = 0; i <= toAdd; i++)
 	{
@@ -963,7 +937,6 @@ void BotControl::Free(int index)
 	m_bots[index] = null;
 }
 
-// SyPB Pro P.43 - Base improve
 Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 {
 	char rejectReason[128];
@@ -984,14 +957,11 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 
 	// set all info buffer keys for this bot
 	char* buffer = GET_INFOKEYBUFFER(bot);
-
-	// SyPB Pro P.45 - Bot Base Data for CS
 	SET_CLIENT_KEYVALUE(clientIndex, buffer, "_vgui_menus", "0");
-	//SET_CLIENT_KEYVALUE(clientIndex, buffer, "model", "");
 
 	if (g_gameVersion != CSVER_VERYOLD)
 	{
-		if(ebot_ping.GetInt() == 1)
+		if (ebot_ping.GetInt() != 1)
 			SET_CLIENT_KEYVALUE(clientIndex, buffer, "*bot", "1");
 	}
 
@@ -1002,7 +972,6 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	{
 		AddLogEntry(LOG_WARNING, "Server refused '%s' connection (%s)", GetEntityName(bot), rejectReason);
 		ServerCommand("kick \"%s\"", GetEntityName(bot)); // kick the bot player if the server refused it
-
 		bot->v.flags |= FL_KILLME;
 	}
 
@@ -1011,6 +980,8 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 
 	// initialize all the variables for this bot...
 	m_notStarted = true;  // hasn't joined game yet
+	m_difficulty = ebot_difficulty.GetInt(); // set difficulty
+	m_basePingLevel = engine->RandomInt(20, 70);
 
 	m_startAction = CMENU_IDLE;
 	m_moneyAmount = 0;
@@ -1299,8 +1270,7 @@ void Bot::NewRound(void)
 	// SyPB Pro P.42 - AMXX API
 	m_waypointGoalAPI = -1;
 	m_blockWeaponPickAPI = false;
-
-	// SyPB Pro P.49 - Waypoint improve
+	
 	SetEntityWaypoint(GetEntity(), -2);
 
 	// and put buying into its message queue
@@ -1349,7 +1319,6 @@ void Bot::Kill(void)
 
 void Bot::Kick(void)
 {
-	// SyPB Pro P.47 - Small Base improve
 	if (!(pev->flags & FL_FAKECLIENT) || IsNullString(GetEntityName(GetEntity())))
 		return;
 

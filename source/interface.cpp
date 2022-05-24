@@ -193,7 +193,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		char aboutData[] =
 			"+---------------------------------------------------------------------------------+\n"
 			" The E-BOT for Counter-Strike 1.6 " PRODUCT_SUPPORT_VERSION "\n"
-			" Made by " PRODUCT_AUTHOR ", Using SyPB & PB Code\n"
+			" Made by " PRODUCT_AUTHOR ", Using SyPB & YaPB Code\n"
 			" Website: " PRODUCT_URL "\n"
 			"+---------------------------------------------------------------------------------+\n";
 
@@ -319,11 +319,8 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		if (stricmp(arg1, "analyze") == 0)
 		{
 			g_analyzewaypoints = true;
-
 			ServerPrint("Waypoint Analyzing On (Please Manually Edit Waypoints For Best Results)");
-
 			ServerCommand("ebot wp on");
-
 			if (ebot_analyze_create_goal_waypoints.GetInt() == 1)
 				g_waypoint->CreateBasic();
 		}
@@ -331,20 +328,32 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		else if (stricmp(arg1, "analyzeoff") == 0)
 		{
 			g_waypoint->AnalyzeDeleteUselessWaypoints();
-
 			g_analyzewaypoints = false;
-
 			ServerPrint("Waypoint Analyzing Off");
-
 			g_waypoint->Save();
-
 			ServerCommand("ebot wp off");
+			g_analyzeputrequirescrouch = false;
+		}
+
+		else if (stricmp(arg1, "analyze off") == 0)
+		{
+			g_waypoint->AnalyzeDeleteUselessWaypoints();
+			g_analyzewaypoints = false;
+			ServerPrint("Waypoint Analyzing Off");
+			g_waypoint->Save();
+			ServerCommand("ebot wp off");
+			g_analyzeputrequirescrouch = false;
 		}
 
 		else if (stricmp(arg1, "analyzefix") == 0)
 		{
 			g_waypoint->AnalyzeDeleteUselessWaypoints();
+			ServerCommand("ebot wp on");
+		}
 
+		else if (stricmp(arg1, "analyze fix") == 0)
+		{
+			g_waypoint->AnalyzeDeleteUselessWaypoints();
 			ServerCommand("ebot wp on");
 		}
 
@@ -572,14 +581,11 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		// display status
 		ServerPrint("Auto-Waypoint %s", g_autoWaypoint ? "Enabled" : "Disabled");
 	}
-
-	// SyPB Pro P.12
+	
 	else if (stricmp(arg0, "sgdwaypoint") == 0 || stricmp(arg0, "sgdwp") == 0)
 	{
-		// SyPB Pro P.20 - SgdWp
 		if (IsDedicatedServer() || FNullEnt(g_hostEntity))
 			return 2;
-
 		g_waypoint->SgdWp_Set(arg1);
 	}
 
@@ -1029,8 +1035,6 @@ void InitConfig(void)
 	}
 	else if (g_gameVersion == CSVER_VERYOLD)
 		AddLogEntry(LOG_DEFAULT, "Multilingual system disabled, due to your Counter-Strike Version!");
-	else if (strcmp(ebot_language.GetString(), "en") != 0)
-		AddLogEntry(LOG_ERROR, "Couldn't load language configuration");
 
 	// set personality weapon pointers here
 	g_weaponPrefs[PERSONALITY_NORMAL] = reinterpret_cast <int*> (&g_normalWeaponPrefs);
@@ -1368,7 +1372,7 @@ void ClientCommand(edict_t* ent)
 		}
 		else if (stricmp(command, "menuselect") == 0 && !IsNullString(arg1) && g_clients[ENTINDEX(ent) - 1].menu != null)
 		{
-			Client_old* client = &g_clients[ENTINDEX(ent) - 1];
+			Clients* client = &g_clients[ENTINDEX(ent) - 1];
 			int selection = atoi(arg1);
 
 			if (client->menu == &g_menus[12])
@@ -1437,7 +1441,7 @@ void ClientCommand(edict_t* ent)
 					g_waypoint->ToggleFlags(WAYPOINT_ZMHMCAMP);
 					break;
 
-				case 7:  // SyPB Pro P.30 - SgdWP
+				case 7:
 					g_waypoint->ToggleFlags(WAYPOINT_CROUCH);
 					break;
 
@@ -2440,13 +2444,7 @@ void ClientCommand(edict_t* ent)
 					}
 				}
 			}
-
-			// ebot 1.51 - Don't change it!
-			/*if (radioCommand == Radio_HoldPosition && !IsValidBot(ent) &&
-				GetGameMod() == MODE_ZP && !IsZombieEntity(ent))
-				g_waypoint->ChangeZBCampPoint(GetEntityOrigin (ent));*/
-
-				// SyPB Pro P.42 - Fixed 
+			
 			if (g_clients[clientIndex].team == 0 || g_clients[clientIndex].team == 1)
 				g_lastRadioTime[g_clients[clientIndex].team] = engine->GetTime();
 		}
@@ -2475,7 +2473,7 @@ void ServerActivate(edict_t* pentEdictList, int edictCount, int clientMax)
 
 	// do level initialization stuff here...
 	g_waypoint->Initialize();
-	g_exp.Unload(); // SyPB Pro P.35 - Debug new maps
+	g_exp.Unload();
 	g_waypoint->Load();
 
 	// execute main config
@@ -2603,6 +2601,97 @@ void LoadEntityData(void)
 	}
 }
 
+void CalculatePings()
+{
+	int average[2] = { 0, 0 };
+	int numHumans = 0;
+
+	const auto emit = [](int s0, int s1, int s2)
+	{
+		return (s0 & ((1ULL << s1) - 1)) << s2;
+	};
+
+	// first get average ping on server, and store real client pings
+	for (auto& client : g_clients)
+	{
+		if (!(client.flags & CFLAG_USED) || IsValidBot(client.ent))
+			continue;
+
+		int ping, loss;
+		PLAYER_CNX_STATS(client.ent, &ping, &loss);
+
+		// store normal client ping
+		client.ping = emit(loss, 7, 18) | emit(ping > 0 ? ping / 2 : engine->RandomInt(8, 16), 12, 6) | emit(ENTINDEX(client.ent), 5, 1) | 1;
+		client.pingUpdate = true;
+
+		numHumans++;
+
+		average[0] += ping;
+		average[1] += loss;
+	}
+
+	if (numHumans > 0)
+	{
+		average[0] /= numHumans;
+		average[1] /= numHumans;
+	}
+	else
+	{
+		average[0] = engine->RandomInt(30, 40);
+		average[1] = engine->RandomInt(5, 10);
+	}
+
+	// now calculate bot ping based on average from players
+	for (auto& client : g_clients)
+	{
+		if (!(client.flags & CFLAG_USED))
+			continue;
+
+		// we're only intrested in bots here
+		auto bot = g_botManager->GetBot(client.ent);
+		if (bot == null)
+			continue;
+
+		int part = static_cast <int> (average[0] * 0.2f);
+
+		int botPing = bot->m_basePingLevel + engine->RandomInt(average[0] - part, average[0] + part) + engine->RandomInt(bot->m_difficulty / 2, bot->m_difficulty); // remember me
+		int botLoss = engine->RandomInt(average[1] / 2, average[1]);
+
+		if (botPing <= 5)
+			botPing = engine->RandomInt(10, 23);
+		else if (botPing > 70)
+			botPing = engine->RandomInt(30, 40);
+		
+		client.ping = emit(botLoss, 7, 18) | emit(botPing, 12, 6) | emit(ENTINDEX(client.ent), 5, 1) | 1;
+		client.pingUpdate = true; // force resend ping
+	}
+}
+
+void SetPing(edict_t* to)
+{
+	// missing from sdk
+	constexpr int gamePingSVC = 17;
+
+	for (auto& client : g_clients)
+	{
+		if (!(client.flags & CFLAG_USED))
+			continue;
+		
+		if (!client.pingUpdate)
+			continue;
+
+		client.pingUpdate = false;
+
+		// no ping, no fun
+		if (client.ping <= 0)
+			client.ping = engine->RandomInt(15, 50);
+
+		MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, gamePingSVC, nullptr, to);
+		WRITE_LONG(client.ping);
+		MESSAGE_END();
+	}
+}
+
 static float secondTimer = 0.0;
 void StartFrame(void)
 {
@@ -2629,10 +2718,26 @@ void StartFrame(void)
 		}
 	}
 
+	/*extern ConVar ebot_ping;
+	if (ebot_ping.GetBool())
+	{
+		for (auto& client : g_clients)
+		{
+			if (!(client.flags & CFLAG_USED))
+				continue;
+
+			SetPing(client.ent);
+		}
+	}*/
+
 	if (secondTimer < engine->GetTime())
 	{
-		int i;
 		LoadEntityData();
+
+		//if (ebot_ping.GetBool())
+		//	CalculatePings();
+
+		int i;
 		if (IsDedicatedServer())
 		{
 			for (i = 0; i < engine->GetMaxClients(); i++)
@@ -2716,7 +2821,6 @@ void StartFrame(void)
 	(*g_functionTable.pfnStartFrame) ();
 }
 
-// SyPB Pro P.43 - Base improve
 void StartFrame_Post(void)
 {
 	// this function starts a video frame. It is called once per video frame by the engine. If
@@ -3276,13 +3380,13 @@ void pfnAlertMessage(ALERT_TYPE alertType, char* format, ...)
 
 const char* pfnGetPlayerAuthId(edict_t* e)
 {
-	if (IsValidBot(e))
+	/*if (IsValidBot(e))
 	{
 		if (g_isMetamod)
 			RETURN_META_VALUE(MRES_SUPERCEDE, "BOT");
 
 		return "BOT";
-	}
+	}*/
 
 	if (g_isMetamod)
 		RETURN_META_VALUE(MRES_IGNORED, 0);
@@ -3292,13 +3396,13 @@ const char* pfnGetPlayerAuthId(edict_t* e)
 
 unsigned int pfnGetPlayerWONId(edict_t* e)
 {
-	if (IsValidBot(e))
+	/*if (IsValidBot(e))
 	{
 		if (g_isMetamod)
 			RETURN_META_VALUE(MRES_SUPERCEDE, 0);
 
 		return 0;
-	}
+	}*/
 
 	if (g_isMetamod)
 		RETURN_META_VALUE(MRES_IGNORED, 0);

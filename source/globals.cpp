@@ -109,7 +109,7 @@ BlendAPI_t g_serverBlendingAPI = null;
 FuncPointers_t g_funcPointers = null;
 
 enginefuncs_t g_engfuncs;
-Client_old g_clients[32];
+Clients g_clients[32];
 WeaponProperty g_weaponDefs[Const_MaxWeapons + 1];
 
 edict_t* g_worldEdict = null;
@@ -277,8 +277,8 @@ MenuText g_menus[26] =
 	// main menu
 	{
 		0x2ff,
-		"\\yebot Main Menu\\w\v\v"
-		"1. ebot Control\v"
+		"\\yE-Bot Main Menu\\w\v\v"
+		"1. E-Bot Control\v"
 		"2. Features\v\v"
 		"3. Fill Server\v"
 		"4. End Round\v\v"
@@ -288,7 +288,7 @@ MenuText g_menus[26] =
 	// bot features menu
 	{
 		0x25f,
-		"\\yebot Features\\w\v\v"
+		"\\yE-Bot Features\\w\v\v"
 		"1. Weapon Mode Menu\v"
 		"2. Waypoint Menu\v"
 		"3. Select Personality\v\v"
@@ -300,9 +300,9 @@ MenuText g_menus[26] =
 	// bot control menu
 	{
 		0x2ff,
-		"\\yebot Control Menu\\w\v\v"
-		"1. Add a Bot, Quick\v"
-		"2. Add a Bot, Specified\v\v"
+		"\\yE-Bot Control Menu\\w\v\v"
+		"1. Add a E-Bot, Quick\v"
+		"2. Add a E-Bot, Specified\v\v"
 		"3. Remove Random Bot\v"
 		"4. Remove All Bots\v\v"
 		"5. Remove Bot Menu\v\v"
@@ -312,7 +312,7 @@ MenuText g_menus[26] =
 	// weapon mode select menu
 	{
 		0x27f,
-		"\\yebot Weapon Mode\\w\v\v"
+		"\\yE-Bot Weapon Mode\\w\v\v"
 		"1. Knives only\v"
 		"2. Pistols only\v"
 		"3. Shotguns only\v"
@@ -326,7 +326,7 @@ MenuText g_menus[26] =
 	// personality select menu
 	{
 		0x20f,
-		"\\yebot Personality\\w\v\v"
+		"\\yE-Bot Personality\\w\v\v"
 		"1. Random\v"
 		"2. Normal\v"
 		"3. Rusher\v"
@@ -337,7 +337,7 @@ MenuText g_menus[26] =
 	// skill select menu
 	{
 		0x23f,
-		"\\yebot Skill Level\\w\v\v"
+		"\\yE-Bot Skill Level\\w\v\v"
 		"1. Poor (0-20)\v"
 		"2. Easy (20-40)\v"
 		"3. Normal (40-60)\v"
@@ -488,7 +488,7 @@ MenuText g_menus[26] =
 	// command menu
 	{
 		0x23f,
-		"\\yBot Command Menu\\w\v\v"
+		"\\yE-Bot Command Menu\\w\v\v"
 		"1. Make Double Jump\v"
 		"2. Finish Double Jump\v\v"
 		"3. Drop the C4 Bomb\v"
@@ -559,7 +559,7 @@ MenuText g_menus[26] =
 		"\\ySgdWP Add Waypoint Menu2\\w\v\v"
 		"1. Use Elevator\v"
 		"2. Sniper Camp\v"
-		"3. Zomibe Mode Hm Camp\v" // SyPB Pro P.29 - Zombie Mode Camp Waypoints
+		"3. Zomibe Mode Hm Camp\v"
 		"\v0. Exit"
 	},
 
@@ -572,7 +572,6 @@ MenuText g_menus[26] =
 		"\v0. Exit"
 	},
 
-	// SyPB Pro P.45 - SgdWP
 	{
 		0x3ff,
 		"\\ySgdWP Save \\w\v"

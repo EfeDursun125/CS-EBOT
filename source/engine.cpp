@@ -57,8 +57,6 @@ float Engine::RandomFloat(float low, float high)
 {
     if (low >= high)
         return low;
-
-    // SyPB Pro P.42 - Engine Small improve
     return RANDOM_FLOAT(low, high);
 }
 
@@ -66,8 +64,6 @@ int Engine::RandomInt(int low, int high)
 {
     if (low >= high)
         return low;
-
-    // SyPB Pro P.42 - Engine Small improve
     return RANDOM_LONG(low, high);
 }
 
@@ -138,13 +134,21 @@ float Engine::Clamp(float a, float b, float c)
     return (a > c ? c : (a < b ? b : a));
 }
 
+int Engine::MinInt(int one, int two)
+{
+    if (one < two)
+        return one;
+    else if (two < one)
+        return two;
+    return two;
+}
+
 float Engine::Max(float one, float two)
 {
     if (one > two)
         return one;
     else if (two > one)
         return two;
-
     return two;
 }
 

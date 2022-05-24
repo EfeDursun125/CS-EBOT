@@ -464,7 +464,7 @@ bool Bot::RepliesToPlayer(void)
     return false;
 }
 
-void Bot::ChatSay(bool teamSay, const char* text)
+void Bot::ChatSay(bool teamSay, const char* text, ...)
 {
     if (IsNullString(text))
         return;

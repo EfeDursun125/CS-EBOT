@@ -47,16 +47,6 @@ ConVar ebot_chat_percent("ebot_chat_percent", "20");
 ConVar ebot_eco_rounds("ebot_eco_rounds", "1");
 ConVar ebot_human_side_movement("ebot_human_side_movement_while_camping", "1");
 
-//
-// This AI based on SyPB.
-// 
-// Reason of Name Change: Because this project going more than a modification now and sypb api & swnpc isn't supported now.
-// but i don't remove api & swnpc support for who one wants rebuild it for personal use. (or relase)
-// i mean you can found swnpc & api supports in code, but not offical support.
-// in the start of the project i wanted make the ai compatible with api & swnpc.
-// SyPB supports max 1024 waypoints but ebot supports 2048 max waypoints, this is the base incompatibile with swnpc.
-//
-
 // this function get the current message from the bots message queue
 int Bot::GetMessageQueue(void)
 {
@@ -78,7 +68,6 @@ void Bot::PushMessageQueue(int message)
 		for (const auto& client : g_clients)
 		{
 			Bot* otherBot = g_botManager->GetBot(client.ent);
-
 			if (otherBot != null && otherBot->pev != pev)
 			{
 				if (IsAlive(GetEntity()) == otherBot->m_notKilled)
@@ -86,7 +75,6 @@ void Bot::PushMessageQueue(int message)
 					otherBot->m_sayTextBuffer.entityIndex = entityIndex;
 					strcpy(otherBot->m_sayTextBuffer.sayText, m_tempStrings);
 				}
-
 				otherBot->m_sayTextBuffer.timeNextChat = engine->GetTime() + otherBot->m_sayTextBuffer.chatDelay;
 			}
 		}
@@ -3686,8 +3674,6 @@ void Bot::Think(void)
 		ResetCollideState();
 
 	pev->button = 0;
-	pev->flags |= FL_FAKECLIENT; // restore fake client bit, if it were removed by some evil action =)
-
 	m_moveSpeed = 0.0f;
 	m_strafeSpeed = 0.0f;
 	m_moveAngles = nullvec;
@@ -4573,6 +4559,12 @@ void Bot::RunTask(void)
 
 		// planting the bomb right now
 	case TASK_CAMP:
+		if (m_isZombieBot)
+		{
+			TaskComplete();
+			return;
+		}
+		
 		if (IsZombieMode() && ebot_human_side_movement.GetInt() == 1)
 		{
 			if (!FNullEnt(m_enemy) && !IsVisible(m_lastEnemyOrigin, GetEntity()) && m_lastEnemyOrigin != nullvec)
@@ -7550,7 +7542,7 @@ bool Bot::IsBombDefusing(Vector bombOrigin)
 		return false;
 
 	bool defusingInProgress = false;
-	constexpr float distanceToBomb = 19600.0f;
+	constexpr float distanceToBomb = 75.0f;
 
 	for (const auto& client : g_clients)
 	{

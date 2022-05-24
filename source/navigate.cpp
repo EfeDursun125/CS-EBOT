@@ -474,35 +474,36 @@ bool Bot::DoWaypointNav(void)
 		// bot is not jumped yet?
 		if (!m_jumpFinished)
 		{
-			// if bot's on the ground or on the ladder we're free to jump. actually setting the correct velocity is cheating.
-			// pressing the jump button gives the illusion of the bot actual jumping.
+			// cheating for jump, bots cannot do some hard jumps and double jumps too
+			// who cares about double jump for bots? :)
+			if (m_desiredVelocity == nullvec || m_desiredVelocity == -1)
+			{
+				pev->velocity.x = ((m_waypointOrigin.x - pev->origin.x) * 2.25f);
+				pev->velocity.y = ((m_waypointOrigin.y - pev->origin.y) * 2.25f);
+				pev->velocity.z = ((m_waypointOrigin.z - pev->origin.z) * 2.25f);
+			}
+			else
+				pev->velocity = m_desiredVelocity;
+
+			// do not use z buffer here
+			if (pev->velocity.x > pev->maxspeed)
+				pev->velocity.x = pev->maxspeed;
+
+			if (pev->velocity.y > pev->maxspeed)
+				pev->velocity.y = pev->maxspeed;
+
+			if (pev->velocity.x < -pev->maxspeed)
+				pev->velocity.x = -pev->maxspeed;
+
+			if (pev->velocity.y < -pev->maxspeed)
+				pev->velocity.y = -pev->maxspeed;
+
+			pev->button |= IN_JUMP;
+			
+			// if bot's on the ground or on the ladder we're free to jump. actually setting the correct velocity is cheating
+			// pressing the jump button gives the illusion of the bot actual jumping
 			if (IsOnFloor() || IsOnLadder())
 			{
-				if (m_desiredVelocity == nullvec || m_desiredVelocity == -1)
-				{
-					pev->velocity.x = ((m_waypointOrigin.x - pev->origin.x) * 2.2f);
-					pev->velocity.y = ((m_waypointOrigin.y - pev->origin.y) * 2.2f);
-					pev->velocity.z = ((m_waypointOrigin.z - pev->origin.z) * 2.2f);
-				}
-				else
-					pev->velocity = m_desiredVelocity;
-
-				// do not use z buffer here.
-
-				if (pev->velocity.x > fabsf(pev->maxspeed))
-					pev->velocity.x = fabsf(pev->maxspeed);
-
-				if (pev->velocity.y > fabsf(pev->maxspeed))
-					pev->velocity.y = fabsf(pev->maxspeed);
-
-				if (pev->velocity.x < -fabsf(pev->maxspeed))
-					pev->velocity.x = -fabsf(pev->maxspeed);
-
-				if (pev->velocity.y < -fabsf(pev->maxspeed))
-					pev->velocity.y = -fabsf(pev->maxspeed);
-
-				pev->button |= IN_JUMP;
-
 				m_jumpFinished = true;
 				m_checkTerrain = false;
 				m_desiredVelocity = nullvec;
@@ -1043,26 +1044,14 @@ void Bot::FindPath(int srcIndex, int destIndex, uint8_t pathType)
 	m_chosenGoalIndex = srcIndex;
 	m_goalValue = 0.0f;
 
-	// A* Stuff
-	enum AStarState_t { OPEN, CLOSED, NEW };
-
-	struct AStar_t
-	{
-		float g;
-		float f;
-		int parent;
-
-		AStarState_t state;
-	} astar[Const_MaxWaypoints];
-
 	PriorityQueue openList;
 
-	for (int i = 0; i < Const_MaxWaypoints; i++)
+	for (int i = 0; i < g_numWaypoints; i++)
 	{
-		astar[i].g = 0;
-		astar[i].f = 0;
-		astar[i].parent = -1;
-		astar[i].state = NEW;
+		waypoints[i].g = 0;
+		waypoints[i].f = 0;
+		waypoints[i].parent = -1;
+		waypoints[i].state = State::New;
 	}
 
 	const float (*gcalc) (int, int, int, float) = null;
@@ -1090,12 +1079,12 @@ void Bot::FindPath(int srcIndex, int destIndex, uint8_t pathType)
 	}
 
 	// put start node into open list
-	astar[srcIndex].g = gcalc(srcIndex, -1, m_team, offset);
-	astar[srcIndex].f = astar[srcIndex].g + hcalc(srcIndex, destIndex);
-	astar[srcIndex].state = OPEN;
+	auto srcWaypoint = &waypoints[srcIndex];
+	srcWaypoint->g = gcalc(srcIndex, -1, m_team, offset);
+	srcWaypoint->f = srcWaypoint->g + hcalc(srcIndex, destIndex);
+	srcWaypoint->state = State::Open;
 
-	openList.Insert(srcIndex, astar[srcIndex].f);
-
+	openList.Insert(srcIndex, srcWaypoint->f);
 	while (!openList.Empty())
 	{
 		// remove the first node from the open list
@@ -1118,7 +1107,7 @@ void Bot::FindPath(int srcIndex, int destIndex, uint8_t pathType)
 				path->next = m_navNode;
 
 				m_navNode = path;
-				currentIndex = astar[currentIndex].parent;
+				currentIndex = waypoints[currentIndex].parent;
 
 			} while (currentIndex != -1);
 
@@ -1126,33 +1115,34 @@ void Bot::FindPath(int srcIndex, int destIndex, uint8_t pathType)
 			return;
 		}
 
-		if (astar[currentIndex].state != OPEN)
+		auto currWaypoint = &waypoints[currentIndex];
+		if (currWaypoint->state != State::Open)
 			continue;
 
-		// put current node into CLOSED list
-		astar[currentIndex].state = CLOSED;
+		// put current node into Closed list
+		currWaypoint->state = State::Closed;
 
 		// now expand the current node
 		for (int i = 0; i < Const_MaxPathIndex; i++)
 		{
 			int self = g_waypoint->GetPath(currentIndex)->index[i];
-
 			if (self == -1)
 				continue;
 
 			// calculate the F value as F = G + H
-			float g = astar[currentIndex].g + gcalc(self, currentIndex, m_team, offset);
+			float g = currWaypoint->g + gcalc(self, currentIndex, m_team, offset);
 			float h = hcalc(srcIndex, destIndex);
 			float f = g + h;
 
-			if (astar[self].state == NEW || astar[self].f > f)
+			auto childWaypoint = &waypoints[self];
+			if (childWaypoint->state == State::New || childWaypoint->f > f)
 			{
 				// put the current child into open list
-				astar[self].parent = currentIndex;
-				astar[self].state = OPEN;
+				childWaypoint->parent = currentIndex;
+				childWaypoint->state = State::Open;
 
-				astar[self].g = g;
-				astar[self].f = f;
+				childWaypoint->g = g;
+				childWaypoint->f = f;
 
 				openList.Insert(self, f);
 			}
@@ -1184,22 +1174,19 @@ void Bot::DeleteSearchNodes(void)
 	m_chosenGoalIndex = -1;
 }
 
-// SyPB Pro P.38 - Breakable improve 
 void Bot::CheckTouchEntity(edict_t* entity)
 {
 	if (m_checktouch + 1.0f > engine->GetTime())
 		return;
 
-	// SyPB Pro P.40 - Touch Entity Attack Action
 	if (m_currentWeapon == WEAPON_KNIFE &&
 		(!FNullEnt(m_enemy) || !FNullEnt(m_breakableEntity)) &&
 		(m_enemy == entity || m_breakableEntity == entity))
 		KnifeAttack((pev->origin - GetEntityOrigin(entity)).GetLength() + 50.0f);
-
+	
 	if (IsShootableBreakable(entity))
 	{
 		bool attackBreakable = false;
-		// SyPB Pro P.40 - Breakable 
 		if (m_isStuck || &m_navNode[0] == null)
 			attackBreakable = true;
 		else if (IsValidWaypoint(m_currentWaypointIndex))
@@ -2361,7 +2348,6 @@ bool Bot::IsDeadlyDrop(Vector targetOriginPos)
 
 bool Bot::CheckCloseAvoidance(const Vector& dirNormal)
 {
-	// :)
 	if (IsAntiBlock(GetEntity()))
 		return false;
 

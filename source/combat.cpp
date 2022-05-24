@@ -650,7 +650,6 @@ bool Bot::DoFirePause(float distance)//, FireDelay *fireDelay)
 	if (m_firePause > engine->GetTime())
 		return true;
 
-	// SyPB Pro P.48 - Base improve
 	if ((m_aimFlags & AIM_ENEMY) && m_enemyOrigin != nullvec)
 	{
 		if (IsEnemyProtectedByShield(m_enemy) && GetShootingConeDeviation(GetEntity(), &m_enemyOrigin) > 0.92f)
@@ -676,7 +675,7 @@ bool Bot::DoFirePause(float distance)//, FireDelay *fireDelay)
 		m_moveSpeed = 0.0f;
 		m_strafeSpeed = 0.0f;
 
-		if (pev->velocity.GetLength() > 2.0f && GetGameMod() != MODE_ZP)
+		if (pev->speed >= pev->maxspeed && GetGameMod() != MODE_ZP)
 		{
 			m_firePause = engine->GetTime() + 0.1f;
 			return true;
@@ -772,8 +771,7 @@ WeaponSelectEnd:
 		m_reloadState = RSTATE_NONE;
 		m_reloadCheckTime = engine->GetTime() + 5.0f;
 	}
-
-	// SyPB Pro P.42 - Zombie Mode Human Knife
+	
 	if (m_currentWeapon == WEAPON_KNIFE && selectId != WEAPON_KNIFE && GetGameMod() == MODE_ZP && !m_isZombieBot)
 	{
 		m_reloadState = RSTATE_PRIMARY;
@@ -835,13 +833,6 @@ WeaponSelectEnd:
 			pev->button |= IN_ATTACK2;
 
 		m_zoomCheckTime = engine->GetTime();
-
-		if (!FNullEnt(enemy) && (pev->velocity.x != 0 || pev->velocity.y != 0 || pev->velocity.z != 0) && (pev->basevelocity.x != 0 || pev->basevelocity.y != 0 || pev->basevelocity.z != 0))
-		{
-			m_moveSpeed = 0.0f;
-			m_strafeSpeed = 0.0f;
-			m_navTimeset = engine->GetTime();
-		}
 	}
 	else if (UsesZoomableRifle() && m_zoomCheckTime < engine->GetTime() && m_skill < 90) // else is the bot holding a zoomable rifle?
 	{
@@ -885,7 +876,6 @@ WeaponSelectEnd:
 		// don't attack with knife over long distance
 		if (selectId == WEAPON_KNIFE)
 		{
-			// SyPB Pro P.42 - Knife Attack Fixed (Maybe plug-in change attack distance)
 			KnifeAttack();
 			return;
 		}
@@ -893,21 +883,16 @@ WeaponSelectEnd:
 		float delayTime = 0.0f;
 		if (selectTab[chosenWeaponIndex].primaryFireHold)
 		{
-			//m_shootTime = engine->GetTime();
 			m_zoomCheckTime = engine->GetTime();
-
 			pev->button |= IN_ATTACK;  // use primary attack
 		}
 		else
 		{
 			pev->button |= IN_ATTACK;  // use primary attack
-
-			//m_shootTime = engine->GetTime() + baseDelay + engine->RandomFloat(minDelay, maxDelay);
 			delayTime = baseDelay + engine->RandomFloat(minDelay, maxDelay);
 			m_zoomCheckTime = engine->GetTime();
 		}
-
-		// SyPB Pro P.39 - Gun Attack Ai improve
+		
 		if (!FNullEnt(enemy) && distance >= 1200.0f)
 		{
 			if (m_visibility & (VISIBILITY_HEAD | VISIBILITY_BODY))
@@ -1220,8 +1205,48 @@ void Bot::CombatFight(void)
 
 		return;
 	}
-	else if(!IsZombieMode() && GetCurrentTask()->taskID != TASK_CAMP && GetCurrentTask()->taskID != TASK_SEEKCOVER && GetCurrentTask()->taskID != TASK_ESCAPEFROMBOMB)
+	else if (!IsZombieMode() && GetCurrentTask()->taskID != TASK_CAMP && GetCurrentTask()->taskID != TASK_SEEKCOVER && GetCurrentTask()->taskID != TASK_ESCAPEFROMBOMB)
 	{
+		/*if (m_skill >= 50)
+		{
+			// 1 tick delay every 1 seconds.
+			if (m_isSlowThink)
+				return;
+
+			// higher skill bots have a better movement
+			if (!ChanceOf(m_skill))
+				return;
+			
+			float input[3] = {0, 0, 0};
+			
+			input[0] = (pev->velocity.x * pev->health) - (m_enemy->v.velocity.x * m_enemy->v.health);
+			input[0] /= 1000; // 1 = forward | 2 = back
+			input[1] = (pev->velocity.y * m_enemy->v.speed) - (m_enemy->v.velocity.y * pev->speed);
+			input[1] /= 1000; // 1 = right | 2 = left
+			//input[2] = pev->velocity.z - m_enemy->v.velocity.z;
+			//input[2] /= 1000; // 1 = jump | 2 = crouch
+
+			int i = GetIndex();
+
+			if (brain[i]->l[brain[i]->layers - 1].n[0].output < 0.01f || brain[i]->l[brain[i]->layers - 1].n[0].output > 1.99f)
+				m_moveSpeed = 0.0f;
+			else if (brain[i]->l[brain[i]->layers - 1].n[0].output <= 1.0f)
+				m_moveSpeed = -pev->maxspeed;
+			else if (brain[i]->l[brain[i]->layers - 1].n[0].output <= 2.0f)
+				m_moveSpeed = pev->maxspeed;
+
+			if (brain[i]->l[brain[i]->layers - 1].n[1].output < 0.2f || brain[i]->l[brain[i]->layers - 1].n[1].output > 1.8f)
+				m_strafeSpeed = 0.0f;
+			else if (brain[i]->l[brain[i]->layers - 1].n[1].output <= 1.0f)
+				m_strafeSpeed = -pev->maxspeed;
+			else if (brain[i]->l[brain[i]->layers - 1].n[1].output <= 2.0f)
+				m_strafeSpeed = pev->maxspeed;
+			
+			IgnoreCollisionShortly();
+
+			return;
+		}*/
+
 		// little trick for bots
 		if (m_isReloading && (m_skill > 40 || ChanceOf(5)))
 		{
