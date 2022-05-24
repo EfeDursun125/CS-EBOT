@@ -461,7 +461,17 @@ const int Const_MaxWaypoints = 2048;
 const int Const_MaxWeapons = 32;
 const int Const_NumWeapons = 26;
 
-const bool AntiBlock = false;
+// A* Stuff
+enum class State { Open, Closed, New };
+
+struct AStar_t
+{
+	float g;
+	float f;
+	int parent;
+
+	State state;
+};
 
 // weapon masks
 const int WeaponBits_Primary = ((1 << WEAPON_XM1014) | (1 << WEAPON_M3) | (1 << WEAPON_MAC10) | (1 << WEAPON_UMP45) | (1 << WEAPON_MP5) | (1 << WEAPON_TMP) | (1 << WEAPON_P90) | (1 << WEAPON_AUG) | (1 << WEAPON_M4A1) | (1 << WEAPON_SG552) | (1 << WEAPON_AK47) | (1 << WEAPON_SCOUT) | (1 << WEAPON_SG550) | (1 << WEAPON_AWP) | (1 << WEAPON_G3SG1) | (1 << WEAPON_M249) | (1 << WEAPON_FAMAS) | (1 << WEAPON_GALIL));
@@ -590,7 +600,7 @@ struct MenuText
 };
 
 // array of clients struct
-struct Client_old
+struct Clients
 {
 	MenuText* menu; // pointer to opened bot menu
 	edict_t* ent; // pointer to actual edict
@@ -600,6 +610,8 @@ struct Client_old
 	int flags; // client flags
 	float hearingDistance; // distance this sound is heared
 	float timeSoundLasting; // time sound is played/heared
+	int ping; // when bot latency is enabled, client ping stored here
+	bool pingUpdate; // update ping if true
 
 	int wpIndex;
 	int wpIndex2;
@@ -700,9 +712,9 @@ private:
 	bool m_isLeader; // bot is leader of his team
 	bool m_checkTerrain; // check for terrain
 	bool m_moveToC4; // ct is moving to bomb
-
+	
 	bool m_checkFall; // check bot fall
-	Vector m_checkFallPoint[2];
+	Vector m_checkFallPoint[2]; // idk why...
 	float m_prevTime; // time previously checked movement speed
 	float m_prevSpeed; // speed some frames before
 	Vector m_prevOrigin; // origin some frames before
@@ -729,8 +741,7 @@ private:
 	float m_knifeAttackTime; // time to rush with knife (at the beginning of the round)
 	bool m_defendedBomb; // defend action issued
 
-	float m_damageTime;
-
+	float m_damageTime; // tweak for zombie bots
 	float m_askCheckTime; // time to ask team
 	float m_collideTime; // time last collision
 	float m_firstCollideTime; // time of first collision
@@ -776,7 +787,7 @@ private:
 	edict_t* m_targetEntity; // the entity that the bot is trying to reach
 	edict_t* m_hostages[Const_MaxHostages]; // pointer to used hostage entities
 
-	Vector m_moveTargetOrigin;
+	Vector m_moveTargetOrigin; // ...
 
 	bool m_isStuck; // bot is stuck
 	bool m_isReloading; // bot is reloading a gun
@@ -784,7 +795,7 @@ private:
 	int m_voicePitch; // bot voice pitch
 	bool m_isZombieBot; // checks bot if zombie
 	bool m_isBomber; // checks bot has C4
-	int m_team; // team
+	int m_team; // team OOOOOOOOOOHHHHHHHHHHH!!!!!!!!!!!!!
 
 	bool m_duckDefuse; // should or not bot duck to defuse bomb
 	float m_duckDefuseCheckTime; // time to check for ducking for defuse
@@ -793,7 +804,7 @@ private:
 
 	int m_msecBuiltin; // random msec method for this bot
 	//uint8_t m_msecVal; // calculated msec value
-	float m_msecVal;
+	float m_msecVal; // same
 	float m_msecDel; // used for msec calculation
 	float m_msecNum; // also used for mseccalculation
 	float m_msecInterval; // used for leon hartwig's method for msec calculation
@@ -840,11 +851,11 @@ private:
 	float m_randomizeAnglesTime; // time last randomized location
 	float m_playerTargetTime; // time last targeting
 
-	float m_checkCampPointTime;
-	int m_zhCampPointIndex;
+	float m_checkCampPointTime; // zombie stuff
+	int m_zhCampPointIndex; // zombie stuff index
 
-	Vector m_moveAnglesForRunMove;
-	float m_moveSpeedForRunMove, m_strafeSpeedForRunMove;
+	Vector m_moveAnglesForRunMove; // angles while running
+	float m_moveSpeedForRunMove, m_strafeSpeedForRunMove; // for run
 
 	void SwitchChatterIcon(bool show);
 	void BotAI(void);
@@ -998,6 +1009,7 @@ private:
 
 public:
 	entvars_t* pev;
+	AStar_t waypoints[Const_MaxWaypoints];
 
 	// SyPB Pro P.30 - AMXX API
 	edict_t* m_enemyAPI;
@@ -1018,6 +1030,8 @@ public:
 
 	int m_wantedTeam; // player team bot wants select
 	int m_wantedClass; // player model bot wants to select
+	int m_difficulty; // bot difficulty
+	int m_basePingLevel; // base ping level for randomizing
 
 	int m_skill; // bots play skill
 	int m_moneyAmount; // amount of money in bot's bank
@@ -1096,8 +1110,8 @@ public:
 	float m_enemyReachableTimer; // time to recheck if Enemy reachable
 	bool m_isEnemyReachable; // direct line to enemy
 
-	edict_t* m_moveTargetEntity;
-	float m_blockCheckEnemyTime;
+	edict_t* m_moveTargetEntity; // target entity for move
+	float m_blockCheckEnemyTime; // block time for entity check (useless)
 
 	float m_seeEnemyTime; // time bot sees enemy
 	float m_enemySurpriseTime; // time of surprise
@@ -1189,7 +1203,7 @@ public:
 	void PushTask(BotTask taskID, float desire, int data, float time, bool canContinue);
 	void DiscardWeaponForUser(edict_t* user, bool discardC4);
 
-	void ChatSay(bool teamSay, const char* text);
+	void ChatSay(bool teamSay, const char* text, ...);
 
 	void ChatMessage(int type, bool isTeamSay = false);
 	void RadioMessage(int message);
@@ -1454,7 +1468,6 @@ public:
 	Vector GetBombPosition(void) { return m_foundBombOrigin; }
 	void SetBombPosition(bool shouldReset = false);
 	String CheckSubfolderFile(void);
-	String CheckSubfolderFileOld(void);
 
 	int* GetWaypointPath() { return m_pathMatrix; }
 	int* GetWaypointDist() { return m_distMatrix; }

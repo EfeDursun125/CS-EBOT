@@ -103,7 +103,7 @@ extern FireDelay g_fireDelay[Const_NumWeapons + 1];
 extern WeaponSelect g_weaponSelect[Const_NumWeapons + 1];
 extern WeaponProperty g_weaponDefs[Const_MaxWeapons + 1];
 
-extern Client_old g_clients[32];
+extern Clients g_clients[32];
 extern MenuText g_menus[26];
 extern SkillDef g_skillTab[6];
 extern Task g_taskFilters[];

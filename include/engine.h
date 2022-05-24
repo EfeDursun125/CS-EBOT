@@ -3394,6 +3394,8 @@ public:
 
     float Max(float one, float two);
 
+    int MinInt(int one, int two);
+
     float Sine(float X);
 
     float Clamp(float a, float b, float c);
