@@ -560,8 +560,11 @@ public:
     //
     inline float GetLength(void) const
     {
+        float pOut;
         float number = x * x + y * y + z * z;
-        long i;
+        __m128 in = _mm_load_ss(&number);
+        _mm_store_ss(&pOut, _mm_rsqrt_ss(in));
+        /*long i;
         float x2, y;
         const float threehalfs = 1.5F;
         x2 = number * 0.5F;
@@ -569,8 +572,8 @@ public:
         i = *(long*)&y;
         i = 0x5f3759df - (i >> 1);
         y = *(float*)&i;
-        y = y * (threehalfs - (x2 * y * y));
-        return y * number;
+        y = y * (threehalfs - (x2 * y * y));*/
+        return pOut * number;
     }
 
     //
@@ -587,7 +590,10 @@ public:
     inline float GetLength2D(void) const
     {
         float number = x * x + y * y;
-        long i;
+        float pOut;
+        __m128 in = _mm_load_ss(&number);
+        _mm_store_ss(&pOut, _mm_rsqrt_ss(in));
+        /*long i;
         float x2, y;
         const float threehalfs = 1.5F;
         x2 = number * 0.5F;
@@ -595,8 +601,8 @@ public:
         i = *(long*)&y;
         i = 0x5f3759df - (i >> 1);
         y = *(float*)&i;
-        y = y * (threehalfs - (x2 * y * y));
-        return y * number;
+        y = y * (threehalfs - (x2 * y * y));*/
+        return pOut * number;
     }
 
     //

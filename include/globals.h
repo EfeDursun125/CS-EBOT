@@ -25,16 +25,11 @@
 #ifndef GLOBALS_INCLUDED
 #define GLOBALS_INCLUDED
 
-// SyPB Pro P.31 - AMXX API
 extern float API_Version;
 extern float amxxDLL_Version;
 extern uint16 amxxDLL_bV16[4];
-// ****
-
-// SyPB Pro P.42 - SwNPC
 extern float SwNPC_Version;
 extern uint16 SwNPC_Build[4];
-// ****
 
 extern bool g_bombPlanted;
 extern bool g_bombSayString;

@@ -2148,18 +2148,15 @@ C_DLLEXPORT int GetNewDLLFunctions_Post(NEW_DLL_FUNCTIONS* pNewFunctionTable, in
 C_DLLEXPORT int GetEngineFunctions(enginefuncs_t* pengfuncsFromEngine, int* interfaceVersion);
 C_DLLEXPORT int GetEngineFunctions_Post(enginefuncs_t* pengfuncsFromEngine, int* interfaceVersion);
 
-// AMXX API
 C_DLLEXPORT bool Amxx_Runebot(void);
 typedef bool(*AMXX_RUN_ebot) (void);
 
 C_DLLEXPORT float Amxx_APIVersion(void);
 typedef float(*AMXX_API_VERSION) (void);
 
-// SyPB Pro P.31 - AMXX API
 C_DLLEXPORT void Amxx_Check_amxxdllversion(float version, int bu1, int bu2, int bu3, int bu4);
 typedef void(*AMXX_CHECK_APIDLL_VERSION)(float version, int bu1, int bu2, int bu3, int bu4);
 
-// SyPB Pro P.30 - AMXX API
 C_DLLEXPORT int Amxx_Isebot(int index);
 typedef int(*AMXX_IS_ebot) (int index);
 
@@ -2187,19 +2184,15 @@ typedef int(*AMXX_BLOCK_WEAPON_RELOAD)(int index, int blockWeaponReload);
 //C_DLLEXPORT void Amxx_Addebot(const char *name, int skill, int team);
 //typedef void(*AMXX_ADD_ebot)(const char *name, int skill, int team);
 
-// SyPB Pro P.31 - AMXX API
 C_DLLEXPORT int Amxx_SetKADistance(int index, int k1d, int k2d);
 typedef int(*AMXX_SET_KA_DISTANCE)(int index, int k1d, int k2d);
 
-// SyPB Pro P.34 - AMXX API
 C_DLLEXPORT int Amxx_Addebot(const char* name, int skill, int team);
 typedef int(*AMXX_ADD_ebot)(const char* name, int skill, int team);
 
-// SyPB Pro P.35 - AMXX API
 C_DLLEXPORT int Amxx_SetGunADistance(int index, int minDistance, int maxDistance);
 typedef int(*AMXX_SET_GUNA_DISTANCE) (int index, int minDistance, int maxDistance);
 
-// SyPB Pro P.38 - AMXX API
 C_DLLEXPORT int Amxx_IsZombieBot(int index);
 typedef int(*AMXX_IS_ZOMBIE_BOT) (int index);
 
@@ -2212,7 +2205,6 @@ typedef int(*AMXX_GET_ORIGIN_POINT) (Vector origin);
 C_DLLEXPORT int Amxx_GetBotPoint(int index, int mod);
 typedef int(*AMXX_GET_BOT_POINT) (int index, int mod);
 
-// SyPB Pro P.40 - AMXX API
 C_DLLEXPORT int Amxx_GetBotNavNum(int index);
 typedef int(*AMXX_GET_BOT_NAV_NUM) (int index);
 
@@ -2222,7 +2214,6 @@ typedef int(*AMXX_GET_BOT_NAV_POINTID) (int index, int pointNum);
 C_DLLEXPORT int Amxx_SetEntityAction(int index, int team, int action);
 typedef int(*AMXX_SET_ENTITY_ACTION) (int index, int team, int action);
 
-// SyPB Pro P.42 - AMXX API
 C_DLLEXPORT void Amxx_AddLog(char* logText);
 typedef void(*AMXX_ADD_LOG)(char* logText);
 
@@ -2232,13 +2223,9 @@ typedef int(*_AMXX_SET_BOT_GOAL) (int index, int goal);
 C_DLLEXPORT int Amxx_BlockWeaponPick(int index, int blockWeaponPick);
 typedef int(*_AMXX_BLOCK_WEAPON_PICK) (int index, int blockWeaponPick);
 
-// SyPB Pro P.48 - AMXX API
 C_DLLEXPORT int Amxx_GetEntityWaypointId(int index);
 typedef int(*_AMXX_GET_ENTITY_WAYPOINT_ID) (int index);
-// AMXX ebot API End
 
-
-// SyPB Pro P.42 - SwNPC API
 C_DLLEXPORT void SwNPC_GetHostEntity(edict_t** hostEntity);
 typedef void(*SwNPC_GET_HOST_ENTITY) (edict_t** hostEntity);
 
@@ -2259,7 +2246,6 @@ typedef int(*SWNPC_GET_WAYPOINT_INDEX) (edict_t* entity);
 
 C_DLLEXPORT void SwNPC_LoadEntityWaypointIndex(edict_t* getEntity, edict_t* targetEntity);
 typedef void(*SWNPC_LOAD_WAYPOINT_INDEX) (edict_t* getEntity, edict_t* targetEntity);
-// SwNPC API End
 
 #define MDLL_FUNC   gpGamedllFuncs->dllapi_table
 

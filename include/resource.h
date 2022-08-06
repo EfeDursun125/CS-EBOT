@@ -50,14 +50,14 @@
 #define SUPPORT_SWNPC_VERSION_F 1.48
 
 // E-BOT Version
-#define PRODUCT_VERSION_DWORD 1,02,20210920,3 // yyyy/mm/dd
-#define PRODUCT_VERSION "1.02"
-#define PRODUCT_VERSION_F 1.02
+#define PRODUCT_VERSION_DWORD 1,03,20220806,4 // yyyy/mm/dd
+#define PRODUCT_VERSION "1.03"
+#define PRODUCT_VERSION_F 1.03
 
 // general product information
 #define PRODUCT_NAME "E-BOT"
 #define PRODUCT_AUTHOR "EfeDursun125"
-#define PRODUCT_URL ""
+#define PRODUCT_URL "ebots-for-cs.blogspot.com"
 #define PRODUCT_EMAIL "efedursun91@gmail.com"
 #define PRODUCT_LOGTAG "ebot"
 #define PRODUCT_DESCRIPTION "AI bot for Counter-Strike Series"

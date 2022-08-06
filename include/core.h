@@ -34,8 +34,18 @@
 #ifndef EBOT_INCLUDED
 #define EBOT_INCLUDED
 
+#ifdef _WIN32
+#define cpuid(info, x)    __cpuidex(info, x, 0)
+#else
+#include <cpuid.h>
+void cpuid(int info[4], int InfoType) {
+	__cpuid_count(InfoType, 0, info[0], info[1], info[2], info[3]);
+}
+#endif
+
 #include <stdio.h>
 #include <memory.h>
+#include <xmmintrin.h>
 
 #include <engine.h>
 
@@ -618,7 +628,6 @@ struct Clients
 	float getWPTime;
 	Vector getWpOrigin;
 
-	// SyPB Pro P.38 - AMXX API
 	int isZombiePlayerAPI = -1;
 };
 
@@ -1011,20 +1020,13 @@ public:
 	entvars_t* pev;
 	AStar_t waypoints[Const_MaxWaypoints];
 
-	// SyPB Pro P.30 - AMXX API
 	edict_t* m_enemyAPI;
 	bool m_moveAIAPI = false;
 	Vector m_lookAtAPI;
 	int m_weaponClipAPI;
 	bool m_weaponReloadAPI;
-
-	// SyPB Pro P.31 - AMXX API
 	int m_knifeDistance1API, m_knifeDistance2API;
-
-	// SyPB Pro P.35 - AMXX API
 	int m_gunMinDistanceAPI, m_gunMaxDistanceAPI;
-
-	// SyPB Pro P.42 - AMXX API
 	int m_waypointGoalAPI;
 	bool m_blockWeaponPickAPI;
 
@@ -1228,10 +1230,7 @@ public:
 	bool HasShield(void);
 	bool IsShieldDrawn(void);
 
-	// SyPB Pro P.38 - AMXX API
 	int CheckBotPointAPI(int mod);
-
-	// SyPB Pro P.40 - AMXX API
 	int GetNavData(int data);
 };
 
@@ -1496,6 +1495,7 @@ extern bool IsDeathmatchMode(void);
 extern bool IsValidWaypoint(int index);
 extern bool ChanceOf(int number);
 extern float Q_rsqrt(float number);
+extern float sse_rsqrt(float number);
 
 extern int GetEntityWaypoint(edict_t* ent);
 extern int SetEntityWaypoint(edict_t* ent, int mode = -1);
