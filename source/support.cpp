@@ -830,10 +830,7 @@ void AutoLoadGameMode(void)
 					ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Mode (Zombie Plague/Escape) ***");
 
 				SetGameMod(MODE_ZP);
-
-				// SyPB Pro P.34 - ZP TIME FIXED
 				g_DelayTimer = engine->GetTime() + delayTime;
-
 				goto lastly;
 			}
 		}
@@ -1018,6 +1015,14 @@ bool IsValidWaypoint(int index)
 int GetGameMod(void)
 {
 	return ebot_gamemod.GetInt();
+}
+
+float sse_rsqrt(float number)
+{
+	float out;
+	__m128 in = _mm_load_ss(&number);
+	_mm_store_ss(&out, _mm_rsqrt_ss(in));
+	return out;
 }
 
 float Q_rsqrt(float number)
@@ -1330,7 +1335,6 @@ void ServerPrintNoTag(const char* format, ...)
 	SERVER_PRINT(FormatBuffer("%s\n", string));
 }
 
-// SyPB Pro P.30 - AMXX API
 void API_TestMSG(const char* format, ...)
 {
 	if (ebot_apitestmsg.GetBool() == false)

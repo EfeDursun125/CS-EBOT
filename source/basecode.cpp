@@ -495,8 +495,7 @@ void Bot::AvoidEntity(void)
 			{
 				if (IsValidWaypoint(m_currentWaypointIndex))
 				{
-					if ((GetEntityOrigin(entity) - g_waypoint->GetPath(m_currentWaypointIndex)->origin).GetLength() > distance ||
-						((GetEntityOrigin(entity) + entity->v.velocity * m_frameInterval) - g_waypoint->GetPath(m_currentWaypointIndex)->origin).GetLength() > distanceMoved)
+					if ((GetEntityOrigin(entity) - g_waypoint->GetPath(m_currentWaypointIndex)->origin).GetLength() > distance || ((GetEntityOrigin(entity) + entity->v.velocity * m_frameInterval) - g_waypoint->GetPath(m_currentWaypointIndex)->origin).GetLength() > distanceMoved)
 						continue;
 				}
 
@@ -770,7 +769,6 @@ void Bot::FindItem(void)
 		if (m_isZombieBot && pickupType != PICKTYPE_GETENTITY)
 			continue;
 
-		// SyPB Pro P.42 - AMXX API
 		if (m_blockWeaponPickAPI && (pickupType == PICKTYPE_WEAPON || pickupType == PICKTYPE_SHIELDGUN || pickupType == PICKTYPE_SHIELDGUN))
 			continue;
 
@@ -799,7 +797,6 @@ void Bot::FindItem(void)
 			int weaponCarried = GetBestWeaponCarried();
 			int secondaryWeaponCarried = GetBestSecondaryWeaponCarried();
 
-			// SyPB Pro P.45 - AMXX API improve
 			int weaponAmmoMax, secondaryWeaponAmmoMax;
 			if (m_weaponClipAPI > 0)
 				secondaryWeaponAmmoMax = weaponAmmoMax = m_weaponClipAPI;
@@ -1267,13 +1264,12 @@ void Bot::CheckMessageQueue(void)
 	}
 }
 
+// this function checks for weapon restrictions
 bool Bot::IsRestricted(int weaponIndex)
 {
-	// this function checks for weapon restrictions.
-
 	if (IsNullString(ebot_restrictweapons.GetString()))
 		//return false; // no banned weapons
-		return IsRestrictedAMX(weaponIndex); // SyPB Pro P.24 - Buy Ai
+		return IsRestrictedAMX(weaponIndex);
 
 	Array <String> bannedWeapons = String(ebot_restrictweapons.GetString()).Split(";");
 
@@ -1825,7 +1821,6 @@ void Bot::SetConditions(void)
 		if ((tr.flFraction >= 0.2f || tr.pHit != g_worldEdict))
 		{
 			m_aimFlags |= AIM_PREDICTENEMY;
-
 			if (EntityIsVisible(m_lastEnemyOrigin))
 				m_aimFlags |= AIM_LASTENEMY;
 		}
@@ -2677,7 +2672,7 @@ bool Bot::ReactOnEnemy(void)
 		}
 
 	last:
-		m_enemyReachableTimer = engine->GetTime() + engine->RandomFloat(0.5f, 1.0f);
+		m_enemyReachableTimer = engine->GetTime() + engine->RandomFloat(0.25f, 0.5f);
 	}
 
 	if (m_isEnemyReachable)
@@ -3485,14 +3480,29 @@ void Bot::ChooseAimDirection(void)
 		m_lookAt = m_entity;
 	else if (flags & AIM_LASTENEMY)
 	{
-		m_lookAt = m_lastEnemyOrigin;
-		if (m_seeEnemyTime + 3.0f - m_actualReactionTime + m_baseAgressionLevel <= engine->GetTime())
+		if (IsZombieMode())
 		{
-			m_aimFlags &= ~AIM_LASTENEMY;
+			if (m_nextCampDirTime < engine->GetTime())
+			{
+				if (m_seeEnemyTime + 2.0f + m_difficulty > engine->GetTime() && m_lastEnemyOrigin != nullvec)
+				{
+					m_lookAt = m_lastEnemyOrigin;
+					return;
+				}
 
-			if ((pev->origin - m_lastEnemyOrigin).GetLength() >= 1600.0f)
-				m_lastEnemyOrigin = nullvec;
+				if (m_lastEnemyOrigin != nullvec && ChanceOf(30))
+					m_lookAt = m_lastEnemyOrigin;
+				else
+				{
+					int aimIndex = GetCampAimingWaypoint();
+					if (IsValidWaypoint(aimIndex))
+						m_lookAt = g_waypoint->GetPath(aimIndex)->origin;
+				}
+				m_nextCampDirTime = engine->GetTime() + engine->RandomFloat(1.5f, 5.0f);
+			}
 		}
+		else
+			m_lookAt = m_lastEnemyOrigin;
 	}
 	else if (flags & AIM_PREDICTENEMY)
 	{
@@ -3528,31 +3538,7 @@ void Bot::ChooseAimDirection(void)
 		}
 	}
 	else if (flags & AIM_CAMP)
-	{
-		if (IsZombieMode())
-		{
-			if (m_nextCampDirTime < engine->GetTime())
-			{
-				if (m_seeEnemyTime + 5.0f > engine->GetTime() && m_lastEnemyOrigin != nullvec)
-				{
-					m_lookAt = m_lastEnemyOrigin;
-					return;
-				}
-
-				if (m_lastEnemyOrigin != nullvec && ChanceOf(30))
-					m_lookAt = m_lastEnemyOrigin;
-				else
-				{
-					int aimIndex = GetCampAimingWaypoint();
-					if (IsValidWaypoint(aimIndex))
-						m_lookAt = g_waypoint->GetPath(aimIndex)->origin;
-				}
-				m_nextCampDirTime = engine->GetTime() + engine->RandomFloat(1.5f, 5.0f);
-			}
-		}
-		else
-			m_lookAt = m_camp;
-	}
+		m_lookAt = m_camp;
 	else if (flags & AIM_NAVPOINT)
 	{
 		if (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_USEBUTTON)
@@ -3721,8 +3707,14 @@ void Bot::Think(void)
 		StartGame(); // select team & class
 	else if (!m_notKilled)
 	{
+		// clear the data
+		if (HasNextPath())
+		{
+			DeleteSearchNodes();
+			return;
+		}
+		
 		extern ConVar ebot_chat;
-
 		if (ebot_chat.GetBool() && !RepliesToPlayer() && m_lastChatTime + 10.0f < engine->GetTime() && g_lastChatTime + 5.0f < engine->GetTime()) // bot chatting turned on?
 		{
 			m_lastChatTime = engine->GetTime();
@@ -3827,7 +3819,7 @@ void Bot::SecondThink(void)
 
 void Bot::MoveAction(void)
 {
-	if (m_moveAIAPI) // SyPB Pro P.30 - AMXX API
+	if (m_moveAIAPI)
 	{
 		m_moveSpeed = 0.0f;
 		m_strafeSpeed = 0.0f;
@@ -3960,7 +3952,6 @@ void Bot::RunTask(void)
 			}
 		}
 
-		// SyPB Pro P.42 - AMXX API
 		if (IsValidWaypoint(m_waypointGoalAPI))
 		{
 			if (GetCurrentTask()->data != m_waypointGoalAPI)
@@ -5658,7 +5649,6 @@ void Bot::RunTask(void)
 		m_destOrigin = destination;
 		m_entity = destination;
 
-		// SyPB Pro P.32 - Base Change
 		if (m_moveSpeed <= 0)
 			m_moveSpeed = pev->maxspeed;
 
@@ -5680,7 +5670,6 @@ void Bot::RunTask(void)
 		case PICKTYPE_WEAPON:
 			m_aimFlags |= AIM_NAVPOINT;
 
-			// SyPB Pro P.42 - AMXX API
 			if (m_blockWeaponPickAPI)
 			{
 				m_pickupItem = null;
@@ -5735,7 +5724,6 @@ void Bot::RunTask(void)
 
 				CheckSilencer(); // check the silencer
 
-				// SyPB Pro P.42 - Waypoint improve
 				if (IsValidWaypoint(m_currentWaypointIndex))
 				{
 					if (itemDistance > g_waypoint->GetPath(m_currentWaypointIndex)->radius)
@@ -5752,9 +5740,7 @@ void Bot::RunTask(void)
 		case PICKTYPE_SHIELDGUN:
 			m_aimFlags |= AIM_NAVPOINT;
 
-			// SyPB Pro P.42 - AMXX API
 			if (HasShield() || m_blockWeaponPickAPI)
-				//if (HasShield ())
 			{
 				m_pickupItem = null;
 				break;
@@ -5769,7 +5755,6 @@ void Bot::RunTask(void)
 					SelectWeaponbyNumber(weaponID);
 					FakeClientCommand(GetEntity(), "drop");
 
-					// SyPB Pro P.42 - Waypoint improve
 					if (IsValidWaypoint(m_currentWaypointIndex))
 					{
 						if (itemDistance > g_waypoint->GetPath(m_currentWaypointIndex)->radius)
@@ -5806,8 +5791,6 @@ void Bot::RunTask(void)
 			m_aimFlags |= AIM_ENTITY;
 			src = EyePosition();
 
-			// SyPB Pro P.42 - Small fixed 
-			//if (!IsAlive (m_pickupItem))
 			if (!IsAlive(m_pickupItem) || m_team != TEAM_COUNTER)
 			{
 				// don't pickup dead hostages
@@ -5837,7 +5820,7 @@ void Bot::RunTask(void)
 						}
 					}
 				}
-				// SyPB Pro P.42 - Hostages Ai improve
+
 				m_itemCheckTime = engine->GetTime() + 0.1f;
 				m_lastCollTime = engine->GetTime() + 0.1f; // also don't consider being stuck
 			}
@@ -5846,7 +5829,6 @@ void Bot::RunTask(void)
 		case PICKTYPE_DEFUSEKIT:
 			m_aimFlags |= AIM_NAVPOINT;
 
-			// SyPB Pro P.42 - Small fixed 
 			if (m_hasDefuser || m_team != TEAM_COUNTER)
 				// if (m_hasDefuser)
 			{
@@ -6012,7 +5994,6 @@ void Bot::DebugModeMsg(void)
 			char weaponName[80], aimFlags[32], botType[32];
 			char enemyName[80], pickName[80];
 
-			// SyPB Pro P.42 - small improve
 			if (IsAlive(m_enemy))
 				sprintf(enemyName, "[E]: %s", GetEntityName(m_enemy));
 			else if (IsAlive(m_moveTargetEntity))
@@ -6253,7 +6234,6 @@ void Bot::BotAI(void)
 	float movedDistance = 2.0f; // length of different vector (distance bot moved)
 	TraceResult tr;
 
-	// SyPB Pro P.43 - Base Mode Small improve
 	if (m_checkKnifeSwitch && m_buyingFinished && m_spawnTime + engine->RandomFloat(4.0f, 8.0f) < engine->GetTime())
 	{
 		m_checkKnifeSwitch = false;
@@ -6268,7 +6248,6 @@ void Bot::BotAI(void)
 		}
 	}
 
-	// SyPB Pro P.30 - Zombie Ai
 	if (IsZombieMode() && m_isZombieBot && m_currentWeapon != WEAPON_KNIFE)
 		SelectWeaponByName("weapon_knife");
 
@@ -6364,7 +6343,6 @@ void Bot::BotAI(void)
 	// set the reaction time (surprise momentum) different each frame according to skill
 	m_idealReactionTime = engine->RandomFloat(g_skillTab[m_skill / 20].minSurpriseTime, g_skillTab[m_skill / 20].maxSurpriseTime);
 
-	// SyPB Pro P.34 - Base Ai
 	Vector directionOld = m_destOrigin - (pev->origin + pev->velocity * m_frameInterval);
 	Vector directionNormal = directionOld.Normalize();
 	Vector direction = directionNormal;
@@ -6405,7 +6383,7 @@ void Bot::BotAI(void)
 	}
 
 	// allowed to move to a destination position?
-	if (m_moveToGoal && !m_moveAIAPI) // SyPB Pro P.30 - AMXX API
+	if (m_moveToGoal && !m_moveAIAPI)
 	{
 		GetValidWaypoint();
 
@@ -6522,7 +6500,7 @@ void Bot::BotAI(void)
 			m_enemyUpdateTime = engine->GetTime();
 	}
 
-	if (m_moveAIAPI) // SyPB Pro P.30 - AMXX API
+	if (m_moveAIAPI)
 		m_checkTerrain = false;
 
 	if (m_checkTerrain)
@@ -6822,7 +6800,6 @@ void Bot::BotAI(void)
 	// time to reach waypoint
 	if (m_navTimeset + GetEstimatedReachTime() < engine->GetTime() && m_moveToGoal)
 	{
-		// SyPB Pro P.40 - Base Change for Waypoint OS
 		if (FNullEnt(m_enemy) || !IsValidWaypoint(m_currentWaypointIndex) || (g_waypoint->GetPath(m_currentWaypointIndex)->radius > 0 && (pev->origin - g_waypoint->GetPath(m_currentWaypointIndex)->origin).GetLength() > (g_waypoint->GetPath(m_currentWaypointIndex)->radius) * 6))
 			GetValidWaypoint();
 
@@ -6840,10 +6817,7 @@ void Bot::BotAI(void)
 		}
 	}
 
-	// SyPB Pro P.21 - Ladder Strengthen
 	bool OnLadderNoDuck = false;
-
-	// SyPB Pro P.45 - Ladder Strengthen
 	if (IsOnLadder() || (IsValidWaypoint(m_currentWaypointIndex) && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_LADDER))
 	{
 		if (!(g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_CROUCH))
@@ -6858,12 +6832,10 @@ void Bot::BotAI(void)
 	else if (m_duckTime > engine->GetTime())
 		pev->button |= IN_DUCK;
 
-	// SyPB Pro P.39 - Small change for Jump
 	if (pev->button & IN_JUMP)
 	{
 		if (m_currentTravelFlags & PATHFLAG_JUMP)
 		{
-			// SyPB Pro P.40 - Jump improve
 			Vector point1Origin, point2Origin;
 			if (IsValidWaypoint(m_prevWptIndex[0]))
 				point1Origin = g_waypoint->GetPath(m_prevWptIndex[0])->origin;
@@ -7008,7 +6980,7 @@ void Bot::TakeBlinded(Vector fade, int alpha)
 	// this function gets called by network message handler, when screenfade message get's send
 	// it's used to make bot blind froumd the grenade.
 
-	if (fade.x != 255 || fade.y != 255 || fade.z != 255 || alpha <= 170) // SyPB Pro P.37 - small change for flash
+	if (fade.x != 255 || fade.y != 255 || fade.z != 255 || alpha <= 170)
 		return;
 
 	SetEnemy(null);
@@ -7016,7 +6988,6 @@ void Bot::TakeBlinded(Vector fade, int alpha)
 	m_maxViewDistance = engine->RandomFloat(10.0f, 20.0f);
 	m_blindTime = engine->GetTime() + static_cast <float> (alpha - 200) / 16.0f;
 
-	// SyPB Pro P.48 - Blind Action improve
 	m_blindCampPoint = FindDefendWaypoint(GetEntityOrigin(GetEntity()));
 	if ((g_waypoint->GetPath(m_blindCampPoint)->origin - GetEntityOrigin(GetEntity())).GetLength() >= 512.0f)
 		m_blindCampPoint = -1;
@@ -7486,7 +7457,6 @@ void Bot::ReactOnSound(void)
 			}
 
 			// check if heard enemy can be seen
-			// SyPB Pro P.49 - Base improve
 			if (FNullEnt(m_enemy) && m_lastEnemy == player && m_seeEnemyTime + 3.0f > engine->GetTime() && m_skill >= 60 && IsShootableThruObstacle(player))
 			{
 				SetEnemy(player);

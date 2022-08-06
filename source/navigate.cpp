@@ -32,7 +32,6 @@ extern ConVar ebot_anti_block;
 
 int Bot::FindGoal(void)
 {
-	// SyPB Pro P.42 - AMXX API
 	if (m_waypointGoalAPI != -1)
 		return m_chosenGoalIndex = m_waypointGoalAPI;
 
@@ -97,15 +96,12 @@ int Bot::FindGoal(void)
 			break;
 		}
 	}
-	// SyPB Pro P.30 - Zombie Mode Human Camp
 	else if (GetGameMod() == MODE_ZP)
 	{
-		// SyPB Pro P.42 - Zombie Mode Camp improve
 		if (!m_isZombieBot && !g_waypoint->m_zmHmPoints.IsEmpty())
 			offensiveWpts = g_waypoint->m_zmHmPoints;
 		else if (m_isZombieBot && FNullEnt(m_moveTargetEntity) && FNullEnt(m_enemy))
 		{
-			// SyPB Pro P.43 - Zombie improve
 			int checkPoint[3];
 			for (int i = 0; i < 3; i++)
 				checkPoint[i] = engine->RandomInt(0, g_numWaypoints - 1);
@@ -144,7 +140,6 @@ int Bot::FindGoal(void)
 		else
 			return m_chosenGoalIndex = engine->RandomInt(0, g_numWaypoints - 1);
 	}
-	// SyPB Pro P.40 - Goal Point change
 	else
 		return m_chosenGoalIndex = engine->RandomInt(0, g_numWaypoints - 1);
 
@@ -165,7 +160,6 @@ int Bot::FindGoal(void)
 	offensive = static_cast <int> (m_agressionLevel * 100);
 	defensive = static_cast <int> (m_fearLevel * 100);
 
-	// SyPB Pro P.28 - Game Mode
 	if (GetGameMod() == MODE_BASE)
 	{
 		if (g_mapType & (MAP_AS | MAP_CS))
@@ -244,7 +238,6 @@ int Bot::FindGoal(void)
 			defensive -= 30;
 			offensive += 30;
 
-			// SyPB Pro P.30 - Zombie Mode Human Camp
 			if (!g_waypoint->m_zmHmPoints.IsEmpty())
 			{
 				tactic = 4;
@@ -360,7 +353,6 @@ TacticChoosen:
 	}
 
 	if (!IsValidWaypoint(m_currentWaypointIndex < 0))
-		// SyPB Pro P.40 - Small Change
 		GetValidWaypoint();
 
 	if (!IsValidWaypoint(goalChoices[0]))
@@ -514,7 +506,7 @@ bool Bot::DoWaypointNav(void)
 	}
 
 	float waypointDistance = (pev->origin - m_waypointOrigin).GetLengthSquared() + ebot_think_fps.GetFloat();
-	float fixedWaypointDistance = Q_rsqrt(waypointDistance);
+	float fixedWaypointDistance = sse_rsqrt(waypointDistance);
 
 	if (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_LADDER)
 	{
@@ -673,56 +665,6 @@ bool Bot::DoWaypointNav(void)
 	}
 
 	return false;
-}
-
-// this function finds the shortest path from source index to destination index
-void Bot::FindShortestPath(int srcIndex, int destIndex)
-{
-	DeleteSearchNodes();
-
-	if (!IsValidWaypoint(srcIndex) || m_isStuck) // if we're stuck, find nearest waypoint
-	{
-		if (IsValidWaypoint(m_currentWaypointIndex) && !m_isStuck) // did we have a current waypoint?
-			srcIndex = m_currentWaypointIndex;
-		else // we can try find start waypoint for avoid pathfinding errors
-		{
-			int secondindex = g_waypoint->FindNearest(pev->origin, 9999.0f, -1, GetEntity());
-
-			if (IsValidWaypoint(secondindex))
-				srcIndex = secondindex;
-			else
-			{
-				AddLogEntry(LOG_ERROR, "Pathfinder source path index not valid (%d)", srcIndex);
-				return;
-			}
-		}
-	}
-
-	m_goalValue = 0.0f;
-	m_chosenGoalIndex = srcIndex;
-
-	PathNode* node = new PathNode;
-	if (node == null)
-		return;
-
-	node->index = srcIndex;
-	node->next = null;
-
-	m_navNodeStart = node;
-	m_navNode = m_navNodeStart;
-
-	while (srcIndex != destIndex)
-	{
-		srcIndex = *(g_waypoint->m_pathMatrix + (srcIndex * g_numWaypoints) + destIndex);
-
-		node->next = new PathNode;
-		if (node == null)
-			return;
-
-		node = node->next;
-		node->index = srcIndex;
-		node->next = null;
-	}
 }
 
 // Priority queue class (smallest item out first)
@@ -1005,6 +947,11 @@ inline const float HF_ZB(int start, int goal)
 	return 1.4f * xDist + (yDist - xDist) + zDist;
 }
 
+inline const float HF_Distance(int start, int goal)
+{
+	return g_waypoint->GetPathDistanceFloat(start, goal);
+}
+
 // this function finds a path from srcIndex to destIndex
 void Bot::FindPath(int srcIndex, int destIndex, uint8_t pathType)
 {
@@ -1149,8 +1096,124 @@ void Bot::FindPath(int srcIndex, int destIndex, uint8_t pathType)
 		}
 	}
 
-	// sadly this causing the CRASH
-	//	FindShortestPath(srcIndex, destIndex); // A* found no path, try floyd pathfinder instead 
+	FindShortestPath(srcIndex, destIndex);
+}
+
+// this function finds the shortest path from source index to destination index
+void Bot::FindShortestPath(int srcIndex, int destIndex)
+{
+	if (m_pathtimer + 1.0 > engine->GetTime())
+	{
+		if (!HasNextPath()) // take care about that
+			return;
+	}
+
+	if (srcIndex > g_numWaypoints - 1 || srcIndex < 0 || m_isStuck) // if we're stuck, find nearest waypoint
+	{
+		if (IsValidWaypoint(m_currentWaypointIndex) && !m_isStuck) // did we have a current waypoint?
+			srcIndex = m_currentWaypointIndex;
+		else // we can try find start waypoint for avoid pathfinding errors
+		{
+			int secondindex = g_waypoint->FindNearest(pev->origin, 9999.0f, -1, GetEntity());
+			if (IsValidWaypoint(secondindex))
+				srcIndex = secondindex;
+			else
+			{
+				AddLogEntry(LOG_ERROR, "Pathfinder source path index not valid (%d)", srcIndex);
+				return;
+			}
+		}
+	}
+
+	if (destIndex > g_numWaypoints - 1 || destIndex < 0)
+	{
+		AddLogEntry(LOG_ERROR, "Pathfinder destination path index not valid (%d)", destIndex);
+		return;
+	}
+
+	m_pathtimer = engine->GetTime();
+
+	DeleteSearchNodes();
+
+	m_chosenGoalIndex = srcIndex;
+	m_goalValue = 0.0f;
+
+	PriorityQueue openList;
+
+	for (int i = 0; i < g_numWaypoints; i++)
+	{
+		waypoints[i].g = 0;
+		waypoints[i].f = 0;
+		waypoints[i].parent = -1;
+		waypoints[i].state = State::New;
+	}
+
+	const float (*hcalc) (int, int) = null;
+	hcalc = HF_Distance;
+
+	// put start node into open list
+	auto srcWaypoint = &waypoints[srcIndex];
+	srcWaypoint->f = hcalc(srcIndex, destIndex);
+	srcWaypoint->state = State::Open;
+
+	openList.Insert(srcIndex, srcWaypoint->f);
+	while (!openList.Empty())
+	{
+		// remove the first node from the open list
+		int currentIndex = openList.Remove();
+
+		// is the current node the goal node?
+		if (currentIndex == destIndex)
+		{
+			// build the complete path
+			m_navNode = null;
+
+			do
+			{
+				PathNode* path = new PathNode;
+
+				if (path == null)
+					return;
+
+				path->index = currentIndex;
+				path->next = m_navNode;
+
+				m_navNode = path;
+				currentIndex = waypoints[currentIndex].parent;
+
+			} while (currentIndex != -1);
+
+			m_navNodeStart = m_navNode;
+			return;
+		}
+
+		auto currWaypoint = &waypoints[currentIndex];
+		if (currWaypoint->state != State::Open)
+			continue;
+
+		// put current node into Closed list
+		currWaypoint->state = State::Closed;
+
+		// now expand the current node
+		for (int i = 0; i < Const_MaxPathIndex; i++)
+		{
+			int self = g_waypoint->GetPath(currentIndex)->index[i];
+			if (self == -1)
+				continue;
+
+			float f = hcalc(srcIndex, destIndex);
+
+			auto childWaypoint = &waypoints[self];
+			if (childWaypoint->state == State::New || childWaypoint->f > f)
+			{
+				// put the current child into open list
+				childWaypoint->parent = currentIndex;
+				childWaypoint->state = State::Open;
+				childWaypoint->f = f;
+				openList.Insert(self, f);
+			}
+		}
+	}
 }
 
 void Bot::DeleteSearchNodes(void)
@@ -1282,7 +1345,6 @@ void Bot::SetMoveTarget(edict_t* entity)
 
 	m_currentWaypointIndex = -1;
 	GetValidWaypoint();
-
 	m_moveTargetEntity = entity;
 
 	PushTask(TASK_MOVETOTARGET, TASKPRI_MOVETOTARGET, -1, 0.0, true);
@@ -1495,7 +1557,6 @@ void Bot::SetWaypointOrigin(void)
 			float sDistance = 9999.0f;
 			for (int i = 0; i < 5; i++)
 			{
-				// SyPB Pro P.42 - Small Waypoint OS improve
 				float distance = ((pev->origin - waypointOrigin[i]).GetLength2D() + (waypointOrigin[i] - g_waypoint->GetPath(destIndex)->origin).GetLength2D() * (1 / ebot_think_fps.GetFloat()));
 
 				if (distance < sDistance)
@@ -2514,7 +2575,6 @@ void Bot::FacePosition(void)
 	if (m_aimstoptime > engine->GetTime())
 		return;
 
-	// SyPB Pro P.30 - AMXX
 	if (m_lookAtAPI != nullvec)
 		m_lookAt = m_lookAtAPI;
 
@@ -2780,7 +2840,6 @@ edict_t* Bot::FindNearestButton(const char* className)
 	return foundEntity;
 }
 
-// SyPB Pro P.38 - AMXX API
 int Bot::CheckBotPointAPI(int mod)
 {
 	if (mod == 0)
@@ -2796,7 +2855,6 @@ int Bot::CheckBotPointAPI(int mod)
 	return -1;
 }
 
-// SyPB Pro P.40 - AMXX API
 int Bot::GetNavData(int data)
 {
 	PathNode* navid = &m_navNode[0];

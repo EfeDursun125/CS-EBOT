@@ -103,7 +103,6 @@ float Bot::GetEntityDistance(edict_t* entity)
 	return wpDistance;
 }
 
-// SyPB Pro P.29 - new Look UP Enemy
 bool Bot::LookupEnemy(void)
 {
 	m_visibility = 0;
@@ -129,8 +128,7 @@ bool Bot::LookupEnemy(void)
 	float enemy_distance = 9999.0f;
 
 	edict_t* oneTimeCheckEntity = null;
-
-	// SyPB Pro P.42 - AMXX API
+	
 	if (m_enemyAPI != null)
 	{
 		if (m_blockCheckEnemyTime <= engine->GetTime() || !IsAlive(m_enemyAPI) || m_team == GetTeam(m_enemyAPI) || IsNotAttackLab(m_enemyAPI))
@@ -144,20 +142,15 @@ bool Bot::LookupEnemy(void)
 
 	if (!FNullEnt(m_enemy))
 	{
-		// SyPB Pro P.42 - AMXX API
 		if ((!FNullEnt(m_enemyAPI) && m_enemyAPI != m_enemy) || m_team == GetTeam(m_enemy) || IsNotAttackLab(m_enemy) || !IsAlive(m_enemy))
 		{
-			// SyPB Pro P.41 - LookUp Enemy fixed
 			SetEnemy(null);
 			SetLastEnemy(null);
 			m_enemyUpdateTime = 0.0f;
 		}
 
-		// SyPB Pro P.40 - Trace Line improve
 		if ((m_enemyUpdateTime > engine->GetTime()))
 		{
-			// if (IsEnemyViewable(m_enemy, true, true))
-			// SyPB Pro P.48 - Non-See Enemy improve
 			if (IsEnemyViewable(m_enemy, true, true) || IsShootableThruObstacle(m_enemy))
 			{
 				m_aimFlags |= AIM_ENEMY;
@@ -172,15 +165,13 @@ bool Bot::LookupEnemy(void)
 	}
 	else if (!FNullEnt(m_moveTargetEntity))
 	{
-		// SyPB Pro P.42 - AMXX API
 		if ((!FNullEnt(m_enemyAPI) && m_enemyAPI != m_moveTargetEntity) || m_team == GetTeam(m_moveTargetEntity) || !IsAlive(m_moveTargetEntity) || GetEntityOrigin(m_moveTargetEntity) == nullvec)
 			SetMoveTarget(null);
 
 		targetEntity = m_moveTargetEntity;
 		enemy_distance = GetEntityDistance(m_moveTargetEntity);
 	}
-
-	// SyPB Pro P.42 - AMXX API
+	
 	if (!FNullEnt(m_enemyAPI))
 	{
 		enemy_distance = GetEntityDistance(m_enemyAPI);
@@ -198,7 +189,6 @@ bool Bot::LookupEnemy(void)
 	}
 	else
 	{
-		// SyPB Pro P.42 - Entity Action - Enemy
 		int allEnemy = 0;
 		for (i = 0; i < checkEnemyNum; i++)
 		{
@@ -300,10 +290,8 @@ bool Bot::LookupEnemy(void)
 		}
 	}
 
-	// SyPB Pro P.41 - Move Target 
 	if (!FNullEnt(m_moveTargetEntity) && m_moveTargetEntity != targetEntity)
 	{
-		// SyPB Pro P.42 - Move Target
 		if (m_currentWaypointIndex != GetEntityWaypoint(targetEntity))
 		{
 			float distance = GetEntityDistance(m_moveTargetEntity);
@@ -556,7 +544,7 @@ bool Bot::IsFriendInLineOfFire(float distance)
 			continue;
 
 		float friendDistance = (GetEntityOrigin(entity) - pev->origin).GetLength();
-		float squareDistance = Q_rsqrt(1089.0f + (friendDistance * friendDistance));
+		float squareDistance = sse_rsqrt(1089.0f + (friendDistance * friendDistance));
 
 		if (friendDistance <= distance)
 		{
@@ -583,13 +571,11 @@ int CorrectGun(int weaponID)
 	return 0;
 }
 
-// SyPB Pro P.21 - New Shootable Thru Obstacle
 bool Bot::IsShootableThruObstacle(edict_t* entity)
 {
 	if (FNullEnt(entity) || !IsValidPlayer(entity) || IsZombieEntity(entity))
 		return false;
 
-	// SyPB Pro P.48 - Shootable Thru Obstacle improve
 	if (entity->v.health >= 60.0f)
 		return false;
 
@@ -611,15 +597,12 @@ bool Bot::IsShootableThruObstacle(edict_t* entity)
 		TraceLine(dest, source, true, GetEntity(), &tr);
 		if (tr.flFraction != 1.0f)
 		{
-			// SyPB Pro P.48 - Base improve
 			if ((tr.vecEndPos - dest).GetLength() > 800.0f)
 				return false;
 
-			// SyPB Pro P.22 - Strengthen Shootable Thru Obstacle
 			if (tr.vecEndPos.z >= dest.z + 200.0f)
 				return false;
 
-			// SyPB Pro P.42 - Shootable Thru Obstacle improve
 			if (dest.z >= tr.vecEndPos.z + 200.0f)
 				return false;
 
@@ -752,7 +735,7 @@ void Bot::FireWeapon(void)
 						m_isReloading = true;
 						m_reloadState = RSTATE_PRIMARY;
 						m_reloadCheckTime = engine->GetTime();
-						m_fearLevel = 1.0f; // SyPB Pro P.7
+						m_fearLevel = 1.0f;
 
 						RadioMessage(Radio_NeedBackup);
 					}
@@ -1018,7 +1001,6 @@ bool Bot::IsWeaponBadInDistance(int weaponIndex, float distance)
 	if (m_ammoInClip[g_weaponSelect[GetBestSecondaryWeaponCarried()].id] >= 1)
 		return false;
 
-	// SyPB Pro P.35 - Plug-in Gun Attack Ai
 	if (m_gunMinDistanceAPI > 0 || m_gunMaxDistanceAPI > 0)
 	{
 		if (m_gunMinDistanceAPI > 0 && m_gunMaxDistanceAPI > 0)
@@ -1039,7 +1021,6 @@ bool Bot::IsWeaponBadInDistance(int weaponIndex, float distance)
 		return false;
 	}
 
-	// SyPB Pro P.34 - Gun Attack Ai
 	// shotguns is too inaccurate at long distances, so weapon is bad
 	if ((weaponID == WEAPON_M3 || weaponID == WEAPON_XM1014) && distance > 750.0f)
 		return true;
@@ -1166,12 +1147,27 @@ void Bot::CombatFight(void)
 						ThrowFireNade();
 				}
 
+				float lastEnemyDistance = 0.0f;
+				float baseDistanceLastEnemy = -1.0f;
+				Vector lastEnemyOrigin = nullvec;
+
+				if (!FNullEnt(m_lastEnemy) && m_enemy != m_lastEnemy)
+				{
+					lastEnemyDistance = (pev->origin - GetEntityOrigin(m_lastEnemy)).GetLength();
+					baseDistanceLastEnemy = (fabsf(m_lastEnemy->v.speed) + 400.0f);
+					lastEnemyOrigin = GetEntityOrigin(m_lastEnemy);
+				}
+				
 				if (baseDistance != -1.0f)
 				{
 					// better human escape ai
-					if (ebot_escape.GetInt() == 0 && distance <= baseDistance)
+					if (ebot_escape.GetInt() == 0 && (distance <= baseDistance || lastEnemyDistance <= baseDistanceLastEnemy))
 					{
-						m_destOrigin = GetEntityOrigin(m_enemy);
+						if (lastEnemyDistance > 0.0f)
+							m_destOrigin = enemyOrigin - lastEnemyOrigin;
+						else
+							m_destOrigin = enemyOrigin;
+
 						m_moveSpeed = -pev->maxspeed;
 						m_checkFall = true;
 						m_moveToGoal = false;
@@ -1186,8 +1182,25 @@ void Bot::CombatFight(void)
 					}
 					else if (ebot_escape.GetInt() == 0 && distance <= (baseDistance + (baseDistance / 10)))
 					{
+						m_checkFall = true;
 						m_moveToGoal = false;
-						m_moveSpeed = 0.0f;
+						if (lastEnemyDistance <= baseDistanceLastEnemy)
+						{
+							m_destOrigin = lastEnemyOrigin;
+							m_moveSpeed = -pev->maxspeed;
+							m_checkFall = true;
+							m_moveToGoal = false;
+
+							Vector directionOld = m_destOrigin - (pev->origin + pev->velocity * m_frameInterval);
+							Vector directionNormal = directionOld.Normalize();
+							directionNormal.z = 0.0f;
+
+							SetStrafeSpeed(directionNormal, pev->maxspeed);
+
+							return;
+						}
+						else
+							m_moveSpeed = 0.0f;
 					}
 					else
 					{
@@ -1575,10 +1588,6 @@ void Bot::ThrowFrostNade(void)
 
 int Bot::CheckGrenades(void)
 {
-	// SyPB Pro P.42 - Check Grenades improve
-	if (m_isZombieBot && IsZombieMode())
-		return -1;
-
 	if (pev->weapons & (1 << WEAPON_HEGRENADE))
 		return WEAPON_HEGRENADE;
 	else if (pev->weapons & (1 << WEAPON_FBGRENADE))
@@ -1651,8 +1660,6 @@ void Bot::SelectBestWeapon(void)
 	selectIndex = chosenWeaponIndex;
 
 	int weaponID = selectTab[selectIndex].id;
-
-	// SyPB Pro P.45 - Change Weapon small change 
 	if (weaponID == m_currentWeapon)
 		return;
 
@@ -1713,7 +1720,6 @@ void Bot::SelectWeaponbyNumber(int num)
 
 void Bot::CommandTeam(void)
 {
-	// SyPB Pro P.37 - small chanage
 	if (GetGameMod() != MODE_BASE && GetGameMod() != MODE_TDM)
 		return;
 
@@ -1794,7 +1800,6 @@ void Bot::CheckReload(void)
 		return;
 	}
 
-	// SyPB Pro P.30 - AMXX API
 	if (m_weaponReloadAPI)
 	{
 		m_reloadState = RSTATE_NONE;
@@ -1806,7 +1811,6 @@ void Bot::CheckReload(void)
 
 	if (m_reloadState != RSTATE_NONE)
 	{
-		// SyPB Pro P.38 - Reload Clip
 		int weapons = pev->weapons;
 
 		if (m_reloadState == RSTATE_PRIMARY)
@@ -1827,7 +1831,6 @@ void Bot::CheckReload(void)
 		int weaponIndex = -1;
 		int maxClip = CheckMaxClip(weapons, &weaponIndex);
 
-		// SyPB Pro P.43 - Weapon Reload improve
 		if (m_ammoInClip[weaponIndex] < maxClip * 0.8f && g_weaponDefs[weaponIndex].ammo1 != -1 &&
 			g_weaponDefs[weaponIndex].ammo1 < 32 && m_ammo[g_weaponDefs[weaponIndex].ammo1] > 0)
 		{
@@ -1859,7 +1862,6 @@ void Bot::CheckReload(void)
 	}
 }
 
-// SyPB Pro P.38 - Check Weapon Max Clip
 int Bot::CheckMaxClip(int weaponId, int* weaponIndex)
 {
 	int maxClip = -1;

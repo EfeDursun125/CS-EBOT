@@ -160,7 +160,7 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 	}
 
 	char outputName[33];
-	if (name.GetLength() <= 0)  // SyPB Pro P.30 - Set Bot Name
+	if (name.GetLength() <= 0)
 	{
 		bool getName = false;
 		if (!g_botNames.IsEmpty())
@@ -356,8 +356,6 @@ void BotControl::AddBot(const String& name, const String& skill, const String& p
 		ebot_quota.SetInt(GetBotsNum() + 1);
 }
 
-// SyPB Pro P.43 - New Cvar for auto ebot number
-// SyPB Pro P.47 - New Cvar to Save 'ebot_quota'
 void BotControl::CheckBotNum(void)
 {
 	if (ebot_auto_players.GetInt() == -1 && ebot_quota_save.GetInt() == -1)
@@ -466,7 +464,6 @@ void BotControl::CheckBotNum(void)
 	ebot_quota.SetInt(needBotNumber);
 }
 
-// SyPB Pro P.30 - AMXX API
 int BotControl::AddBotAPI(const String& name, int skill, int team)
 {
 	if (g_botManager->GetBotsNum() + 1 > ebot_quota.GetInt())
@@ -489,7 +486,7 @@ int BotControl::AddBotAPI(const String& name, int skill, int team)
 
 	m_maintainTime = engine->GetTime() + 0.2f;
 
-	return resultOfCall;  // SyPB Pro P.34 - AMXX API
+	return resultOfCall;
 }
 
 void BotControl::MaintainBotQuota(void)
@@ -655,7 +652,6 @@ void BotControl::RemoveMenu(edict_t* ent, int selection)
 	memset(buffer, 0, sizeof(buffer));
 
 	int validSlots = (selection == 4) ? (1 << 9) : ((1 << 8) | (1 << 9));
-	// SyPB Pro P.30 - Debugs
 	for (int i = ((selection - 1) * 8); i < selection * 8; ++i)
 	{
 		if ((m_bots[i] != null) && !FNullEnt(m_bots[i]->GetEntity()))
@@ -879,7 +875,6 @@ void BotControl::CheckTeamEconomics(int team)
 	// that have not enough money to buy primary (with economics), and if this result higher 80%, player is can't
 	// buy primary weapons.
 
-	 // SyPB Pro P.43 - Game Mode Support improve
 	if (GetGameMod() != MODE_BASE)
 	{
 		m_economicsGood[team] = true;
@@ -963,6 +958,8 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	{
 		if (ebot_ping.GetInt() != 1)
 			SET_CLIENT_KEYVALUE(clientIndex, buffer, "*bot", "1");
+		else
+			SET_CLIENT_KEYVALUE(clientIndex, buffer, "*bot", "-1");
 	}
 
 	rejectReason[0] = 0; // reset the reject reason template string
@@ -1251,23 +1248,16 @@ void Bot::NewRound(void)
 	m_actMessageIndex = 0;
 	m_pushMessageIndex = 0;
 
-	// SyPB Pro P.30 - AMXX API
 	m_weaponClipAPI = 0;
 	m_weaponReloadAPI = false;
 	m_lookAtAPI = nullvec;
 	m_moveAIAPI = false;
 	m_enemyAPI = null;
 	m_blockCheckEnemyTime = engine->GetTime();
-
-	// SyPB Pro P.31 - AMXX API
 	m_knifeDistance1API = 0;
 	m_knifeDistance2API = 0;
-
-	// SyPB Pro P.35 - AMXX API
 	m_gunMinDistanceAPI = 0;
 	m_gunMaxDistanceAPI = 0;
-
-	// SyPB Pro P.42 - AMXX API
 	m_waypointGoalAPI = -1;
 	m_blockWeaponPickAPI = false;
 	
@@ -1357,7 +1347,6 @@ void Bot::StartGame(void)
 	{
 		m_startAction = CMENU_IDLE;  // switch back to idle
 
-		// SyPB Pro P.47 - Small change
 		int maxChoice = (g_gameVersion == CSVER_CZERO) ? 5 : 4;
 		m_wantedClass = engine->RandomInt(1, maxChoice);
 

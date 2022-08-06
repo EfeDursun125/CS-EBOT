@@ -625,7 +625,6 @@ void Waypoint::SgdWp_Set(const char* modset)
     }
     else if ((stricmp(modset, "save") == 0 || stricmp(modset, "save_non-check") == 0) && g_sgdWaypoint)
     {
-        // SyPB Pro P.45 - SgdWP 
         if (stricmp(modset, "save_non-check") == 0 || g_waypoint->NodesValid())
         {
             Save();
@@ -633,7 +632,6 @@ void Waypoint::SgdWp_Set(const char* modset)
             g_sgdWaypoint = false;
             g_waypointOn = false;
 
-            // SyPB Pro P.38 - SgdWP Msg
             ChartPrint("[SgdWP] Save your waypoint - Finsh *******");
             ChartPrint("[SgdWP] Pls restart the game and re-load the waypoint *******");
             ChartPrint("[SgdWP] Pls restart the game and re-load the waypoint *******");
@@ -882,7 +880,6 @@ void Waypoint::Add(int flags, Vector waypointOrigin)
         break;
     }
 
-    // SyPB Pro P.20 - SgdWP
     if (flags == 102)
         m_lastFallWaypoint = index;
     else if (flags == 103 && m_lastFallWaypoint != -1)
@@ -893,7 +890,6 @@ void Waypoint::Add(int flags, Vector waypointOrigin)
     }
 
     if (flags == 104)
-        // SyPB Pro P.24 - Zombie Mod Human Camp
         path->flags |= WAYPOINT_ZMHMCAMP;
 
     // Ladder waypoints need careful connections
@@ -1293,8 +1289,6 @@ void Waypoint::CreatePath(char dir)
     g_waypointsChanged = true;
 }
 
-
-// SyPB Pro P.12
 void Waypoint::TeleportWaypoint(void)
 {
     m_facingAtIndex = GetFacingIndex();
@@ -2017,7 +2011,6 @@ bool Waypoint::IsDuckVisible(int srcIndex, int destIndex)
 
 bool Waypoint::IsStandVisible(int srcIndex, int destIndex)
 {
-    // SyPB Pro P.42 - Base improve
     if (!IsValidWaypoint(srcIndex) || !IsValidWaypoint(destIndex))
         return false;
 
@@ -2055,7 +2048,6 @@ char* Waypoint::GetWaypointInfo(int id)
     static char messageBuffer[1024];
     sprintf(messageBuffer, "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s", (path->flags == 0 && !jumpPoint) ? " (none)" : "", path->flags & WAYPOINT_LIFT ? " LIFT" : "", path->flags & WAYPOINT_CROUCH ? " CROUCH" : "", path->flags & WAYPOINT_CROSSING ? " CROSSING" : "", path->flags & WAYPOINT_CAMP ? " CAMP" : "", path->flags & WAYPOINT_TERRORIST ? " TERRORIST" : "", path->flags & WAYPOINT_COUNTER ? " CT" : "", path->flags & WAYPOINT_SNIPER ? " SNIPER" : "", path->flags & WAYPOINT_GOAL ? " GOAL" : "", path->flags & WAYPOINT_LADDER ? " LADDER" : "", path->flags & WAYPOINT_RESCUE ? " RESCUE" : "", path->flags & WAYPOINT_DJUMP ? " JUMPHELP" : "", path->flags & WAYPOINT_AVOID ? " AVOID" : "", path->flags & WAYPOINT_USEBUTTON ? " USE BUTTON" : "", path->flags & WAYPOINT_FALLCHECK ? " FALL CHECK" : "", jumpPoint ? " JUMP" : "");
 
-    // SyPB Pro P.29 - Zombie Mode Hm Camp Waypoints
     if (path->flags & WAYPOINT_ZMHMCAMP)
         sprintf(messageBuffer, "ZOMBIE MODE HUMAN CAMP");
 
@@ -2098,7 +2090,6 @@ void Waypoint::Think(void)
         }
     }
 
-    // SyPB Pro P.20 - SgdWP
     if (g_sgdWaypoint)
     {
         if (g_autoWaypoint)
@@ -2157,7 +2148,6 @@ void Waypoint::Think(void)
 
                 if (m_fallPosition != nullvec && m_fallPoint)
                 {
-                    // SyPB Pro P.23 - SgdWP
                     if (m_fallPosition.z > (GetEntityOrigin(g_hostEntity).z + 150.0f))
                     {
                         Add(102, m_fallPosition);
@@ -2176,7 +2166,6 @@ void Waypoint::Think(void)
                         m_timeCampWaypoint = engine->GetTime();
                     else if (m_timeCampWaypoint + 2.5 < engine->GetTime())
                     {
-                        // SyPB Pro P.37 - SgdWP
                         m_timeCampWaypoint = 0.0f;
                         DisplayMenuToClient(g_hostEntity, &g_menus[22]);
                     }
@@ -2187,7 +2176,6 @@ void Waypoint::Think(void)
                 float distance = (m_lastWaypoint - GetEntityOrigin(g_hostEntity)).GetLength();
                 int newWaypointDistance = (g_numWaypoints >= 800) ? 16384 : 12000;
 
-                // SyPB Pro P.37 - SgdWP
                 if (g_waypoint->GetPath(g_waypoint->FindNearest(m_lastWaypoint, 10.0f))->radius == 0.0f)
                     newWaypointDistance = 10000;
 
@@ -2517,7 +2505,6 @@ bool Waypoint::NodesValid(void)
     int connections;
     int i, j;
 
-    // SyPB Pro P.41 - SgdWP fixed and msg improve
     bool haveError = false;
 
     for (i = 0; i < g_numWaypoints; i++)
@@ -2756,8 +2743,7 @@ bool Waypoint::LoadPathMatrix(void)
             "********* If you use new waypoint, you need get the new .pmt file"
             , num, g_numWaypoints);
         fp.Close();
-
-        // SyPB Pro P.37 - del pmt file (this will auto make new file)
+		
         unlink(FormatBuffer("%sdata/%s.pmt", GetWaypointDir(), GetMapName()));
 
         return false;
@@ -2776,7 +2762,7 @@ bool Waypoint::LoadPathMatrix(void)
 int Waypoint::GetPathDistance(int srcIndex, int destIndex)
 {
     if (!IsValidWaypoint(srcIndex) || !IsValidWaypoint(destIndex))
-        return 1;
+        return 9999;
 
     return *(m_distMatrix + (srcIndex * g_numWaypoints) + destIndex);
 }
@@ -3033,10 +3019,8 @@ void Waypoint::SetBombPosition(bool shouldReset)
     }
 }
 
-// SyPB Pro P.30 - SgdWP
 void Waypoint::SetLearnJumpWaypoint(int mod)
 {
-    // SyPB Pro P.32 - SgdWP
     if (mod == -1)
         m_learnJumpWaypoint = (m_learnJumpWaypoint ? false : true);
     else

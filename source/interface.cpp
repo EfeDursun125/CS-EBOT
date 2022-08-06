@@ -222,7 +222,6 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 
 		ClientPrint(ent, print_console, "ebot_add                - create a bot in current game.");
 
-		// SyPB Pro P.23 - SgdWP
 		if (!IsDedicatedServer())
 			ServerPrintNoTag("ebot sgdwp on           - New making waypoint system from ebot");
 
@@ -629,13 +628,11 @@ void CommandHandler(void)
 		ServerPrint("Unknown command: %s", CMD_ARGV(1));
 }
 
-// SyPB Pro P.35 - new command
 void ebot_Version_Command(void)
 {
 	ebotVersionMSG();
 }
 
-// SyPB Pro P.46 - Entity Action Check Cvar
 void CheckEntityAction(void)
 {
 	int i;
@@ -651,7 +648,6 @@ void CheckEntityAction(void)
 		if (FNullEnt(entity) || entity->v.effects & EF_NODRAW)
 			continue;
 
-		// SyPB Pro P.47 - Entity Action Check Cvar improve
 		char action[33], team[33];
 		if (g_entityAction[i] == 1)
 			sprintf(action, "Enemy");
@@ -702,7 +698,6 @@ void InitConfig(void)
 
 #define SKIP_COMMENTS() if ((line[0] == '/') || (line[0] == '\r') || (line[0] == '\n') || (line[0] == 0) || (line[0] == ' ') || (line[0] == '\t')) continue;
 
-	// SyPB Pro P.42 - Bot Name fixed
 	if (!g_botNames.IsEmpty())
 	{
 		ITERATE_ARRAY(g_botNames, j)
@@ -710,7 +705,7 @@ void InitConfig(void)
 	}
 
 	// NAMING SYSTEM INITIALIZATION
-	if (OpenConfig("names.cfg", "Name configuration file not found.", &fp, true) && g_botNames.IsEmpty()) // SyPB Pro P.20 - Bot Name
+	if (OpenConfig("names.cfg", "Name configuration file not found.", &fp, true) && g_botNames.IsEmpty())
 	{
 		while (fp.GetBuffer(line, 255))
 		{
@@ -1126,7 +1121,6 @@ int Spawn(edict_t* ent)
 		g_mapType = null; // reset map type as worldspawn is the first entity spawned
 		g_worldEdict = ent; // save the world entity for future use
 	}
-	// SyPB Pro P.34 - Base Change
 	else if (strcmp(entityClassname, "player_weaponstrip") == 0)
 	{
 		if (g_gameVersion == CSVER_VERYOLD && (STRING(ent->v.target))[0] == '\0')
@@ -1188,9 +1182,9 @@ int Spawn(edict_t* ent)
 		g_mapType |= MAP_FY;
 	else if (strncmp(GetMapName(), "ka_", 3) == 0) // knife arena map
 		g_mapType |= MAP_KA;
-	else if (strncmp(GetMapName(), "awp_", 4) == 0) // SyPB Pro P.32 - AWP MAP TYPE
+	else if (strncmp(GetMapName(), "awp_", 4) == 0) // awp only map
 		g_mapType |= MAP_AWP;
-	else if (strncmp(GetMapName(), "he_", 4) == 0) // ebot 1.57 - grenade wars
+	else if (strncmp(GetMapName(), "he_", 4) == 0) // grenade wars
 		g_mapType |= MAP_HE;
 
 	if (g_isMetamod)
@@ -1217,7 +1211,6 @@ void Touch(edict_t* pentTouched, edict_t* pentOther)
 	// the two entities both have velocities, for example two players colliding, this function
 	// is called twice, once for each entity moving.
 
-	// SyPB Pro P.38 - Breakable improve
 	if (!FNullEnt(pentTouched) && (pentOther->v.flags & FL_FAKECLIENT))
 	{
 		Bot* bot = g_botManager->GetBot(const_cast <edict_t*> (pentOther));
@@ -1627,7 +1620,6 @@ void ClientCommand(edict_t* ent)
 			{
 				DisplayMenuToClient(ent, null); // reset menu display
 
-				// SyPB Pro P.30 - SgdWP
 				if (g_sgdWaypoint)
 					DisplayMenuToClient(ent, &g_menus[21]);
 				else
@@ -1867,12 +1859,9 @@ void ClientCommand(edict_t* ent)
 
 				return;
 			}
-			// SyPB Pro P.20 - SgdWP
 			else if (client->menu == &g_menus[21])
 			{
 				DisplayMenuToClient(ent, null);
-
-				// SyPB Pro P.30 - SgdWP
 				switch (selection)
 				{
 				case 1:
@@ -1905,14 +1894,11 @@ void ClientCommand(edict_t* ent)
 					DisplayMenuToClient(ent, &g_menus[21]);
 					g_sautoWaypoint = g_sautoWaypoint ? false : true; // Auto Put Waypoint Mode
 					g_waypoint->SetLearnJumpWaypoint(g_sautoWaypoint ? 1 : 0);
-					// SyPB Pro P.34 - SgdWP
 					ChartPrint("[SgdWP] Auto Put Waypoint Mode: %s", (g_sautoWaypoint ? "On" : "Off"));
 					break;
 
 				case 9:
 					g_waypoint->SgdWp_Set("save");
-
-					// SyPB Pro P.45 - SgdWP
 					if (g_sgdWaypoint)
 						DisplayMenuToClient(ent, &g_menus[25]);
 					break;
@@ -1964,7 +1950,6 @@ void ClientCommand(edict_t* ent)
 
 				case 8:
 					g_waypoint->SetLearnJumpWaypoint();
-					// SyPB Pro P.34 - SgdWP
 					ChartPrint("[SgdWP] You could Jump now, system will auto save your Jump Point");
 					break;
 
@@ -2003,7 +1988,6 @@ void ClientCommand(edict_t* ent)
 					break;
 
 				case 3:
-					// SyPB Pro P.29 - Zombie Mode Hm Camp Waypoints
 					g_waypoint->Add(0);
 					g_waypoint->ToggleFlags(WAYPOINT_ZMHMCAMP);
 					g_waypoint->SetRadius(64);
@@ -2045,7 +2029,6 @@ void ClientCommand(edict_t* ent)
 
 				return;
 			}
-			// SyPB Pro P.45 - SgdWP 
 			else if (client->menu == &g_menus[25])
 			{
 				DisplayMenuToClient(ent, null);
@@ -3644,10 +3627,9 @@ export void Meta_Init(void)
 	g_isMetamod = true;
 }
 
-// SyPB Pro P.30 - AMXX API
 export bool Amxx_Runebot(void)
 {
-	API_Version = float(SUPPORT_API_VERSION_F); // ebot API_P
+	API_Version = float(SUPPORT_API_VERSION_F);
 	API_TestMSG("Amxx_Runebot Checking - Done");
 	return true;
 }
@@ -3770,7 +3752,6 @@ export int Amxx_BlockWeaponReload(int index, int blockWeaponReload) // 1.30
 	return 1;
 }
 
-// SyPB Pro P.31 - AMXX API
 export int Amxx_SetKADistance(int index, int k1d, int k2d) // 1.31
 {
 	index -= 1;
@@ -3785,8 +3766,6 @@ export int Amxx_SetKADistance(int index, int k1d, int k2d) // 1.31
 	return 1;
 }
 
-
-// SyPB Pro P.34 - AMXX API
 export int Amxx_Addebot(const char* name, int skill, int team) // 1.34
 {
 	int botId = g_botManager->AddBotAPI(name, skill, team);
@@ -3801,7 +3780,6 @@ export int Amxx_Addebot(const char* name, int skill, int team) // 1.34
 	return botId + 1;
 }
 
-// SyPB Pro P.35 - AMXX API
 export int Amxx_SetGunADistance(int index, int minDistance, int maxDistance)  // 1.35
 {
 	index -= 1;
@@ -3816,7 +3794,6 @@ export int Amxx_SetGunADistance(int index, int minDistance, int maxDistance)  //
 	return 1;
 }
 
-// SyPB Pro P.38 - AMXX API
 export int Amxx_IsZombieBot(int index)
 {
 	edict_t* player = INDEXENT(index);
@@ -3880,7 +3857,6 @@ export int Amxx_GetBotPoint(int index, int mod) // 1.38
 	return -1;
 }
 
-// SyPB Pro P.40 - AMXX API
 export int Amxx_GetBotNavNum(int index) // 1.40
 {
 	index -= 1;
@@ -3908,7 +3884,6 @@ export int Amxx_GetBotNavPointId(int index, int pointNum) // 1.40
 
 export int Amxx_SetEntityAction(int index, int team, int action) // 1.40
 {
-	// SyPB Pro P.42 - AMXX API Entity Action
 	int i;
 	if (index == -1)
 	{
@@ -3973,7 +3948,6 @@ export int Amxx_SetEntityAction(int index, int team, int action) // 1.40
 	return 1;
 }
 
-// SyPB Pro P.42 - AMXX API
 export void Amxx_AddLog(char* logText) // 1.42 - Not API
 {
 	MOD_AddLogEntry(0, logText);
@@ -4016,8 +3990,7 @@ export int Amxx_BlockWeaponPick(int index, int blockWeaponPick) // 1.42
 	return 1;
 }
 
-// SyPB Pro P.48 - AMXX API
-export int Amxx_GetEntityWaypointId(int index) // 1.48
+export int Amxx_GetEntityWaypointId(int index)
 {
 	edict_t* entity = INDEXENT(index);
 	if (!IsAlive(entity) || !IsValidPlayer(entity))
@@ -4027,9 +4000,7 @@ export int Amxx_GetEntityWaypointId(int index) // 1.48
 
 	return GetEntityWaypoint(entity);
 }
-// AMXX ebot API End
 
-// SyPB Pro P.42 - SwNPC API
 export void SwNPC_GetHostEntity(edict_t** hostEntity)
 {
 	if (!IsDedicatedServer() && !FNullEnt(g_hostEntity))

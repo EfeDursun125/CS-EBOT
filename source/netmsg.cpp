@@ -30,7 +30,7 @@ NetworkMsg::NetworkMsg(void)
     m_state = 0;
     m_bot = null;
 
-    for (register int i = 0; i < NETMSG_NUM; i++)  // SyPB Pro P.48 - Base improve
+    for (register int i = 0; i < NETMSG_NUM; i++)
         m_registerdMessages[i] = NETMSG_UNDEFINED;
 }
 
@@ -340,7 +340,6 @@ void NetworkMsg::Execute(void* p)
             {
                 g_roundEnded = true;
 
-                // SyPB Pro P.29 - msg setting
                 if (GetGameMod() == MODE_BASE)
                 {
                     if (FStrEq(PTR_TO_STR(p), "#CTs_Win"))
@@ -380,7 +379,6 @@ void NetworkMsg::Execute(void* p)
     case NETMSG_BARTIME:
         if (m_state == 0)
         {
-            // SyPB Pro P.34 - Base Change
             if (GetGameMod() == MODE_BASE)
             {
                 if (PTR_TO_INT(p) > 0)

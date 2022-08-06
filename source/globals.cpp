@@ -24,13 +24,11 @@
 
 #include <core.h>
 
-// SyPB Pro P.31 - AMXX API
 float API_Version;
 float amxxDLL_Version = -1.0;
 uint16 amxxDLL_bV16[4];
 // ****
 
-// SyPB Pro P.42 - SwNPC
 float SwNPC_Version = -1.0;
 uint16 SwNPC_Build[4];
 // ****
@@ -79,7 +77,6 @@ int g_modelIndexLaser = 0;
 int g_modelIndexArrow = 0;
 char g_fakeArgv[256];
 
-// SyPB Pro P.42 - Entity Action
 // Entity Data
 int g_entityId[entityNum];
 int g_entityTeam[entityNum];
@@ -524,7 +521,6 @@ MenuText g_menus[26] =
 		"\v0. Exit"
 	},
 
-	// SyPB Pro P.30 - SgdWP
 	{
 		0x3ff,
 		"\\ySgdWP Menu\\w\v\v"
