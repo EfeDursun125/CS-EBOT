@@ -25,6 +25,8 @@
 #ifndef GLOBALS_INCLUDED
 #define GLOBALS_INCLUDED
 
+extern bool cpuSSESuport;
+
 extern float API_Version;
 extern float amxxDLL_Version;
 extern uint16 amxxDLL_bV16[4];
@@ -70,7 +72,6 @@ extern unsigned short g_killHistory;
 extern int g_normalWeaponPrefs[Const_NumWeapons];
 extern int g_rusherWeaponPrefs[Const_NumWeapons];
 extern int g_carefulWeaponPrefs[Const_NumWeapons];
-extern int g_grenadeBuyPrecent[Const_NumWeapons - 23];
 extern int g_grenadeBuyMoney[Const_NumWeapons - 23];
 extern int g_radioSelect[32];
 extern int g_lastRadio[2];

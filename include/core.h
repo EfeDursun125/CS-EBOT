@@ -34,15 +34,6 @@
 #ifndef EBOT_INCLUDED
 #define EBOT_INCLUDED
 
-#ifdef _WIN32
-#define cpuid(info, x)    __cpuidex(info, x, 0)
-#else
-#include <cpuid.h>
-void cpuid(int info[4], int InfoType) {
-	__cpuid_count(InfoType, 0, info[0], info[1], info[2], info[3]);
-}
-#endif
-
 #include <stdio.h>
 #include <memory.h>
 #include <xmmintrin.h>
@@ -763,7 +754,6 @@ private:
 
 	PathNode* m_navNode; // pointer to current node from path
 	PathNode* m_navNodeStart; // pointer to start of path finding nodes
-	uint8_t m_pathType; // which pathfinder to use
 	uint8_t m_visibility; // visibility flags
 
 	int m_currentWaypointIndex; // current waypoint index
@@ -850,14 +840,6 @@ private:
 
 	Vector m_moveAngles; // bot move angles
 	bool m_moveToGoal; // bot currently moving to goal??
-
-	Vector m_idealAngles; // angle wanted
-	Vector m_randomizedIdealAngles; // angle wanted with noise
-	Vector m_angularDeviation; // angular deviation from current to ideal angles
-	Vector m_aimSpeed; // aim speed calculated
-	Vector m_targetOriginAngularSpeed; // target/enemy angular speed
-
-	float m_randomizeAnglesTime; // time last randomized location
 	float m_playerTargetTime; // time last targeting
 
 	float m_checkCampPointTime; // zombie stuff
@@ -926,7 +908,6 @@ private:
 
 	void GetCampDirection(Vector* dest);
 	int GetMessageQueue(void);
-	int FindGoalPost(int tactic, Array <int> defensive, Array <int> offsensive);
 	void FilterGoals(const Array <int>& goals, int* result);
 	bool GoalIsValid(void);
 	bool HeadTowardWaypoint(void);
@@ -1013,7 +994,7 @@ private:
 	int GetCampAimingWaypoint(void);
 	int GetAimingWaypoint(Vector targetOriginPos);
 	void FindShortestPath(int srcIndex, int destIndex);
-	void FindPath(int srcIndex, int destIndex, uint8_t pathType = 0);
+	void FindPath(int srcIndex, int destIndex);
 	void SecondThink(void);
 
 public:
@@ -1132,8 +1113,6 @@ public:
 	int m_checkEnemyNum;
 	float m_lookYawVel;
 	float m_lookPitchVel;
-	float m_aimstoptime;
-	float m_aimstopdelay;
 
 	int m_numFriendsLeft;
 	int m_numEnemiesLeft;
@@ -1487,7 +1466,6 @@ extern void SubtractVectors(Vector first, Vector second, Vector output);
 extern float GetVectorDotProduct(Vector first, Vector second);
 extern float Sine(float X);
 extern float AngleDiff(float destAngle, float srcAngle);
-extern float Clamp(float a, float b, float c);
 
 extern void SetGameMod(int gamemode);
 extern bool IsZombieMode(void);
@@ -1495,7 +1473,7 @@ extern bool IsDeathmatchMode(void);
 extern bool IsValidWaypoint(int index);
 extern bool ChanceOf(int number);
 extern float Q_rsqrt(float number);
-extern float sse_rsqrt(float number);
+extern float Clamp(float a, float b, float c);
 
 extern int GetEntityWaypoint(edict_t* ent);
 extern int SetEntityWaypoint(edict_t* ent, int mode = -1);
@@ -1537,7 +1515,6 @@ extern void FakeClientCommand(edict_t* fakeClient, const char* format, ...);
 extern void strtrim(char* string);
 extern void CreatePath(char* path);
 extern void ServerCommand(const char* format, ...);
-extern void RegisterBotVariable(int variableID, const char* initialValue, int flags = FCVAR_EXTDLL | FCVAR_SERVER);
 extern void RegisterCommand(char* command, void funcPtr(void));
 extern void CheckWelcomeMessage(void);
 extern void DetectCSVersion(void);

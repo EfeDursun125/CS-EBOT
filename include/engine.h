@@ -3384,7 +3384,7 @@ public:
 
     float Sine(float X);
 
-    float Clamp(float a, float b, float c);
+    float DoClamp(float a, float b, float c);
 
     // sends bot command
     void IssueBotCommand(edict_t* ent, const char* fmt, ...);
