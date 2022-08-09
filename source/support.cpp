@@ -676,9 +676,18 @@ void CreatePath(char* path)
 #endif
 }
 
+#include <cpuid.h>
+void cpuid(int info[4], int InfoType) {
+	__cpuid_count(InfoType, 0, info[0], info[1], info[2], info[3]);
+}
+
 // this is called at the start of each round
 void RoundInit(void)
 {
+	int cpuInfo[4];
+	cpuid(cpuInfo, 1);
+	cpuSSESuport = (cpuInfo[3] & ((int)1 << 26)) || false;
+
 	g_roundEnded = false;
 
 	if (GetGameMod() == MODE_BASE)
@@ -1017,16 +1026,11 @@ int GetGameMod(void)
 	return ebot_gamemod.GetInt();
 }
 
-float sse_rsqrt(float number)
-{
-	float out;
-	__m128 in = _mm_load_ss(&number);
-	_mm_store_ss(&out, _mm_rsqrt_ss(in));
-	return out;
-}
-
 float Q_rsqrt(float number)
 {
+	if (cpuSSESuport)
+		return _mm_cvtss_f32(_mm_rsqrt_ss(_mm_load_ss(&number))) * number;
+
 	long i;
 	float x2, y;
 	const float threehalfs = 1.5F;
@@ -1037,6 +1041,13 @@ float Q_rsqrt(float number)
 	y = *(float*)&i;
 	y = y * (threehalfs - (x2 * y * y));
 	return y * number;
+}
+
+float Clamp(float a, float b, float c)
+{
+	if (cpuSSESuport)
+		return _mm_cvtss_f32(_mm_min_ss(_mm_max_ss(_mm_load_ss(&a), _mm_load_ss(&b)), _mm_load_ss(&c)));
+	return engine->DoClamp(a, b, c);
 }
 
 // new get team off set, return player true team
@@ -1528,9 +1539,9 @@ void CheckWelcomeMessage(void)
 	if (receiveTime > 0.0f && receiveTime < engine->GetTime())
 	{
 		int buildVersion[4] = { PRODUCT_VERSION_DWORD };
-		uint16 bV16[4] = { (uint16)buildVersion[0], (uint16)buildVersion[1], (uint16)buildVersion[2], (uint16)buildVersion[3] };
+		int bV16[4] = { buildVersion[0], buildVersion[1], buildVersion[2], buildVersion[3] };
 
-		ChartPrint("----- [%s %s] by' %s -----", PRODUCT_NAME, PRODUCT_VERSION, PRODUCT_AUTHOR);
+		ChartPrint("----- [%s %s] by %s -----", PRODUCT_NAME, PRODUCT_VERSION, PRODUCT_AUTHOR);
 		ChartPrint("***** Build: (%u.%u.%u.%u) *****", bV16[0], bV16[1], bV16[2], bV16[3]);
 
 		// the api

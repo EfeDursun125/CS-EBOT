@@ -427,7 +427,7 @@ bool Bot::LookupEnemy(void)
 
 		m_targetEntity = null;
 
-		if (engine->RandomInt(0, 100) < m_skill)
+		if (ChanceOf(m_skill))
 			m_enemySurpriseTime = engine->GetTime() + (m_actualReactionTime / 3);
 		else
 			m_enemySurpriseTime = engine->GetTime() + m_actualReactionTime;
@@ -484,7 +484,7 @@ Vector Bot::GetAimPosition(void)
 
 	if ((m_visibility & (VISIBILITY_HEAD | VISIBILITY_BODY)))
 	{
-		if (GetGameMod() == MODE_ZP || ((m_skill >= 80 || m_skill >= engine->RandomInt(0, 100)) && (m_currentWeapon != WEAPON_AWP || m_enemy->v.health >= 100)))
+		if (GetGameMod() == MODE_ZP || ((m_skill >= 80 || !ChanceOf(m_skill)) && (m_currentWeapon != WEAPON_AWP || m_enemy->v.health >= 100)))
 			enemyOrigin = GetPlayerHeadOrigin(m_enemy);
 	}
 	else if (m_visibility & VISIBILITY_HEAD)
@@ -544,7 +544,7 @@ bool Bot::IsFriendInLineOfFire(float distance)
 			continue;
 
 		float friendDistance = (GetEntityOrigin(entity) - pev->origin).GetLength();
-		float squareDistance = sse_rsqrt(1089.0f + (friendDistance * friendDistance));
+		float squareDistance = Q_rsqrt(1089.0f + (friendDistance * friendDistance));
 
 		if (friendDistance <= distance)
 		{
@@ -696,7 +696,7 @@ void Bot::FireWeapon(void)
 
 	if (m_isZombieBot || ebot_knifemode.GetBool())
 		goto WeaponSelectEnd;
-	else if (!FNullEnt(enemy) && m_skill >= 80 && !IsZombieEntity(enemy) && IsOnAttackDistance(enemy, 120.0f) &&
+	else if (!FNullEnt(enemy) && ChanceOf(m_skill) && !IsZombieEntity(enemy) && IsOnAttackDistance(enemy, 120.0f) &&
 		(enemy->v.health <= 30 || pev->health > enemy->v.health) && !IsOnLadder() && !IsGroupOfEnemies(pev->origin))
 		goto WeaponSelectEnd;
 
@@ -1297,7 +1297,6 @@ void Bot::CombatFight(void)
 		if (m_timeWaypointMove < engine->GetTime())
 		{
 			int approach;
-
 			if (m_currentWeapon == WEAPON_KNIFE) // knife?
 				approach = 100;
 			else if (!(m_states & STATE_SEEINGENEMY)) // if suspecting enemy stand still

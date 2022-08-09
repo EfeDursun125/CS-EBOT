@@ -56,15 +56,37 @@ uint32_t Engine::GetRandomBase(void)
 float Engine::RandomFloat(float low, float high)
 {
     if (low >= high)
-        return low;
-    return RANDOM_FLOAT(low, high);
+    {
+        int random = RANDOM_LONG(1, 2);
+        switch (random)
+        {
+        case 1:
+            return low;
+        default:
+            return high;
+        }
+    }
+
+    srand(time(0));
+    return (low + 1) + (((float)rand()) / (float)RAND_MAX) * (high - (low + 1));
 }
 
 int Engine::RandomInt(int low, int high)
 {
     if (low >= high)
-        return low;
-    return RANDOM_LONG(low, high);
+    {
+        int random = RANDOM_LONG(1, 2);
+        switch (random)
+        {
+        case 1:
+            return low;
+        default:
+            return high;
+        }
+    }
+
+    srand(time(0));
+    return rand() % (high - low + 1) + low;
 }
 
 void Engine::SubtractVectors(Vector first, Vector second, Vector output)
@@ -80,20 +102,16 @@ void Engine::SubtractVectors(Vector first, Vector second, Vector output)
 
 float Engine::GetVectorDotProduct(Vector first, Vector second)
 {
-    Vector product;
+    int product = 0;
     for (int i = 0; i < 3; i++)
-    {
-        product.x = product.y + first.x * second.x;
-        product.x = product.y + first.y * second.y;
-    }
-
-    return ((product.x / 2) - (product.y / 2));
+        product = product + first[i] * second[i];
+    return product;
 }
 
 void Engine::NormalizeVector(Vector vector, Vector output)
 {
     Vector result;
-    float length = sse_rsqrt((vector.x * vector.x) + (vector.y * vector.y) + (vector.z * vector.z));
+    float length = Q_rsqrt((vector.x * vector.x) + (vector.y * vector.y) + (vector.z * vector.z));
 
     result.x = (vector.x / length);
     result.y = (vector.y / length);
@@ -129,7 +147,7 @@ float Engine::AngleDiff(float destAngle, float srcAngle)
     return AngleNormalize(destAngle - srcAngle);
 }
 
-float Engine::Clamp(float a, float b, float c)
+float Engine::DoClamp(float a, float b, float c)
 {
     return (a > c ? c : (a < b ? b : a));
 }

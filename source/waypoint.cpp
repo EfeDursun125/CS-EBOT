@@ -2255,7 +2255,7 @@ void Waypoint::ShowWaypointMsg(void)
         float distance = (m_paths[i]->origin - GetEntityOrigin(g_hostEntity)).GetLength();
 
         // check if waypoint is whitin a distance, and is visible
-        if (distance <= 768 && ((::IsVisible(m_paths[i]->origin, g_hostEntity) && IsInViewCone(m_paths[i]->origin, g_hostEntity)) || !IsAlive(g_hostEntity) || distance <= 512))
+        if (distance <= 768 && ((::IsVisible(m_paths[i]->origin, g_hostEntity) && IsInViewCone(m_paths[i]->origin, g_hostEntity)) || distance <= 256))
         {
             // check the distance
             if (distance < nearestDistance)

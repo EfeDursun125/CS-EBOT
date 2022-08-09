@@ -872,14 +872,6 @@ void InitConfig(void)
 				for (int i = 0; i < Const_NumWeapons; i++)
 					g_weaponSelect[i].teamAS = splitted[i];
 			}
-			else if (pair[0] == "GrenadePercent")
-			{
-				if (splitted.GetElementNumber() != 3)
-					AddLogEntry(LOG_FATAL, "%s entry in general config is not valid.", &pair[0][0]);
-
-				for (int i = 0; i < 3; i++)
-					g_grenadeBuyPrecent[i] = splitted[i];
-			}
 			else if (pair[0] == "GrenadeMoney")
 			{
 				if (splitted.GetElementNumber() != 3)
@@ -2780,14 +2772,6 @@ void StartFrame(void)
 
 			CheckWelcomeMessage();
 		}
-
-		extern ConVar ebot_dangerfactor;
-
-		if (ebot_dangerfactor.GetFloat() > 1024.0f)
-			ebot_dangerfactor.SetFloat(1024.0f);
-
-		if (ebot_dangerfactor.GetFloat() < 256.0f)
-			ebot_dangerfactor.SetFloat(256.0f);
 
 		secondTimer = engine->GetTime() + 1.0f;
 	}

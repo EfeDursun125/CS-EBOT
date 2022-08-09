@@ -26,21 +26,21 @@
 
 // console variables
 ConVar ebot_debug("ebot_debug", "0");
-ConVar ebot_debuggoal("ebot_debuggoal", "-1");
+ConVar ebot_debuggoal("ebot_debug_goal", "-1");
 ConVar ebot_gamemod("ebot_gamemode", "0");
 
-ConVar ebot_followuser("ebot_followuser_max", "1");
-ConVar ebot_knifemode("ebot_knifemode", "0");
-ConVar ebot_walkallow("ebot_walkallow", "1");
-ConVar ebot_stopbots("ebot_stopbots", "0");
-ConVar ebot_spraypaints("ebot_spraypaints", "1");
-ConVar ebot_restrictweapons("ebot_restrictweapons", "");
+ConVar ebot_followuser("ebot_follow_user_max", "1");
+ConVar ebot_knifemode("ebot_knife_mode", "0");
+ConVar ebot_walkallow("ebot_walk_allow", "1");
+ConVar ebot_stopbots("ebot_stop_bots", "0");
+ConVar ebot_spraypaints("ebot_spray_paints", "1");
+ConVar ebot_restrictweapons("ebot_restrict_weapons", "");
 ConVar ebot_camp_min("ebot_camp_time_min", "16");
 ConVar ebot_camp_max("ebot_camp_time_max", "48");
 ConVar ebot_use_radio("ebot_use_radio", "1");
 ConVar ebot_anti_block("ebot_anti_block", "0");
 ConVar ebot_zm_dark_mode("ebot_zm_dark_mode", "0");
-ConVar ebot_zm_fov("ebot_zm_fov", "90");
+ConVar ebot_zm_fov("ebot_zm_mode_fov", "90");
 ConVar ebot_force_flashlight("ebot_force_flashlight", "0");
 ConVar ebot_use_flare("ebot_zombie_mode_use_flares", "1");
 ConVar ebot_chat_percent("ebot_chat_percent", "20");
@@ -1139,7 +1139,6 @@ void Bot::CheckMessageQueue(void)
 		{
 			m_buyPending = true;
 			m_buyingFinished = true;
-
 			break;
 		}
 
@@ -1163,25 +1162,24 @@ void Bot::CheckMessageQueue(void)
 			if (*(INFOKEY_VALUE(GET_INFOKEYBUFFER(GetEntity()), "model")) == 'v')
 			{
 				m_isVIP = true;
-				m_buyState = 6;
-				m_pathType = 1;
+				m_buyState = 7;
 			}
 		}
 
 		// prevent terrorists from buying on es maps
 		if ((g_mapType & MAP_ES) && m_team == TEAM_TERRORIST)
-			m_buyState = 6;
+			m_buyState = 76;
 
 		// prevent teams from buying on fun maps
 		if (g_mapType & (MAP_KA | MAP_FY | MAP_AWP))
 		{
-			m_buyState = 6;
+			m_buyState = 7;
 
 			if (g_mapType & MAP_KA)
 				ebot_knifemode.SetInt(1);
 		}
 
-		if (m_buyState > 5)
+		if (m_buyState > 6)
 		{
 			m_buyingFinished = true;
 			return;
@@ -1559,27 +1557,52 @@ void Bot::PerformWeaponPurchase(void)
 		break;
 
 	case 3:
-		if (engine->RandomInt(1, 100) < g_grenadeBuyPrecent[0] && m_moneyAmount >= g_grenadeBuyMoney[0] && !IsRestricted(WEAPON_HEGRENADE))
+		if (!HasPrimaryWeapon() && !ChanceOf(m_skill) && !IsRestricted(WEAPON_SHIELDGUN))
+		{
+			FakeClientCommand(GetEntity(), "buyequip");
+			FakeClientCommand(GetEntity(), "menuselect 8");
+		}
+
+		if (engine->RandomInt(1, 2) == 1)
+		{
+			FakeClientCommand(GetEntity(), "buy;menuselect 1");
+
+			if (engine->RandomInt(1, 2) == 1)
+				FakeClientCommand(GetEntity(), "menuselect 4");
+			else
+				FakeClientCommand(GetEntity(), "menuselect 5");
+		}
+
+		break;
+
+	case 4:
+		if (ChanceOf(m_skill) && m_moneyAmount >= g_grenadeBuyMoney[0] && !IsRestricted(WEAPON_HEGRENADE))
 		{
 			FakeClientCommand(GetEntity(), "buyequip");
 			FakeClientCommand(GetEntity(), "menuselect 4");
 		}
 
-		if (engine->RandomInt(1, 100) < g_grenadeBuyPrecent[1] && m_moneyAmount >= g_grenadeBuyMoney[1] && g_botManager->EconomicsValid(m_team) && !IsRestricted(WEAPON_FBGRENADE))
+		if (ChanceOf(m_skill) && m_moneyAmount >= g_grenadeBuyMoney[1] && g_botManager->EconomicsValid(m_team) && !IsRestricted(WEAPON_FBGRENADE))
 		{
 			FakeClientCommand(GetEntity(), "buyequip");
 			FakeClientCommand(GetEntity(), "menuselect 3");
 		}
 
-		if (engine->RandomInt(1, 100) < g_grenadeBuyPrecent[2] && m_moneyAmount >= g_grenadeBuyMoney[2] && g_botManager->EconomicsValid(m_team) && !IsRestricted(WEAPON_SMGRENADE))
+		if (ChanceOf(m_skill) && m_moneyAmount >= g_grenadeBuyMoney[1] && g_botManager->EconomicsValid(m_team) && !IsRestricted(WEAPON_FBGRENADE))
+		{
+			FakeClientCommand(GetEntity(), "buyequip");
+			FakeClientCommand(GetEntity(), "menuselect 3");
+		}
+
+		if (ChanceOf(m_skill) && m_moneyAmount >= g_grenadeBuyMoney[2] && g_botManager->EconomicsValid(m_team) && !IsRestricted(WEAPON_SMGRENADE))
 		{
 			FakeClientCommand(GetEntity(), "buyequip");
 			FakeClientCommand(GetEntity(), "menuselect 5");
 		}
 		break;
 
-	case 4:
-		if ((g_mapType & MAP_DE) && m_team == TEAM_COUNTER && engine->RandomInt(1, 100) < 80 && m_moneyAmount > 200 && !IsRestricted(WEAPON_DEFUSER))
+	case 5:
+		if ((g_mapType & MAP_DE) && m_team == TEAM_COUNTER && ChanceOf(m_skill) && m_moneyAmount > 200 && !IsRestricted(WEAPON_DEFUSER))
 		{
 			if (g_gameVersion == CSVER_VERYOLD)
 				FakeClientCommand(GetEntity(), "buyequip;menuselect 6");
@@ -1589,19 +1612,20 @@ void Bot::PerformWeaponPurchase(void)
 
 		break;
 
-	case 5:
+	case 6:
 		for (int i = 0; i <= 5; i++)
 			FakeClientCommand(GetEntity(), "buyammo%d", engine->RandomInt(1, 2)); // simulate human
 
-		if (HasPrimaryWeapon())
+		if (ChanceOf(m_skill))
 			FakeClientCommand(GetEntity(), "buy;menuselect 7");
-
-		FakeClientCommand(GetEntity(), "buy;menuselect 6");
+		else
+			FakeClientCommand(GetEntity(), "buy;menuselect 6");
 
 		if (m_reloadState != RSTATE_PRIMARY)
 			m_reloadState = RSTATE_SECONDARY;
 
 		break;
+
 	}
 
 	m_buyState++;
@@ -3659,6 +3683,7 @@ void Bot::Think(void)
 	if (!m_buyingFinished)
 		ResetCollideState();
 
+	pev->flags |= FL_FAKECLIENT;
 	pev->button = 0;
 	m_moveSpeed = 0.0f;
 	m_strafeSpeed = 0.0f;
@@ -3751,11 +3776,11 @@ void Bot::Think(void)
 	else if (m_buyingFinished && !(pev->maxspeed < 10.0f && GetCurrentTask()->taskID != TASK_PLANTBOMB && GetCurrentTask()->taskID != TASK_DEFUSEBOMB) && !ebot_stopbots.GetBool())
 		botMovement = true;
 
-	if (m_randomattacktimer < engine->GetTime() && !engine->IsFriendlyFireOn() && !HasHostage()) // ebot 1.50 - simulate players with random knife attacks
+	if (m_randomattacktimer < engine->GetTime() && !engine->IsFriendlyFireOn() && !HasHostage()) // simulate players with random knife attacks
 	{
 		if (m_currentWeapon == WEAPON_KNIFE)
 		{
-			if (ChanceOf(65))
+			if (engine->RandomInt(1, 3) == 1)
 				pev->button |= IN_ATTACK;
 			else
 				pev->button |= IN_ATTACK2;
@@ -3798,9 +3823,8 @@ void Bot::SecondThink(void)
 
 	if (ebot_use_flare.GetInt() == 1 && !m_isReloading && !m_isZombieBot && GetGameMod() == MODE_ZP && FNullEnt(m_enemy) && !FNullEnt(m_lastEnemy))
 	{
-		if (ChanceOf(50))
-			if (pev->weapons & (1 << WEAPON_SMGRENADE))
-				PushTask(TASK_THROWFLARE, TASKPRI_THROWGRENADE, -1, engine->RandomFloat(0.6f, 0.9f), false);
+		if (pev->weapons & (1 << WEAPON_SMGRENADE) && ChanceOf(50))
+			PushTask(TASK_THROWFLARE, TASKPRI_THROWGRENADE, -1, engine->RandomFloat(0.6f, 0.9f), false);
 	}
 
 	// force flashlight support
@@ -4148,12 +4172,7 @@ void Bot::RunTask(void)
 
 			// do pathfinding if it's not the current waypoint
 			if (destIndex != m_currentWaypointIndex && IsValidWaypoint(destIndex))
-			{
-				if ((g_bombPlanted && m_team == TEAM_COUNTER) || (!g_bombPlanted && m_isBomber))
-					FindPath(m_currentWaypointIndex, destIndex);
-				else
-					FindPath(m_currentWaypointIndex, destIndex, m_pathType);
-			}
+				FindPath(m_currentWaypointIndex, destIndex);
 		}
 		else
 		{
@@ -4275,7 +4294,7 @@ void Bot::RunTask(void)
 			m_tasks->data = destIndex;
 
 			if (destIndex != m_currentWaypointIndex && IsValidWaypoint(destIndex))
-				FindPath(m_currentWaypointIndex, destIndex, m_pathType);
+				FindPath(m_currentWaypointIndex, destIndex);
 		}
 
 		// bots skill higher than 50?
@@ -4325,7 +4344,6 @@ void Bot::RunTask(void)
 			TaskComplete();
 
 			m_prevGoalIndex = -1;
-			m_pathType = 1;
 
 			// start hide task
 			PushTask(TASK_HIDE, TASKPRI_HIDE, -1, engine->GetTime() + engine->RandomFloat(5.0f, 15.0f), false);
@@ -4382,7 +4400,7 @@ void Bot::RunTask(void)
 			m_tasks->data = destIndex;
 
 			if (destIndex != m_currentWaypointIndex && IsValidWaypoint(destIndex))
-				FindPath(m_currentWaypointIndex, destIndex, 2);
+				FindPath(m_currentWaypointIndex, destIndex);
 		}
 
 		break;
@@ -4539,8 +4557,7 @@ void Bot::RunTask(void)
 			{
 				m_prevGoalIndex = destIndex;
 				m_tasks->data = destIndex;
-
-				FindPath(m_currentWaypointIndex, destIndex, m_pathType);
+				FindPath(m_currentWaypointIndex, destIndex);
 			}
 			else
 				TaskComplete();
@@ -4635,7 +4652,7 @@ void Bot::RunTask(void)
 				}
 
 				// find a visible waypoint to this direction...
-				// i know this is ugly hack, but i just don't want to break compatiability :)
+				// i know this is ugly hack, but i just don't want to break compatiability
 				int numFoundPoints = 0;
 				int foundPoints[3];
 				int distanceTab[3];
@@ -4822,7 +4839,7 @@ void Bot::RunTask(void)
 				m_prevGoalIndex = forcedestIndex;
 				GetCurrentTask()->data = forcedestIndex;
 
-				FindPath(m_currentWaypointIndex, forcedestIndex, m_pathType);
+				FindPath(m_currentWaypointIndex, forcedestIndex);
 			}
 			else
 				TaskComplete();
@@ -5112,7 +5129,7 @@ void Bot::RunTask(void)
 				m_prevGoalIndex = destIndex;
 				m_tasks->data = destIndex;
 
-				FindPath(m_currentWaypointIndex, destIndex, m_pathType);
+				FindPath(m_currentWaypointIndex, destIndex);
 			}
 		}
 
@@ -6938,7 +6955,6 @@ void Bot::TakeDamage(edict_t* inflictor, int /*damage*/, int /*armor*/, int bits
 	m_lastDamageOrigin = GetPlayerHeadOrigin(inflictor);
 
 	m_damageTime = engine->GetTime() + 1.0f;
-	m_aimstoptime = engine->GetTime();
 
 	if (GetTeam(inflictor) == m_team)
 		return;
@@ -7201,12 +7217,12 @@ void Bot::MoveToVector(Vector to)
 		int index = g_waypoint->FindNearest(pev->origin, 9999.0f, -1, GetEntity());
 
 		if(IsValidWaypoint(index))
-			FindPath(index, g_waypoint->FindNearest(to), 2);
+			FindPath(index, g_waypoint->FindNearest(to));
 
 		return;
 	}
 
-	FindPath(m_currentWaypointIndex, g_waypoint->FindNearest(to), 2);
+	FindPath(m_currentWaypointIndex, g_waypoint->FindNearest(to));
 }
 
 void Bot::RunPlayerMovement(void)
@@ -7320,7 +7336,7 @@ float Bot::GetEstimatedReachTime(void)
 		if (longTermReachability)
 			estimatedTime *= 2.0f;
 
-		estimatedTime = engine->Clamp(estimatedTime, 2.0f, longTermReachability ? 8.0f : 5.0f);
+		estimatedTime = Clamp(estimatedTime, 2.0f, longTermReachability ? 8.0f : 5.0f);
 	}
 
 	return estimatedTime;

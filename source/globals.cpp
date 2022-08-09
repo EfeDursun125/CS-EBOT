@@ -24,14 +24,13 @@
 
 #include <core.h>
 
+bool cpuSSESuport = false;
+
 float API_Version;
 float amxxDLL_Version = -1.0;
 uint16 amxxDLL_bV16[4];
-// ****
-
 float SwNPC_Version = -1.0;
 uint16 SwNPC_Build[4];
-// ****
 
 bool g_isMetamod = false;
 bool g_roundEnded = true;
@@ -122,9 +121,6 @@ int g_rusherWeaponPrefs[Const_NumWeapons] =
 
 int g_carefulWeaponPrefs[Const_NumWeapons] =
 { 0, 2, 1, 4, 5, 6, 3, 7, 8, 12, 10, 13, 11, 9, 24, 18, 14, 17, 16, 15, 19, 20, 21, 22, 23, 25 };
-
-int g_grenadeBuyPrecent[Const_NumWeapons - 23] =
-{ 95, 85, 40 };
 
 int g_grenadeBuyMoney[Const_NumWeapons - 23] = { 300, 200, 300 };
 

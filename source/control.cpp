@@ -304,7 +304,8 @@ void BotControl::Think(void)
 			m_bots[i]->m_thinkTimer = engine->GetTime() + (engine->RandomFloat(0.95f, 1.05f) / ebot_think_fps.GetFloat());
 			m_bots[i]->Think();
 		}
-		else if (!ebot_stopbots.GetBool() && m_bots[i]->m_notKilled && !m_bots[i]->m_isSlowThink)
+
+		if (!ebot_stopbots.GetBool() && m_bots[i]->m_notKilled)
 			m_bots[i]->FacePosition();
 
 		m_bots[i]->m_moveAnglesForRunMove = m_bots[i]->m_moveAngles;
@@ -442,7 +443,7 @@ void BotControl::CheckBotNum(void)
 				fp2.Close();
 			}
 			else
-				ServerPrint("UnKnow Problem - Cannot Save ebot Quota");
+				ServerPrint("Unknow Problem - Cannot save ebot quota");
 		}
 
 		ebot_quota_save.SetInt(-1);
@@ -726,11 +727,9 @@ void BotControl::RemoveRandom(void)
 	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
 		Bot* bot = g_botManager->GetBot(i);
-
 		if (bot != null)  // is this slot used?
 		{
 			bot->Kick();
-
 			break;
 		}
 	}
@@ -1071,6 +1070,7 @@ void Bot::NewRound(void)
 	// delete all allocated path nodes
 	DeleteSearchNodes();
 
+	m_itaimstart = engine->GetTime();
 	m_waypointOrigin = nullvec;
 	m_destOrigin = nullvec;
 	m_currentWaypointIndex = -1;
@@ -1088,22 +1088,6 @@ void Bot::NewRound(void)
 	m_prevWptIndex[2] = -1;
 
 	m_navTimeset = engine->GetTime();
-	m_aimstoptime = engine->GetTime();
-
-	switch (m_personality)
-	{
-	case PERSONALITY_NORMAL:
-		m_pathType = engine->RandomInt(0, 1) < m_agressionLevel ? 1 : 0;
-		break;
-
-	case PERSONALITY_RUSHER:
-		m_pathType = 0;
-		break;
-
-	case PERSONALITY_CAREFUL:
-		m_pathType = 1;
-		break;
-	}
 
 	// clear all states & tasks
 	m_states = 0;
@@ -1309,10 +1293,8 @@ void Bot::Kill(void)
 
 void Bot::Kick(void)
 {
-	if (!(pev->flags & FL_FAKECLIENT) || IsNullString(GetEntityName(GetEntity())))
+	if (IsNullString(GetEntityName(GetEntity())))
 		return;
-
-	pev->flags &= ~FL_FAKECLIENT;
 
 	ServerCommand("kick \"%s\"", GetEntityName(GetEntity()));
 	CenterPrint("Bot '%s' kicked", GetEntityName(GetEntity()));
