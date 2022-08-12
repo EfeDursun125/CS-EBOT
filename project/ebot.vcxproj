@@ -201,7 +201,7 @@
       </BrowseInformation>
       <FloatingPointModel>Strict</FloatingPointModel>
       <BrowseInformationFile />
-      <ControlFlowGuard>false</ControlFlowGuard>
+      <ControlFlowGuard>Guard</ControlFlowGuard>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
