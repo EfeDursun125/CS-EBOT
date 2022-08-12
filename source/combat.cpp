@@ -381,8 +381,7 @@ bool Bot::LookupEnemy(void)
 			}
 
 			enemy_distance = (GetEntityOrigin(targetEntity) - pev->origin).GetLength();
-			if ((enemy_distance <= 150.0f && movePoint <= 1) ||
-				(targetEntity == m_moveTargetEntity && movePoint <= 2))
+			if ((enemy_distance <= 168.0f && movePoint <= 1) || (targetEntity == m_moveTargetEntity && movePoint <= 2))
 			{
 				moveTotarget = false;
 				if (targetEntity == m_moveTargetEntity && movePoint <= 1)
@@ -406,7 +405,7 @@ bool Bot::LookupEnemy(void)
 			}
 
 			if (m_enemyUpdateTime < engine->GetTime() + 3.0f)
-				m_enemyUpdateTime = engine->GetTime() + 2.5f;
+				m_enemyUpdateTime = engine->GetTime() + 3.0f;
 		}
 
 		g_botsCanPause = true;
@@ -1093,7 +1092,7 @@ void Bot::CombatFight(void)
 	if (!FNullEnt(m_lastEnemy) && m_team == GetTeam(m_lastEnemy))
 		SetLastEnemy(m_enemy);
 
-	if ((m_moveSpeed != 0.0f || m_strafeSpeed != 0.0f) && IsValidWaypoint(m_currentWaypointIndex) && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_CROUCH && (pev->velocity.GetLength() < 2.0f))
+	if ((m_moveSpeed != 0.0f || m_strafeSpeed != 0.0f) && IsValidWaypoint(m_currentWaypointIndex) && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_CROUCH)
 		pev->button |= IN_DUCK;
 
 	if (m_isZombieBot) // zombie ai
@@ -1101,8 +1100,10 @@ void Bot::CombatFight(void)
 		DeleteSearchNodes();
 		m_moveToGoal = false;
 		m_destOrigin = GetEntityOrigin(m_enemy);
+		m_waypointOrigin = m_destOrigin;
 		m_moveSpeed = pev->maxspeed;
-		if (m_isSlowThink && pev->speed >= pev->maxspeed)
+
+		if (m_isSlowThink && !IsOnLadder() && pev->speed >= pev->maxspeed)
 		{
 			if (engine->RandomInt(1, 2) == 1)
 				pev->button |= IN_JUMP;
@@ -1265,9 +1266,8 @@ void Bot::CombatFight(void)
 		{
 			const Vector& src = pev->origin - Vector(0, 0, 18.0f);
 
-			extern ConVar ebot_think_fps;
 			if ((m_visibility & (VISIBILITY_HEAD | VISIBILITY_BODY)) && m_enemy->v.weapons != WEAPON_KNIFE && !IsVisible(src, m_enemy))
-				m_duckTime = engine->GetTime() + (engine->RandomFloat(0.9f, 1.1f) / ebot_think_fps.GetFloat()) + 1.0f;
+				m_duckTime = engine->GetTime() + m_frameInterval;
 		}
 
 		if (m_isSlowThink && (m_isReloading || ((m_isLeader || m_isVIP || m_isBomber) && pev->health <= (pev->max_health / 2)) || m_isUsingGrenade || (m_personality != PERSONALITY_RUSHER && ::IsInViewCone(pev->origin, m_enemy) && (pev->health + m_agressionLevel) < m_enemy->v.health + (m_personality == PERSONALITY_CAREFUL ? 15.0f : 30.0f))))
@@ -1417,7 +1417,7 @@ void Bot::CombatFight(void)
 					}
 				}
 
-				if (m_jumpTime + 10.0f < engine->GetTime() && IsOnFloor() && ChanceOf(m_isReloading ? 5 : 2) && pev->velocity.GetLength2D() > float(m_skill + 50.0f) && !UsesSniper())
+				if (m_jumpTime + 10.0f < engine->GetTime() && !IsOnLadder() && ChanceOf(m_isReloading ? 5 : 2) && pev->velocity.GetLength2D() > float(m_skill + 50.0f) && !UsesSniper())
 					pev->button |= IN_JUMP;
 
 				if (m_moveSpeed > 0.0f && distance > 512.0f && m_currentWeapon != WEAPON_KNIFE)
@@ -1429,10 +1429,8 @@ void Bot::CombatFight(void)
 			else if (m_fightStyle == 1)
 			{
 				const Vector& src = pev->origin - Vector(0, 0, 18.0f);
-
-				extern ConVar ebot_think_fps;
 				if ((m_visibility & (VISIBILITY_HEAD | VISIBILITY_BODY)) && m_enemy->v.weapons != WEAPON_KNIFE && IsVisible(src, m_enemy))
-					m_duckTime = engine->GetTime() + (engine->RandomFloat(0.9f, 1.1f) / ebot_think_fps.GetFloat()) + 0.2f;
+					m_duckTime = engine->GetTime() + m_frameInterval;
 
 				m_moveSpeed = 0.0f;
 				m_strafeSpeed = 0.0f;

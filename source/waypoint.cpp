@@ -535,8 +535,17 @@ int Waypoint::FindNearest(Vector origin, float minDistance, int flags, edict_t* 
             if (IsValidWaypoint(wpIndex[i]))
                 continue;
 
-            if (!Reachable(entity, wpIndex[i]))
-                continue;
+            if (IsZombieMode())
+            {
+                auto origin = m_paths[wpIndex[i]]->origin;
+                if (!(::IsVisible(origin, entity)) && !Reachable(entity, wpIndex[i]))
+                    continue;
+            }
+            else
+            {
+                if (!Reachable(entity, wpIndex[i]))
+                    continue;
+            }
 
             if (findWaypointPoint == (int*)-2)
                 return wpIndex[i];
@@ -710,33 +719,13 @@ void Waypoint::Add(int flags, Vector waypointOrigin)
         return;
 
     case 9:
-        index = FindNearest(GetEntityOrigin(g_hostEntity), 25.0f);
-
-        if (index != -1)
-        {
-            distance = (m_paths[index]->origin - GetEntityOrigin(g_hostEntity)).GetLength();
-
-            if (distance < 25)
-            {
-                placeNew = false;
-                path = m_paths[index];
-
-                if (flags == 9)
-                    path->origin = (path->origin + m_learnPosition) / 2;
-            }
-        }
-        else
-            newOrigin = m_learnPosition;
+        newOrigin = m_learnPosition;
         break;
-
     case 10:
         index = FindNearest(GetEntityOrigin(g_hostEntity), 25.0f);
-
-        if (index != -1)
+        if (IsValidWaypoint(index))
         {
-            distance = (m_paths[index]->origin - GetEntityOrigin(g_hostEntity)).GetLength();
-
-            if (distance < 25)
+            if ((m_paths[index]->origin - GetEntityOrigin(g_hostEntity)).GetLength() <= 25.0f)
             {
                 placeNew = false;
                 path = m_paths[index];
@@ -1403,7 +1392,7 @@ void Waypoint::CalculateWayzone(int index)
         }
     }
 
-    for (float scanDistance = 16.0f; scanDistance < 144.0f; scanDistance += 16.0f)
+    for (float scanDistance = 16.0f; scanDistance < 160.0f; scanDistance += 16.0f)
     {
         start = path->origin;
         MakeVectors(nullvec);
@@ -1536,13 +1525,43 @@ bool Waypoint::Load(int mode)
     {
         fp.Read(&header, sizeof(header));
 
-        if (strncmp(header.header, FH_WAYPOINT, strlen(FH_WAYPOINT)) == 0)
+        if (strncmp(header.header, FH_WAYPOINT_NEW, strlen(FH_WAYPOINT_NEW)) == 0)
         {
             if (stricmp(header.mapName, GetMapName()) && mode == 0)
             {
                 m_badMapName = true;
 
-                sprintf(m_infoBuffer, "%s.pwf - hacked waypoint file, fileName doesn't match waypoint header information (mapname: '%s', header: '%s')", GetMapName(), GetMapName(), header.mapName);
+                sprintf(m_infoBuffer, "%s - hacked waypoint file, fileName doesn't match waypoint header information (mapname: '%s', header: '%s')", GetMapName(), GetMapName(), header.mapName);
+                AddLogEntry(LOG_ERROR, m_infoBuffer);
+
+                fp.Close();
+                return false;
+            }
+            else
+            {
+                Initialize();
+                g_numWaypoints = header.pointNumber;
+
+                for (int i = 0; i < g_numWaypoints; i++)
+                {
+                    m_paths[i] = new Path;
+
+                    if (m_paths[i] == null)
+                        return false;
+
+                    fp.Read(m_paths[i], sizeof(Path));
+                }
+
+                m_waypointPaths = true;
+            }
+        }
+        else if (strncmp(header.header, FH_WAYPOINT, strlen(FH_WAYPOINT)) == 0)
+        {
+            if (stricmp(header.mapName, GetMapName()) && mode == 0)
+            {
+                m_badMapName = true;
+
+                sprintf(m_infoBuffer, "%s - hacked waypoint file, fileName doesn't match waypoint header information (mapname: '%s', header: '%s')", GetMapName(), GetMapName(), header.mapName);
                 AddLogEntry(LOG_ERROR, m_infoBuffer);
 
                 fp.Close();
@@ -1569,7 +1588,7 @@ bool Waypoint::Load(int mode)
         else
         {
            
-            sprintf(m_infoBuffer, "%s.pwf is not a ebot waypoint file (header found '%s' needed '%s'", GetMapName(), header.header, FH_WAYPOINT);
+            sprintf(m_infoBuffer, "%s is not a ebot waypoint file (header found '%s' needed '%s'", GetMapName(), header.header, FH_WAYPOINT);
             AddLogEntry(LOG_ERROR, m_infoBuffer);
             fp.Close();
             return false;
@@ -1579,7 +1598,7 @@ bool Waypoint::Load(int mode)
     }
     else
     {
-        sprintf(m_infoBuffer, "%s.pwf does not exist, pleasue use 'ebot wp analyze' for create waypoints! (dont forget using 'ebot wp analyzeoff' when finished)", GetMapName());
+        sprintf(m_infoBuffer, "%s does not exist, pleasue use 'ebot wp analyze' for create waypoints! (dont forget using 'ebot wp analyzeoff' when finished)", GetMapName());
         AddLogEntry(LOG_ERROR, m_infoBuffer);
 
         return false;
@@ -1616,9 +1635,9 @@ void Waypoint::Save(void)
 {
     WaypointHeader header;
 
+    memset(header.header, 0, sizeof(header.header));
     memset(header.mapName, 0, sizeof(header.mapName));
     memset(header.author, 0, sizeof(header.author));
-    memset(header.header, 0, sizeof(header.header));
 
     char waypointAuthor[32];
     sprintf(waypointAuthor, "%s", GetEntityName(g_hostEntity));
@@ -1646,18 +1665,24 @@ void Waypoint::Save(void)
         fp.Close();
     }
     else
-        AddLogEntry(LOG_ERROR, "Error writing '%s.pwf' waypoint file", GetMapName());
+        AddLogEntry(LOG_ERROR, "Error writing '%s' waypoint file", GetMapName());
 }
 
 String Waypoint::CheckSubfolderFile(void)
 {
     String returnFile = "";
-    returnFile = FormatBuffer("%s/%s.pwf", GetWaypointDir(), GetMapName());
+    returnFile = FormatBuffer("%s/%s.ewp", GetWaypointDir(), GetMapName());
 
     if (TryFileOpen(returnFile))
         return returnFile;
+    else
+    {
+        returnFile = FormatBuffer("%s/%s.pwf", GetWaypointDir(), GetMapName());
+        if (TryFileOpen(returnFile))
+            return returnFile;
+    }
 
-    return FormatBuffer("%s%s.pwf", GetWaypointDir(), GetMapName());
+    return FormatBuffer("%s%s.ewp", GetWaypointDir(), GetMapName());
 }
 
 void Waypoint::SaveXML(void)
@@ -2055,15 +2080,13 @@ char* Waypoint::GetWaypointInfo(int id)
     return messageBuffer;
 }
 
+// this function executes frame of waypoint operation code.
 void Waypoint::Think(void)
 {
-    // this function executes frame of waypoint operation code.
-
     if (FNullEnt(g_hostEntity))
         return; // this function is only valid on listenserver, and in waypoint enabled mode.
 
     float nearestDistance = FLT_MAX;
-
     if (m_learnJumpWaypoint)
     {
         if (!m_endJumpPoint)
@@ -2076,9 +2099,8 @@ void Waypoint::Think(void)
             }
             else
             {
-                Vector origin = GetWalkablePosition(GetEntityOrigin(g_hostEntity));
                 m_learnVelocity = g_hostEntity->v.velocity;
-                m_learnPosition = Vector(origin.x, origin.y, (origin.z + 36.0f));
+                m_learnPosition = GetEntityOrigin(g_hostEntity);
             }
         }
         else if (((g_hostEntity->v.flags & FL_ONGROUND) || g_hostEntity->v.movetype == MOVETYPE_FLY) && m_timeJumpStarted + 0.1 < engine->GetTime())
@@ -2255,7 +2277,7 @@ void Waypoint::ShowWaypointMsg(void)
         float distance = (m_paths[i]->origin - GetEntityOrigin(g_hostEntity)).GetLength();
 
         // check if waypoint is whitin a distance, and is visible
-        if (distance <= 768 && ((::IsVisible(m_paths[i]->origin, g_hostEntity) && IsInViewCone(m_paths[i]->origin, g_hostEntity)) || distance <= 256))
+        if (distance <= 768.0f && ((::IsVisible(m_paths[i]->origin, g_hostEntity) && IsInViewCone(m_paths[i]->origin, g_hostEntity)) || !IsAlive(g_hostEntity) || distance < 256.0f))
         {
             // check the distance
             if (distance < nearestDistance)
@@ -2317,6 +2339,8 @@ void Waypoint::ShowWaypointMsg(void)
 
                 m_waypointDisplayTime[i] = engine->GetTime();
             }
+            else if (m_waypointDisplayTime[i] + 2.0f > engine->GetTime()) // what???
+                m_waypointDisplayTime[i] = 0.0f;
         }
     }
 
@@ -2343,6 +2367,8 @@ void Waypoint::ShowWaypointMsg(void)
 
             m_arrowDisplayTime = engine->GetTime();
         }
+        else if (m_arrowDisplayTime + 1.0 > engine->GetTime()) // what???
+            m_arrowDisplayTime = 0.0f;
     }
 
     // create path pointer for faster access
@@ -2477,6 +2503,8 @@ void Waypoint::ShowWaypointMsg(void)
         WRITE_STRING(tempMessage);
         MESSAGE_END();
     }
+    else if (m_pathDisplayTime + 2.0f > engine->GetTime()) // what???
+        m_pathDisplayTime = 0.0f;
 }
 
 bool Waypoint::IsConnected(int index)
@@ -2972,16 +3000,17 @@ void Waypoint::EraseFromHardDisk(void)
 {
     // this function removes waypoint file from the hard disk
 
-    String deleteList[5];
+    String deleteList[6];
 
     // if we're delete waypoint, delete all corresponding to it files
-    deleteList[0] = FormatBuffer("%s%s.pwf", GetWaypointDir(), GetMapName()); // waypoint itself
-    deleteList[1] = FormatBuffer("%sdata/%s.exp", GetWaypointDir(), GetMapName()); // corresponding to waypoint experience
-    deleteList[2] = FormatBuffer("%sdata/%s.vis", GetWaypointDir(), GetMapName()); // corresponding to waypoint vistable
-    deleteList[3] = FormatBuffer("%sdata/%s.pmt", GetWaypointDir(), GetMapName()); // corresponding to waypoint path matrix
-    deleteList[4] = FormatBuffer("%sdata/%s.xml", GetWaypointDir(), GetMapName()); // corresponding to waypoint xml database
+    deleteList[0] = FormatBuffer("%s%s.ewp", GetWaypointDir(), GetMapName()); // new waypoint itself
+    deleteList[1] = FormatBuffer("%s%s.pwf", GetWaypointDir(), GetMapName()); // old waypoint itself
+    deleteList[2] = FormatBuffer("%sdata/%s.exp", GetWaypointDir(), GetMapName()); // corresponding to waypoint experience
+    deleteList[3] = FormatBuffer("%sdata/%s.vis", GetWaypointDir(), GetMapName()); // corresponding to waypoint vistable
+    deleteList[4] = FormatBuffer("%sdata/%s.pmt", GetWaypointDir(), GetMapName()); // corresponding to waypoint path matrix
+    deleteList[5] = FormatBuffer("%sdata/%s.xml", GetWaypointDir(), GetMapName()); // corresponding to waypoint xml database
 
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < 5; i++)
     {
         if (TryFileOpen(deleteList[i]))
         {

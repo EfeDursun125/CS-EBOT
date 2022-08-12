@@ -35,7 +35,6 @@ ConVar ebot_maxskill("ebot_maxskill", "100");
 
 ConVar ebot_nametag("ebot_nametag", "2");
 ConVar ebot_join_after_player("ebot_join_after_player", "0");
-ConVar ebot_think_fps("ebot_think_fps", "20.0");
 ConVar ebot_ping("ebot_fake_ping", "1");
 ConVar ebot_autovacate("ebot_autovacate", "1");
 
@@ -301,11 +300,10 @@ void BotControl::Think(void)
 
 		if (runThink)
 		{
-			m_bots[i]->m_thinkTimer = engine->GetTime() + (engine->RandomFloat(0.95f, 1.05f) / ebot_think_fps.GetFloat());
+			m_bots[i]->m_thinkTimer = engine->GetTime() + (engine->RandomFloat(0.95f, 1.05f) / 20.0f);
 			m_bots[i]->Think();
 		}
-
-		if (!ebot_stopbots.GetBool() && m_bots[i]->m_notKilled)
+		else if (!ebot_stopbots.GetBool() && m_bots[i]->m_notKilled)
 			m_bots[i]->FacePosition();
 
 		m_bots[i]->m_moveAnglesForRunMove = m_bots[i]->m_moveAngles;
@@ -1172,8 +1170,8 @@ void Bot::NewRound(void)
 	m_blindButton = 0;
 	m_blindTime = 0.0f;
 	m_jumpTime = 0.0f;
-	m_jumpFinished = false;
 	m_isStuck = false;
+	m_jumpFinished = false;
 
 	m_sayTextBuffer.timeNextChat = engine->GetTime();
 	m_sayTextBuffer.entityIndex = -1;

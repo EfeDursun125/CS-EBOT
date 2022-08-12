@@ -160,7 +160,7 @@ bool IsVisibleForKnifeAttack(const Vector& origin, edict_t* ent)
 Vector GetWalkablePosition(const Vector& origin, edict_t* ent)
 {
 	if (FNullEnt(ent))
-		return nullvec;
+		return origin;
 
 	TraceResult tr;
 	TraceLine(origin, Vector(origin.x, origin.y, -9999.0f), true, false, ent, &tr);
@@ -175,7 +175,7 @@ Vector GetWalkablePosition(const Vector& origin, edict_t* ent)
 Vector GetNearestWalkablePosition(const Vector& origin, edict_t* ent)
 {
 	if (FNullEnt(ent))
-		return nullvec;
+		return origin;
 
 	TraceResult tr;
 	TraceLine(origin, Vector(origin.x, origin.y, -9999.0f), true, false, ent, &tr);
@@ -1229,7 +1229,7 @@ int GetEntityWaypoint(edict_t* ent)
 			return SetEntityWaypoint(ent);
 		}
 
-		return g_waypoint->FindNearest(GetEntityOrigin(ent), 9999.0f, -1, ent);
+		return g_waypoint->FindNearest(GetEntityOrigin(ent), 99999.0f, -1, ent);
 	}
 
 	int client = ENTINDEX(ent) - 1;
