@@ -186,7 +186,7 @@ enum RadioList
 };
 
 // voice system (extending enum above, messages 30-39 is reserved)
-enum ChatterMessage
+/*enum ChatterMessage
 {
 	Chatter_SpotTheBomber = 40,
 	Chatter_FriendlyFire,
@@ -240,8 +240,7 @@ enum ChatterMessage
 	Chatter_BehindSmoke,
 	Chatter_BombSiteSecured,
 	Chatter_Total
-
-};
+};*/
 
 // counter-strike weapon id's
 enum Weapon
@@ -426,6 +425,7 @@ enum GameMode
 };
 
 // bot known file 
+const char FH_WAYPOINT_NEW[] = "EBOTWAY!";
 const char FH_WAYPOINT[] = "PODWAY!";
 const char FH_VISTABLE[] = "PODVIS!";
 
@@ -794,7 +794,7 @@ private:
 	int m_voicePitch; // bot voice pitch
 	bool m_isZombieBot; // checks bot if zombie
 	bool m_isBomber; // checks bot has C4
-	int m_team; // team OOOOOOOOOOHHHHHHHHHHH!!!!!!!!!!!!!
+	int m_team; // bot's team
 
 	bool m_duckDefuse; // should or not bot duck to defuse bomb
 	float m_duckDefuseCheckTime; // time to check for ducking for defuse
@@ -915,7 +915,6 @@ private:
 	float InFieldOfView(Vector dest);
 
 	bool IsBombDefusing(Vector bombOrigin);
-	bool IsWaypointUsed(int index);
 	bool IsWaypointOccupied(int index);
 
 	bool IsNotAttackLab(edict_t* entity);
@@ -1055,7 +1054,6 @@ public:
 
 	edict_t* m_doubleJumpEntity; // pointer to entity that request double jump
 	edict_t* m_radioEntity; // pointer to entity issuing a radio command
-	edict_t* m_self; // self
 	int m_radioOrder; // actual command
 
 	float m_duckForJump; // is bot needed to duck for double jump
@@ -1080,7 +1078,6 @@ public:
 	Vector m_lastBombPosition; // origin of last remembered bomb position
 	Vector m_goalaimposition; // goal aim position for tracking
 	Vector m_campposition; // camping position
-	Vector m_waypointaim; // waypoint aim
 
 	float m_viewDistance; // current view distance
 	float m_maxViewDistance; // maximum view distance
@@ -1319,8 +1316,8 @@ private:
 	Path* m_paths[Const_MaxWaypoints];
 	bool m_badMapName;
 
-	bool m_waypointPaths;
 	bool m_isOnLadder;
+	bool m_waypointPaths;
 	bool m_endJumpPoint;
 	bool m_learnJumpWaypoint;
 	float m_timeJumpStarted;

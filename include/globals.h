@@ -25,8 +25,6 @@
 #ifndef GLOBALS_INCLUDED
 #define GLOBALS_INCLUDED
 
-extern bool cpuSSESuport;
-
 extern float API_Version;
 extern float amxxDLL_Version;
 extern uint16 amxxDLL_bV16[4];

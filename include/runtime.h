@@ -32,6 +32,8 @@
 #include <time.h>
 #include <stdarg.h>
 
+extern bool cpuSSESuport;
+
 #pragma warning (disable : 4996) // get rid of this
 
 //
@@ -561,6 +563,9 @@ public:
     inline float GetLength(void) const
     {
         float number = x * x + y * y + z * z;
+        if (cpuSSESuport)
+            return _mm_cvtss_f32(_mm_rsqrt_ss(_mm_load_ss(&number))) * number;
+
         long i;
         float x2, y;
         const float threehalfs = 1.5F;
@@ -587,6 +592,9 @@ public:
     inline float GetLength2D(void) const
     {
         float number = x * x + y * y;
+        if (cpuSSESuport)
+            return _mm_cvtss_f32(_mm_rsqrt_ss(_mm_load_ss(&number))) * number;
+
         long i;
         float x2, y;
         const float threehalfs = 1.5F;

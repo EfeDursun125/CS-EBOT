@@ -218,6 +218,7 @@ typedef void* HINSTANCE;
 #endif
 
 #include <math.h>
+
 // 2DVector - used for many pathfinding and many other 
 // operations that are treated as planar rather than 3d.
 class Vector2D
