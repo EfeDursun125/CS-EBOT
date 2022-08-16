@@ -3818,13 +3818,6 @@ void Bot::Think(void)
 	{
 		m_isSlowThink = true;
 
-		m_numEnemiesLeft = GetNearbyEnemiesNearPosition(pev->origin, 99999);
-
-		if (GetGameMod() == MODE_DM)
-			m_numFriendsLeft = 0;
-		else
-			m_numFriendsLeft = GetNearbyFriendsNearPosition(pev->origin, 99999);
-
 		m_isZombieBot = IsZombieMode() ? IsZombieEntity(GetEntity()) : false;
 		m_team = GetTeam(GetEntity());
 		m_isBomber = pev->weapons & (1 << WEAPON_C4);
@@ -3934,9 +3927,15 @@ void Bot::Think(void)
 		m_seeEnemyTime = engine->GetTime();
 }
 
+// this function is called from main think function every 2 second (second not frame)
 void Bot::SecondThink(void)
 {
-	// this function is called from main think function every 2 second (second not frame).
+	m_numEnemiesLeft = GetNearbyEnemiesNearPosition(pev->origin, 99999);
+
+	if (GetGameMod() == MODE_DM)
+		m_numFriendsLeft = 0;
+	else
+		m_numFriendsLeft = GetNearbyFriendsNearPosition(pev->origin, 99999);
 
 	if (ebot_use_flare.GetInt() == 1 && !m_isReloading && !m_isZombieBot && GetGameMod() == MODE_ZP && FNullEnt(m_enemy) && !FNullEnt(m_lastEnemy))
 	{

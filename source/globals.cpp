@@ -24,8 +24,6 @@
 
 #include <core.h>
 
-bool cpuSSESuport = false;
-
 float API_Version;
 float amxxDLL_Version = -1.0;
 uint16 amxxDLL_bV16[4];

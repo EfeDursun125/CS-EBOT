@@ -89,37 +89,6 @@ int Engine::RandomInt(int low, int high)
     return rand() % (high - low + 1) + low;
 }
 
-void Engine::SubtractVectors(Vector first, Vector second, Vector output)
-{
-    Vector result;
-
-    result.x = (first.x - second.x);
-    result.y = (first.y - second.y);
-    result.z = (first.z - second.z);
-
-    output = result;
-}
-
-float Engine::GetVectorDotProduct(Vector first, Vector second)
-{
-    int product = 0;
-    for (int i = 0; i < 3; i++)
-        product = product + first[i] * second[i];
-    return product;
-}
-
-void Engine::NormalizeVector(Vector vector, Vector output)
-{
-    Vector result;
-    float length = Q_rsqrt((vector.x * vector.x) + (vector.y * vector.y) + (vector.z * vector.z));
-
-    result.x = (vector.x / length);
-    result.y = (vector.y / length);
-    result.z = (vector.z / length);
-
-    output = result;
-}
-
 float Engine::ApproachAngle(float target, float value, float speed)
 {
     float delta = AngleDiff(target, value);
@@ -135,11 +104,6 @@ float Engine::ApproachAngle(float target, float value, float speed)
         value = target;
 
     return AngleNormalize(value);
-}
-
-float Engine::Sine(float X)
-{
-    return static_cast <float> (sin(X));
 }
 
 float Engine::AngleDiff(float destAngle, float srcAngle)

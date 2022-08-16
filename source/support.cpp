@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright (c) 2003-2009, by Yet Another POD-Bot Development Team.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -676,18 +676,9 @@ void CreatePath(char* path)
 #endif
 }
 
-#include <cpuid.h>
-void cpuid(int info[4], int InfoType) {
-	__cpuid_count(InfoType, 0, info[0], info[1], info[2], info[3]);
-}
-
 // this is called at the start of each round
 void RoundInit(void)
 {
-	int cpuInfo[4];
-	cpuid(cpuInfo, 1);
-	cpuSSESuport = (cpuInfo[3] & ((int)1 << 26)) || false;
-
 	g_roundEnded = false;
 
 	if (GetGameMod() == MODE_BASE)
@@ -1026,11 +1017,19 @@ int GetGameMod(void)
 	return ebot_gamemod.GetInt();
 }
 
+float DotProduct(Vector a, Vector b)
+{
+	int product = 0;
+	for (int i = 0; i < 3; i++)
+		product = product + a[i] * b[i];
+	return product;
+}
+
 float Q_rsqrt(float number)
 {
-	if (cpuSSESuport)
-		return _mm_cvtss_f32(_mm_rsqrt_ss(_mm_load_ss(&number))) * number;
-
+#ifndef __SSE2__
+	return _mm_cvtss_f32(_mm_sqrt_ss(_mm_load_ss(&number)));
+#else
 	long i;
 	float x2, y;
 	const float threehalfs = 1.5F;
@@ -1041,14 +1040,35 @@ float Q_rsqrt(float number)
 	y = *(float*)&i;
 	y = y * (threehalfs - (x2 * y * y));
 	return y * number;
+#endif
 }
 
 float Clamp(float a, float b, float c)
 {
-	if (cpuSSESuport)
-		return _mm_cvtss_f32(_mm_min_ss(_mm_max_ss(_mm_load_ss(&a), _mm_load_ss(&b)), _mm_load_ss(&c)));
+#ifndef __SSE2__
+	return _mm_cvtss_f32(_mm_min_ss(_mm_max_ss(_mm_load_ss(&a), _mm_load_ss(&b)), _mm_load_ss(&c)));
+#else
 	return engine->DoClamp(a, b, c);
+#endif
 }
+
+/*float VectorAngle(float x, float y)
+{
+	if (x == 0) // special cases
+		return (y > 0) ? 90 : (y == 0) ? 0 : 270;
+	else if (y == 0) // special cases
+		return (x >= 0) ? 0 : 180;
+
+	int ret = radToDeg(atanf((float)y / x));
+	if (x < 0 && y < 0) // quadrant Ⅲ
+		ret = 180 + ret;
+	else if (x < 0) // quadrant Ⅱ
+		ret = 180 + ret; // it actually substracts
+	else if (y < 0) // quadrant Ⅳ
+		ret = 270 + (90 + ret); // it actually substracts
+
+	return ret;
+}*/
 
 // new get team off set, return player true team
 int GetTeam(edict_t* ent)
@@ -1431,7 +1451,7 @@ void ClientPrint(edict_t* ent, int dest, const char* format, ...)
 
 }
 
-// this function returns true if server is running under linux, and false otherwise (i.e. win32)
+// this function returns true if server is running under linux, and false otherwise returns windows
 bool IsLinux(void)
 {
 #ifndef PLATFORM_WIN32

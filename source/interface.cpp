@@ -361,8 +361,6 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 			g_waypointOn = true;
 			ServerPrint("Waypoint Editing Enabled");
 
-
-
 			// enables noclip cheat
 			if (stricmp(arg2, "noclip") == 0)
 			{

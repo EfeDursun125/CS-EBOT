@@ -2517,18 +2517,20 @@ int Bot::GetCampAimingWaypoint(void)
 
 void Bot::FacePosition(void)
 {
+	auto taskID = GetCurrentTask()->taskID;
+
 	if (m_lookAtAPI != nullvec)
 		m_lookAt = m_lookAtAPI;
 
-	if ((GetCurrentTask()->taskID == TASK_DEFUSEBOMB && m_hasProgressBar) || (GetCurrentTask()->taskID == TASK_PLANTBOMB && m_hasProgressBar))
+	if ((taskID == TASK_DEFUSEBOMB && m_hasProgressBar) || (taskID == TASK_PLANTBOMB && m_hasProgressBar))
 		return;
 
-	if (m_aimFlags & AIM_ENEMY && m_aimFlags & AIM_ENTITY && m_aimFlags & AIM_GRENADE && m_aimFlags & AIM_LASTENEMY || GetCurrentTask()->taskID == TASK_DESTROYBREAKABLE)
+	if (m_aimFlags & AIM_ENEMY && m_aimFlags & AIM_ENTITY && m_aimFlags & AIM_GRENADE && m_aimFlags & AIM_LASTENEMY || taskID == TASK_DESTROYBREAKABLE)
 	{
 		m_playerTargetTime = engine->GetTime();
 
 		// force press attack button for human bots in zombie mode
-		if (!m_isReloading && IsZombieMode() && !(pev->button & IN_ATTACK) && GetCurrentTask()->taskID != TASK_THROWFBGRENADE && GetCurrentTask()->taskID != TASK_THROWHEGRENADE && GetCurrentTask()->taskID != TASK_THROWSMGRENADE && GetCurrentTask()->taskID != TASK_THROWFLARE)
+		if (!m_isReloading && IsZombieMode() && !(pev->button & IN_ATTACK) && taskID != TASK_THROWFBGRENADE && taskID != TASK_THROWHEGRENADE && taskID != TASK_THROWSMGRENADE && taskID != TASK_THROWFLARE)
 			pev->button |= IN_ATTACK;
 	}
 
@@ -2537,7 +2539,6 @@ void Bot::FacePosition(void)
 		pev->v_angle = (m_lookAt - EyePosition()).ToAngles() + pev->punchangle;
 		pev->angles.x = -pev->v_angle.x * (1.0f / 3.0f);
 		pev->angles.y = pev->v_angle.y;
-
 		return;
 	}
 
@@ -2568,11 +2569,11 @@ void Bot::FacePosition(void)
 		max_angvel *= 4.0f * (engine->GetTime() - m_itaimstart);
 
 	Vector new_eye_angle;
-	new_eye_angle.x = engine->ApproachAngle(ang_to_target.x, eye_ang.x, (max_angvel * g_pGlobals->frametime) * 0.5);
+	new_eye_angle.x = engine->ApproachAngle(ang_to_target.x, eye_ang.x, (max_angvel * g_pGlobals->frametime) * 0.5f);
 	new_eye_angle.y = engine->ApproachAngle(ang_to_target.y, eye_ang.y, (max_angvel * g_pGlobals->frametime));
+	new_eye_angle.z = 0.0f;
 
 	pev->v_angle = new_eye_angle;
-	pev->v_angle.ClampAngles();
 
 	// set the body angles to point the gun correctly
 	pev->angles.x = -pev->v_angle.x * (1.0f / 3.0f);
