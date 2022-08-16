@@ -32,8 +32,6 @@
 #include <time.h>
 #include <stdarg.h>
 
-extern bool cpuSSESuport;
-
 #pragma warning (disable : 4996) // get rid of this
 
 //
@@ -563,9 +561,9 @@ public:
     inline float GetLength(void) const
     {
         float number = x * x + y * y + z * z;
-        if (cpuSSESuport)
-            return _mm_cvtss_f32(_mm_rsqrt_ss(_mm_load_ss(&number))) * number;
-
+#ifndef __SSE2__
+        return _mm_cvtss_f32(_mm_sqrt_ss(_mm_load_ss(&number)));
+#else
         long i;
         float x2, y;
         const float threehalfs = 1.5F;
@@ -576,6 +574,7 @@ public:
         y = *(float*)&i;
         y = y * (threehalfs - (x2 * y * y));
         return y * number;
+#endif
     }
 
     //
@@ -592,9 +591,9 @@ public:
     inline float GetLength2D(void) const
     {
         float number = x * x + y * y;
-        if (cpuSSESuport)
-            return _mm_cvtss_f32(_mm_rsqrt_ss(_mm_load_ss(&number))) * number;
-
+#ifndef __SSE2__
+        return _mm_cvtss_f32(_mm_sqrt_ss(_mm_load_ss(&number)));
+#else
         long i;
         float x2, y;
         const float threehalfs = 1.5F;
@@ -605,6 +604,7 @@ public:
         y = *(float*)&i;
         y = y * (threehalfs - (x2 * y * y));
         return y * number;
+#endif
     }
 
     //
@@ -2255,16 +2255,6 @@ public:
     inline int Compare(const char* str) const
     {
         return strcmp(m_array, str);
-    }
-
-    inline int CompareNoCase(const String& str) const
-    {
-        return stricmp(m_array, str.m_array);
-    }
-
-    inline int CompareNoCase(const char* str) const
-    {
-        return stricmp(m_array, str);
     }
 
     inline bool Has(const String& other) const

@@ -1106,19 +1106,15 @@ public:
 	float m_trackingtime; // updating look position time
 	float m_slowthinktimer; // slow think timer
 	float m_maxhearrange; // maximum range for hearing enemy
-	float m_aimfronttimer;
-	int m_checkEnemyNum;
-	float m_lookYawVel;
-	float m_lookPitchVel;
+	int m_checkEnemyNum; // check enemy num idk
+	//float m_aimStopTime; // feel like playing on a phone
 
-	int m_numFriendsLeft;
-	int m_numEnemiesLeft;
+	int m_numFriendsLeft; // number of friends alive
+	int m_numEnemiesLeft; // number of enemies alive
 
-	float m_updateTime;
+	bool m_isSlowThink; // bool for check is slow think? (every second)
 
-	bool m_isSlowThink;
-
-	float m_backCheckEnemyTime;
+	float m_backCheckEnemyTime; // for amxx support
 
 	edict_t* m_lastEnemy; // pointer to last enemy entity
 	edict_t* m_lastVictim; // pointer to killed entity
@@ -1458,11 +1454,6 @@ extern int GetWeaponReturn(bool isString, const char* weaponAlias, int weaponID 
 extern int GetTeam(edict_t* ent);
 extern int GetGameMod(void);
 extern bool IsZombieEntity(edict_t* ent);
-extern float ApproachAngle(float target, float value, float speed);
-extern void SubtractVectors(Vector first, Vector second, Vector output);
-extern float GetVectorDotProduct(Vector first, Vector second);
-extern float Sine(float X);
-extern float AngleDiff(float destAngle, float srcAngle);
 
 extern void SetGameMod(int gamemode);
 extern bool IsZombieMode(void);
@@ -1470,6 +1461,7 @@ extern bool IsDeathmatchMode(void);
 extern bool IsValidWaypoint(int index);
 extern bool ChanceOf(int number);
 extern float Q_rsqrt(float number);
+extern float DotProduct(Vector a, Vector b);
 extern float Clamp(float a, float b, float c);
 
 extern int GetEntityWaypoint(edict_t* ent);

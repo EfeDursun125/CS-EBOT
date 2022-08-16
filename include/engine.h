@@ -3366,15 +3366,6 @@ public:
     }
 
 public:
-    // Subtracts a vector from another vector. It is safe to use either input buffer as an output buffer.
-    void SubtractVectors(Vector first, Vector second, Vector output);
-
-    // Normalizes a vector. The input array can be the same as the output array.
-    void NormalizeVector(Vector vector, Vector output);
-
-    // Calculates the dot product of two vectors.
-    float GetVectorDotProduct(Vector first, Vector second);
-
     float ApproachAngle(float target, float value, float speed);
 
     float AngleDiff(float destAngle, float srcAngle);
@@ -3382,8 +3373,6 @@ public:
     float Max(float one, float two);
 
     int MinInt(int one, int two);
-
-    float Sine(float X);
 
     float DoClamp(float a, float b, float c);
 
