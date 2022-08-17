@@ -111,6 +111,7 @@
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <ControlFlowGuard>Guard</ControlFlowGuard>
       <FloatingPointExceptions>false</FloatingPointExceptions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
