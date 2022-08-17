@@ -25,7 +25,6 @@
 #include <core.h>
 
 ConVar ebot_aimbot("ebot_aimbot", "0");
-ConVar ebot_aiming_type("ebot_aiming_type", "1");
 
 extern ConVar ebot_anti_block;
 
@@ -33,6 +32,18 @@ int Bot::FindGoal(void)
 {
 	if (m_waypointGoalAPI != -1)
 		return m_chosenGoalIndex = m_waypointGoalAPI;
+
+	Array <int> ZombieWaypoints;
+	for (int i = 0; i < g_numWaypoints; i++)
+	{
+		if (!(g_waypoint->GetPath(i)->flags & WAYPOINT_ZMHMCAMP))
+			continue;
+
+		ZombieWaypoints.Push(i);
+	}
+
+	if (!ZombieWaypoints.IsEmpty())
+		return m_chosenGoalIndex = ZombieWaypoints.GetRandomElement();
 
 	// force bot move to bomb
 	if (GetGameMod() == MODE_BASE && (g_mapType & MAP_DE) && g_bombPlanted && m_team == TEAM_COUNTER)
@@ -438,23 +449,24 @@ bool Bot::GoalIsValid(void)
 // this function is a main path navigation
 bool Bot::DoWaypointNav(void)
 {
-	auto currentWaypoint = g_waypoint->GetPath(m_currentWaypointIndex);
-
 	// check if we need to find a waypoint...
 	if (!IsValidWaypoint(m_currentWaypointIndex))
 	{
 		GetValidWaypoint();
-		m_waypointOrigin = currentWaypoint->origin;
+		auto newWaypoint = g_waypoint->GetPath(m_currentWaypointIndex);
+		m_waypointOrigin = newWaypoint->origin;
 
 		// if node radius non zero vary origin a bit depending on the body angles
-		if (currentWaypoint->radius > 0.0f)
+		if (newWaypoint->radius > 0.0f)
 		{
 			MakeVectors(pev->origin);
-			m_waypointOrigin += Vector(pev->angles.x, AngleNormalize(pev->angles.y + engine->RandomFloat(-90.0f, 90.0f)), 0.0f) + (g_pGlobals->v_forward * engine->RandomFloat(0.0f, currentWaypoint->radius));
+			m_waypointOrigin += Vector(pev->angles.x, AngleNormalize(pev->angles.y + engine->RandomFloat(-90.0f, 90.0f)), 0.0f) + (g_pGlobals->v_forward * engine->RandomFloat(0.0f, newWaypoint->radius));
 		}
 
 		m_navTimeset = engine->GetTime();
 	}
+
+	auto currentWaypoint = g_waypoint->GetPath(m_currentWaypointIndex);
 
 	m_destOrigin = m_waypointOrigin;
 
@@ -947,8 +959,6 @@ void Bot::FindPath(int srcIndex, int destIndex)
 
 	m_pathtimer = engine->GetTime();
 
-	DeleteSearchNodes();
-
 	m_chosenGoalIndex = srcIndex;
 	m_goalValue = 0.0f;
 
@@ -999,6 +1009,9 @@ void Bot::FindPath(int srcIndex, int destIndex)
 		// is the current node the goal node?
 		if (currentIndex == destIndex)
 		{
+			// delete path for new one
+			DeleteSearchNodes();
+
 			// build the complete path
 			m_navNode = null;
 
@@ -1054,7 +1067,8 @@ void Bot::FindPath(int srcIndex, int destIndex)
 		}
 	}
 
-	FindShortestPath(srcIndex, destIndex);
+	if (m_isStuck)
+		FindShortestPath(srcIndex, destIndex);
 }
 
 // this function finds the shortest path from source index to destination index
@@ -1091,8 +1105,6 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 
 	m_pathtimer = engine->GetTime();
 
-	DeleteSearchNodes();
-
 	m_chosenGoalIndex = srcIndex;
 	m_goalValue = 0.0f;
 
@@ -1123,6 +1135,9 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 		// is the current node the goal node?
 		if (currentIndex == destIndex)
 		{
+			// delete path for new one
+			DeleteSearchNodes();
+
 			// build the complete path
 			m_navNode = null;
 
@@ -1197,7 +1212,7 @@ void Bot::DeleteSearchNodes(void)
 
 void Bot::CheckTouchEntity(edict_t* entity)
 {
-	if (m_checktouch + 1.0f > engine->GetTime())
+	if (!m_isSlowThink)
 		return;
 
 	if (m_currentWeapon == WEAPON_KNIFE &&
@@ -1232,8 +1247,6 @@ void Bot::CheckTouchEntity(edict_t* entity)
 			PushTask(TASK_DESTROYBREAKABLE, TASKPRI_SHOOTBREAKABLE, -1, 1.0f, false);
 		}
 	}
-
-	m_checktouch = engine->GetTime();
 }
 
 void Bot::SetEnemy(edict_t* entity)
@@ -1260,12 +1273,14 @@ void Bot::SetEnemy(edict_t* entity)
 
 void Bot::SetLastEnemy(edict_t* entity)
 {
-	if (FNullEnt(entity) || !IsValidPlayer(entity) || !IsAlive(entity))
-	{
-		m_lastEnemy = null;
-		m_lastEnemyOrigin = nullvec;
+	if (FNullEnt(entity))
 		return;
-	}
+
+	if (!IsValidPlayer(entity))
+		return;
+
+	if (!IsAlive(entity))
+		return;
 
 	m_lastEnemy = entity;
 	m_lastEnemyOrigin = GetEntityOrigin(entity);
@@ -1367,7 +1382,7 @@ int Bot::GetAimingWaypoint(Vector targetOriginPos)
 // to be restarted over again
 int Bot::FindWaypoint(void)
 {
-	if (!m_isSlowThink)
+	if (!m_isSlowThink && IsValidWaypoint(m_currentWaypointIndex))
 		return m_currentWaypointIndex;
 
 	int busy = -1;
@@ -1727,9 +1742,7 @@ int Bot::FindCoverWaypoint(float maxDistance)
 			continue;
 
 		TraceResult tr{};
-
-		Vector origin = !FNullEnt(m_enemy) ? m_enemy->v.origin : m_lastEnemy->v.origin;
-
+		Vector origin = !FNullEnt(m_enemy) ? GetPlayerHeadOrigin(m_enemy) : GetPlayerHeadOrigin(m_lastEnemy);
 		TraceLine(g_waypoint->GetPath(i)->origin, origin, true, true, GetEntity(), &tr);
 
 		if (tr.flFraction != 1.0f && !IsWaypointOccupied(i) && (g_waypoint->GetPath(i)->origin - origin).GetLength2D() <= maxDistance)
@@ -2252,7 +2265,10 @@ bool Bot::CheckWallOnBehind(void)
 
 	// check if the trace hit something...
 	if (tr.flFraction != 1.0f)
+	{
+		m_lastWallOrigin = tr.flFraction;
 		return true;
+	}
 	else
 	{
 		TraceResult tr2;
@@ -2260,7 +2276,10 @@ bool Bot::CheckWallOnBehind(void)
 
 		// we don't want fall
 		if (tr2.flFraction == 1.0f)
+		{
+			m_lastWallOrigin = pev->origin;
 			return true;
+		}
 	}
 
 	return false;
@@ -2276,7 +2295,10 @@ bool Bot::CheckWallOnLeft(void)
 
 	// check if the trace hit something...
 	if (tr.flFraction != 1.0f)
+	{
+		m_lastWallOrigin = tr.flFraction;
 		return true;
+	}
 	else
 	{
 		TraceResult tr2;
@@ -2284,7 +2306,10 @@ bool Bot::CheckWallOnLeft(void)
 
 		// we don't want fall
 		if (tr2.flFraction == 1.0f)
+		{
+			m_lastWallOrigin = pev->origin;
 			return true;
+		}
 	}
 
 	return false;
@@ -2300,7 +2325,10 @@ bool Bot::CheckWallOnRight(void)
 
 	// check if the trace hit something...
 	if (tr.flFraction != 1.0f)
+	{
+		m_lastWallOrigin = tr.flFraction;
 		return true;
+	}
 	else
 	{
 		TraceResult tr2;
@@ -2308,7 +2336,10 @@ bool Bot::CheckWallOnRight(void)
 
 		// we don't want fall
 		if (tr2.flFraction == 1.0f)
+		{
+			m_lastWallOrigin = pev->origin;
 			return true;
+		}
 	}
 
 	return false;
@@ -2388,7 +2419,7 @@ bool Bot::CheckCloseAvoidance(const Vector& dirNormal)
 		if (client.team != m_team || client.ent == GetEntity())
 			continue;
 
-		float nearest = (pev->origin - client.ent->v.origin).GetLengthSquared();
+		float nearest = (pev->origin - GetEntityOrigin(client.ent)).GetLengthSquared();
 		if (nearest < (pev->maxspeed * pev->maxspeed) && nearest < distance)
 		{
 			hindrance = client.ent;
@@ -2435,13 +2466,14 @@ bool Bot::CheckCloseAvoidance(const Vector& dirNormal)
 	predict += right * m_strafeSpeed * interval;
 	predict += pev->velocity * interval;
 
-	float movedDistance = (predict - hindrance->v.origin).GetLengthSquared();
-	float nextFrameDistance = (pev->origin - (hindrance->v.origin + hindrance->v.velocity * interval)).GetLengthSquared();
+	auto origin = GetEntityOrigin(hindrance);
+	float movedDistance = (predict - origin).GetLengthSquared();
+	float nextFrameDistance = (pev->origin - (origin + hindrance->v.velocity * interval)).GetLengthSquared();
 
 	// is player that near now or in future that we need to steer away?
 	if (movedDistance <= (48.0f * 48.0f) || (distance <= (56.0f * 56.0f) && nextFrameDistance < distance))
 	{
-		auto dir = (pev->origin - hindrance->v.origin).Normalize2D();
+		auto dir = (pev->origin - origin).Normalize2D();
 
 		// to start strafing, we have to first figure out if the target is on the left side or right side
 		if ((dir | right.GetLength2D()) > 0.0f)
@@ -2517,63 +2549,91 @@ int Bot::GetCampAimingWaypoint(void)
 
 void Bot::FacePosition(void)
 {
-	auto taskID = GetCurrentTask()->taskID;
-
 	if (m_lookAtAPI != nullvec)
 		m_lookAt = m_lookAtAPI;
-
-	if ((taskID == TASK_DEFUSEBOMB && m_hasProgressBar) || (taskID == TASK_PLANTBOMB && m_hasProgressBar))
-		return;
-
-	if (m_aimFlags & AIM_ENEMY && m_aimFlags & AIM_ENTITY && m_aimFlags & AIM_GRENADE && m_aimFlags & AIM_LASTENEMY || taskID == TASK_DESTROYBREAKABLE)
+	else
 	{
-		m_playerTargetTime = engine->GetTime();
+		if (FNullEnt(m_enemy) && FNullEnt(m_breakableEntity) && FNullEnt(m_enemyAPI))
+		{
+			if (m_aimStopTime >= engine->GetTime())
+				return;
+		}
+		else
+			m_aimStopTime = 0.0f;
 
-		// force press attack button for human bots in zombie mode
-		if (!m_isReloading && IsZombieMode() && !(pev->button & IN_ATTACK) && taskID != TASK_THROWFBGRENADE && taskID != TASK_THROWHEGRENADE && taskID != TASK_THROWSMGRENADE && taskID != TASK_THROWFLARE)
-			pev->button |= IN_ATTACK;
-	}
+		auto taskID = GetCurrentTask()->taskID;
+		if ((taskID == TASK_DEFUSEBOMB && m_hasProgressBar) || (taskID == TASK_PLANTBOMB && m_hasProgressBar))
+			return;
 
-	if (ebot_aimbot.GetInt() == 1 && pev->button & IN_ATTACK)
-	{
-		pev->v_angle = (m_lookAt - EyePosition()).ToAngles() + pev->punchangle;
-		pev->angles.x = -pev->v_angle.x * (1.0f / 3.0f);
-		pev->angles.y = pev->v_angle.y;
-		return;
+		if (m_aimFlags & AIM_ENEMY && m_aimFlags & AIM_ENTITY && m_aimFlags & AIM_GRENADE && m_aimFlags & AIM_LASTENEMY || taskID == TASK_DESTROYBREAKABLE)
+		{
+			m_playerTargetTime = engine->GetTime();
+
+			// force press attack button for human bots in zombie mode
+			if (!m_isReloading && IsZombieMode() && !(pev->button & IN_ATTACK) && taskID != TASK_THROWFBGRENADE && taskID != TASK_THROWHEGRENADE && taskID != TASK_THROWSMGRENADE && taskID != TASK_THROWFLARE)
+				pev->button |= IN_ATTACK;
+		}
+
+		if (ebot_aimbot.GetInt() == 1 && pev->button & IN_ATTACK)
+		{
+			pev->v_angle = (m_lookAt - EyePosition()).ToAngles() + pev->punchangle;
+			pev->angles.x = -pev->v_angle.x * (1.0f / 3.0f);
+			pev->angles.y = pev->v_angle.y;
+			return;
+		}
 	}
 
 	// predict enemy
 	if (m_aimFlags & AIM_ENEMY && !FNullEnt(m_enemy))
 	{
-		float time = engine->GetTime() - m_thinkTimer;
-		Vector enemyVel = m_enemy->v.avelocity;
-		enemyVel *= -1.0f;
-		m_lookAt.x += enemyVel.x * time;
-		m_lookAt.y += enemyVel.y * time;
-		m_lookAt.z += enemyVel.z * time;
+		Vector enemyVel = m_enemy->v.velocity;
+		m_lookAt.x += enemyVel.x * g_pGlobals->frametime;
+		m_lookAt.y += enemyVel.y * g_pGlobals->frametime;
+		m_lookAt.z += enemyVel.z * g_pGlobals->frametime;
 	}
 
-	Vector eye_to_target = (m_lookAt - EyePosition());
-	Vector ang_to_target = eye_to_target.ToAngles() + pev->punchangle;
-	ang_to_target.x *= -1.0f; // invert for engine
-	Vector eye_ang = pev->v_angle;
-	Vector eye_forward = (m_lookAt + pev->view_ofs);
+	// adjust all body and view angles to face an absolute vector
+	Vector direction = (m_lookAt - EyePosition()).ToAngles() + pev->punchangle;
+	direction.x *= -1.0f; // invert for engine
 
-	float max_angvel = m_skill * 10.24f;
-	float cos_error = GetShootingConeDeviation(GetEntity(), &eye_forward);
+	float accelerate = float(m_skill * 36);
+	float stiffness = float(m_skill * 3.3);
+	float damping = float(m_skill / 3);
 
-	if (cos_error > 0.7f)
-		max_angvel *= sinf((3.14f / 2.0f) * (1.0f + ((-49.0f / 15.0f) * (cos_error - 0.7f))));
+	m_idealAngles = pev->v_angle;
 
-	if (m_itaimstart != -1 && (engine->GetTime() - m_itaimstart < 0.25f))
-		max_angvel *= 4.0f * (engine->GetTime() - m_itaimstart);
+	float angleDiffPitch = engine->AngleDiff(direction.x, m_idealAngles.x);
+	float angleDiffYaw = engine->AngleDiff(direction.y, m_idealAngles.y);
 
-	Vector new_eye_angle;
-	new_eye_angle.x = engine->ApproachAngle(ang_to_target.x, eye_ang.x, (max_angvel * g_pGlobals->frametime) * 0.5f);
-	new_eye_angle.y = engine->ApproachAngle(ang_to_target.y, eye_ang.y, (max_angvel * g_pGlobals->frametime));
-	new_eye_angle.z = 0.0f;
+	if (angleDiffYaw < 1.0f && angleDiffYaw > -1.0f)
+	{
+		m_lookYawVel = 0.0f;
 
-	pev->v_angle = new_eye_angle;
+		// help bot for 100% weapon accurate
+		if ((m_isSlowThink && ChanceOf(int((m_skill / 5) + 1))) || IsZombieMode() || m_numFriendsLeft == 0 || m_isLeader || m_isVIP || GetCurrentTask()->taskID == TASK_CAMP)
+			m_idealAngles.y = direction.y;
+
+		m_aimStopTime = engine->GetTime() + engine->RandomFloat(0.25f, 1.25f);
+	}
+	else
+	{
+		float accel = Clamp(stiffness * angleDiffYaw - damping * m_lookYawVel, -accelerate, accelerate);
+
+		m_lookYawVel += g_pGlobals->frametime * accel;
+		m_idealAngles.y += g_pGlobals->frametime * m_lookYawVel;
+	}
+
+	float accel = Clamp(2.0f * stiffness * angleDiffPitch - damping * m_lookPitchVel, -accelerate, accelerate);
+
+	m_lookPitchVel += g_pGlobals->frametime * accel;
+	m_idealAngles.x += Clamp(g_pGlobals->frametime * m_lookPitchVel, -89.0f, 89.0f);
+
+	if (m_idealAngles.x < -89.0f)
+		m_idealAngles.x = -89.0f;
+	else if (m_idealAngles.x > 89.0f)
+		m_idealAngles.x = 89.0f;
+
+	pev->v_angle = m_idealAngles;
 
 	// set the body angles to point the gun correctly
 	pev->angles.x = -pev->v_angle.x * (1.0f / 3.0f);
@@ -2596,7 +2656,7 @@ void Bot::SetStrafeSpeed(Vector moveDir, float strafeSpeed)
 
 		m_strafeSpeed = m_tempstrafeSpeed;
 
-		if (!IsOnLadder() && m_jumpTime + 5.0f < engine->GetTime() && IsOnFloor())
+		if ((m_isStuck || pev->speed >= pev->maxspeed) && !IsOnLadder() && m_jumpTime + 5.0f < engine->GetTime() && IsOnFloor())
 			pev->button |= IN_JUMP;
 	}
 	else if (dot > 0 && !CheckWallOnRight())

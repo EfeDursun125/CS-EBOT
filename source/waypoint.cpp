@@ -50,7 +50,7 @@ void Waypoint::Initialize(void)
 
 void Waypoint::Analyze(void)
 {
-    if (g_analyzewaypoints == false)
+    if (!g_analyzewaypoints)
         return;
 
     if (g_numWaypoints > 0)
@@ -65,9 +65,10 @@ void Waypoint::Analyze(void)
 
                 float ran = ebot_analyze_distance.GetFloat();
 
-                Start.x = (WayVec.x + engine->RandomFloat(((-ran) - 5.0f), (ran + 5.0f)));
-                Start.y = (WayVec.y + engine->RandomFloat(((-ran) - 5.0f), (ran + 5.0f)));
-                Start.z = (WayVec.z + engine->RandomFloat(1, ran));
+                // we must use engine's random float (it was broken before the because we're using custom random float)
+                Start.x = (WayVec.x + RANDOM_FLOAT(((-ran) - 5.0f), (ran + 5.0f)));
+                Start.y = (WayVec.y + RANDOM_FLOAT(((-ran) - 5.0f), (ran + 5.0f)));
+                Start.z = (WayVec.z + RANDOM_FLOAT(1, ran));
 
                 TraceResult tr;
                 TraceResult tr2;
@@ -134,7 +135,6 @@ void Waypoint::Analyze(void)
                                 }
 
                                 int doublecheckindex = g_waypoint->FindNearest(TargetPosition, ran);
-
                                 if (!IsValidWaypoint(doublecheckindex))
                                 {
                                     g_analyzeputrequirescrouch = false;
@@ -440,7 +440,6 @@ bool Waypoint::IsZBCampPoint(int pointID)
 int Waypoint::FindNearest(Vector origin, float minDistance, int flags, edict_t* entity, int* findWaypointPoint, int mode)
 {
     const int checkPoint = 20;
-
     float wpDistance[checkPoint];
     int wpIndex[checkPoint];
 
@@ -461,7 +460,8 @@ int Waypoint::FindNearest(Vector origin, float minDistance, int flags, edict_t* 
 
         Vector dest = m_paths[i]->origin;
         float distance2D = (dest - origin).GetLength2D();
-        if (((dest.z > origin.z + 62.0f || dest.z < origin.z - 100.0f) && !(m_paths[i]->flags & WAYPOINT_LADDER)) && distance2D <= 130.0f)
+        if (((dest.z > origin.z + 62.0f || dest.z < origin.z - 100.0f) &&
+            !(m_paths[i]->flags & WAYPOINT_LADDER)) && distance2D <= 30.0f)
             continue;
 
         for (int y = 0; y < checkPoint; y++)
@@ -471,7 +471,7 @@ int Waypoint::FindNearest(Vector origin, float minDistance, int flags, edict_t* 
 
             for (int z = checkPoint - 1; z >= y; z--)
             {
-                if (z == checkPoint - 1 || !IsValidWaypoint(wpIndex[z]))
+                if (z == checkPoint - 1 || wpIndex[z] == -1)
                     continue;
 
                 wpIndex[z + 1] = wpIndex[z];
@@ -484,7 +484,8 @@ int Waypoint::FindNearest(Vector origin, float minDistance, int flags, edict_t* 
         }
     }
 
-    if (mode != -1)
+    // SyPB Pro P.42 - Move Target improve
+    if (mode >= 0 && mode < g_numWaypoints)
     {
         int cdWPIndex[checkPoint];
         float cdWPDistance[checkPoint];
@@ -496,7 +497,7 @@ int Waypoint::FindNearest(Vector origin, float minDistance, int flags, edict_t* 
 
         for (int i = 0; i < checkPoint; i++)
         {
-            if (!IsValidWaypoint(wpIndex[i]))
+            if (wpIndex[i] < 0 || wpIndex[i] >= g_numWaypoints)
                 continue;
 
             float distance = g_waypoint->GetPathDistanceFloat(wpIndex[i], mode);
@@ -507,7 +508,7 @@ int Waypoint::FindNearest(Vector origin, float minDistance, int flags, edict_t* 
 
                 for (int z = checkPoint - 1; z >= y; z--)
                 {
-                    if (z == checkPoint - 1 || !IsValidWaypoint(cdWPIndex[z]))
+                    if (z == checkPoint - 1 || cdWPIndex[z] == -1)
                         continue;
 
                     cdWPIndex[z + 1] = cdWPIndex[z];
@@ -532,25 +533,16 @@ int Waypoint::FindNearest(Vector origin, float minDistance, int flags, edict_t* 
     {
         for (int i = 0; i < checkPoint; i++)
         {
-            if (IsValidWaypoint(wpIndex[i]))
+            if (wpIndex[i] < 0 || wpIndex[i] >= g_numWaypoints)
                 continue;
 
-            if (IsZombieMode())
-            {
-                auto origin = m_paths[wpIndex[i]]->origin;
-                if (!(::IsVisible(origin, entity)) && !Reachable(entity, wpIndex[i]))
-                    continue;
-            }
-            else
-            {
-                if (!Reachable(entity, wpIndex[i]))
-                    continue;
-            }
+            if (wpDistance[i] > g_waypoint->GetPath(wpIndex[i])->radius && !Reachable(entity, wpIndex[i]))
+                continue;
 
             if (findWaypointPoint == (int*)-2)
                 return wpIndex[i];
 
-            if (!IsValidWaypoint(firsIndex))
+            if (firsIndex == -1)
             {
                 firsIndex = wpIndex[i];
                 continue;
@@ -680,9 +672,6 @@ void Waypoint::SgdWp_Set(const char* modset)
 
 void Waypoint::Add(int flags, Vector waypointOrigin)
 {
-    if (FNullEnt(g_hostEntity))
-        return;
-
     int index = -1, i;
     float distance;
 
@@ -693,7 +682,12 @@ void Waypoint::Add(int flags, Vector waypointOrigin)
     Vector newOrigin = waypointOrigin;
 
     if (waypointOrigin == nullvec)
+    {
+        if (FNullEnt(g_hostEntity))
+            return;
+        
         newOrigin = GetEntityOrigin(g_hostEntity);
+    }
 
     if (g_botManager->GetBotsNum() > 0)
         g_botManager->RemoveAll();
@@ -1774,29 +1768,24 @@ bool Waypoint::Reachable(edict_t* entity, int index)
 
 bool Waypoint::IsNodeReachable(Vector src, Vector destination)
 {
-    // cant connect to itself...
-    if (src == destination)
-        return false;
-
-    // unable to reach with walking
-    if ((destination.z - src.z) > 64.0f)
-        return false;
-
     TraceResult tr{};
 
     float distance = (destination - src).GetLength();
+
+    if ((destination.z - src.z) >= 45.0f)
+        return false;
 
     // is the destination not close enough?
     if (distance > g_autoPathDistance)
         return false;
 
-    // check if this waypoint is "visible"...
-    TraceHull(src, destination, true, human_hull, g_hostEntity, &tr);
-
     // check if we go through a func_illusionary, in which case return false
+    TraceHull(src, destination, true, head_hull, g_hostEntity, &tr);
+
     if (tr.pHit && strcmp("func_illusionary", STRING(tr.pHit->v.classname)) == 0)
         return false; // don't add pathnodes through func_illusionaries
 
+    // check if this waypoint is "visible"...
     TraceLine(src, destination, true, true, g_hostEntity, &tr);
 
     // if waypoint is visible from current position (even behind head)...
@@ -1822,10 +1811,10 @@ bool Waypoint::IsNodeReachable(Vector src, Vector destination)
             Vector destinationNew = destination;
             destinationNew.z = destinationNew.z - 50.0f; // straight down 50 units
 
-            TraceHull(sourceNew, destinationNew, true, human_hull, g_hostEntity, &tr);
+            TraceLine(sourceNew, destinationNew, true, true, g_hostEntity, &tr);
 
             // check if we didn't hit anything, if not then it's in mid-air
-            if (tr.flFraction >= 1.0f)
+            if (tr.flFraction >= 1.0)
                 return false; // can't reach this one
         }
 
@@ -1868,14 +1857,10 @@ bool Waypoint::IsNodeReachable(Vector src, Vector destination)
 
 bool Waypoint::IsNodeReachableWithJump(Vector src, Vector destination, int flags)
 {
-    // cant connect to itself...
-    if (src == destination)
-        return false;
-
     if (flags > 0)
         return false;
 
-    if ((destination.z - src.z) > ebot_analyze_max_jump_height.GetFloat())
+    if ((destination.z - src.z) >= ebot_analyze_max_jump_height.GetFloat())
         return false;
 
     TraceResult tr{};
@@ -1886,13 +1871,13 @@ bool Waypoint::IsNodeReachableWithJump(Vector src, Vector destination, int flags
     if (distance > g_autoPathDistance)
         return false;
 
-    // check if this waypoint is "visible"...
-    TraceHull(src, destination, true, human_hull, g_hostEntity, &tr);
-
     // check if we go through a func_illusionary, in which case return false
+    TraceHull(src, destination, true, head_hull, g_hostEntity, &tr);
+
     if (tr.pHit && strcmp("func_illusionary", STRING(tr.pHit->v.classname)) == 0)
         return false; // don't add pathnodes through func_illusionaries
 
+    // check if this waypoint is "visible"...
     TraceLine(src, destination, true, true, g_hostEntity, &tr);
 
     // if waypoint is visible from current position (even behind head)...
@@ -1910,6 +1895,20 @@ bool Waypoint::IsNodeReachableWithJump(Vector src, Vector destination, int flags
         // check for special case of both nodes being in water...
         if (POINT_CONTENTS(src) == CONTENTS_WATER && POINT_CONTENTS(destination) == CONTENTS_WATER)
             return true; // then they're reachable each other
+
+        // is dest node higher than src? (45 is max jump height)
+        if (destination.z > src.z + 44.0f)
+        {
+            Vector sourceNew = destination;
+            Vector destinationNew = destination;
+            destinationNew.z = destinationNew.z - 50.0f; // straight down 50 units
+
+            TraceLine(sourceNew, destinationNew, true, true, g_hostEntity, &tr);
+
+            // check if we didn't hit anything, if not then it's in mid-air
+            if (tr.flFraction >= 1.0)
+                return false; // can't reach this one
+        }
 
         // check if distance to ground drops more than step height at points between source and destination...
         Vector direction = (destination - src).Normalize(); // 1 unit long

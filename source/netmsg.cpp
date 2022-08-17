@@ -30,7 +30,7 @@ NetworkMsg::NetworkMsg(void)
     m_state = 0;
     m_bot = null;
 
-    for (register int i = 0; i < NETMSG_NUM; i++)
+    for (int i = 0; i < NETMSG_NUM; i++)
         m_registerdMessages[i] = NETMSG_UNDEFINED;
 }
 

@@ -27,8 +27,6 @@
 float API_Version;
 float amxxDLL_Version = -1.0;
 uint16 amxxDLL_bV16[4];
-float SwNPC_Version = -1.0;
-uint16 SwNPC_Build[4];
 
 bool g_isMetamod = false;
 bool g_roundEnded = true;

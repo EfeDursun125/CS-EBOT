@@ -272,7 +272,10 @@ void Bot::ZombieModeAi(void)
 		m_moveSpeed = pev->maxspeed;
 	}
 
-	if (m_isZombieBot && m_isSlowThink)
+	if (!m_isSlowThink)
+		return;
+
+	if (m_isZombieBot)
 	{
 		edict_t* entity = null;
 		if (FNullEnt(m_enemy) && FNullEnt(m_moveTargetEntity))
@@ -641,9 +644,6 @@ bool Bot::RateGroundWeapon(edict_t* ent)
 
 edict_t* Bot::FindBreakable(void)
 {
-	if (m_waypointOrigin == nullvec)
-		return null;
-
 	if (!m_isSlowThink)
 		return m_breakableEntity;
 
@@ -2718,14 +2718,17 @@ lastly:
 
 bool Bot::ReactOnEnemy(void)
 {
-	if (!EnemyIsThreat() || FNullEnt(m_enemy))
+	if (FNullEnt(m_enemy))
+		return false;
+
+	if (!EnemyIsThreat())
 		return false;
 
 	Vector enemyHead = GetPlayerHeadOrigin(m_enemy);
 	float enemyDistance = (pev->origin - enemyHead).GetLength();
-	auto currentWaypoint = g_waypoint->GetPath(m_currentWaypointIndex);
 	int ownIndex = m_currentWaypointIndex;
-	int enemyIndex = g_waypoint->FindNearest(m_enemy->v.origin, 9999.0f, -1, GetEntity());
+	int enemyIndex = g_waypoint->FindNearest(GetEntityOrigin(m_enemy), 9999.0f, -1, GetEntity());
+	auto currentWaypoint = g_waypoint->GetPath(m_currentWaypointIndex);
 
 	if (m_enemyReachableTimer < engine->GetTime())
 	{
@@ -2872,7 +2875,7 @@ void Bot::CheckRadioCommands(void)
 	if (FNullEnt(m_radioEntity) || !IsAlive(m_radioEntity))
 		return;
 
-	float distance = (m_radioEntity->v.origin - pev->origin).GetLength();
+	float distance = (GetEntityOrigin(m_radioEntity) - pev->origin).GetLength();
 
 	switch (m_radioOrder)
 	{
@@ -2910,8 +2913,7 @@ void Bot::CheckRadioCommands(void)
 					TaskComplete();
 
 				DeleteSearchNodes();
-
-				PushTask(TASK_FOLLOWUSER, TASKPRI_FOLLOWUSER, -1, ((pev->origin - m_targetEntity->v.origin).GetLength() / 50), true);
+				PushTask(TASK_FOLLOWUSER, TASKPRI_FOLLOWUSER, -1, (pev->origin - GetEntityOrigin(m_radioEntity)).GetLength() / pev->maxspeed, true);
 			}
 		}
 		else if(ChanceOf(15))
@@ -3008,17 +3010,19 @@ void Bot::CheckRadioCommands(void)
 				{
 					RadioMessage(Radio_Affirmative);
 					m_targetEntity = m_radioEntity;
+					m_position = GetEntityOrigin(m_radioEntity);
 
 					DeleteSearchNodes();
-					PushTask(TASK_FOLLOWUSER, TASKPRI_FOLLOWUSER, -1, ((pev->origin - m_targetEntity->v.origin).GetLength() / 100), true);
+					PushTask(TASK_MOVETOPOSITION, TASKPRI_MOVETOPOSITION, -1, (pev->origin - GetEntityOrigin(m_radioEntity)).GetLength() / pev->maxspeed, true);
 				}
 				else if (m_radioOrder == Radio_NeedBackup)
 				{
 					RadioMessage(Radio_Affirmative);
 					m_targetEntity = m_radioEntity;
+					m_position = GetEntityOrigin(m_radioEntity);
 
 					DeleteSearchNodes();
-					PushTask(TASK_FOLLOWUSER, TASKPRI_FOLLOWUSER, -1, ((pev->origin - m_targetEntity->v.origin).GetLength() / 100), true);
+					PushTask(TASK_MOVETOPOSITION, TASKPRI_MOVETOPOSITION, -1, (pev->origin - GetEntityOrigin(m_radioEntity)).GetLength() / pev->maxspeed, true);
 				}
 				else if (ChanceOf(25))
 					RadioMessage(Radio_Negative);
@@ -3091,7 +3095,7 @@ void Bot::CheckRadioCommands(void)
 		break;
 
 	case Radio_NeedBackup:
-		if ((FNullEnt(m_enemy) && IsVisible(GetTopOrigin(m_radioEntity), GetEntity()) || distance <= 1536.0f || !m_moveToC4) && ChanceOf(50) && m_seeEnemyTime + 5.0f <= engine->GetTime())
+		if ((FNullEnt(m_enemy) && IsVisible(GetPlayerHeadOrigin(m_radioEntity), GetEntity()) || distance <= 1536.0f || !m_moveToC4) && ChanceOf(50) && m_seeEnemyTime + 5.0f <= engine->GetTime())
 		{
 			m_fearLevel -= 0.1f;
 
@@ -3104,9 +3108,10 @@ void Bot::CheckRadioCommands(void)
 				RadioMessage(Radio_Affirmative);
 
 			m_targetEntity = m_radioEntity;
+			m_position = GetEntityOrigin(m_radioEntity);
 
 			DeleteSearchNodes();
-			PushTask(TASK_FOLLOWUSER, TASKPRI_FOLLOWUSER, -1, ((pev->origin - m_targetEntity->v.origin).GetLength() / 100), true);
+			PushTask(TASK_MOVETOPOSITION, TASKPRI_MOVETOPOSITION, -1, (pev->origin - GetEntityOrigin(m_radioEntity)).GetLength() / pev->maxspeed, true);
 		}
 		else if (ChanceOf(25) && m_radioOrder == Radio_NeedBackup)
 			RadioMessage(Radio_Negative);
@@ -3234,7 +3239,7 @@ void Bot::CheckRadioCommands(void)
 				TaskComplete();
 
 			m_targetEntity = nullptr;
-			m_position = m_radioEntity->v.origin + (m_radioEntity->v.v_angle * engine->RandomFloat(10.0f, 20.0f));
+			m_position = GetEntityOrigin(m_radioEntity) + (m_radioEntity->v.v_angle * engine->RandomFloat(10.0f, 20.0f));
 
 			DeleteSearchNodes();
 			PushTask(TASK_MOVETOPOSITION, TASKPRI_MOVETOPOSITION, -1, 1.0f, true);
@@ -3253,7 +3258,7 @@ void Bot::CheckRadioCommands(void)
 		break;
 
 	case Radio_Fallback:
-		if ((FNullEnt(m_enemy) && IsVisible(m_radioEntity->v.origin, GetEntity())) || distance <= 1024.0f)
+		if ((FNullEnt(m_enemy) && IsVisible(GetPlayerHeadOrigin(m_radioEntity), GetEntity())) || distance <= 1024.0f)
 		{
 			m_fearLevel += 0.5f;
 
@@ -3294,15 +3299,15 @@ void Bot::CheckRadioCommands(void)
 						if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team == m_team)
 							continue;
 
-						auto enemy = client.ent;
-						float curDist = (m_radioEntity->v.origin - enemy->v.origin).GetLength();
+						auto origin = GetEntityOrigin(client.ent);
+						float curDist = (m_radioEntity->v.origin - origin).GetLength();
 
 						if (curDist < nearestDistance)
 						{
 							nearestDistance = curDist;
 
-							m_lastEnemy = enemy;
-							m_lastEnemyOrigin = GetEntityOrigin(enemy);
+							m_lastEnemy = client.ent;
+							m_lastEnemyOrigin = origin + pev->view_ofs;
 						}
 					}
 				}
@@ -3484,14 +3489,14 @@ void Bot::CheckRadioCommands(void)
 						if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_USED) || client.team == m_team)
 							continue;
 
-						auto enemy = client.ent;
-						float dist = (m_radioEntity->v.origin - enemy->v.origin).GetLength();
+						auto origin = GetEntityOrigin(client.ent);
+						float dist = (m_radioEntity->v.origin - origin).GetLength();
 
 						if (dist < nearestDistance)
 						{
 							nearestDistance = dist;
-							m_lastEnemy = enemy;
-							m_lastEnemyOrigin = enemy->v.origin;
+							m_lastEnemy = client.ent;
+							m_lastEnemyOrigin = origin + pev->view_ofs;
 						}
 					}
 				}
@@ -3586,10 +3591,12 @@ bool Bot::IsNotAttackLab(edict_t* entity)
 	return false;
 }
 
-
 void Bot::ChooseAimDirection(void)
 {
 	if (!m_canChooseAimDirection)
+		return;
+
+	if (m_aimStopTime > engine->GetTime() && FNullEnt(m_enemy) && FNullEnt(m_breakableEntity) && FNullEnt(m_enemyAPI))
 		return;
 
 	TraceResult tr;
@@ -3601,7 +3608,7 @@ void Bot::ChooseAimDirection(void)
 		GetValidWaypoint();
 
 	// check if last enemy vector valid
-	if (m_lastEnemyOrigin != nullvec)
+	if (!m_isZombieBot && m_lastEnemyOrigin != nullvec)
 	{
 		if (FNullEnt(m_enemy) && (pev->origin - m_lastEnemyOrigin).GetLength() >= 1600.0f && m_seeEnemyTime + 7.0f < engine->GetTime())
 		{
@@ -3659,6 +3666,7 @@ void Bot::ChooseAimDirection(void)
 					if (IsValidWaypoint(aimIndex))
 						m_lookAt = g_waypoint->GetPath(aimIndex)->origin;
 				}
+
 				m_nextCampDirTime = engine->GetTime() + engine->RandomFloat(1.5f, 5.0f);
 			}
 		}
@@ -3691,12 +3699,7 @@ void Bot::ChooseAimDirection(void)
 				m_lookAt = m_camp;
 		}
 		else // forget an enemy far away
-		{
 			m_aimFlags &= ~AIM_PREDICTENEMY;
-
-			if ((pev->origin - m_lastEnemyOrigin).GetLength() >= 1600.0f)
-				m_lastEnemyOrigin = nullvec;
-		}
 	}
 	else if (flags & AIM_CAMP)
 	{
@@ -3720,6 +3723,9 @@ void Bot::ChooseAimDirection(void)
 	}
 	else if (flags & AIM_NAVPOINT)
 	{
+		if (!IsValidWaypoint(m_currentWaypointIndex))
+			return;
+
 		if (!FNullEnt(m_breakableEntity))
 			m_lookAt = m_breakable;
 		else if (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_LADDER)
@@ -3737,7 +3743,12 @@ void Bot::ChooseAimDirection(void)
 			return;
 		}
 		else if (m_isZombieBot || m_currentWeapon == WEAPON_KNIFE)
-			m_lookAt = m_destOrigin + pev->view_ofs;
+		{
+			if (HasNextPath())
+				m_lookAt = g_waypoint->GetPath(m_navNode->next->index)->origin + pev->velocity + pev->view_ofs;
+			else
+				m_lookAt = m_destOrigin + pev->velocity + pev->view_ofs;
+		}
 		else if (!(m_currentTravelFlags & PATHFLAG_JUMP) && !FNullEnt(m_moveTargetEntity) && m_currentWaypointIndex == m_prevGoalIndex)
 			m_lookAt = GetTopOrigin(m_moveTargetEntity);
 		else if (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_CAMP)
@@ -3761,17 +3772,20 @@ void Bot::ChooseAimDirection(void)
 			}
 		}
 		else if (HasNextPath())
-			m_lookAt = g_waypoint->GetPath(m_navNode->next->index)->origin + pev->view_ofs;
+			m_lookAt = g_waypoint->GetPath(m_navNode->next->index)->origin + pev->velocity + pev->view_ofs;
 		else
-			m_lookAt = m_destOrigin + pev->view_ofs;
+			m_lookAt = m_destOrigin + pev->velocity + pev->view_ofs;
 	}
+
+	if (!IsValidWaypoint(m_currentWaypointIndex))
+		return;
 
 	if (m_lookAt == nullvec)
 	{
 		if (HasNextPath())
-			m_lookAt = g_waypoint->GetPath(m_navNode->next->index)->origin + pev->view_ofs;
+			m_lookAt = g_waypoint->GetPath(m_navNode->next->index)->origin + pev->velocity + pev->view_ofs;
 		else
-			m_lookAt = m_destOrigin + pev->view_ofs;
+			m_lookAt = m_destOrigin + pev->velocity + pev->view_ofs;
 	}
 }
 
@@ -4161,7 +4175,7 @@ void Bot::RunTask(void)
 						campingAllowed = false;
 
 					// check if another bot is already camping here
-					if (IsWaypointOccupied(m_currentWaypointIndex) || !IsValidWaypoint(m_currentWaypointIndex))
+					if (!IsValidWaypoint(m_currentWaypointIndex) || IsWaypointOccupied(m_currentWaypointIndex))
 						campingAllowed = false;
 
 					if (campingAllowed)
@@ -4528,7 +4542,9 @@ void Bot::RunTask(void)
 			CombatFight();
 		else
 		{
-			m_destOrigin = m_lastEnemyOrigin;
+			if (m_lastEnemyOrigin != nullvec)
+				m_destOrigin = m_lastEnemyOrigin;
+
 			SetEntityWaypoint(GetEntity());
 			m_currentWaypointIndex = -1;
 			DeleteSearchNodes();
@@ -4930,9 +4946,7 @@ void Bot::RunTask(void)
 		if (DoWaypointNav())
 		{
 			TaskComplete(); // we're done
-
 			m_prevGoalIndex = -1;
-			m_position = nullvec;
 		}
 
 		// didn't choose goal waypoint yet?
@@ -5037,9 +5051,6 @@ void Bot::RunTask(void)
 		{
 			m_checkTerrain = true;
 			m_moveToGoal = true;
-
-			m_destOrigin = nullvec;
-			m_entity = nullvec;
 
 			if (GetCurrentTask()->taskID == TASK_DEFUSEBOMB)
 			{
@@ -6353,13 +6364,12 @@ void Bot::DebugModeMsg(void)
 
 void Bot::FunBotAI(void)
 {
-	// Other Mode Bot Ai Here !!!!!
+	// idk why
 }
 
+// this function gets called each frame and is the core of all bot ai. from here all other subroutines are called
 void Bot::BotAI(void)
 {
-	// this function gets called each frame and is the core of all bot ai. from here all other subroutines are called
-
 	float movedDistance = 2.0f; // length of different vector (distance bot moved)
 	TraceResult tr;
 
@@ -6482,7 +6492,7 @@ void Bot::BotAI(void)
 	m_moveAngles.ClampAngles();
 	m_moveAngles.x *= -1.0f; // invert for engine
 
-	if (!IsOnLadder() && GetCurrentTask()->taskID != TASK_CAMP && !FNullEnt(m_enemy) && (m_skill >= 50 || m_isZombieBot || (m_isEnemyReachable && (IsZombieEntity(m_enemy) || !IsValidPlayer(m_enemy)))))
+	if (!IsOnLadder() && GetCurrentTask()->taskID != TASK_CAMP && !FNullEnt(m_enemy) && (m_skill >= 50 || (m_isEnemyReachable && (m_isZombieBot || IsZombieEntity(m_enemy) || !IsValidPlayer(m_enemy)))))
 	{
 		m_moveToGoal = false; // don't move to goal
 		m_navTimeset = engine->GetTime();
@@ -6517,7 +6527,7 @@ void Bot::BotAI(void)
 		GetValidWaypoint();
 
 		// press duck button if we need to
-		if ((g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_CROUCH) && pev->speed <= (pev->maxspeed / 1.5))
+		if (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_CROUCH)
 			pev->button |= IN_DUCK;
 
 		// use button waypoints
@@ -6535,8 +6545,6 @@ void Bot::BotAI(void)
 					pev->button |= IN_USE;
 			}
 		}
-
-		m_timeWaypointMove = engine->GetTime();
 
 		if (IsInWater()) // special movement for swimming here
 		{
@@ -6692,7 +6700,7 @@ void Bot::BotAI(void)
 				DeleteSearchNodes();
 				m_currentWaypointIndex = g_waypoint->FindNearest(pev->origin, 9999.0f, -1, GetEntity());
 			}
-			else if(!IsVisible(g_waypoint->GetPath(m_currentWaypointIndex)->origin, GetEntity()))
+			else if (!IsVisible(g_waypoint->GetPath(m_currentWaypointIndex)->origin, GetEntity()))
 				DeleteSearchNodes();
 
 			// not yet decided what to do?
@@ -7016,7 +7024,7 @@ bool Bot::HasHostage(void)
 		if (!FNullEnt(hostage))
 		{
 			// don't care about dead hostages
-			if (hostage->v.health <= 0.0f || (pev->origin - hostage->v.origin).GetLength() > 600.0f)
+			if (hostage->v.health <= 0.0f || (pev->origin - GetEntityOrigin(hostage)).GetLength() > 600.0f)
 			{
 				hostage = nullptr;
 				continue;

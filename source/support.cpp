@@ -157,26 +157,23 @@ bool IsVisibleForKnifeAttack(const Vector& origin, edict_t* ent)
 }
 
 // return walkable position on ground
-Vector GetWalkablePosition(const Vector& origin, edict_t* ent)
+Vector GetWalkablePosition(const Vector& origin, edict_t* ent, bool returnNullVec)
 {
-	if (FNullEnt(ent))
-		return origin;
-
 	TraceResult tr;
 	TraceLine(origin, Vector(origin.x, origin.y, -9999.0f), true, false, ent, &tr);
 
 	if (tr.flFraction != 1.0f)
 		return tr.vecEndPos; // walkable ground
 
-	return origin; // return original origin, we cant hit to ground
+	if (returnNullVec)
+		return nullvec; // return nullvector for check if we can't hit the ground
+	else
+		return origin; // return original origin, we cant hit to ground
 }
 
 // same with GetWalkablePosition but gets nearest walkable position
-Vector GetNearestWalkablePosition(const Vector& origin, edict_t* ent)
+Vector GetNearestWalkablePosition(const Vector& origin, edict_t* ent, bool returnNullVec)
 {
-	if (FNullEnt(ent))
-		return origin;
-
 	TraceResult tr;
 	TraceLine(origin, Vector(origin.x, origin.y, -9999.0f), true, false, ent, &tr);
 
@@ -207,14 +204,16 @@ Vector GetNearestWalkablePosition(const Vector& origin, edict_t* ent)
 			BestOrigin = SecondOrigin;
 	}
 
+	if (!returnNullVec && BestOrigin == nullvec)
+		BestOrigin = origin;
+
 	return BestOrigin;
 }
 
+// this expanded function returns the vector origin of a bounded entity, assuming that any
+// entity that has a bounding box has its center at the center of the bounding box itself.
 Vector GetEntityOrigin(edict_t* ent)
 {
-	// this expanded function returns the vector origin of a bounded entity, assuming that any
-	// entity that has a bounding box has its center at the center of the bounding box itself.
-
 	if (FNullEnt(ent))
 		return nullvec;
 
@@ -1007,7 +1006,7 @@ bool ChanceOf(int number)
 
 bool IsValidWaypoint(int index)
 {
-	if (index < 0 || index > g_numWaypoints)
+	if (index < 0 || index >= g_numWaypoints)
 		return false;
 	return true;
 }
@@ -1566,24 +1565,14 @@ void CheckWelcomeMessage(void)
 
 		// the api
 
-		/*ChartPrint("***** Support API Version:%.2f | SwNPC Version:%.2f *****",
-			float(SUPPORT_API_VERSION_F), float(SUPPORT_SWNPC_VERSION_F));
-
+		/*
 		if (amxxDLL_Version != -1.0 && amxxDLL_Version == float(SUPPORT_API_VERSION_F))
 		{
 			ChartPrint("***** E-BOT API: Running - Version:%.2f (%u.%u.%u.%u)",
 				amxxDLL_Version, amxxDLL_bV16[0], amxxDLL_bV16[1], amxxDLL_bV16[2], amxxDLL_bV16[3]);
 		}
 		else
-			ChartPrint("***** E-BOT API: FAIL *****");
-
-		if (SwNPC_Version != -1.0 && SwNPC_Version == float(SUPPORT_SWNPC_VERSION_F))
-		{
-			ChartPrint("***** SwNPC: Running - Version:%.2f (%u.%u.%u.%u)",
-				SwNPC_Version, SwNPC_Build[0], SwNPC_Build[1], SwNPC_Build[2], SwNPC_Build[3]);
-		}
-		else
-			ChartPrint("***** SwNPC: FAIL *****");*/
+			ChartPrint("***** E-BOT API: FAIL *****");*/
 
 		receiveTime = 0.0f;
 	}
@@ -1673,6 +1662,7 @@ void MOD_AddLogEntry(int mod, char* format)
 {
 	char modName[32], logLine[1024] = { 0, }, buildVersionName[64];
 	uint16 mod_bV16[4];
+
 	if (mod == -1)
 	{
 		sprintf(modName, "E-BOT");
@@ -1685,12 +1675,6 @@ void MOD_AddLogEntry(int mod, char* format)
 		sprintf(modName, "EBOT_API");
 		for (int i = 0; i < 4; i++)
 			mod_bV16[i] = amxxDLL_bV16[i];
-	}
-	else if (mod == 1)
-	{
-		sprintf(modName, "SwNPC");
-		for (int i = 0; i < 4; i++)
-			mod_bV16[i] = SwNPC_Build[i];
 	}
 
 	ServerPrintNoTag("[%s Log] %s", modName, format);

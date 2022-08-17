@@ -92,7 +92,6 @@ int Engine::RandomInt(int low, int high)
 float Engine::ApproachAngle(float target, float value, float speed)
 {
     float delta = AngleDiff(target, value);
-
     if (speed < 0.0)
         speed = -speed;
 

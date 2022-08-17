@@ -2678,7 +2678,7 @@ void StartFrame(void)
 	// for example if a new player joins the server, we should disconnect a bot, and if the
 	// player population decreases, we should fill the server with other bots.
 
-	if (g_analyzewaypoints == true)
+	if (g_analyzewaypoints)
 		g_waypoint->Analyze();
 
 	if (ebot_lockzbot.GetBool())
@@ -3984,113 +3984,6 @@ export int Amxx_GetEntityWaypointId(int index)
 
 	return GetEntityWaypoint(entity);
 }
-
-export void SwNPC_GetHostEntity(edict_t** hostEntity)
-{
-	if (!IsDedicatedServer() && !FNullEnt(g_hostEntity))
-	{
-		*hostEntity = g_hostEntity;
-		return;
-	}
-
-	*hostEntity = null;
-}
-
-export float SwNPC_ebotSupportVersion(void)
-{
-	return float(SUPPORT_SWNPC_VERSION_F);
-}
-
-export void SwNPC_CheckBuild(float version, int bu1, int bu2, int bu3, int bu4)
-{
-	SwNPC_Version = version;
-	SwNPC_Build[0] = (uint16)bu1;
-	SwNPC_Build[1] = (uint16)bu2;
-	SwNPC_Build[2] = (uint16)bu3;
-	SwNPC_Build[3] = (uint16)bu4;
-}
-
-export void SwNPC_AddLog(char* logText)
-{
-	MOD_AddLogEntry(1, logText);
-}
-
-export int SwNPC_GetWaypointData(Vector** origin, float** radius, int32** flags, int16*** index, uint16*** cnFlags, int32*** cnDistance)
-{
-	int numWaypoints = 0;
-	Vector wpOrigin[Const_MaxWaypoints];
-	float wpRadius[Const_MaxWaypoints];
-	int32 wpFlags[Const_MaxWaypoints];
-	int16 wpCnIndex[Const_MaxWaypoints][Const_MaxPathIndex];
-	uint16 wpCnFlags[Const_MaxWaypoints][Const_MaxPathIndex];
-	int32 wpCnDistance[Const_MaxWaypoints][Const_MaxPathIndex];
-
-	for (int i = 0; i < Const_MaxWaypoints; i++)
-	{
-		if (i >= 0 && i < g_numWaypoints)
-		{
-			wpOrigin[i] = g_waypoint->GetPath(i)->origin;
-			wpRadius[i] = g_waypoint->GetPath(i)->radius;
-			wpFlags[i] = g_waypoint->GetPath(i)->flags;
-
-			for (int j = 0; j < Const_MaxPathIndex; j++)
-			{
-				wpCnIndex[i][j] = g_waypoint->GetPath(i)->index[j];
-				wpCnFlags[i][j] = g_waypoint->GetPath(i)->connectionFlags[j];
-				wpCnDistance[i][j] = g_waypoint->GetPath(i)->distances[j];
-			}
-
-			numWaypoints++;
-			continue;
-		}
-
-		wpOrigin[i] = nullvec;
-		wpRadius[i] = -1.0f;
-		wpFlags[i] = -1;
-
-		for (int j = 0; j < Const_MaxPathIndex; j++)
-		{
-			wpCnIndex[i][j] = -1;
-			wpCnFlags[i][j] = 0;
-			wpCnDistance[i][j] = 9999999;
-		}
-	}
-
-	*origin = wpOrigin;
-	*radius = wpRadius;
-	*flags = wpFlags;
-
-	int16* wpCnIndexRam[Const_MaxWaypoints];
-	uint16* wpCnFlagsRam[Const_MaxWaypoints];
-	int32* wpCnDistanceRam[Const_MaxWaypoints];
-
-	for (int i = 0; i < Const_MaxWaypoints; i++)
-	{
-		wpCnIndexRam[i] = wpCnIndex[i];
-		wpCnFlagsRam[i] = wpCnFlags[i];
-		wpCnDistanceRam[i] = wpCnDistance[i];
-	}
-
-	*index = wpCnIndexRam;
-	*cnFlags = wpCnFlagsRam;
-	*cnDistance = wpCnDistanceRam;
-
-	return numWaypoints;
-}
-
-export int SwNPC_GetEntityWaypointIndex(edict_t* entity)
-{
-	return GetEntityWaypoint(entity);
-}
-
-export void SwNPC_LoadEntityWaypointIndex(edict_t* getEntity, edict_t* targetEntity)
-{
-	if (FNullEnt(targetEntity))
-		SetEntityWaypoint(getEntity);
-	else
-		SetEntityWaypoint(getEntity, GetEntityWaypoint(targetEntity));
-}
-// SwNPC API End
 
 DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* pGlobals)
 {
