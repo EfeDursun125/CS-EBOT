@@ -45,7 +45,7 @@
 #define SUPPORT_API_VERSION "1.48"
 #define SUPPORT_API_VERSION_F 1.48
 
-// SwNPC Version
+// SwNPC Version (Removed)
 #define SUPPORT_SWNPC_VERSION "1.48"
 #define SUPPORT_SWNPC_VERSION_F 1.48
 

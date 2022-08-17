@@ -2227,27 +2227,6 @@ typedef int(*_AMXX_BLOCK_WEAPON_PICK) (int index, int blockWeaponPick);
 C_DLLEXPORT int Amxx_GetEntityWaypointId(int index);
 typedef int(*_AMXX_GET_ENTITY_WAYPOINT_ID) (int index);
 
-C_DLLEXPORT void SwNPC_GetHostEntity(edict_t** hostEntity);
-typedef void(*SwNPC_GET_HOST_ENTITY) (edict_t** hostEntity);
-
-C_DLLEXPORT float SwNPC_ebotSupportVersion(void);
-typedef float(*SWNPC_ebot_SUPPORT_VERSION) (void);
-
-C_DLLEXPORT void SwNPC_CheckBuild(float version, int bu1, int bu2, int bu3, int bu4);
-typedef void(*SWNPC_CHECK_BUILD)(float version, int bu1, int bu2, int bu3, int bu4);
-
-C_DLLEXPORT void SwNPC_AddLog(char* logText);
-typedef void (*SWNPC_ADD_LOG)(char* logText);
-
-C_DLLEXPORT int SwNPC_GetWaypointData(Vector** origin, float** radius, int32** flags, int16*** index, uint16*** cnFlags, int32*** cnDistance);
-typedef int(SWNPC_GET_WAYPOINT_DATA)(Vector** origin, float** radius, int32** flags, int16*** index, uint16*** cnFlags, int32*** cnDistance);
-
-C_DLLEXPORT int SwNPC_GetEntityWaypointIndex(edict_t* entity);
-typedef int(*SWNPC_GET_WAYPOINT_INDEX) (edict_t* entity);
-
-C_DLLEXPORT void SwNPC_LoadEntityWaypointIndex(edict_t* getEntity, edict_t* targetEntity);
-typedef void(*SWNPC_LOAD_WAYPOINT_INDEX) (edict_t* getEntity, edict_t* targetEntity);
-
 #define MDLL_FUNC   gpGamedllFuncs->dllapi_table
 
 #define MDLL_GameDLLInit            MDLL_FUNC->pfnGameInit

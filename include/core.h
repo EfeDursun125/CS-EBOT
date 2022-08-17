@@ -770,13 +770,15 @@ private:
 	unsigned int m_aimFlags; // aiming conditions
 	Vector m_lookAt; // vector bot should look at
 	Vector m_throw; // origin of waypoint to throw grenades
+	Vector m_idealAngles; // ideal aim angles
+	float m_lookYawVel; // look yaw velocity
+	float m_lookPitchVel; // look pich velocity
 
 	Vector m_enemyOrigin; // target origin chosen for shooting
 	Vector m_grenade; // calculated vector for grenades
 	Vector m_entity; // origin of entities like buttons etc.
 	Vector m_camp; // aiming vector when camping.
 
-	float m_timeWaypointMove; // last time bot followed waypoints
 	bool m_wantsToFire; // bot needs consider firing
 	float m_shootAtDeadTime; // time to shoot at dying players
 	edict_t* m_avoidEntity; // pointer to grenade entity to avoid
@@ -787,6 +789,7 @@ private:
 	edict_t* m_hostages[Const_MaxHostages]; // pointer to used hostage entities
 
 	Vector m_moveTargetOrigin; // ...
+	Vector m_lastWallOrigin; // for better zombie avoiding
 
 	bool m_isStuck; // bot is stuck
 	bool m_isReloading; // bot is reloading a gun
@@ -1098,35 +1101,31 @@ public:
 	float m_idealReactionTime; // time of base reaction
 	float m_actualReactionTime; // time of current reaction time
 	float m_pathtimer; // a timer for pathfinding
-	float m_aimtimer; // a timer for 
-	float m_checktouch; // a timer for check toucning entities
 	float m_radiotimer; // a timer for radio call
 	float m_randomattacktimer; // a timer for make bots random attack with knife like humans
 	float m_itaimstart; // aim start time
-	float m_trackingtime; // updating look position time
 	float m_slowthinktimer; // slow think timer
 	float m_maxhearrange; // maximum range for hearing enemy
-	int m_checkEnemyNum; // check enemy num idk
-	//float m_aimStopTime; // feel like playing on a phone
+	float m_aimStopTime; // feel like playing on a phone
+	float m_backCheckEnemyTime; // for amxx support
 
+	int m_checkEnemyNum; // check enemy num idk
 	int m_numFriendsLeft; // number of friends alive
 	int m_numEnemiesLeft; // number of enemies alive
 
 	bool m_isSlowThink; // bool for check is slow think? (every second)
 
-	float m_backCheckEnemyTime; // for amxx support
-
 	edict_t* m_lastEnemy; // pointer to last enemy entity
 	edict_t* m_lastVictim; // pointer to killed entity
 	edict_t* m_trackingEdict; // pointer to last tracked player when camping/hiding
-	float m_timeNextTracking; // time waypoint index for tracking player is recalculated
 
+	float m_timeNextTracking; // time waypoint index for tracking player is recalculated
 	float m_thinkTimer; // think timer interval
 	float m_firePause; // time to pause firing
 	float m_shootTime; // time to shoot
 	float m_timeLastFired; // time to last firing
-	int m_lastDamageType; // stores last damage
 
+	int m_lastDamageType; // stores last damage
 	int m_currentWeapon; // one current weapon for each bot
 	int m_ammoInClip[Const_MaxWeapons]; // ammo in clip for each weapons
 	int m_ammo[MAX_AMMO_SLOTS]; // total ammo amounts
@@ -1474,8 +1473,8 @@ extern bool TryFileOpen(char* fileName);
 extern bool IsDedicatedServer(void);
 extern bool IsVisible(const Vector& origin, edict_t* ent);
 extern bool IsVisibleForKnifeAttack(const Vector& origin, edict_t* ent);
-extern Vector GetWalkablePosition(const Vector& origin, edict_t* ent = null);
-extern Vector GetNearestWalkablePosition(const Vector& origin, edict_t* ent = null);
+extern Vector GetWalkablePosition(const Vector& origin, edict_t* ent = null, bool returnNullVec = false);
+extern Vector GetNearestWalkablePosition(const Vector& origin, edict_t* ent = null, bool returnNullVec = false);
 extern bool IsAlive(edict_t* ent);
 extern bool IsInViewCone(Vector origin, edict_t* ent);
 extern bool IsWeaponShootingThroughWall(int id);
