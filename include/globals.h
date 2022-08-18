@@ -96,7 +96,7 @@ extern WeaponSelect g_weaponSelect[Const_NumWeapons + 1];
 extern WeaponProperty g_weaponDefs[Const_MaxWeapons + 1];
 
 extern Clients g_clients[32];
-extern MenuText g_menus[26];
+extern MenuText g_menus[27];
 extern SkillDef g_skillTab[6];
 extern Task g_taskFilters[];
 

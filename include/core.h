@@ -388,6 +388,9 @@ enum WaypointFlag
 	WAYPOINT_ZMHMCAMP = (1 << 10), // bots will camp at this waypoint
 	WAYPOINT_AVOID = (1 << 11), // bots will avoid these waypoints mostly
 	WAYPOINT_USEBUTTON = (1 << 12), // bots will use button
+	WAYPOINT_HMCAMPMESH = (1 << 13), // human camp mesh
+	WAYPOINT_ZOMBIEONLY = (1 << 14), // only zombie bots can use this waypoint
+	WAYPOINT_HUMANONLY = (1 << 15), // only humans bots can use this waypoint
 	WAYPOINT_FALLCHECK = (1 << 26), // bots will check ground
 	WAYPOINT_JUMP = (1 << 27), // for jump points
 	WAYPOINT_SNIPER = (1 << 28), // it's a specific sniper point
@@ -867,7 +870,6 @@ private:
 	void CheckRadioCommands(void);
 	void CheckReload(void);
 	void CheckBurstMode(float distance);
-	int FindFarestVisible(edict_t* self, float maxDistance = 32.0f);
 
 	int CheckMaxClip(int weaponId, int* weaponIndex);
 
@@ -1106,6 +1108,7 @@ public:
 	float m_itaimstart; // aim start time
 	float m_slowthinktimer; // slow think timer
 	float m_maxhearrange; // maximum range for hearing enemy
+	float m_maxDivRange; // tweak for human bots for look more realistic
 	float m_aimStopTime; // feel like playing on a phone
 	float m_backCheckEnemyTime; // for amxx support
 
@@ -1355,6 +1358,7 @@ private:
 	Array <int> m_rescuePoints;
 	Array <int> m_visitedGoals;
 	Array <int> m_zmHmPoints;
+	Array <int> m_hmMeshPoints;
 	Array <int> m_otherPoints;
 
 public:
