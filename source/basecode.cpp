@@ -2619,103 +2619,6 @@ bool Bot::EnemyIsThreat(void)
 	return false;
 }
 
-// the purpose of this function is check if task has to be interrupted because an enemy is near (run attack actions then)
-/*bool Bot::ReactOnEnemy(void)
-{
-	if (!EnemyIsThreat())
-		return false;
-
-	if (m_enemyReachableTimer >= engine->GetTime())
-		goto lastly;
-
-	auto origin = GetEntityOrigin(m_enemy);
-	if (m_isZombieBot && m_isEnemyReachable)
-		m_currentWaypointIndex = g_waypoint->FindNearest(m_enemy->v.origin, 99999.0f, -1, m_enemy);
-
-	m_isEnemyReachable = false;
-
-	const float enemyDistance = (pev->origin - origin).GetLength();
-	if (m_isZombieBot || enemyDistance <= 128.0f)
-	{
-		m_isEnemyReachable = true;
-		goto upDateCheckTime;
-	}
-
-	const int i = GetEntityWaypoint(GetEntity());
-	const int enemyIndex = GetEntityWaypoint(m_enemy);
-	if (i == enemyIndex || m_currentWaypointIndex == enemyIndex)
-	{
-		m_isEnemyReachable = true;
-		goto upDateCheckTime;
-	}
-
-	if (m_zhCampPointIndex != -1)
-	{
-		if (enemyIndex == m_zhCampPointIndex)
-			m_isEnemyReachable = true;
-		else if (enemyDistance <= 240.0f)
-		{
-			for (int j = 0; j < Const_MaxPathIndex; j++)
-			{
-				if (g_waypoint->GetPath(enemyIndex)->index[j] == i &&
-					!(g_waypoint->GetPath(enemyIndex)->connectionFlags[j] & PATHFLAG_JUMP))
-				{
-					m_isEnemyReachable = true;
-					break;
-				}
-			}
-		}
-
-		goto upDateCheckTime;
-	}
-
-	if (IsZombieEntity(m_enemy))
-	{
-		if (m_navNode == null)
-			m_isEnemyReachable = (enemyDistance <= 400.0f);
-		else
-		{
-			PathNode* navid = &m_navNode[0];
-			float checkPointDistance[2] = { -1.0f, -1.0f };
-			while (navid != null)
-			{
-				checkPointDistance[1] = checkPointDistance[0];
-				checkPointDistance[0] = (g_waypoint->GetPath(navid->index)->origin - origin).GetLength();
-				if (checkPointDistance[0] <= 260.0f ||
-					(checkPointDistance[0] <= 400.0f && checkPointDistance[1] != -1.0f &&
-						checkPointDistance[0] < (checkPointDistance[1] * 0.9)))
-				{
-					m_isEnemyReachable = true;
-					break;
-				}
-
-				navid = navid->next;
-			}
-		}
-
-		goto upDateCheckTime;
-	}
-
-	const float pathDist = g_waypoint->GetPathDistanceFloat(i, enemyIndex);
-	const float lineDist = (GetEntityOrigin(m_enemy) - pev->origin).GetLength();
-	if (pathDist - lineDist > 112.0f)
-		m_isEnemyReachable = false;
-	else
-		m_isEnemyReachable = true;
-
-upDateCheckTime:
-	m_enemyReachableTimer = engine->GetTime() + engine->RandomFloat(0.25, 0.75);
-
-lastly:
-	if (m_isEnemyReachable)
-	{
-		m_navTimeset = engine->GetTime(); // override existing movement by attack movement
-		return true;
-	}
-
-	return false;
-}*/
-
 bool Bot::ReactOnEnemy(void)
 {
 	if (FNullEnt(m_enemy))
@@ -2770,7 +2673,7 @@ bool Bot::ReactOnEnemy(void)
 				goto last;
 			}
 		}
-		else if (!m_isZombieBot)
+		else
 		{
 			m_isEnemyReachable = false;
 
@@ -2779,7 +2682,20 @@ bool Bot::ReactOnEnemy(void)
 
 			if (IsZombieMode())
 			{
-				if (GetCurrentTask()->taskID == TASK_CAMP)
+				if (enemyIndex == ownIndex)
+				{
+					m_isEnemyReachable = true;
+					goto last;
+				}
+				else if (pev->flags & FL_DUCKING && m_enemy->v.flags & FL_DUCKING) // danger...
+				{
+					if (enemyDistance <= (fabsf(m_enemy->v.speed) + m_enemy->v.maxspeed))
+					{
+						m_isEnemyReachable = true;
+						goto last;
+					}
+				}
+				else if (GetCurrentTask()->taskID == TASK_CAMP)
 				{
 					if (enemyIndex == m_zhCampPointIndex)
 						m_isEnemyReachable = true;
@@ -2800,12 +2716,6 @@ bool Bot::ReactOnEnemy(void)
 							}
 						}
 					}
-
-					goto last;
-				}
-				else if (enemyIndex == ownIndex)
-				{
-					m_isEnemyReachable = true;
 
 					goto last;
 				}
@@ -3608,34 +3518,37 @@ void Bot::ChooseAimDirection(void)
 		GetValidWaypoint();
 
 	// check if last enemy vector valid
-	if (!m_isZombieBot && m_lastEnemyOrigin != nullvec)
+	if (!IsZombieMode())
 	{
-		if (FNullEnt(m_enemy) && (pev->origin - m_lastEnemyOrigin).GetLength() >= 1600.0f && m_seeEnemyTime + 7.0f < engine->GetTime())
+		if (m_lastEnemyOrigin != nullvec)
 		{
-			TraceLine(EyePosition(), m_lastEnemyOrigin, true, true, GetEntity(), &tr);
-			if (!UsesSniper() || (tr.flFraction <= 0.2f && tr.pHit == g_hostEntity))
+			if (FNullEnt(m_enemy) && (pev->origin - m_lastEnemyOrigin).GetLength() >= 1600.0f && m_seeEnemyTime + 7.0f < engine->GetTime())
 			{
-				if ((m_aimFlags & (AIM_LASTENEMY | AIM_PREDICTENEMY)) && m_wantsToFire)
-					m_wantsToFire = false;
+				TraceLine(EyePosition(), m_lastEnemyOrigin, true, true, GetEntity(), &tr);
+				if (!UsesSniper() || (tr.flFraction <= 0.2f && tr.pHit == g_hostEntity))
+				{
+					if ((m_aimFlags & (AIM_LASTENEMY | AIM_PREDICTENEMY)) && m_wantsToFire)
+						m_wantsToFire = false;
 
-				m_lastEnemyOrigin = nullvec;
-				m_aimFlags &= ~(AIM_LASTENEMY | AIM_PREDICTENEMY);
+					m_lastEnemyOrigin = nullvec;
+					m_aimFlags &= ~(AIM_LASTENEMY | AIM_PREDICTENEMY);
 
-				flags &= ~(AIM_LASTENEMY | AIM_PREDICTENEMY);
+					flags &= ~(AIM_LASTENEMY | AIM_PREDICTENEMY);
+				}
 			}
 		}
-	}
-	else
-	{
-		m_aimFlags &= ~(AIM_LASTENEMY | AIM_PREDICTENEMY);
-		flags &= ~(AIM_LASTENEMY | AIM_PREDICTENEMY);
-	}
-
-	// don't allow bot to look at danger positions under certain circumstances
-	if (!(flags & (AIM_GRENADE | AIM_ENEMY | AIM_ENTITY)))
-	{
-		if (IsOnLadder() || IsInWater() || (m_waypointFlags & WAYPOINT_LADDER) || (m_currentTravelFlags & PATHFLAG_JUMP))
+		else
+		{
+			m_aimFlags &= ~(AIM_LASTENEMY | AIM_PREDICTENEMY);
 			flags &= ~(AIM_LASTENEMY | AIM_PREDICTENEMY);
+		}
+
+		// don't allow bot to look at danger positions under certain circumstances
+		if (!(flags & (AIM_GRENADE | AIM_ENEMY | AIM_ENTITY)))
+		{
+			if (IsOnLadder() || IsInWater() || (m_waypointFlags & WAYPOINT_LADDER) || (m_currentTravelFlags & PATHFLAG_JUMP))
+				flags &= ~(AIM_LASTENEMY | AIM_PREDICTENEMY);
+		}
 	}
 
 	if (flags & AIM_OVERRIDE)
@@ -3789,27 +3702,6 @@ void Bot::ChooseAimDirection(void)
 	}
 }
 
-int Bot::FindFarestVisible(edict_t* self, float maxDistance)
-{
-	int index = -1;
-	for (int i = 0; i < g_numWaypoints; i++)
-	{
-		if (!(::IsInViewCone(g_waypoint->GetPath(i)->origin, self)))
-			continue;
-
-		if (!IsVisible(g_waypoint->GetPath(i)->origin, self))
-			continue;
-
-		float distance = (g_waypoint->GetPath(i)->origin - GetEntityOrigin(self)).GetLength2D();
-		if (distance > maxDistance)
-		{
-			index = i;
-			maxDistance = distance;
-		}
-	}
-	return index;
-}
-
 void Bot::Think(void)
 {
 	if (!m_buyingFinished)
@@ -3910,7 +3802,15 @@ void Bot::Think(void)
 				pev->button |= IN_ATTACK2;
 		}
 
-		m_randomattacktimer = engine->GetTime() + engine->RandomFloat(0.1f, 30.0f);
+		if (m_isStuck && m_personality != PERSONALITY_CAREFUL)
+		{
+			if (m_personality == PERSONALITY_RUSHER)
+				m_randomattacktimer = 0.0f;
+			else
+				m_randomattacktimer = engine->GetTime() + engine->RandomFloat(0.1f, 10.0f);
+		}
+		else
+			m_randomattacktimer = engine->GetTime() + m_personality == PERSONALITY_RUSHER ? engine->RandomFloat(0.1f, 30.0f) : m_personality == PERSONALITY_CAREFUL ? engine->RandomFloat(0.1f, 100.0f) : engine->RandomFloat(0.15f, 75.0f);
 	}
 
 	SwitchChatterIcon(false);
@@ -4030,7 +3930,6 @@ void Bot::RunTask(void)
 			if (IsValidWaypoint(m_zhCampPointIndex) && (g_waypoint->GetPath(m_zhCampPointIndex)->origin - pev->origin).GetLength() <= 256.0f)
 			{
 				TraceResult tr2;
-
 				TraceLine(pev->origin, g_waypoint->GetPath(m_zhCampPointIndex)->origin, true, false, GetEntity(), &tr2);
 
 				// nothing blocking visibility, we can camp at here if we're blocked by own teammates
@@ -5733,7 +5632,7 @@ void Bot::RunTask(void)
 
 			break;
 		}
-		else if ((pev->origin - m_breakable).GetLength() > 250.0f)
+		else if ((pev->origin - m_breakable).GetLength() > 256.0f)
 		{
 			TaskComplete();
 
@@ -6536,10 +6435,9 @@ void Bot::BotAI(void)
 			if ((pev->origin - g_waypoint->GetPath(m_currentWaypointIndex)->origin).GetLength2D() <= 50.0f)
 			{
 				edict_t* button = null;
-
 				button = FindNearestButton("func_button");
 
-				if (button != null && (g_waypoint->GetPath(m_currentWaypointIndex)->origin - GetEntityOrigin(button)).GetLength() <= 96.0f)
+				if (button != null && (g_waypoint->GetPath(m_currentWaypointIndex)->origin - GetEntityOrigin(button)).GetLength() <= 100.0f)
 					MDLL_Use(button, GetEntity());
 				else
 					pev->button |= IN_USE;

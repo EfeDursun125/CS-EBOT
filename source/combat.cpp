@@ -1199,7 +1199,7 @@ void Bot::CombatFight(void)
 
 					return;
 				}
-				else if (ebot_escape.GetInt() == 0 && distance <= (baseDistance + (baseDistance / 10)))
+				else if (ebot_escape.GetInt() == 0 && distance <= (baseDistance + (baseDistance / m_maxDivRange)))
 				{
 					m_checkFall = true;
 					m_moveToGoal = false;
@@ -1216,11 +1216,10 @@ void Bot::CombatFight(void)
 						directionNormal.z = 0.0f;
 
 						SetStrafeSpeed(directionNormal, pev->maxspeed);
-
-						return;
 					}
 					else
 					{
+						m_destOrigin = m_waypointOrigin;
 						m_checkFall = true;
 						m_moveToGoal = true;
 						m_moveSpeed = 0.0f;

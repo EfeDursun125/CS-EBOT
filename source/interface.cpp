@@ -282,6 +282,26 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		}
 	}
 
+	// sets mesh for waypoint
+	else if (stricmp(arg0, "setmesh") == 0)
+	{
+		if (IsNullString(arg1))
+			ClientPrint(ent, print_withtag, "Please set mesh");
+		else if (FNullEnt(g_hostEntity))
+			ClientPrint(ent, print_withtag, "Please try this in lan game");
+		else
+		{
+			int index = g_waypoint->FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
+			if (IsValidWaypoint(index))
+			{
+				g_waypoint->GetPath(index)->campStartX = fabsf(static_cast <float> (atof(arg1)));
+				ClientPrint(ent, print_withtag, "Waypoint mesh set to %d", static_cast <int> (g_waypoint->GetPath(index)->campStartX));
+			}
+			else
+				ClientPrint(ent, print_withtag, "Waypoint is not valid");
+		}
+	}
+
 	// displays main bot menu
 	else if (stricmp(arg0, "botmenu") == 0 || stricmp(arg0, "menu") == 0)
 		DisplayMenuToClient(ent, &g_menus[0]);
@@ -1393,7 +1413,7 @@ void ClientCommand(edict_t* ent)
 
 				return;
 			}
-			else if (client->menu == &g_menus[13])
+			else if (client->menu == &g_menus[13]) // set waypoint flag
 			{
 				if (g_sgdWaypoint)
 					DisplayMenuToClient(ent, &g_menus[13]);
@@ -1431,17 +1451,57 @@ void ClientCommand(edict_t* ent)
 					break;
 
 				case 8:
-					g_waypoint->ToggleFlags(WAYPOINT_USEBUTTON);
+					g_waypoint->DeleteFlags();
 					break;
 
 				case 9:
-					g_waypoint->DeleteFlags();
+					DisplayMenuToClient(ent, &g_menus[26]);
 					break;
 
 				case 10:
 					DisplayMenuToClient(ent, null);
 					break;
 				}
+
+				if (g_isMetamod)
+					RETURN_META(MRES_SUPERCEDE);
+
+				return;
+			}
+			else if (client->menu == &g_menus[26]) // set waypoint flag 2
+			{
+				if (g_sgdWaypoint)
+					DisplayMenuToClient(ent, &g_menus[26]);
+				else
+					DisplayMenuToClient(ent, null);
+
+				switch (selection)
+				{
+				case 1:
+					g_waypoint->ToggleFlags(WAYPOINT_USEBUTTON);
+					break;
+
+				case 2:
+					g_waypoint->ToggleFlags(WAYPOINT_HMCAMPMESH);
+					break;
+
+				case 3:
+					g_waypoint->ToggleFlags(WAYPOINT_ZOMBIEONLY);
+					break;
+
+				case 4:
+					g_waypoint->ToggleFlags(WAYPOINT_HUMANONLY);
+					break;
+
+				case 9:
+					DisplayMenuToClient(ent, &g_menus[13]);
+					break;
+
+				case 10:
+					DisplayMenuToClient(ent, null);
+					break;
+				}
+
 				if (g_isMetamod)
 					RETURN_META(MRES_SUPERCEDE);
 
@@ -1523,6 +1583,7 @@ void ClientCommand(edict_t* ent)
 					int campPoints = 0;
 					int sniperPoints = 0;
 					int avoidPoints = 0;
+					int meshPoints = 0;
 					int usePoints = 0;
 
 					for (int i = 0; i < g_numWaypoints; i++)
@@ -1550,13 +1611,16 @@ void ClientCommand(edict_t* ent)
 
 						if (g_waypoint->GetPath(i)->flags & WAYPOINT_USEBUTTON)
 							usePoints++;
+
+						if (g_waypoint->GetPath(i)->flags & WAYPOINT_HMCAMPMESH)
+							meshPoints++;
 					}
 
 					ServerPrintNoTag("Waypoints: %d - T Points: %d\n"
 						"CT Points: %d - Goal Points: %d\n"
 						"Rescue Points: %d - Camp Points: %d\n"
 						"Avoid Points: %d - Sniper Points: %d\n"
-						"Use Points: %d", g_numWaypoints, terrPoints, ctPoints, goalPoints, rescuePoints, campPoints, avoidPoints, sniperPoints, usePoints);
+						"Use Points: %d - Mesh Points: %d", g_numWaypoints, terrPoints, ctPoints, goalPoints, rescuePoints, campPoints, avoidPoints, sniperPoints, usePoints, meshPoints);
 				}
 				break;
 
@@ -1892,7 +1956,7 @@ void ClientCommand(edict_t* ent)
 				case 9:
 					g_waypoint->SgdWp_Set("save");
 					if (g_sgdWaypoint)
-						DisplayMenuToClient(ent, &g_menus[25]);
+						DisplayMenuToClient(ent, &g_menus[26]);
 					break;
 
 				case 10:
@@ -1985,6 +2049,12 @@ void ClientCommand(edict_t* ent)
 					g_waypoint->SetRadius(64);
 					break;
 
+				case 4:
+					g_waypoint->Add(0);
+					g_waypoint->ToggleFlags(WAYPOINT_HMCAMPMESH);
+					g_waypoint->SetRadius(64);
+					break;
+
 				case 9:
 					DisplayMenuToClient(ent, &g_menus[22]);
 					break;
@@ -2011,8 +2081,6 @@ void ClientCommand(edict_t* ent)
 
 				case 2:
 					g_waypoint->ToggleFlags(WAYPOINT_COUNTER);
-					break;
-
 					break;
 				}
 
@@ -4101,6 +4169,7 @@ DLL_ENTRYPOINT
 	   if (g_gameLib != null)
 		  delete g_gameLib; // if dynamic link library of mod is load, free it
 	}
+
 	DLL_RETENTRY; // the return data type is OS specific too
 }
 

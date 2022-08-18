@@ -806,23 +806,40 @@ void PriorityQueue::HeapSiftUp(void)
 inline const float GF_CostCareful(int index, int parent, int team, bool isZombie)
 {
 	Path* path = g_waypoint->GetPath(index);
+	float pathDistance = g_waypoint->GetPathDistanceFloat(parent, index);
 
-	if (isZombie && path->flags & WAYPOINT_DJUMP)
+	if (isZombie)
 	{
-		int count = 0;
-		for (const auto& client : g_clients)
+		if (path->flags & WAYPOINT_HUMANONLY)
+			return 65355.0f;
+
+		if (path->flags & WAYPOINT_DJUMP)
 		{
-			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != team)
-				continue;
+			int count = 0;
+			for (const auto& client : g_clients)
+			{
+				if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != team)
+					continue;
 
-			if ((client.origin - path->origin).GetLength() <= 512.0f)
-				count++;
-			else if (IsVisible(path->origin, client.ent))
-				count++;
+				if ((client.origin - path->origin).GetLength() <= 512.0f + path->radius)
+					count++;
+				else if (IsVisible(path->origin, client.ent))
+					count++;
+			}
+
+			// don't count me
+			if (count <= 1)
+				return 65355.0f;
+			else
+				pathDistance = pathDistance / count;
 		}
+	}
+	else
+	{
+		if (path->flags & WAYPOINT_DJUMP)
+			return 65355.0f;
 
-		// don't count me
-		if (count <= 1)
+		if (path->flags & WAYPOINT_ZOMBIEONLY)
 			return 65355.0f;
 	}
 
@@ -834,29 +851,46 @@ inline const float GF_CostCareful(int index, int parent, int team, bool isZombie
 			baseCost += g_exp.GetDamage(neighbour, neighbour, team);
 	}
 
-	return baseCost / g_waypoint->GetPathDistanceFloat(parent, index);
+	return baseCost / pathDistance;
 }
 
 inline const float GF_CostNormal(int index, int parent, int team, bool isZombie)
 {
 	Path* path = g_waypoint->GetPath(index);
+	float pathDistance = g_waypoint->GetPathDistanceFloat(parent, index);
 
-	if (isZombie && path->flags & WAYPOINT_DJUMP)
+	if (isZombie)
 	{
-		int count = 0; 
-		for (const auto& client : g_clients)
+		if (path->flags & WAYPOINT_HUMANONLY)
+			return 65355.0f;
+
+		if (path->flags & WAYPOINT_DJUMP)
 		{
-			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != team)
-				continue;
+			int count = 0;
+			for (const auto& client : g_clients)
+			{
+				if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != team)
+					continue;
 
-			if ((client.origin - path->origin).GetLength() <= 512.0f)
-				count++;
-			else if (IsVisible(path->origin, client.ent))
-				count++;
+				if ((client.origin - path->origin).GetLength() <= 512.0f + path->radius)
+					count++;
+				else if (IsVisible(path->origin, client.ent))
+					count++;
+			}
+
+			// don't count me
+			if (count <= 1)
+				return 65355.0f;
+			else
+				pathDistance = pathDistance / count;
 		}
+	}
+	else
+	{
+		if (path->flags & WAYPOINT_DJUMP)
+			return 65355.0f;
 
-		// don't count me
-		if (count <= 1)
+		if (path->flags & WAYPOINT_ZOMBIEONLY)
 			return 65355.0f;
 	}
 
@@ -864,7 +898,7 @@ inline const float GF_CostNormal(int index, int parent, int team, bool isZombie)
 	if (path->flags & WAYPOINT_LADDER)
 		baseCost *= 3.0f;
 	
-	return baseCost / g_waypoint->GetPathDistanceFloat(parent, index);
+	return baseCost / pathDistance;
 }
 
 inline const float GF_CostRusher(int index, int parent, int team, bool isZombie)
@@ -872,7 +906,12 @@ inline const float GF_CostRusher(int index, int parent, int team, bool isZombie)
 	Path* path = g_waypoint->GetPath(index);
 
 	// rusher bots never wait for boosting
-	if (isZombie && path->flags & WAYPOINT_DJUMP)
+	if (path->flags & WAYPOINT_DJUMP)
+		return 65355.0f;
+
+	if (isZombie && path->flags & WAYPOINT_HUMANONLY)
+		return 65355.0f;
+	else if (path->flags & WAYPOINT_ZOMBIEONLY)
 		return 65355.0f;
 
 	float pathDist = g_waypoint->GetPathDistanceFloat(parent, index);
@@ -1394,6 +1433,11 @@ int Bot::FindWaypoint(void)
 		if (!IsValidWaypoint(at))
 			continue;
 
+		if (m_isZombieBot && g_waypoint->GetPath(at)->flags & WAYPOINT_HUMANONLY)
+			continue;
+		else if (g_waypoint->GetPath(at)->flags & WAYPOINT_ZOMBIEONLY)
+			continue;
+
 		int numToSkip = engine->RandomInt(0, 2);
 		bool skip = !!(int(g_waypoint->GetPath(at)->index) == m_currentWaypointIndex);
 
@@ -1794,11 +1838,10 @@ int Bot::FindCoverWaypoint(float maxDistance)
 	return -1; // do not use random points
 }
 
+// this function does a realtime postprocessing of waypoints return from the
+// pathfinder, to vary paths and find the best waypoint on our way
 bool Bot::GetBestNextWaypoint(void)
 {
-	// this function does a realtime postprocessing of waypoints return from the
-	// pathfinder, to vary paths and find the best waypoint on our way
-
 	InternalAssert(m_navNode != null);
 	InternalAssert(m_navNode->next != null);
 
@@ -1812,6 +1855,11 @@ bool Bot::GetBestNextWaypoint(void)
 		if (IsValidWaypoint(id) && g_waypoint->IsConnected(id, m_navNode->next->index) && g_waypoint->IsConnected(m_currentWaypointIndex, id))
 		{
 			if (g_waypoint->GetPath(id)->flags & WAYPOINT_LADDER || g_waypoint->GetPath(id)->flags & WAYPOINT_CAMP || g_waypoint->GetPath(id)->flags & WAYPOINT_JUMP || g_waypoint->GetPath(id)->flags & WAYPOINT_DJUMP) // don't use these waypoints as alternative
+				continue;
+
+			if (m_isZombieBot && g_waypoint->GetPath(id)->flags & WAYPOINT_HUMANONLY)
+				continue;
+			else if (g_waypoint->GetPath(id)->flags & WAYPOINT_ZOMBIEONLY)
 				continue;
 
 			if (!IsWaypointOccupied(id))
@@ -2437,6 +2485,9 @@ bool Bot::CheckCloseAvoidance(const Vector& dirNormal)
 		Bot* otherBot = g_botManager->GetBot(hindrance);
 		if (otherBot != null && !IsAntiBlock(hindrance))
 		{
+			otherBot->m_waypointOrigin = m_waypointOrigin;
+			otherBot->m_destOrigin = m_destOrigin;
+
 			m_tasks->data = otherBot->m_tasks->data;
 			m_prevGoalIndex = otherBot->m_prevGoalIndex;
 			m_chosenGoalIndex = otherBot->m_chosenGoalIndex;
@@ -2451,6 +2502,8 @@ bool Bot::CheckCloseAvoidance(const Vector& dirNormal)
 			{
 				FindPath(m_currentWaypointIndex, index);
 				otherBot->FindPath(m_currentWaypointIndex, index);
+				otherBot->m_waypointOrigin = m_waypointOrigin;
+				otherBot->m_destOrigin = m_destOrigin;
 			}
 		}
 	}

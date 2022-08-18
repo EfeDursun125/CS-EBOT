@@ -38,10 +38,9 @@ ConVar ebot_join_after_player("ebot_join_after_player", "0");
 ConVar ebot_ping("ebot_fake_ping", "1");
 ConVar ebot_autovacate("ebot_autovacate", "1");
 
+// this is a bot manager class constructor
 BotControl::BotControl(void)
 {
-	// this is a bot manager class constructor
-
 	m_lastWinner = -1;
 
 	m_economicsGood[TEAM_TERRORIST] = true;
@@ -51,10 +50,9 @@ BotControl::BotControl(void)
 	InitQuota();
 }
 
+// this is a bot manager class destructor, do not use engine->GetMaxClients () here !!
 BotControl::~BotControl(void)
 {
-	// this is a bot manager class destructor, do not use engine->GetMaxClients () here !!
-
 	for (int i = 0; i < 32; i++)
 	{
 		if (m_bots[i])
@@ -65,10 +63,9 @@ BotControl::~BotControl(void)
 	}
 }
 
+// this function calls gamedll player() function, in case to create player entity in game
 void BotControl::CallGameEntity(entvars_t* vars)
 {
-	// this function calls gamedll player() function, in case to create player entity in game
-
 	if (g_isMetamod)
 	{
 		CALL_GAME_ENTITY(PLID, "player", vars);
@@ -84,11 +81,10 @@ void BotControl::CallGameEntity(entvars_t* vars)
 		(*playerFunction) (vars);
 }
 
+// this function completely prepares bot entity (edict) for creation, creates team, skill, sets name etc, and
+// then sends result to bot constructor
 int BotControl::CreateBot(String name, int skill, int personality, int team, int member)
 {
-	// this function completely prepares bot entity (edict) for creation, creates team, skill, sets name etc, and
-	// then sends result to bot constructor
-	
 	if (ebot_join_after_player.GetBool() == true)
 	{
 		int playerNum = GetHumansNum(1);
@@ -659,12 +655,12 @@ void BotControl::RemoveMenu(edict_t* ent, int selection)
 			sprintf(buffer, "%s %1.1d. %s%s\n", buffer, i - ((selection - 1) * 8) + 1, GetEntityName(m_bots[i]->GetEntity()), GetTeam(m_bots[i]->GetEntity()) == TEAM_COUNTER ? " \\y(CT)\\w" : " \\r(T)\\w");
 		}
 		else if (!FNullEnt(g_clients[i].ent))
-			sprintf(buffer, "%s %1.1d.\\d %s (Not ebot) \\w\n", buffer, i - ((selection - 1) * 8) + 1, GetEntityName(g_clients[i].ent));
+			sprintf(buffer, "%s %1.1d.\\d %s (Not E-BOT) \\w\n", buffer, i - ((selection - 1) * 8) + 1, GetEntityName(g_clients[i].ent));
 		else
 			sprintf(buffer, "%s %1.1d.\\d Null \\w\n", buffer, i - ((selection - 1) * 8) + 1);
 	}
 
-	sprintf(tempBuffer, "\\yebot Remove Menu (%d/4):\\w\n\n%s\n%s 0. Back", selection, buffer, (selection == 4) ? "" : " 9. More...\n");
+	sprintf(tempBuffer, "\\yE-BOT Remove Menu (%d/4):\\w\n\n%s\n%s 0. Back", selection, buffer, (selection == 4) ? "" : " 9. More...\n");
 
 	switch (selection)
 	{
@@ -1076,6 +1072,7 @@ void Bot::NewRound(void)
 	m_prevGoalIndex = -1;
 	m_chosenGoalIndex = -1;
 	m_loosedBombWptIndex = -1;
+	m_maxDivRange = RANDOM_FLOAT(5, 15);
 
 	m_duckDefuse = false;
 	m_duckDefuseCheckTime = 0.0f;
@@ -1249,7 +1246,7 @@ void Bot::NewRound(void)
 	PushTask(TASK_NORMAL, TASKPRI_NORMAL, -1, 1.0f, true);
 
 	// hear range based on difficulty
-	m_maxhearrange = float(m_skill * engine->RandomFloat(7.0f, 15.0f));
+	m_maxhearrange = float(m_skill * RANDOM_FLOAT(7.0f, 15.0f));
 	m_moveSpeed = pev->maxspeed;
 
 	m_tempstrafeSpeed = engine->RandomInt(1, 2) == 1 ? pev->maxspeed : -pev->maxspeed;

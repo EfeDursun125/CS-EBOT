@@ -634,8 +634,7 @@ void Waypoint::SgdWp_Set(const char* modset)
             g_waypointOn = false;
 
             ChartPrint("[SgdWP] Save your waypoint - Finsh *******");
-            ChartPrint("[SgdWP] Pls restart the game and re-load the waypoint *******");
-            ChartPrint("[SgdWP] Pls restart the game and re-load the waypoint *******");
+            ChartPrint("[SgdWP] Please waypoints and restart the map *******");
         }
         else
         {
@@ -848,13 +847,13 @@ void Waypoint::Add(int flags, Vector waypointOrigin)
         path->campStartX = forward.x;
         path->campStartY = forward.y;
 
-        // ebot 1.51 - set end by default for aviod camp waypoint errors, ebot 1.53 - keep camp directions for older versions.
+        // set end by default for aviod camp waypoint errors, keep camp directions for older versions.
         path->campEndX = forward.x;
         path->campEndY = forward.y;
 
         break;
 
-    case 6: // ebot 1.51 use button waypoints
+    case 6: // use button waypoints
         path->flags |= WAYPOINT_USEBUTTON;
         break;
 
@@ -874,6 +873,8 @@ void Waypoint::Add(int flags, Vector waypointOrigin)
 
     if (flags == 104)
         path->flags |= WAYPOINT_ZMHMCAMP;
+    else if (flags == 105)
+        path->flags |= WAYPOINT_HMCAMPMESH;
 
     // Ladder waypoints need careful connections
     if (path->flags & WAYPOINT_LADDER)
@@ -1480,6 +1481,7 @@ void Waypoint::InitTypes(int mode)
         m_sniperPoints.RemoveAll();
         m_visitedGoals.RemoveAll();
         m_zmHmPoints.RemoveAll();
+        m_hmMeshPoints.RemoveAll();
         m_otherPoints.RemoveAll();
     }
 
@@ -1501,6 +1503,8 @@ void Waypoint::InitTypes(int mode)
                 m_rescuePoints.Push(i);
             else if (m_paths[i]->flags & WAYPOINT_ZMHMCAMP)
                 m_zmHmPoints.Push(i);
+            else if (m_paths[i]->flags & WAYPOINT_HMCAMPMESH)
+                m_hmMeshPoints.Push(i);
 
             if (!(m_paths[i]->flags & WAYPOINT_AVOID) && !(m_paths[i]->flags & WAYPOINT_CROUCH) && !(m_paths[i]->flags & WAYPOINT_FALLCHECK) && !(m_paths[i]->flags & WAYPOINT_LADDER))
                 m_otherPoints.Push(i);
@@ -1786,7 +1790,7 @@ bool Waypoint::IsNodeReachable(Vector src, Vector destination)
         return false; // don't add pathnodes through func_illusionaries
 
     // check if this waypoint is "visible"...
-    TraceLine(src, destination, true, true, g_hostEntity, &tr);
+    TraceLine(src, destination, true, false, g_hostEntity, &tr);
 
     // if waypoint is visible from current position (even behind head)...
     if (tr.pHit && (tr.flFraction >= 1.0f || strncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0))
@@ -1878,7 +1882,7 @@ bool Waypoint::IsNodeReachableWithJump(Vector src, Vector destination, int flags
         return false; // don't add pathnodes through func_illusionaries
 
     // check if this waypoint is "visible"...
-    TraceLine(src, destination, true, true, g_hostEntity, &tr);
+    TraceLine(src, destination, true, false, g_hostEntity, &tr);
 
     // if waypoint is visible from current position (even behind head)...
     if (tr.pHit && (tr.flFraction >= 1.0f || strncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0))
@@ -2074,6 +2078,12 @@ char* Waypoint::GetWaypointInfo(int id)
 
     if (path->flags & WAYPOINT_ZMHMCAMP)
         sprintf(messageBuffer, "ZOMBIE MODE HUMAN CAMP");
+    else if (path->flags & WAYPOINT_HMCAMPMESH)
+        sprintf(messageBuffer, "ZOMBIE MODE HUMAN MESH");
+    else if (path->flags & WAYPOINT_ZOMBIEONLY)
+        sprintf(messageBuffer, "ZOMBIE ONLY");
+    else if (path->flags & WAYPOINT_HUMANONLY)
+        sprintf(messageBuffer, "HUMAN ONLY");
 
     // return the message buffer
     return messageBuffer;
@@ -2310,6 +2320,12 @@ void Waypoint::ShowWaypointMsg(void)
                     nodeColor = Color(0, 0, 255, 255);
                 else if (m_paths[i]->flags & WAYPOINT_ZMHMCAMP)
                     nodeColor = Color(199, 69, 209, 255);
+                else if (m_paths[i]->flags & WAYPOINT_HMCAMPMESH)
+                    nodeColor = Color(50, 125, 255, 255);
+                else if (m_paths[i]->flags & WAYPOINT_ZOMBIEONLY)
+                    nodeColor = Color(255, 0, 0, 255);
+                else if (m_paths[i]->flags & WAYPOINT_HUMANONLY)
+                    nodeColor = Color(0, 0, 255, 255);
 
                 // colorize additional flags
                 Color nodeFlagColor = Color(-1, -1, -1, 0);
@@ -2323,6 +2339,12 @@ void Waypoint::ShowWaypointMsg(void)
                     nodeFlagColor = Color(0, 0, 255, 255);
                 else if (m_paths[i]->flags & WAYPOINT_ZMHMCAMP)
                     nodeFlagColor = Color(0, 0, 255, 255);
+                else if (m_paths[i]->flags & WAYPOINT_HMCAMPMESH)
+                    nodeFlagColor = Color(0, 0, 255, 255);
+                else if (m_paths[i]->flags & WAYPOINT_ZOMBIEONLY)
+                    nodeFlagColor = Color(255, 0, 255, 255);
+                else if (m_paths[i]->flags & WAYPOINT_HUMANONLY)
+                    nodeFlagColor = Color(255, 0, 255, 255);
 
                 nodeColor.alpha = 255;
                 nodeFlagColor.alpha = 255;
@@ -2440,11 +2462,21 @@ void Waypoint::ShowWaypointMsg(void)
 
         // display some information
         char tempMessage[4096];
+        int length;
 
         // show the information about that point
-        int length = sprintf(tempMessage, "\n\n\n\n    Waypoint Information:\n\n"
-            "      Waypoint %d of %d, Radius: %.1f\n"
-            "      Flags: %s\n\n", nearestIndex, g_numWaypoints, path->radius, GetWaypointInfo(nearestIndex));
+        if (path->flags & WAYPOINT_ZMHMCAMP || path->flags & WAYPOINT_HMCAMPMESH)
+        {
+            length = sprintf(tempMessage, "\n\n\n\n\n\n\n    Waypoint Information:\n\n"
+                "      Waypoint %d of %d, Radius: %.1f\n"
+                "      Flags: %s\n\n      %s %d\n", nearestIndex, g_numWaypoints, path->radius, GetWaypointInfo(nearestIndex), "Human Camp Mesh ID:", static_cast<int>(path->campStartX));
+        }
+        else
+        {
+            length = sprintf(tempMessage, "\n\n\n\n\n\n\n    Waypoint Information:\n\n"
+                "      Waypoint %d of %d, Radius: %.1f\n"
+                "      Flags: %s\n\n", nearestIndex, g_numWaypoints, path->radius, GetWaypointInfo(nearestIndex));
+        }
 
 
         g_exp.DrawText(nearestIndex, tempMessage, length);
@@ -2454,11 +2486,11 @@ void Waypoint::ShowWaypointMsg(void)
         {
             length += sprintf(&tempMessage[length], "\n    Cached Waypoint Information:\n\n"
                 "      Waypoint %d of %d, Radius: %.1f\n"
-                "      Flags: %s\n", m_cacheWaypointIndex, g_numWaypoints, m_paths[m_cacheWaypointIndex]->radius, GetWaypointInfo(m_cacheWaypointIndex));
+                "      Flags: %s\n", m_cacheWaypointIndex, g_numWaypoints, m_paths[m_cacheWaypointIndex]->radius, GetWaypointInfo(m_cacheWaypointIndex), (!(m_paths[m_cacheWaypointIndex]->flags & WAYPOINT_HMCAMPMESH) && !(m_paths[m_cacheWaypointIndex]->flags & WAYPOINT_ZMHMCAMP)) ? "" : "Mesh ID: %d", static_cast<int>(m_paths[m_cacheWaypointIndex]->campStartX));
         }
 
-        // check if we need to show the facing point index
-        if (m_facingAtIndex != -1)
+        // check if we need to show the facing point index, only if no menu to show
+        if (m_facingAtIndex != -1 && g_clients[ENTINDEX(g_hostEntity) - 1].menu == null)
         {
             length += sprintf(&tempMessage[length], "\n    Facing Waypoint Information:\n\n"
                 "      Waypoint %d of %d, Radius: %.1f\n"

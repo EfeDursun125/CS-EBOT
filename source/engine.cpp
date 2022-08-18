@@ -56,19 +56,8 @@ uint32_t Engine::GetRandomBase(void)
 float Engine::RandomFloat(float low, float high)
 {
     if (low >= high)
-    {
-        int random = RANDOM_LONG(1, 2);
-        switch (random)
-        {
-        case 1:
-            return low;
-        default:
-            return high;
-        }
-    }
-
-    srand(time(0));
-    return (low + 1) + (((float)rand()) / (float)RAND_MAX) * (high - (low + 1));
+        return low;
+    return RANDOM_FLOAT(low, high);
 }
 
 int Engine::RandomInt(int low, int high)
