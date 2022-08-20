@@ -420,7 +420,7 @@ void Waypoint::ChangeZBCampPoint(Vector origin)
         m_zmHmPoints.Push(newPoint);
 }
 
-bool Waypoint::IsZBCampPoint(int pointID)
+bool Waypoint::IsZBCampPoint(int pointID, bool checkMesh)
 {
     if (g_waypoint->m_zmHmPoints.IsEmpty())
         return false;
@@ -432,6 +432,18 @@ bool Waypoint::IsZBCampPoint(int pointID)
 
         if (pointID == wpIndex)
             return true;
+    }
+
+    if (checkMesh && !g_waypoint->m_hmMeshPoints.IsEmpty())
+    {
+        for (int i = 0; i <= m_hmMeshPoints.GetElementNumber(); i++)
+        {
+            int wpIndex;
+            m_hmMeshPoints.GetAt(i, wpIndex);
+
+            if (pointID == wpIndex)
+                return true;
+        }
     }
 
     return false;
@@ -2286,13 +2298,35 @@ void Waypoint::ShowWaypointMsg(void)
         float distance = (m_paths[i]->origin - GetEntityOrigin(g_hostEntity)).GetLength();
 
         // check if waypoint is whitin a distance, and is visible
-        if (distance <= 768.0f && ((::IsVisible(m_paths[i]->origin, g_hostEntity) && IsInViewCone(m_paths[i]->origin, g_hostEntity)) || !IsAlive(g_hostEntity) || distance < 256.0f))
+        if (distance <= 700.0f && ((::IsVisible(m_paths[i]->origin, g_hostEntity) && IsInViewCone(m_paths[i]->origin, g_hostEntity)) || !IsAlive(g_hostEntity) || distance < 100.0f))
         {
             // check the distance
             if (distance < nearestDistance)
             {
                 nearestIndex = i;
                 nearestDistance = distance;
+            }
+
+            // draw mesh links
+            if (m_paths[nearestIndex]->campStartX != 0.0f && IsInViewCone(m_paths[nearestIndex]->origin, g_hostEntity) && (m_paths[nearestIndex]->flags & WAYPOINT_HMCAMPMESH || m_paths[nearestIndex]->flags & WAYPOINT_ZMHMCAMP))
+            {
+                for (int x = 0; x < g_numWaypoints; x++)
+                {
+                    if (!(m_paths[nearestIndex]->flags & WAYPOINT_HMCAMPMESH) && !(m_paths[nearestIndex]->flags & WAYPOINT_ZMHMCAMP))
+                        continue;
+
+                    if (m_paths[nearestIndex]->campStartX != m_paths[x]->campStartX)
+                        continue;
+
+                    if (!IsInViewCone(m_paths[x]->origin, g_hostEntity))
+                        continue;
+
+                    const Vector& src = m_paths[nearestIndex]->origin + Vector(0, 0, (m_paths[nearestIndex]->flags & WAYPOINT_CROUCH) ? 9.0f : 18.0f);
+                    const Vector& dest = m_paths[x]->origin + Vector(0, 0, (m_paths[x]->flags & WAYPOINT_CROUCH) ? 9.0f : 18.0f);
+
+                    // draw links
+                    engine->DrawLine(g_hostEntity, src, dest, Color(0, 0, 255, 255), 5, 0, 0, 10);
+                }
             }
 
             if (m_waypointDisplayTime[i] + 1.0f < engine->GetTime())
@@ -2354,8 +2388,8 @@ void Waypoint::ShowWaypointMsg(void)
                     engine->DrawLine(g_hostEntity, m_paths[i]->origin - Vector(0.0f, 0.0f, nodeHalfHeight), m_paths[i]->origin + Vector(0.0f, 0.0f, nodeHalfHeight), nodeColor, 7, 0, 0, 10);
                 else // draw node with flags
                 {
-                    engine->DrawLine(g_hostEntity, m_paths[i]->origin - Vector(0.0f, 0.0f, nodeHalfHeight), m_paths[i]->origin - Vector(0.0f, 0.0f, nodeHalfHeight - nodeHeight * 0.75f), nodeColor, 6, 0, 0, 10); // draw basic path
-                    engine->DrawLine(g_hostEntity, m_paths[i]->origin - Vector(0.0f, 0.0f, nodeHalfHeight - nodeHeight * 0.75f), m_paths[i]->origin + Vector(0.0f, 0.0f, nodeHalfHeight), nodeFlagColor, 6, 0, 0, 10); // draw additional path
+                    engine->DrawLine(g_hostEntity, m_paths[i]->origin - Vector(0.0f, 0.0f, nodeHalfHeight), m_paths[i]->origin - Vector(0.0f, 0.0f, nodeHalfHeight - nodeHeight * 0.75f), nodeColor, 7, 0, 0, 10); // draw basic path
+                    engine->DrawLine(g_hostEntity, m_paths[i]->origin - Vector(0.0f, 0.0f, nodeHalfHeight - nodeHeight * 0.75f), m_paths[i]->origin + Vector(0.0f, 0.0f, nodeHalfHeight), nodeFlagColor, 7, 0, 0, 10); // draw additional path
                 }
 
                 m_waypointDisplayTime[i] = engine->GetTime();

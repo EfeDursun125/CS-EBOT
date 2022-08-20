@@ -2723,8 +2723,6 @@ void SetPing(edict_t* to)
 		if (!client.pingUpdate)
 			continue;
 
-		client.pingUpdate = false;
-
 		// no ping, no fun
 		if (client.ping <= 0)
 			client.ping = engine->RandomInt(15, 50);
@@ -2732,6 +2730,8 @@ void SetPing(edict_t* to)
 		MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, gamePingSVC, nullptr, to);
 		WRITE_LONG(client.ping);
 		MESSAGE_END();
+
+		client.pingUpdate = false;
 	}
 }
 
@@ -2765,12 +2765,7 @@ void StartFrame(void)
 	if (ebot_ping.GetBool())
 	{
 		for (auto& client : g_clients)
-		{
-			if (!(client.flags & CFLAG_USED))
-				continue;
-
 			SetPing(client.ent);
-		}
 	}*/
 
 	if (secondTimer < engine->GetTime())

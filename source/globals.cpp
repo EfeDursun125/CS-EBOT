@@ -24,6 +24,8 @@
 
 #include <core.h>
 
+float m_randomJoinTime = 0.0f; // for simulating server
+
 float API_Version;
 float amxxDLL_Version = -1.0;
 uint16 amxxDLL_bV16[4];

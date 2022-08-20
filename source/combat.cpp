@@ -60,6 +60,75 @@ int Bot::GetNearbyEnemiesNearPosition(Vector origin, int radius)
 	return count;
 }
 
+void Bot::ResetCheckEnemy()
+{
+	int i;
+	edict_t* entity = null;
+	m_checkEnemyNum = 0;
+	for (i = 0; i < checkEnemyNum; i++)
+	{
+		m_allEnemy[i] = null;
+		m_allEnemyDistance[i] = 9999.9f;
+
+		m_checkEnemy[i] = null;
+		m_checkEnemyDistance[i] = 9999.9f;
+	}
+
+	for (i = 0; i < engine->GetMaxClients(); i++)
+	{
+		entity = INDEXENT(i + 1);
+		if (!IsAlive(entity) || GetTeam(entity) == m_team || GetEntity() == entity)
+			continue;
+
+		m_allEnemy[m_checkEnemyNum] = entity;
+		m_allEnemyDistance[m_checkEnemyNum] = GetEntityDistance(entity);
+		m_checkEnemyNum++;
+	}
+
+	for (i = 0; i < entityNum; i++)
+	{
+		if (g_entityId[i] == -1 || g_entityAction[i] != 1 || m_team == g_entityTeam[i])
+			continue;
+
+		entity = INDEXENT(g_entityId[i]);
+		if (FNullEnt(entity) || !IsAlive(entity) || entity->v.effects & EF_NODRAW || entity->v.takedamage == DAMAGE_NO)
+			continue;
+
+		m_allEnemy[m_checkEnemyNum] = entity;
+		m_allEnemyDistance[m_checkEnemyNum] = GetEntityDistance(entity);
+		m_checkEnemyNum++;
+	}
+
+	for (i = 0; i < m_checkEnemyNum; i++)
+	{
+		for (int y = 0; y < checkEnemyNum; y++)
+		{
+			if (m_allEnemyDistance[i] > m_checkEnemyDistance[y])
+				continue;
+
+			if (m_allEnemyDistance[i] == m_checkEnemyDistance[y])
+			{
+				if ((pev->origin - GetEntityOrigin(m_allEnemy[i])).GetLength() > (pev->origin - GetEntityOrigin(m_checkEnemy[y])).GetLength())
+					continue;
+			}
+
+			for (int z = m_checkEnemyNum - 1; z >= y; z--)
+			{
+				if (z == m_checkEnemyNum - 1 || m_checkEnemy[z] == null)
+					continue;
+
+				m_checkEnemy[z + 1] = m_checkEnemy[z];
+				m_checkEnemyDistance[z + 1] = m_checkEnemyDistance[z];
+			}
+
+			m_checkEnemy[y] = m_allEnemy[i];
+			m_checkEnemyDistance[y] = m_allEnemyDistance[i];
+
+			break;
+		}
+	}
+}
+
 float Bot::GetEntityDistance(edict_t* entity)
 {
 	if (FNullEnt(entity))
@@ -111,27 +180,21 @@ bool Bot::LookupEnemy(void)
 	if (m_blindTime > engine->GetTime())
 		return false;
 
-	if (!FNullEnt(m_lastEnemy))
-	{
-		if (IsNotAttackLab(m_lastEnemy) || !IsAlive(m_lastEnemy) || (GetTeam(m_lastEnemy) == m_team))
-			SetLastEnemy(null);
-	}
-
-	if (!FNullEnt(m_lastVictim))
-	{
-		if (!IsValidPlayer(m_lastVictim) || !IsAlive(m_lastVictim) || (GetTeam(m_lastVictim) == m_team))
-			m_lastVictim = null;
-	}
-
 	int i;
 	edict_t* entity = null, * targetEntity = null;
 	float enemy_distance = 9999.0f;
-
 	edict_t* oneTimeCheckEntity = null;
-	
+
+	if (!FNullEnt(m_lastEnemy))
+	{
+		if (!IsAlive(m_lastEnemy) || (m_team == GetTeam(m_lastEnemy)) || IsNotAttackLab(m_lastEnemy))
+			SetLastEnemy(null);
+	}
+
 	if (m_enemyAPI != null)
 	{
-		if (m_blockCheckEnemyTime <= engine->GetTime() || !IsAlive(m_enemyAPI) || m_team == GetTeam(m_enemyAPI) || IsNotAttackLab(m_enemyAPI))
+		if (m_blockCheckEnemyTime <= engine->GetTime() ||
+			!IsAlive(m_enemyAPI) || m_team == GetTeam(m_enemyAPI) || IsNotAttackLab(m_enemyAPI))
 		{
 			m_enemyAPI = null;
 			m_blockCheckEnemyTime = engine->GetTime();
@@ -142,11 +205,15 @@ bool Bot::LookupEnemy(void)
 
 	if (!FNullEnt(m_enemy))
 	{
-		if ((!FNullEnt(m_enemyAPI) && m_enemyAPI != m_enemy) || m_team == GetTeam(m_enemy) || IsNotAttackLab(m_enemy) || !IsAlive(m_enemy))
+		if ((!FNullEnt(m_enemyAPI) && m_enemyAPI != m_enemy) ||
+			!IsAlive(m_enemy) || m_team == GetTeam(m_enemy) || IsNotAttackLab(m_enemy))
 		{
 			SetEnemy(null);
 			SetLastEnemy(null);
 			m_enemyUpdateTime = 0.0f;
+
+			if (GetGameMod() == MODE_DM)
+				m_fearLevel += 0.15f;
 		}
 
 		if ((m_enemyUpdateTime > engine->GetTime()))
@@ -165,13 +232,15 @@ bool Bot::LookupEnemy(void)
 	}
 	else if (!FNullEnt(m_moveTargetEntity))
 	{
-		if ((!FNullEnt(m_enemyAPI) && m_enemyAPI != m_moveTargetEntity) || m_team == GetTeam(m_moveTargetEntity) || !IsAlive(m_moveTargetEntity) || GetEntityOrigin(m_moveTargetEntity) == nullvec)
+		if ((!FNullEnt(m_enemyAPI) && m_enemyAPI != m_moveTargetEntity) ||
+			m_team == GetTeam(m_moveTargetEntity) || !IsAlive(m_moveTargetEntity) ||
+			GetEntityOrigin(m_moveTargetEntity) == nullvec)
 			SetMoveTarget(null);
 
 		targetEntity = m_moveTargetEntity;
 		enemy_distance = GetEntityDistance(m_moveTargetEntity);
 	}
-	
+
 	if (!FNullEnt(m_enemyAPI))
 	{
 		enemy_distance = GetEntityDistance(m_enemyAPI);
@@ -189,84 +258,23 @@ bool Bot::LookupEnemy(void)
 	}
 	else
 	{
-		int allEnemy = 0;
-		for (i = 0; i < checkEnemyNum; i++)
-		{
-			m_allEnemyId[i] = -1;
-			m_allEnemyDistance[i] = 9999.9f;
-
-			m_enemyEntityId[i] = -1;
-			m_enemyEntityDistance[i] = 9999.9f;
-		}
-
-		for (i = 0; i < engine->GetMaxClients(); i++)
-		{
-			entity = INDEXENT(i + 1);
-
-			if (!IsAlive(entity) || GetTeam(entity) == m_team || GetEntity() == entity)
-				continue;
-
-			m_allEnemyId[allEnemy] = i + 1;
-			m_allEnemyDistance[allEnemy] = GetEntityDistance(entity);
-			allEnemy++;
-		}
-
-		for (i = 0; i < entityNum; i++)
-		{
-			if (g_entityId[i] == -1 || g_entityAction[i] != 1)
-				continue;
-
-			if (m_team == g_entityTeam[i])
-				continue;
-
-			entity = INDEXENT(g_entityId[i]);
-			if (FNullEnt(entity) || !IsAlive(entity))
-				continue;
-
-			if (entity->v.effects & EF_NODRAW || entity->v.takedamage == DAMAGE_NO)
-				continue;
-
-			m_allEnemyId[allEnemy] = g_entityId[i];
-			m_allEnemyDistance[allEnemy] = GetEntityDistance(entity);
-			allEnemy++;
-		}
-
-		for (i = 0; i < allEnemy; i++)
-		{
-			for (int y = 0; y < checkEnemyNum; y++)
-			{
-				if (m_allEnemyDistance[i] > m_enemyEntityDistance[y])
-					continue;
-
-				for (int z = allEnemy - 1; z >= y; z--)
-				{
-					if (z == allEnemy - 1 || m_enemyEntityId[z] == -1)
-						continue;
-
-					m_enemyEntityId[z + 1] = m_enemyEntityId[z];
-					m_enemyEntityDistance[z + 1] = m_enemyEntityDistance[z];
-				}
-
-				m_enemyEntityId[y] = m_allEnemyId[i];
-				m_enemyEntityDistance[y] = m_allEnemyDistance[i];
-
-				break;
-			}
-		}
+		ResetCheckEnemy();
 
 		bool allCheck = false;
-		if ((m_isZombieBot || (m_currentWaypointIndex == WEAPON_KNIFE && targetEntity == m_moveTargetEntity)) && FNullEnt(m_enemy) && !FNullEnt(m_moveTargetEntity))
+		if ((m_isZombieBot ||
+			(m_currentWaypointIndex == WEAPON_KNIFE && targetEntity == m_moveTargetEntity)) &&
+			FNullEnt(m_enemy) && !FNullEnt(m_moveTargetEntity))
 		{
 			if (!IsEnemyViewable(m_moveTargetEntity, false, true, true))
 				allCheck = true;
 		}
 
-		for (i = 0; i < checkEnemyNum; i++)
+		for (i = 0; i < m_checkEnemyNum; i++)
 		{
-			if (m_enemyEntityId[i] == -1)
+			if (m_checkEnemy[i] == null)
 				continue;
 
-			entity = INDEXENT(m_enemyEntityId[i]);
+			entity = m_checkEnemy[i];
 			if (entity == oneTimeCheckEntity)
 				continue;
 
@@ -281,7 +289,7 @@ bool Bot::LookupEnemy(void)
 
 			if (IsEnemyViewable(entity, true, allCheck, true))
 			{
-				enemy_distance = m_enemyEntityDistance[i];
+				enemy_distance = m_checkEnemyDistance[i];
 				targetEntity = entity;
 				oneTimeCheckEntity = entity;
 
@@ -294,13 +302,13 @@ bool Bot::LookupEnemy(void)
 	{
 		if (m_currentWaypointIndex != GetEntityWaypoint(targetEntity))
 		{
-			float distance = GetEntityDistance(m_moveTargetEntity);
+			const float distance = GetEntityDistance(m_moveTargetEntity);
 			if (distance <= enemy_distance + 400.0f)
 			{
-				int targetWpIndex = GetEntityWaypoint(targetEntity);
+				const int targetWpIndex = GetEntityWaypoint(targetEntity);
 				bool shortDistance = false;
 
-				Path* path = g_waypoint->GetPath(m_currentWaypointIndex);
+				const Path* path = g_waypoint->GetPath(m_currentWaypointIndex);
 				for (int j = 0; j < Const_MaxPathIndex; j++)
 				{
 					if (path->index[j] != targetWpIndex)
@@ -321,10 +329,11 @@ bool Bot::LookupEnemy(void)
 		}
 	}
 
-	if (!FNullEnt(targetEntity))  // Last Checking
+	// last checking
+	if (!FNullEnt(targetEntity))
 	{
 		enemy_distance = GetEntityDistance(targetEntity);
-		if (oneTimeCheckEntity != targetEntity && !IsEnemyViewable(targetEntity, true, true))
+		if (!IsEnemyViewable(targetEntity, true, true))
 			targetEntity = null;
 	}
 
@@ -351,8 +360,9 @@ bool Bot::LookupEnemy(void)
 		{
 			bool moveTotarget = true;
 			int movePoint = 0;
+
 			int srcIndex = GetEntityWaypoint(GetEntity());
-			int destIndex = GetEntityWaypoint(targetEntity);
+			const int destIndex = GetEntityWaypoint(targetEntity);
 			if ((m_currentTravelFlags & PATHFLAG_JUMP))
 				movePoint = 10;
 			else if (srcIndex == destIndex || m_currentWaypointIndex == destIndex)
@@ -381,7 +391,8 @@ bool Bot::LookupEnemy(void)
 			}
 
 			enemy_distance = (GetEntityOrigin(targetEntity) - pev->origin).GetLength();
-			if ((enemy_distance <= 168.0f && movePoint <= 1) || (targetEntity == m_moveTargetEntity && movePoint <= 2))
+			if ((enemy_distance <= 150.0f && movePoint <= 1) ||
+				(targetEntity == m_moveTargetEntity && movePoint <= 2))
 			{
 				moveTotarget = false;
 				if (targetEntity == m_moveTargetEntity && movePoint <= 1)
@@ -390,8 +401,7 @@ bool Bot::LookupEnemy(void)
 
 			if (moveTotarget)
 			{
-				if (IsOnAttackDistance(targetEntity, 80.0f))
-					KnifeAttack();
+				KnifeAttack();
 
 				if (targetEntity != m_moveTargetEntity)
 				{
@@ -405,7 +415,7 @@ bool Bot::LookupEnemy(void)
 			}
 
 			if (m_enemyUpdateTime < engine->GetTime() + 3.0f)
-				m_enemyUpdateTime = engine->GetTime() + 3.0f;
+				m_enemyUpdateTime = engine->GetTime() + 2.5f;
 		}
 
 		g_botsCanPause = true;
@@ -414,6 +424,7 @@ bool Bot::LookupEnemy(void)
 		if (targetEntity == m_enemy)
 		{
 			m_seeEnemyTime = engine->GetTime();
+			m_backCheckEnemyTime = 0.0f;
 
 			m_actualReactionTime = 0.0f;
 			SetLastEnemy(targetEntity);
@@ -426,7 +437,7 @@ bool Bot::LookupEnemy(void)
 
 		m_targetEntity = null;
 
-		if (ChanceOf(m_skill))
+		if (engine->RandomInt(0, 100) < m_skill)
 			m_enemySurpriseTime = engine->GetTime() + (m_actualReactionTime / 3);
 		else
 			m_enemySurpriseTime = engine->GetTime() + m_actualReactionTime;
@@ -436,9 +447,10 @@ bool Bot::LookupEnemy(void)
 		SetEnemy(targetEntity);
 		SetLastEnemy(m_enemy);
 		m_seeEnemyTime = engine->GetTime();
+		m_backCheckEnemyTime = 0.0f;
 
 		if (!m_isZombieBot)
-			m_enemyUpdateTime = engine->GetTime() + 1.0f;
+			m_enemyUpdateTime = engine->GetTime() + 0.6f;
 
 		return true;
 	}
@@ -462,13 +474,31 @@ bool Bot::LookupEnemy(void)
 
 Vector Bot::GetAimPosition(void)
 {
+	bool isPlayer = IsValidPlayer(m_enemy);
+
+	if (IsZombieMode() && !m_isZombieBot && m_isEnemyReachable && isPlayer)
+	{
+		const Vector enemyHead = GetPlayerHeadOrigin(m_enemy);
+		if (enemyHead != nullvec)
+		{
+			TraceResult tr;
+			TraceLine(EyePosition(), enemyHead, true, true, GetEntity(), &tr);
+			if (tr.flFraction == 1.0f)
+				return m_enemyOrigin = enemyHead;
+		}
+
+		const Vector enemyOrigin = GetEntityOrigin(m_enemy);
+		if (enemyOrigin == nullvec)
+			return m_enemyOrigin = m_lastEnemyOrigin;
+	}
+
 	Vector enemyOrigin = GetEntityOrigin(m_enemy);
 	if (enemyOrigin == nullvec)
 		return m_enemyOrigin = m_lastEnemyOrigin;
 
 	if (!(m_states & STATE_SEEINGENEMY))
 	{
-		if (!IsValidPlayer(m_enemy))
+		if (!isPlayer)
 			return m_enemyOrigin = enemyOrigin;
 
 		enemyOrigin.x += engine->RandomFloat(m_enemy->v.mins.x, m_enemy->v.maxs.x);
@@ -478,12 +508,12 @@ Vector Bot::GetAimPosition(void)
 		return m_enemyOrigin = enemyOrigin;
 	}
 
-	if (!IsValidPlayer(m_enemy))
+	if (!isPlayer)
 		return m_enemyOrigin = m_lastEnemyOrigin = enemyOrigin;
 
 	if ((m_visibility & (VISIBILITY_HEAD | VISIBILITY_BODY)))
 	{
-		if (GetGameMod() == MODE_ZP || ((m_skill >= 80 || !ChanceOf(m_skill)) && (m_currentWeapon != WEAPON_AWP || m_enemy->v.health >= 100)))
+		if ((m_skill >= 80 || !ChanceOf(m_skill)) && (m_currentWeapon != WEAPON_AWP || m_enemy->v.health >= 100))
 			enemyOrigin = GetPlayerHeadOrigin(m_enemy);
 	}
 	else if (m_visibility & VISIBILITY_HEAD)
@@ -1035,7 +1065,6 @@ bool Bot::IsWeaponBadInDistance(int weaponIndex, float distance)
 
 void Bot::FocusEnemy(void)
 {
-	// aim for the head and/or body
 	m_lookAt = GetAimPosition();
 
 	if (m_enemySurpriseTime > engine->GetTime())
@@ -1135,14 +1164,14 @@ void Bot::CombatFight(void)
 
 		const bool NPCEnemy = !IsValidPlayer(m_enemy);
 		const bool enemyIsZombie = IsZombieEntity(m_enemy);
-		float baseDistance = fabsf(m_enemy->v.speed) + 400.0f;
+		float baseDistance = fabsf(m_enemy->v.speed) + 300.0f;
 
 		if (NPCEnemy || enemyIsZombie)
 		{
 			if (m_currentWeapon == WEAPON_KNIFE)
 			{
 				if (::IsInViewCone(pev->origin, m_enemy) && !NPCEnemy)
-					baseDistance = fabsf(m_enemy->v.speed) + 400.0f;
+					baseDistance = fabsf(m_enemy->v.speed) + 300.0f;
 				else
 					baseDistance = -1.0f;
 			}
@@ -1152,14 +1181,14 @@ void Bot::CombatFight(void)
 			{
 				if (m_skill >= 50)
 				{
-					if (m_enemy->v.speed >= m_enemy->v.maxspeed || distance <= 256.0f)
+					if (pev->weapons & (1 << WEAPON_FBGRENADE) && (m_enemy->v.speed >= m_enemy->v.maxspeed || distance <= 384.0f))
 						ThrowFrostNade();
 					else
 						ThrowFireNade();
 				}
 				else
 				{
-					if (engine->RandomInt(1, 2) == 1)
+					if (pev->weapons & (1 << WEAPON_FBGRENADE) && engine->RandomInt(1, 2) == 1)
 						ThrowFrostNade();
 					else
 						ThrowFireNade();
@@ -1281,14 +1310,6 @@ void Bot::CombatFight(void)
 
 			return;
 		}*/
-
-		// little trick for bots
-		if (m_isReloading && (m_skill > 40 || ChanceOf(5)))
-		{
-			const Vector& src = pev->origin - Vector(0, 0, 18.0f);
-			if ((m_visibility & (VISIBILITY_HEAD | VISIBILITY_BODY)) && m_enemy->v.weapons != WEAPON_KNIFE && !IsVisible(src, m_enemy))
-				m_duckTime = engine->GetTime() + m_frameInterval;
-		}
 
 		if (m_isSlowThink && (m_isReloading || ((m_isLeader || m_isVIP || m_isBomber) && pev->health <= (pev->max_health / 2)) || m_isUsingGrenade || (m_personality != PERSONALITY_RUSHER && ::IsInViewCone(pev->origin, m_enemy) && (pev->health + m_agressionLevel) < m_enemy->v.health + (m_personality == PERSONALITY_CAREFUL ? 15.0f : 30.0f))))
 		{
