@@ -850,6 +850,7 @@ private:
 
 	float m_checkCampPointTime; // zombie stuff
 	int m_zhCampPointIndex; // zombie stuff index
+	int m_myMeshWaypoint; // human mesh stuff index
 
 	Vector m_moveAnglesForRunMove; // angles while running
 	float m_moveSpeedForRunMove, m_strafeSpeedForRunMove; // for run
@@ -987,6 +988,8 @@ private:
 	void SelectWeaponbyNumber(int num);
 	int GetHighestWeapon(void);
 
+	void ResetCheckEnemy(void);
+
 	float GetEntityDistance(edict_t* entity);
 
 	bool IsEnemyProtectedByShield(edict_t* enemy);
@@ -1111,6 +1114,7 @@ public:
 	float m_maxDivRange; // tweak for human bots for look more realistic
 	float m_aimStopTime; // feel like playing on a phone
 	float m_backCheckEnemyTime; // for amxx support
+	float m_stayTime; // stay time (for simulate server)
 
 	int m_checkEnemyNum; // check enemy num idk
 	int m_numFriendsLeft; // number of friends alive
@@ -1133,11 +1137,11 @@ public:
 	int m_ammoInClip[Const_MaxWeapons]; // ammo in clip for each weapons
 	int m_ammo[MAX_AMMO_SLOTS]; // total ammo amounts
 
-	int m_allEnemyId[checkEnemyNum];
+	edict_t* m_allEnemy[checkEnemyNum];
 	float m_allEnemyDistance[checkEnemyNum];
 
-	int m_enemyEntityId[checkEnemyNum];
-	float m_enemyEntityDistance[checkEnemyNum];
+	edict_t* m_checkEnemy[checkEnemyNum];
+	float m_checkEnemyDistance[checkEnemyNum];
 
 	Bot(edict_t* bot, int skill, int personality, int team, int member);
 	~Bot(void);
@@ -1213,6 +1217,7 @@ class BotControl : public Singleton <BotControl>
 {
 private:
 	Array <CreateItem> m_creationTab; // bot creation tab
+	Array <String> m_savedBotNames; // storing the bot names
 	Bot* m_bots[32]; // all available bots
 	float m_maintainTime; // time to maintain bot creation quota
 	int m_lastWinner; // the team who won previous round
@@ -1241,6 +1246,7 @@ public:
 	int GetBotsNum(void);
 
 	void Think(void);
+	void DoJoinQuitStuff(void);
 	void Free(void);
 	void Free(int index);
 	//void CheckAutoVacate (edict_t *ent);
@@ -1382,7 +1388,7 @@ public:
 	void FindInRadius(Array <int>& queueID, float radius, Vector origin);
 
 	void ChangeZBCampPoint(Vector origin);
-	bool IsZBCampPoint(int pointID);
+	bool IsZBCampPoint(int pointID, bool checkMesh = true);
 
 	void Add(int flags, Vector waypointOrigin = nullvec);
 	void Delete(void);

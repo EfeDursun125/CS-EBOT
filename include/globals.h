@@ -25,6 +25,8 @@
 #ifndef GLOBALS_INCLUDED
 #define GLOBALS_INCLUDED
 
+extern float m_randomJoinTime;
+
 extern float API_Version;
 extern float amxxDLL_Version;
 extern uint16 amxxDLL_bV16[4];
