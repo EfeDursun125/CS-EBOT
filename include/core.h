@@ -795,6 +795,7 @@ private:
 	Vector m_lastWallOrigin; // for better zombie avoiding
 
 	bool m_isStuck; // bot is stuck
+	bool m_isBlocked; // bot is blocked by players
 	bool m_isReloading; // bot is reloading a gun
 	int m_reloadState; // current reload state
 	int m_voicePitch; // bot voice pitch
@@ -1163,7 +1164,7 @@ public:
 	void EquipInBuyzone(int buyCount);
 	void PushMessageQueue(int message);
 	void PrepareChatMessage(char* text);
-	int FindWaypoint();
+	int FindWaypoint(bool skipLag = true);
 	bool EntityIsVisible(Vector dest, bool fromBody = false);
 
 	void SetEnemy(edict_t* entity);
@@ -1382,7 +1383,6 @@ public:
 
 	int GetFacingIndex(void);
 	int FindFarest(const Vector& origin, float maxDistance = 9999.0);
-	int FindSafestForHuman(edict_t* enemy, edict_t* self, float maxDistance);
 	int FindNearest(Vector origin, float minDistance = 9999.0, int flags = -1, edict_t* entity = null, int* findWaypointPoint = (int*)-2, int mode = -1);
 	void FindInRadius(Vector origin, float radius, int* holdTab, int* count);
 	void FindInRadius(Array <int>& queueID, float radius, Vector origin);
