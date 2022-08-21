@@ -202,7 +202,7 @@
       </BrowseInformation>
       <FloatingPointModel>Strict</FloatingPointModel>
       <BrowseInformationFile />
-      <ControlFlowGuard>Guard</ControlFlowGuard>
+      <ControlFlowGuard>false</ControlFlowGuard>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <ResourceCompile>
