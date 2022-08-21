@@ -361,30 +361,6 @@ int Waypoint::FindFarest(const Vector& origin, float maxDistance)
     return index;
 }
 
-int Waypoint::FindSafestForHuman(edict_t* enemy, edict_t* self, float maxDistance) // trash
-{
-    int index = -1;
-
-    for (int i = 0; i < g_numWaypoints; i++)
-    {
-        float distance = (m_paths[i]->origin - GetEntityOrigin(enemy)).GetLength();
-
-        if (!(::IsVisible(m_paths[i]->origin, self)))
-            continue;
-
-        if (!IsInViewCone(m_paths[i]->origin, self))
-            continue;
-
-        if (distance > maxDistance)
-        {
-            index = i;
-            maxDistance = distance;
-        }
-    }
-
-    return index;
-}
-
 void Waypoint::ChangeZBCampPoint(Vector origin)
 {
     int point[2] = { -1, -1 };
@@ -496,7 +472,7 @@ int Waypoint::FindNearest(Vector origin, float minDistance, int flags, edict_t* 
         }
     }
 
-    // SyPB Pro P.42 - Move Target improve
+    // move target improve
     if (mode >= 0 && mode < g_numWaypoints)
     {
         int cdWPIndex[checkPoint];
@@ -1784,16 +1760,15 @@ bool Waypoint::Reachable(edict_t* entity, int index)
 
 bool Waypoint::IsNodeReachable(Vector src, Vector destination)
 {
-    TraceResult tr{};
-
     float distance = (destination - src).GetLength();
-
     if ((destination.z - src.z) >= 45.0f)
         return false;
 
     // is the destination not close enough?
     if (distance > g_autoPathDistance)
         return false;
+
+    TraceResult tr{};
 
     // check if we go through a func_illusionary, in which case return false
     TraceHull(src, destination, true, head_hull, g_hostEntity, &tr);
@@ -2086,16 +2061,27 @@ char* Waypoint::GetWaypointInfo(int id)
     }
 
     static char messageBuffer[1024];
-    sprintf(messageBuffer, "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s", (path->flags == 0 && !jumpPoint) ? " (none)" : "", path->flags & WAYPOINT_LIFT ? " LIFT" : "", path->flags & WAYPOINT_CROUCH ? " CROUCH" : "", path->flags & WAYPOINT_CROSSING ? " CROSSING" : "", path->flags & WAYPOINT_CAMP ? " CAMP" : "", path->flags & WAYPOINT_TERRORIST ? " TERRORIST" : "", path->flags & WAYPOINT_COUNTER ? " CT" : "", path->flags & WAYPOINT_SNIPER ? " SNIPER" : "", path->flags & WAYPOINT_GOAL ? " GOAL" : "", path->flags & WAYPOINT_LADDER ? " LADDER" : "", path->flags & WAYPOINT_RESCUE ? " RESCUE" : "", path->flags & WAYPOINT_DJUMP ? " JUMPHELP" : "", path->flags & WAYPOINT_AVOID ? " AVOID" : "", path->flags & WAYPOINT_USEBUTTON ? " USE BUTTON" : "", path->flags & WAYPOINT_FALLCHECK ? " FALL CHECK" : "", jumpPoint ? " JUMP" : "");
-
-    if (path->flags & WAYPOINT_ZMHMCAMP)
-        sprintf(messageBuffer, "ZOMBIE MODE HUMAN CAMP");
-    else if (path->flags & WAYPOINT_HMCAMPMESH)
-        sprintf(messageBuffer, "ZOMBIE MODE HUMAN MESH");
-    else if (path->flags & WAYPOINT_ZOMBIEONLY)
-        sprintf(messageBuffer, "ZOMBIE ONLY");
-    else if (path->flags & WAYPOINT_HUMANONLY)
-        sprintf(messageBuffer, "HUMAN ONLY");
+    sprintf(messageBuffer, "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s", 
+        (path->flags == 0 && !jumpPoint) ? " (none)" : "", 
+        path->flags & WAYPOINT_LIFT ? " LIFT" : "", 
+        path->flags & WAYPOINT_CROUCH ? " CROUCH" : "", 
+        path->flags & WAYPOINT_CROSSING ? " CROSSING" : "", 
+        path->flags & WAYPOINT_CAMP ? " CAMP" : "", 
+        path->flags & WAYPOINT_TERRORIST ? " TERRORIST" : "", 
+        path->flags & WAYPOINT_COUNTER ? " CT" : "", 
+        path->flags & WAYPOINT_SNIPER ? " SNIPER" : "", 
+        path->flags & WAYPOINT_GOAL ? " GOAL" : "", 
+        path->flags & WAYPOINT_LADDER ? " LADDER" : "", 
+        path->flags & WAYPOINT_RESCUE ? " RESCUE" : "", 
+        path->flags & WAYPOINT_DJUMP ? " ZOMBIE BOOST" : "", 
+        path->flags & WAYPOINT_AVOID ? " AVOID" : "", 
+        path->flags & WAYPOINT_USEBUTTON ? " USE BUTTON" : "", 
+        path->flags & WAYPOINT_FALLCHECK ? " FALL CHECK" : "", 
+        jumpPoint ? " JUMP" : "", 
+        path->flags & WAYPOINT_ZMHMCAMP ? "HUMAN CAMP" : "", 
+        path->flags & WAYPOINT_HMCAMPMESH ? "HUMAN MESH" : "",
+        path->flags & WAYPOINT_ZOMBIEONLY ? "ZOMBIE ONLY" : "",
+        path->flags & WAYPOINT_HUMANONLY ? "HUMAN ONLY" : "");
 
     // return the message buffer
     return messageBuffer;

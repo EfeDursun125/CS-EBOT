@@ -1188,12 +1188,12 @@ void Bot::SwitchChatterIcon(bool show)
 	}
 }
 
+// this function inserts the radio message into the message queue
 void Bot::RadioMessage(int message)
 {
 	if (ebot_use_radio.GetInt() != 1)
 		return;
 
-	// this function inserts the radio message into the message queue
 	if (m_radiotimer > engine->GetTime())
 		return;
 
@@ -1203,16 +1203,18 @@ void Bot::RadioMessage(int message)
 	if (GetGameMod() == MODE_DM)
 		return;
 
+	if (IsZombieMode() && message == Radio_NeedBackup)
+		return;
+
 	m_radioSelect = message;
 	PushMessageQueue(CMENU_RADIO);
 
 	m_radiotimer = engine->GetTime() + engine->RandomFloat(5.0f, 15.0f);
 }
 
+// this function checks and executes pending messages
 void Bot::CheckMessageQueue(void)
 {
-	// this function checks and executes pending messages
-
 	if (m_actMessageIndex == m_pushMessageIndex)
 		return;
 
@@ -1387,10 +1389,9 @@ bool Bot::IsRestricted(int weaponIndex)
 	return IsRestrictedAMX(weaponIndex);
 }
 
+// this function checks restriction set by AMX Mod, this function code is courtesy of KWo
 bool Bot::IsRestrictedAMX(int weaponIndex)
 {
-	// this function checks restriction set by AMX Mod, this function code is courtesy of KWo.
-
 	const char* restrictedWeapons = CVAR_GET_STRING("amx_restrweapons");
 	const char* restrictedEquipment = CVAR_GET_STRING("amx_restrequipammo");
 
@@ -1429,11 +1430,10 @@ bool Bot::IsRestrictedAMX(int weaponIndex)
 	}
 }
 
+// this function determines currently owned primary weapon, and checks if bot has
+// enough money to buy more powerful weapon
 bool Bot::IsMorePowerfulWeaponCanBeBought(void)
 {
-	// this function determines currently owned primary weapon, and checks if bot has
-	// enough money to buy more powerful weapon.
-
 	// if bot is not rich enough or non-standard weapon mode enabled return false
 	if (g_weaponSelect[25].teamStandard != 1 || m_moneyAmount < 4000 || IsNullString(ebot_restrictweapons.GetString()))
 		return false;
@@ -2726,15 +2726,13 @@ bool Bot::ReactOnEnemy(void)
 			// end of the path, before repathing check the distance if we can reach to enemy
 			if (m_navNode == null)
 			{
-				m_isEnemyReachable = (enemyDistance <= 768.0f);
-
+				m_isEnemyReachable = (enemyDistance <= 768.0f && IsVisibleForKnifeAttack(enemyHead, GetEntity()));
 				if (m_isEnemyReachable)
 					goto last;
 			}
 			else if (ownIndex == enemyIndex)
 			{
 				m_isEnemyReachable = true;
-
 				goto last;
 			}
 			else if (IsVisibleForKnifeAttack(enemyHead, GetEntity()))
@@ -2783,14 +2781,14 @@ bool Bot::ReactOnEnemy(void)
 				{
 					if (enemyIndex == m_zhCampPointIndex)
 						m_isEnemyReachable = true;
-					else if (enemyDistance <= (fabsf(m_enemy->v.speed) + 300.0f))
+					else if (enemyDistance <= (fabsf(m_enemy->v.speed) + 256.0f))
 					{
 						for (int j = 0; j < Const_MaxPathIndex; j++)
 						{
 							Vector origin = GetBottomOrigin(GetEntity());
 
 							TraceResult tr;
-							TraceLine(Vector(origin.x, origin.y, (origin.z + 24.0f)), enemyHead, true, false, GetEntity(), &tr);
+							TraceLine(Vector(origin.x, origin.y, (origin.z + 10.0f)), enemyHead, true, false, GetEntity(), &tr);
 
 							auto enemyWaypoint = g_waypoint->GetPath(enemyIndex);
 							if (tr.flFraction == 1.0f && enemyWaypoint->index[j] == ownIndex && !(enemyWaypoint->connectionFlags[j] & PATHFLAG_JUMP))
@@ -2809,10 +2807,10 @@ bool Bot::ReactOnEnemy(void)
 					Vector origin = GetBottomOrigin(GetEntity());
 
 					TraceResult tr;
-					TraceLine(Vector(origin.x, origin.y, (origin.z + 24.0f)), enemyHead, true, false, GetEntity(), &tr);
+					TraceLine(Vector(origin.x, origin.y, (origin.z + 10.0f)), enemyHead, true, false, GetEntity(), &tr);
 
 					// human improve
-					if (ebot_escape.GetInt() != 1 && enemyDistance <= (fabsf(m_enemy->v.speed) + 300.0f) && tr.flFraction == 1.0f)
+					if (ebot_escape.GetInt() != 1 && enemyDistance <= (fabsf(m_enemy->v.speed) + 256.0f) && tr.flFraction == 1.0f)
 						m_isEnemyReachable = true;
 					else
 						m_isEnemyReachable = false;
@@ -2828,7 +2826,7 @@ bool Bot::ReactOnEnemy(void)
 
 	last:
 		if (m_isEnemyReachable && m_isZombieBot)
-			m_enemyReachableTimer = engine->GetTime() + engine->RandomFloat(1.5f, 3.0f);
+			m_enemyReachableTimer = engine->GetTime() + engine->RandomFloat(0.75f, 1.5f);
 		else
 			m_enemyReachableTimer = engine->GetTime() + engine->RandomFloat(0.25f, 0.75f);
 	}
@@ -3819,6 +3817,7 @@ void Bot::Think(void)
 				m_stayTime = engine->GetTime() + 999999.0f;
 		}
 
+		m_isBlocked = false;
 		m_isSlowThink = true;
 
 		m_isZombieBot = IsZombieMode() ? IsZombieEntity(GetEntity()) : false;
@@ -5290,6 +5289,9 @@ void Bot::RunTask(void)
 		if (m_currentWeapon == WEAPON_KNIFE)
 			SelectBestWeapon();
 
+		if (m_isZombieBot && FNullEnt(m_enemy) && FNullEnt(m_enemyAPI) && (pev->origin - m_moveTargetOrigin).GetLength() <= 128.0f && IsVisibleForKnifeAttack(m_moveTargetOrigin, GetEntity()))
+			SetEnemy(m_moveTargetEntity);
+
 		m_aimFlags |= AIM_NAVPOINT;
 		m_destOrigin = m_moveTargetOrigin;
 		m_moveSpeed = pev->maxspeed;
@@ -5319,7 +5321,7 @@ void Bot::RunTask(void)
 				}
 			}
 
-			if (needMoveToTarget)
+			if (needMoveToTarget && (!(pev->flags & FL_DUCKING) || m_damageTime + 1.0f < engine->GetTime() || !HasNextPath()))
 			{
 				DeleteSearchNodes();
 				m_prevGoalIndex = destIndex;
@@ -5349,7 +5351,7 @@ void Bot::RunTask(void)
 				m_moveSpeed = pev->maxspeed;
 				m_moveToGoal = false;
 			}
-			else if ((GetEntityOrigin(m_enemy) - pev->origin).GetLength() <= (fabsf(m_enemy->v.speed) + 300.0f))
+			else if ((GetEntityOrigin(m_enemy) - pev->origin).GetLength() <= (fabsf(m_enemy->v.speed) + 256.0f))
 			{
 				destination = GetEntityOrigin(m_enemy);
 				m_destOrigin = destination;
@@ -5456,7 +5458,7 @@ void Bot::RunTask(void)
 				m_moveSpeed = pev->maxspeed;
 				m_moveToGoal = false;
 			}
-			else if ((GetEntityOrigin(m_enemy) - pev->origin).GetLength() <= (fabsf(m_enemy->v.speed) + 300.0f))
+			else if ((GetEntityOrigin(m_enemy) - pev->origin).GetLength() <= (fabsf(m_enemy->v.speed) + 256.0f))
 			{
 				destination = GetEntityOrigin(m_enemy);
 				m_destOrigin = destination;
@@ -6697,7 +6699,7 @@ void Bot::BotAI(void)
 	if (m_checkTerrain)
 	{
 		m_isStuck = false;
-		CheckCloseAvoidance(directionNormal);
+		m_isBlocked = CheckCloseAvoidance(directionNormal);
 
 		if ((m_moveSpeed <= -10 || m_moveSpeed >= 10 || m_strafeSpeed >= 10 || m_strafeSpeed <= -10) && m_lastCollTime < engine->GetTime())
 		{
@@ -7165,11 +7167,10 @@ void Bot::TakeDamage(edict_t* inflictor, int /*damage*/, int /*armor*/, int bits
 	}
 }
 
+// this function gets called by network message handler, when screenfade message get's send
+// it's used to make bot blind froumd the grenade
 void Bot::TakeBlinded(Vector fade, int alpha)
 {
-	// this function gets called by network message handler, when screenfade message get's send
-	// it's used to make bot blind froumd the grenade.
-
 	if (fade.x != 255 || fade.y != 255 || fade.z != 255 || alpha <= 170)
 		return;
 

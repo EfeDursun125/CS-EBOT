@@ -640,8 +640,8 @@ bool Bot::DoWaypointNav(void)
 	// initialize the radius for a special waypoint type, where the wpt is considered to be reached
 	if (currentWaypoint->flags & WAYPOINT_LIFT)
 		desiredDistance = 48.0f;
-	else if ((pev->flags & FL_DUCKING))
-		desiredDistance = 24.0f;
+	else if (pev->flags & FL_DUCKING)
+		desiredDistance = 16.0f;
 	else if (currentWaypoint->flags & WAYPOINT_LADDER)
 		desiredDistance = 24.0f;
 	else
@@ -671,7 +671,7 @@ bool Bot::DoWaypointNav(void)
 	if (!IsOnFloor() && !IsOnLadder())
 		desiredDistance += (m_frameInterval * m_frameInterval);
 
-	if (waypointDistance <= (desiredDistance * desiredDistance) || (!(currentWaypoint->flags & WAYPOINT_LADDER) && !IsOnLadder() && ((pev->origin + pev->velocity * m_frameInterval) - m_waypointOrigin).GetLengthSquared2D() <= (desiredDistance * desiredDistance)))
+	if (waypointDistance <= (desiredDistance * desiredDistance) || (pev->flags & FL_DUCKING && m_isBlocked && IsWaypointOccupied(m_currentWaypointIndex)) || (!(currentWaypoint->flags & WAYPOINT_LADDER) && !IsOnLadder() && ((pev->origin + pev->velocity * m_frameInterval) - m_waypointOrigin).GetLengthSquared2D() <= (desiredDistance * desiredDistance)))
 	{
 		// did we reach a destination waypoint?
 		if (GetCurrentTask()->data == m_currentWaypointIndex)
@@ -1005,7 +1005,7 @@ void Bot::FindPath(int srcIndex, int destIndex)
 			srcIndex = m_currentWaypointIndex;
 		else // we can try find start waypoint for avoid pathfinding errors
 		{
-			int secondindex = g_waypoint->FindNearest(pev->origin, 9999.0f, -1, GetEntity());
+			int secondindex = FindWaypoint(false);
 			if (IsValidWaypoint(secondindex))
 				srcIndex = secondindex;
 			else
@@ -1447,9 +1447,9 @@ int Bot::GetAimingWaypoint(Vector targetOriginPos)
 
 // this function find a node in the near of the bot if bot had lost his path of pathfinder needs
 // to be restarted over again
-int Bot::FindWaypoint(void)
+int Bot::FindWaypoint(bool skipLag)
 {
-	if (!m_isSlowThink && IsValidWaypoint(m_currentWaypointIndex))
+	if (skipLag && !m_isSlowThink && IsValidWaypoint(m_currentWaypointIndex))
 		return m_currentWaypointIndex;
 
 	int busy = -1;
@@ -1883,11 +1883,6 @@ bool Bot::GetBestNextWaypoint(void)
 		if (IsValidWaypoint(id) && g_waypoint->IsConnected(id, m_navNode->next->index) && g_waypoint->IsConnected(m_currentWaypointIndex, id))
 		{
 			if (g_waypoint->GetPath(id)->flags & WAYPOINT_LADDER || g_waypoint->GetPath(id)->flags & WAYPOINT_CAMP || g_waypoint->GetPath(id)->flags & WAYPOINT_JUMP || g_waypoint->GetPath(id)->flags & WAYPOINT_DJUMP) // don't use these waypoints as alternative
-				continue;
-
-			if (m_isZombieBot && g_waypoint->GetPath(id)->flags & WAYPOINT_HUMANONLY)
-				continue;
-			else if (g_waypoint->GetPath(id)->flags & WAYPOINT_ZOMBIEONLY)
 				continue;
 
 			if (!IsWaypointOccupied(id))
@@ -2677,9 +2672,9 @@ void Bot::FacePosition(void)
 	Vector direction = (m_lookAt - EyePosition()).ToAngles() + pev->punchangle;
 	direction.x *= -1.0f; // invert for engine
 
-	float accelerate = float(m_skill * 36);
-	float stiffness = float(m_skill * 3.3);
-	float damping = float(m_skill / 3);
+	float accelerate = float(m_skill * 40);
+	float stiffness = float(m_skill * 4);
+	float damping = float(m_skill / 4);
 
 	m_idealAngles = pev->v_angle;
 
@@ -2687,7 +2682,7 @@ void Bot::FacePosition(void)
 	float angleDiffYaw = engine->AngleDiff(direction.y, m_idealAngles.y);
 
 	float lockn = 1.0f;
-	if (IsZombieMode() && !m_isZombieBot && (!FNullEnt(m_enemy) || !FNullEnt(m_enemyAPI)))
+	if (IsZombieMode() && !m_isZombieBot && m_isEnemyReachable)
 	{
 		accelerate *= 2.0f;
 		stiffness *= 2.0f;
@@ -2743,7 +2738,7 @@ void Bot::SetStrafeSpeed(Vector moveDir, float strafeSpeed)
 			m_tempstrafeSpeed = -strafeSpeed;
 		else if (CheckWallOnLeft())
 			m_tempstrafeSpeed = strafeSpeed;
-
+		
 		m_strafeSpeed = m_tempstrafeSpeed;
 
 		if ((m_isStuck || pev->speed >= pev->maxspeed) && !IsOnLadder() && m_jumpTime + 5.0f < engine->GetTime() && IsOnFloor())

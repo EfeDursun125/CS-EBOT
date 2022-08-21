@@ -1164,14 +1164,14 @@ void Bot::CombatFight(void)
 
 		const bool NPCEnemy = !IsValidPlayer(m_enemy);
 		const bool enemyIsZombie = IsZombieEntity(m_enemy);
-		float baseDistance = fabsf(m_enemy->v.speed) + 300.0f;
+		float baseDistance = fabsf(m_enemy->v.speed) + 256.0f;
 
 		if (NPCEnemy || enemyIsZombie)
 		{
 			if (m_currentWeapon == WEAPON_KNIFE)
 			{
 				if (::IsInViewCone(pev->origin, m_enemy) && !NPCEnemy)
-					baseDistance = fabsf(m_enemy->v.speed) + 300.0f;
+					baseDistance = fabsf(m_enemy->v.speed) + 256.0f;
 				else
 					baseDistance = -1.0f;
 			}
@@ -1202,7 +1202,7 @@ void Bot::CombatFight(void)
 			if (!FNullEnt(m_lastEnemy) && m_enemy != m_lastEnemy && IsVisible(EyePosition(), m_lastEnemy))
 			{
 				lastEnemyDistance = (pev->origin - m_lastEnemyOrigin).GetLength();
-				baseDistanceLastEnemy = (fabsf(m_lastEnemy->v.speed) + 400.0f);
+				baseDistanceLastEnemy = fabsf(m_lastEnemy->v.speed) + 256.0f;
 				lastEnemyOrigin = m_lastEnemyOrigin;
 			}
 
@@ -1223,10 +1223,9 @@ void Bot::CombatFight(void)
 					Vector directionOld = m_destOrigin - (pev->origin + pev->velocity * m_frameInterval);
 					Vector directionNormal = directionOld.Normalize();
 					directionNormal.z = 0.0f;
-
 					SetStrafeSpeed(directionNormal, pev->maxspeed);
 
-					return;
+					m_destOrigin = m_waypointOrigin;
 				}
 				else if (ebot_escape.GetInt() == 0 && distance <= (baseDistance + (baseDistance / m_maxDivRange)))
 				{
@@ -1243,8 +1242,9 @@ void Bot::CombatFight(void)
 						Vector directionOld = m_destOrigin - (pev->origin + pev->velocity * m_frameInterval);
 						Vector directionNormal = directionOld.Normalize();
 						directionNormal.z = 0.0f;
-
 						SetStrafeSpeed(directionNormal, pev->maxspeed);
+
+						m_destOrigin = m_waypointOrigin;
 					}
 					else
 					{
@@ -1266,8 +1266,6 @@ void Bot::CombatFight(void)
 				m_moveSpeed = pev->maxspeed;
 			}
 		}
-
-		return;
 	}
 	else if (!IsZombieMode() && GetCurrentTask()->taskID != TASK_CAMP && GetCurrentTask()->taskID != TASK_SEEKCOVER && GetCurrentTask()->taskID != TASK_ESCAPEFROMBOMB)
 	{
