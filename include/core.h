@@ -391,6 +391,8 @@ enum WaypointFlag
 	WAYPOINT_HMCAMPMESH = (1 << 13), // human camp mesh
 	WAYPOINT_ZOMBIEONLY = (1 << 14), // only zombie bots can use this waypoint
 	WAYPOINT_HUMANONLY = (1 << 15), // only humans bots can use this waypoint
+	WAYPOINT_ZOMBIEPUSH = (1 << 16), // zombies never return back on this waypoint
+	WAYPOINT_FALLRISK = (1 << 17), // bots never do strafing while on this waypoint
 	WAYPOINT_FALLCHECK = (1 << 26), // bots will check ground
 	WAYPOINT_JUMP = (1 << 27), // for jump points
 	WAYPOINT_SNIPER = (1 << 28), // it's a specific sniper point
