@@ -543,8 +543,13 @@ bool Bot::DoWaypointNav(void)
 	}
 	else if (currentWaypoint->flags & WAYPOINT_CROUCH)
 		pev->button |= IN_DUCK;
+	
+	float waypointDistance = 0.0f;
+	if (currentWaypoint->flags & WAYPOINT_FALLRISK)
+		waypointDistance = (pev->origin - m_waypointOrigin).GetLengthSquared();
+	else
+		waypointDistance = ((pev->origin + pev->velocity.SkipZ() * m_frameInterval) - m_waypointOrigin).GetLengthSquared();
 
-	float waypointDistance = ((pev->origin + pev->velocity.SkipZ() * m_frameInterval) - m_waypointOrigin).GetLengthSquared();
 	float fixedWaypointDistance = Q_rsqrt(waypointDistance);
 
 	if (currentWaypoint->flags & WAYPOINT_LADDER)
@@ -993,6 +998,9 @@ inline const float HF_Distance(int start, int goal)
 // this function finds a path from srcIndex to destIndex
 void Bot::FindPath(int srcIndex, int destIndex)
 {
+	if (m_isZombieBot && m_damageTime + 5.0f > engine->GetTime() && IsValidWaypoint(m_currentWaypointIndex) && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_ZOMBIEPUSH && HasNextPath())
+		return;
+
 	if (m_pathtimer + 1.0 > engine->GetTime())
 	{
 		if (!HasNextPath()) // take care about that
@@ -1256,6 +1264,9 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 
 void Bot::DeleteSearchNodes(void)
 {
+	if (m_isZombieBot && m_damageTime + 5.0f > engine->GetTime() && IsValidWaypoint(m_currentWaypointIndex) && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_ZOMBIEPUSH && HasNextPath())
+		return;
+
 	if (m_pathtimer + 1.0f > engine->GetTime())
 		return;
 	

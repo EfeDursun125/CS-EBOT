@@ -2061,7 +2061,7 @@ char* Waypoint::GetWaypointInfo(int id)
     }
 
     static char messageBuffer[1024];
-    sprintf(messageBuffer, "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s", 
+    sprintf(messageBuffer, "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s", 
         (path->flags == 0 && !jumpPoint) ? " (none)" : "", 
         path->flags & WAYPOINT_LIFT ? " LIFT" : "", 
         path->flags & WAYPOINT_CROUCH ? " CROUCH" : "", 
@@ -2078,10 +2078,12 @@ char* Waypoint::GetWaypointInfo(int id)
         path->flags & WAYPOINT_USEBUTTON ? " USE BUTTON" : "", 
         path->flags & WAYPOINT_FALLCHECK ? " FALL CHECK" : "", 
         jumpPoint ? " JUMP" : "", 
-        path->flags & WAYPOINT_ZMHMCAMP ? "HUMAN CAMP" : "", 
-        path->flags & WAYPOINT_HMCAMPMESH ? "HUMAN MESH" : "",
-        path->flags & WAYPOINT_ZOMBIEONLY ? "ZOMBIE ONLY" : "",
-        path->flags & WAYPOINT_HUMANONLY ? "HUMAN ONLY" : "");
+        path->flags & WAYPOINT_ZMHMCAMP ? " HUMAN CAMP" : "", 
+        path->flags & WAYPOINT_HMCAMPMESH ? " HUMAN MESH" : "",
+        path->flags & WAYPOINT_ZOMBIEONLY ? " ZOMBIE ONLY" : "",
+        path->flags & WAYPOINT_HUMANONLY ? " HUMAN ONLY" : "",
+        path->flags & WAYPOINT_ZOMBIEPUSH ? " ZOMBIE PUSH" : "",
+        path->flags & WAYPOINT_FALLRISK ? " FALL RISK" : "");
 
     // return the message buffer
     return messageBuffer;
@@ -2346,6 +2348,10 @@ void Waypoint::ShowWaypointMsg(void)
                     nodeColor = Color(255, 0, 0, 255);
                 else if (m_paths[i]->flags & WAYPOINT_HUMANONLY)
                     nodeColor = Color(0, 0, 255, 255);
+                else if (m_paths[i]->flags & WAYPOINT_ZOMBIEPUSH)
+                    nodeColor = Color(250, 75, 150, 255);
+                else if (m_paths[i]->flags & WAYPOINT_FALLRISK)
+                    nodeColor = Color(128, 128, 128, 255);
 
                 // colorize additional flags
                 Color nodeFlagColor = Color(-1, -1, -1, 0);
@@ -2365,6 +2371,10 @@ void Waypoint::ShowWaypointMsg(void)
                     nodeFlagColor = Color(255, 0, 255, 255);
                 else if (m_paths[i]->flags & WAYPOINT_HUMANONLY)
                     nodeFlagColor = Color(255, 0, 255, 255);
+                else if (m_paths[i]->flags & WAYPOINT_ZOMBIEPUSH)
+                    nodeFlagColor = Color(255, 0, 0, 255);
+                else if (m_paths[i]->flags & WAYPOINT_FALLRISK)
+                    nodeFlagColor = Color(250, 75, 150, 255);
 
                 nodeColor.alpha = 255;
                 nodeFlagColor.alpha = 255;

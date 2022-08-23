@@ -2703,16 +2703,22 @@ bool Bot::ReactOnEnemy(void)
 {
 	// NO!
 	if (IsOnLadder())
-		return false;
+		return m_isEnemyReachable = false;
 
 	if (FNullEnt(m_enemy))
-		return false;
+		return m_isEnemyReachable = false;
 
 	if (!EnemyIsThreat())
-		return false;
+		return m_isEnemyReachable = false;
+
+	if (m_isZombieBot && m_damageTime + 5.0f > engine->GetTime() && IsValidWaypoint(m_currentWaypointIndex) && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_ZOMBIEPUSH)
+	{
+		m_enemyReachableTimer = engine->GetTime() + engine->RandomFloat(0.75f, 1.5f);
+		return m_isEnemyReachable = false;
+	}
 
 	Vector enemyHead = GetPlayerHeadOrigin(m_enemy);
-	float enemyDistance = (pev->origin - (enemyHead + m_enemy->v.velocity.SkipZ())).GetLength();
+	float enemyDistance = (pev->origin - enemyHead).GetLength();
 	int ownIndex = m_currentWaypointIndex;
 	int enemyIndex = g_waypoint->FindNearest(GetEntityOrigin(m_enemy), 9999.0f, -1, GetEntity());
 	auto currentWaypoint = g_waypoint->GetPath(m_currentWaypointIndex);
@@ -2771,7 +2777,7 @@ bool Bot::ReactOnEnemy(void)
 				}
 				else if (pev->flags & FL_DUCKING && m_enemy->v.flags & FL_DUCKING) // danger...
 				{
-					if (enemyDistance <= (fabsf(m_enemy->v.speed) + m_enemy->v.maxspeed * 1.5))
+					if (enemyDistance <= (fabsf(m_enemy->v.speed) + 300.0f))
 					{
 						m_isEnemyReachable = true;
 						goto last;
@@ -2781,7 +2787,7 @@ bool Bot::ReactOnEnemy(void)
 				{
 					if (enemyIndex == m_zhCampPointIndex)
 						m_isEnemyReachable = true;
-					else if (enemyDistance <= (fabsf(m_enemy->v.speed) + 256.0f))
+					else if (enemyDistance <= (fabsf(m_enemy->v.speed) + 300.0f))
 					{
 						for (int j = 0; j < Const_MaxPathIndex; j++)
 						{
@@ -2810,7 +2816,7 @@ bool Bot::ReactOnEnemy(void)
 					TraceLine(Vector(origin.x, origin.y, (origin.z + 10.0f)), enemyHead, true, false, GetEntity(), &tr);
 
 					// human improve
-					if (ebot_escape.GetInt() != 1 && enemyDistance <= (fabsf(m_enemy->v.speed) + 256.0f) && tr.flFraction == 1.0f)
+					if (ebot_escape.GetInt() != 1 && enemyDistance <= (fabsf(m_enemy->v.speed) + 300.0f) && tr.flFraction == 1.0f)
 						m_isEnemyReachable = true;
 					else
 						m_isEnemyReachable = false;
@@ -5351,7 +5357,7 @@ void Bot::RunTask(void)
 				m_moveSpeed = pev->maxspeed;
 				m_moveToGoal = false;
 			}
-			else if ((GetEntityOrigin(m_enemy) - pev->origin).GetLength() <= (fabsf(m_enemy->v.speed) + 256.0f))
+			else if ((GetEntityOrigin(m_enemy) - pev->origin).GetLength() <= (fabsf(m_enemy->v.speed) + 300.0f))
 			{
 				destination = GetEntityOrigin(m_enemy);
 				m_destOrigin = destination;
@@ -5458,7 +5464,7 @@ void Bot::RunTask(void)
 				m_moveSpeed = pev->maxspeed;
 				m_moveToGoal = false;
 			}
-			else if ((GetEntityOrigin(m_enemy) - pev->origin).GetLength() <= (fabsf(m_enemy->v.speed) + 256.0f))
+			else if ((GetEntityOrigin(m_enemy) - pev->origin).GetLength() <= (fabsf(m_enemy->v.speed) + 300.0f))
 			{
 				destination = GetEntityOrigin(m_enemy);
 				m_destOrigin = destination;
@@ -6698,8 +6704,14 @@ void Bot::BotAI(void)
 
 	if (m_checkTerrain)
 	{
+		if (m_isZombieBot && m_damageTime + 5.0f > engine->GetTime() && IsValidWaypoint(m_currentWaypointIndex) && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_ZOMBIEPUSH)
+		{
+			m_isBlocked = false;
+			m_lastCollTime = m_damageTime + 1.0f;
+		}
+		else
+			m_isBlocked = CheckCloseAvoidance(directionNormal);
 		m_isStuck = false;
-		m_isBlocked = CheckCloseAvoidance(directionNormal);
 
 		if ((m_moveSpeed <= -10 || m_moveSpeed >= 10 || m_strafeSpeed >= 10 || m_strafeSpeed <= -10) && m_lastCollTime < engine->GetTime())
 		{

@@ -543,7 +543,10 @@ void BotControl::MaintainBotQuota(void)
 
 		m_maintainTime = engine->GetTime() + 0.15f;
 	}
-	
+
+	if (ebot_random_join_quit.GetBool())
+		return;
+
 	g_botManager->CheckBotNum();
 	if (m_maintainTime < engine->GetTime())
 	{

@@ -1493,6 +1493,14 @@ void ClientCommand(edict_t* ent)
 					g_waypoint->ToggleFlags(WAYPOINT_HUMANONLY);
 					break;
 
+				case 5:
+					g_waypoint->ToggleFlags(WAYPOINT_ZOMBIEPUSH);
+					break;
+
+				case 6:
+					g_waypoint->ToggleFlags(WAYPOINT_FALLRISK);
+					break;
+
 				case 9:
 					DisplayMenuToClient(ent, &g_menus[13]);
 					break;

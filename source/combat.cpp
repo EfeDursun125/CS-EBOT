@@ -1113,7 +1113,15 @@ void Bot::FocusEnemy(void)
 
 void Bot::CombatFight(void)
 {
-	const Vector enemyOrigin = GetEntityOrigin(m_enemy) + m_enemy->v.velocity * m_frameInterval; // track next position
+	if (IsValidWaypoint(m_currentWaypointIndex) && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_FALLRISK)
+	{
+		m_checkFall = true;
+		m_moveToGoal = true;
+		m_moveSpeed = pev->maxspeed;
+		return;
+	}
+
+	const Vector enemyOrigin = GetEntityOrigin(m_enemy); // track next position
 	if (enemyOrigin == nullvec)
 	{
 		SetEnemy(null);
@@ -1164,20 +1172,20 @@ void Bot::CombatFight(void)
 
 		const bool NPCEnemy = !IsValidPlayer(m_enemy);
 		const bool enemyIsZombie = IsZombieEntity(m_enemy);
-		float baseDistance = fabsf(m_enemy->v.speed) + 256.0f;
+		float baseDistance = fabsf(m_enemy->v.speed) + 300.0f;
 
 		if (NPCEnemy || enemyIsZombie)
 		{
 			if (m_currentWeapon == WEAPON_KNIFE)
 			{
 				if (::IsInViewCone(pev->origin, m_enemy) && !NPCEnemy)
-					baseDistance = fabsf(m_enemy->v.speed) + 256.0f;
+					baseDistance = fabsf(m_enemy->v.speed) + 300.0f;
 				else
 					baseDistance = -1.0f;
 			}
 
 			const float distance = (pev->origin - enemyOrigin).GetLength();
-			if (m_isSlowThink && distance <= 1024.0f && m_enemy->v.health > 100 && !FNullEnt(m_lastEnemy) && m_lastEnemyOrigin != nullvec && engine->RandomInt(1, 1000) <= ebot_zp_use_grenade_percent.GetInt())
+			if (m_isSlowThink && distance <= 1024.0f && m_enemy->v.health > 100 && engine->RandomInt(1, 1000) <= ebot_zp_use_grenade_percent.GetInt())
 			{
 				if (m_skill >= 50)
 				{
@@ -1195,27 +1203,12 @@ void Bot::CombatFight(void)
 				}
 			}
 
-			float lastEnemyDistance = 0.0f;
-			float baseDistanceLastEnemy = -1.0f;
-			Vector lastEnemyOrigin = nullvec;
-
-			if (!FNullEnt(m_lastEnemy) && m_enemy != m_lastEnemy && IsVisible(EyePosition(), m_lastEnemy))
-			{
-				lastEnemyDistance = (pev->origin - m_lastEnemyOrigin).GetLength();
-				baseDistanceLastEnemy = fabsf(m_lastEnemy->v.speed) + 256.0f;
-				lastEnemyOrigin = m_lastEnemyOrigin;
-			}
-
 			if (baseDistance > 0.0f)
 			{
 				// better human escape ai
-				if (ebot_escape.GetInt() == 0 && (distance <= baseDistance || lastEnemyDistance <= baseDistanceLastEnemy))
+				if (ebot_escape.GetInt() == 0 && (distance <= baseDistance))
 				{
-					if (lastEnemyDistance > 0.0f)
-						m_destOrigin = enemyOrigin - (lastEnemyOrigin + m_lastEnemy->v.velocity * m_frameInterval) - m_lastWallOrigin;
-					else
-						m_destOrigin = enemyOrigin - m_lastWallOrigin;
-
+					m_destOrigin = enemyOrigin;
 					m_moveSpeed = -pev->maxspeed;
 					m_checkFall = true;
 					m_moveToGoal = false;
@@ -1224,35 +1217,12 @@ void Bot::CombatFight(void)
 					Vector directionNormal = directionOld.Normalize();
 					directionNormal.z = 0.0f;
 					SetStrafeSpeed(directionNormal, pev->maxspeed);
-
-					m_destOrigin = m_waypointOrigin;
 				}
 				else if (ebot_escape.GetInt() == 0 && distance <= (baseDistance + (baseDistance / m_maxDivRange)))
 				{
 					m_checkFall = true;
 					m_moveToGoal = false;
-
-					if (lastEnemyDistance <= baseDistanceLastEnemy)
-					{
-						m_destOrigin = lastEnemyOrigin + m_lastEnemy->v.velocity * m_frameInterval;
-						m_moveSpeed = -pev->maxspeed;
-						m_checkFall = true;
-						m_moveToGoal = false;
-
-						Vector directionOld = m_destOrigin - (pev->origin + pev->velocity * m_frameInterval);
-						Vector directionNormal = directionOld.Normalize();
-						directionNormal.z = 0.0f;
-						SetStrafeSpeed(directionNormal, pev->maxspeed);
-
-						m_destOrigin = m_waypointOrigin;
-					}
-					else
-					{
-						m_destOrigin = m_waypointOrigin;
-						m_checkFall = true;
-						m_moveToGoal = true;
-						m_moveSpeed = 0.0f;
-					}
+					m_moveSpeed = 0.0f;
 				}
 				else
 				{
