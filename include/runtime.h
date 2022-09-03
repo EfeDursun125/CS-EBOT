@@ -547,6 +547,7 @@ public:
     // Group: Functions.
     //
 public:
+
     //
     // Function: GetLength
     //
@@ -1817,8 +1818,7 @@ public:
 class String
 {
 protected:
-    char* m_array;
-
+    char *m_array;
     int m_used;
     int m_allocated;
 
@@ -1857,6 +1857,7 @@ private:
 
             delete[] m_array;
         }
+
         m_array = newBuffer;
         m_array[m_used] = 0;
         m_allocated = realCapacity;
@@ -2004,6 +2005,36 @@ public:
     inline const char* GetRawData(void) const
     {
         return m_array;
+    }
+
+    //
+    // Function: GetBuffer
+    //  Gets the string buffer.
+    //
+    // Returns:
+    //  Pointer to buffer.
+    //
+    const char* GetBuffer(void)
+    {
+        if (m_array == NULL || *m_array == 0x0)
+            return "";
+
+        return &m_array[0];
+    }
+
+    //
+    // Function: GetBuffer
+    //  Gets the string buffer (constant).
+    //
+    // Returns:
+    //  Pointer to constant buffer.
+    //
+    const char* GetBuffer(void) const
+    {
+        if (m_array == NULL || *m_array == 0x0)
+            return "";
+
+        return &m_array[0];
     }
 
     inline char* GetBuffer(int minBufLength)
@@ -2172,7 +2203,6 @@ public:
     inline void SetEmpty(void)
     {
         m_used = 0;
-        m_array[0] = 0;
     }
 
     inline int GetLength(void) const

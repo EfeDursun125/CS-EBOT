@@ -37,6 +37,7 @@
 #include <stdio.h>
 #include <memory.h>
 #include <xmmintrin.h>
+#include <sys/types.h>
 
 #include <engine.h>
 
@@ -186,61 +187,65 @@ enum RadioList
 };
 
 // voice system (extending enum above, messages 30-39 is reserved)
-/*enum ChatterMessage
+enum class ChatterMessage
 {
-	Chatter_SpotTheBomber = 40,
-	Chatter_FriendlyFire,
-	Chatter_DiePain,
-	Chatter_GotBlinded,
-	Chatter_GoingToPlantBomb,
-	Chatter_RescuingHostages,
-	Chatter_GoingToCamp,
-	Chatter_HearSomething,
-	Chatter_TeamKill,
-	Chatter_ReportingIn,
-	Chatter_GuardDroppedC4,
-	Chatter_Camp,
-	Chatter_PlantingC4,
-	Chatter_DefusingC4,
-	Chatter_InCombat,
-	Chatter_SeeksEnemy,
-	Chatter_Nothing,
-	Chatter_EnemyDown,
-	Chatter_UseHostage,
-	Chatter_FoundC4,
-	Chatter_WonTheRound,
-	Chatter_ScaredEmotion,
-	Chatter_HeardEnemy,
-	Chatter_SniperWarning,
-	Chatter_SniperKilled,
-	Chatter_VIPSpotted,
-	Chatter_GuardingVipSafety,
-	Chatter_GoingToGuardVIPSafety,
-	Chatter_QuicklyWonTheRound,
-	Chatter_OneEnemyLeft,
-	Chatter_TwoEnemiesLeft,
-	Chatter_ThreeEnemiesLeft,
-	Chatter_NoEnemiesLeft,
-	Chatter_FoundBombPlace,
-	Chatter_WhereIsTheBomb,
-	Chatter_DefendingBombSite,
-	Chatter_BarelyDefused,
-	Chatter_NiceshotCommander,
-	Chatter_NiceshotPall,
-	Chatter_GoingToGuardHostages,
-	Chatter_GoingToGuardDoppedBomb,
-	Chatter_OnMyWay,
-	Chatter_LeadOnSir,
-	Chatter_Pinned_Down,
-	Chatter_GottaFindTheBomb,
-	Chatter_You_Heard_The_Man,
-	Chatter_Lost_The_Commander,
-	Chatter_NewRound,
-	Chatter_CoverMe,
-	Chatter_BehindSmoke,
-	Chatter_BombSiteSecured,
-	Chatter_Total
-};*/
+	SpotTheBomber = 1,
+	FriendlyFire,
+	DiePain,
+	GotBlinded,
+	GoingToPlantBomb,
+	RescuingHostages,
+	GoingToCamp,
+	HearSomething,
+	TeamKill,
+	ReportingIn,
+	GuardDroppedC4,
+	Camp,
+	PlantingC4,
+	DefusingC4,
+	InCombat,
+	SeeksEnemy,
+	Nothing,
+	EnemyDown,
+	UseHostage,
+	FoundC4,
+	WonTheRound,
+	ScaredEmotion,
+	HeardEnemy,
+	SniperWarning,
+	SniperKilled,
+	VIPSpotted,
+	GuardingVipSafety,
+	GoingToGuardVIPSafety,
+	QuicklyWonTheRound,
+	OneEnemyLeft,
+	TwoEnemiesLeft,
+	ThreeEnemiesLeft,
+	NoEnemiesLeft,
+	FoundBombPlace,
+	WhereIsTheBomb,
+	DefendingBombSite,
+	BarelyDefused,
+	NiceshotCommander,
+	NiceshotPall,
+	GoingToGuardHostages,
+	GoingToGuardDoppedBomb,
+	OnMyWay,
+	LeadOnSir,
+	Pinned_Down,
+	GottaFindTheBomb,
+	You_Heard_The_Man,
+	Lost_The_Commander,
+	NewRound,
+	CoverMe,
+	BehindSmoke,
+	BombSiteSecured,
+	Clear,
+	Yes,
+	No,
+	Happy,
+	Total
+};
 
 // counter-strike weapon id's
 enum Weapon
@@ -510,43 +515,11 @@ struct Task
 	bool canContinue; // if task can be continued if interrupted
 };
 
-// wave structure
-struct WaveHeader
-{
-	char riffChunkId[4];
-	unsigned long packageSize;
-	char chunkID[4];
-	char formatChunkId[4];
-	unsigned long formatChunkLength;
-	unsigned short dummy;
-	unsigned short channels;
-	unsigned long sampleRate;
-	unsigned long bytesPerSecond;
-	unsigned short bytesPerSample;
-	unsigned short bitsPerSample;
-	char dataChunkId[4];
-	unsigned long dataChunkLength;
-};
-
 // botname structure definition
 struct NameItem
 {
 	String name;
 	bool isUsed;
-};
-
-// voice config structure definition
-struct ChatterItem
-{
-	String name;
-	float repeatTime;
-};
-
-// language config structure definition
-struct LanguageItem
-{
-	char* original; // original string
-	char* translated; // string to replace for
 };
 
 struct WeaponSelect
@@ -616,8 +589,6 @@ struct Clients
 	int flags; // client flags
 	float hearingDistance; // distance this sound is heared
 	float timeSoundLasting; // time sound is played/heared
-	int ping; // when bot latency is enabled, client ping stored here
-	bool pingUpdate; // update ping if true
 
 	int wpIndex;
 	int wpIndex2;
@@ -725,10 +696,11 @@ private:
 	Vector m_prevOrigin; // origin some frames before
 
 	int m_messageQueue[32]; // stack for messages
-	char m_tempStrings[160]; // space for strings (say text...)
-	char m_lastStrings[160]; // for block looping same text
+	char m_tempStrings[512]; // space for strings (say text...)
+	char m_lastStrings[161]; // for block looping same text
 	edict_t* m_lastChatEnt; // for block looping message from same bot
 	int m_radioSelect; // radio entry
+	float m_chatterTimer; // chatter timer
 
 	float m_blindRecognizeTime; // time to recognize enemy
 	float m_itemCheckTime; // time next search for items needs to be done
@@ -784,6 +756,7 @@ private:
 	Vector m_entity; // origin of entities like buttons etc.
 	Vector m_camp; // aiming vector when camping.
 
+	float m_timeWaypointMove; // last time bot followed waypoints
 	bool m_wantsToFire; // bot needs consider firing
 	float m_shootAtDeadTime; // time to shoot at dying players
 	edict_t* m_avoidEntity; // pointer to grenade entity to avoid
@@ -1006,6 +979,7 @@ private:
 	void FindShortestPath(int srcIndex, int destIndex);
 	void FindPath(int srcIndex, int destIndex);
 	void SecondThink(void);
+	void CalculatePing(void);
 
 public:
 	entvars_t* pev;
@@ -1028,7 +1002,6 @@ public:
 
 	int m_skill; // bots play skill
 	int m_moneyAmount; // amount of money in bot's bank
-	Array <String> m_avatars; // bot's avatar
 
 	Personality m_personality;
 	float m_spawnTime; // time this bot spawned
@@ -1095,6 +1068,9 @@ public:
 	Vector m_lastEnemyOrigin; // vector to last enemy origin
 	SayText m_sayTextBuffer; // holds the index & the actual message of the last unprocessed text message of a player
 	BurstMode m_weaponBurstMode; // bot using burst mode? (famas/glock18, but also silencer mode)
+
+	int m_pingOffset[2]; // offset for faking pings
+	int m_ping[3]; // bots pings in scoreboard
 
 	edict_t* m_enemy; // pointer to enemy entity
 	float m_enemyUpdateTime; // time to check for new enemies
@@ -1190,7 +1166,7 @@ public:
 
 	void ChatMessage(int type, bool isTeamSay = false);
 	void RadioMessage(int message);
-	void PushChatterMessage(int message);
+	void PlayChatterMessage(ChatterMessage message);
 
 	void Kill(void);
 	void Kick(void);
@@ -1220,7 +1196,6 @@ class BotControl : public Singleton <BotControl>
 {
 private:
 	Array <CreateItem> m_creationTab; // bot creation tab
-	Array <String> m_savedBotNames; // storing the bot names
 	Bot* m_bots[32]; // all available bots
 	float m_maintainTime; // time to maintain bot creation quota
 	int m_lastWinner; // the team who won previous round
@@ -1231,6 +1206,9 @@ protected:
 	int CreateBot(String name, int skill, int personality, int team, int member);
 
 public:
+	Array <String> m_savedBotNames; // storing the bot names
+	Array <String> m_avatars; // storing the steam ids
+
 	BotControl(void);
 	~BotControl(void);
 
@@ -1275,19 +1253,6 @@ public:
 	int AddBotAPI(const String& name, int skill, int team);
 
 	static void CallGameEntity(entvars_t* vars);
-};
-
-// texts localizer
-class Localizer : public Singleton <Localizer>
-{
-public:
-	Array <LanguageItem> m_langTab;
-
-public:
-	Localizer(void) { m_langTab.RemoveAll(); }
-	~Localizer(void) { m_langTab.RemoveAll(); }
-
-	char* TranslateInput(const char* input);
 };
 
 // netmessage handler class
@@ -1474,6 +1439,8 @@ extern bool ChanceOf(int number);
 extern float Q_rsqrt(float number);
 extern float DotProduct(Vector a, Vector b);
 extern float Clamp(float a, float b, float c);
+extern ChatterMessage GetEqualChatter(int message);
+extern void GetVoiceAndDur(ChatterMessage message, char* *voice, float *dur);
 
 extern int GetEntityWaypoint(edict_t* ent);
 extern int SetEntityWaypoint(edict_t* ent, int mode = -1);
@@ -1492,7 +1459,7 @@ extern bool IsInViewCone(Vector origin, edict_t* ent);
 extern bool IsWeaponShootingThroughWall(int id);
 extern bool IsValidBot(edict_t* ent);
 extern bool IsValidPlayer(edict_t* ent);
-extern bool OpenConfig(const char* fileName, char* errorIfNotExists, File* outFile, bool languageDependant = false);
+extern bool OpenConfig(const char* fileName, char* errorIfNotExists, File* outFile);
 extern bool FindNearestPlayer(void** holder, edict_t* to, float searchDistance = 4096.0, bool sameTeam = false, bool needBot = false, bool needAlive = false, bool needDrawn = false);
 
 extern const char* GetEntityName(edict_t* entity);

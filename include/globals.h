@@ -31,6 +31,7 @@ extern float API_Version;
 extern float amxxDLL_Version;
 extern uint16 amxxDLL_bV16[4];
 
+extern bool g_fakePings;
 extern bool g_bombPlanted;
 extern bool g_bombSayString;
 extern bool g_roundEnded;
@@ -58,6 +59,7 @@ extern float g_timeRoundMid;
 extern float g_timeNextBombUpdate;
 extern float g_timeRoundStart;
 extern float g_lastRadioTime[2];
+extern float g_audioTime;
 
 extern float g_DelayTimer;
 
@@ -89,7 +91,6 @@ extern Vector g_entityGetWpOrigin[entityNum];
 extern float g_entityGetWpTime[entityNum];
 
 extern Array <Array <String> > g_chatFactory;
-extern Array <Array <ChatterItem> > g_chatterFactory;
 extern Array <NameItem> g_botNames;
 extern Array <KwChat> g_replyFactory;
 

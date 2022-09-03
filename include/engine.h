@@ -3224,7 +3224,7 @@ public:
         if (IsBot())
             return;
 
-        char buffer[1024];
+        char buffer[2048];
         va_list ap;
 
         va_start(ap, format);
@@ -3375,9 +3375,6 @@ public:
 
     // register previously pushed convars to the engine registration
     void PushRegisteredConVarsToEngine(void);
-
-    // get's the wave length
-    float GetWaveLength(const char* fileName);
 
     // get the pointers of game cvars
     void GetGameConVarsPointers(void);
