@@ -36,6 +36,8 @@ ConVar ebot_maxskill("ebot_maxskill", "100");
 ConVar ebot_nametag("ebot_nametag", "2");
 ConVar ebot_join_after_player("ebot_join_after_player", "0");
 ConVar ebot_ping("ebot_fake_ping", "1");
+ConVar ebot_display_avatar("ebot_display_avatar", "1");
+
 ConVar ebot_autovacate("ebot_autovacate", "1");
 ConVar ebot_save_bot_names("ebot_save_bot_names", "1");
 
@@ -221,7 +223,7 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 	if (m_bots == null)
 		return -1;
 
-	ServerPrint("Connecting E-Bot - %s | Skill (%d)", GetEntityName(bot), skill);
+	ServerPrint("Connecting E-Bot - %s | Skill %d", GetEntityName(bot), skill);
 
 	return index;
 }
@@ -983,16 +985,15 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	char* buffer = GET_INFOKEYBUFFER(bot);
 	SET_CLIENT_KEYVALUE(clientIndex, buffer, "_vgui_menus", "0");
 
-	if (g_gameVersion != CSVER_VERYOLD)
-	{
-		if (ebot_ping.GetInt() != 1)
-			SET_CLIENT_KEYVALUE(clientIndex, buffer, "*bot", "1");
-		else
-			SET_CLIENT_KEYVALUE(clientIndex, buffer, "*bot", "-1");
-	}
+	if (g_gameVersion != CSVER_VERYOLD && !ebot_ping.GetBool())
+		SET_CLIENT_KEYVALUE(clientIndex, buffer, "*bot", "1");
 
 	rejectReason[0] = 0; // reset the reject reason template string
-	MDLL_ClientConnect(bot, "Bot", "127.0.0.1", rejectReason);
+	MDLL_ClientConnect(bot, "E-@BOT", FormatBuffer("127.0.0.%d", ENTINDEX(bot) + 100), rejectReason);
+
+	// should be set after client connect
+	if (ebot_display_avatar.GetBool() && !g_botManager->m_avatars.IsEmpty())
+		SET_CLIENT_KEYVALUE(clientIndex, buffer, "*sid", g_botManager->m_avatars.GetRandomElement());
 
 	if (!IsNullString(rejectReason))
 	{
@@ -1007,7 +1008,7 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	// initialize all the variables for this bot...
 	m_notStarted = true;  // hasn't joined game yet
 	m_difficulty = ebot_difficulty.GetInt(); // set difficulty
-	m_basePingLevel = engine->RandomInt(20, 70);
+	m_basePingLevel = engine->RandomInt(15, 75);
 
 	m_startAction = CMENU_IDLE;
 	m_moneyAmount = 0;
@@ -1055,7 +1056,7 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	memset(&m_ammo, 0, sizeof(m_ammo));
 
 	m_currentWeapon = 0; // current weapon is not assigned at start
-	m_voicePitch = engine->RandomInt(166, 250) / 2; // assign voice pitch
+	m_voicePitch = RANDOM_LONG(80, 120); // assign voice pitch
 
 	m_agressionLevel = m_baseAgressionLevel;
 	m_fearLevel = m_baseFearLevel;
@@ -1083,8 +1084,7 @@ Bot::~Bot(void)
 	{
 		sprintf(botName, "[E-BOT] %s", (char*)g_botNames[j].name);
 
-		if (strcmp(g_botNames[j].name, GetEntityName(GetEntity())) == 0 ||
-			strcmp(botName, GetEntityName(GetEntity())) == 0)
+		if (strcmp(g_botNames[j].name, GetEntityName(GetEntity())) == 0 || strcmp(botName, GetEntityName(GetEntity())) == 0)
 		{
 			g_botNames[j].isUsed = false;
 			break;
@@ -1326,7 +1326,8 @@ void Bot::Kill(void)
 
 void Bot::Kick(void)
 {
-	if (IsNullString(GetEntityName(GetEntity())))
+	auto myName = GetEntityName(GetEntity());
+	if (IsNullString(myName))
 		return;
 
 	ServerCommand("kick \"%s\"", GetEntityName(GetEntity()));
@@ -1334,6 +1335,8 @@ void Bot::Kick(void)
 
 	if (g_botManager->GetBotsNum() - 1 < ebot_quota.GetInt())
 		ebot_quota.SetInt(g_botManager->GetBotsNum() - 1);
+
+	g_botManager->m_savedBotNames.Pop();
 }
 
 // this function handles the selection of teams & class
@@ -1348,7 +1351,7 @@ void Bot::StartGame(void)
 			ebot_forceteam.GetString()[0] == '2')
 			m_wantedTeam = 2;
 		else if (ebot_forceteam.GetString()[0] == 'T' || ebot_forceteam.GetString()[0] == 't' ||
-			ebot_forceteam.GetString()[0] == '1') // SyPB Pro P.28 - 1=T, 2=CT
+			ebot_forceteam.GetString()[0] == '1') // 1 = T, 2 = CT
 			m_wantedTeam = 1;
 
 		if (m_wantedTeam != 1 && m_wantedTeam != 2)

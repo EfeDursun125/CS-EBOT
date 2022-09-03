@@ -21,6 +21,8 @@
 //
 // $Id:$
 //
+// Based on SyPB
+//
 
 #include <core.h>
 
@@ -46,6 +48,8 @@ ConVar ebot_use_flare("ebot_zombie_mode_use_flares", "1");
 ConVar ebot_chat_percent("ebot_chat_percent", "20");
 ConVar ebot_eco_rounds("ebot_eco_rounds", "1");
 
+ConVar ebot_chatter_path("ebot_chatter_path", "radio/bot");
+
 // this function get the current message from the bots message queue
 int Bot::GetMessageQueue(void)
 {
@@ -55,10 +59,9 @@ int Bot::GetMessageQueue(void)
 	return message;
 }
 
+// this function put a message into the bot message queue
 void Bot::PushMessageQueue(int message)
 {
-	// this function put a message into the bot message queue
-
 	if (message == CMENU_SAY)
 	{
 		// notify other bots of the spoken text otherwise, bots won't respond to other bots (network messages aren't sent from bots)
@@ -74,6 +77,7 @@ void Bot::PushMessageQueue(int message)
 					otherBot->m_sayTextBuffer.entityIndex = entityIndex;
 					strcpy(otherBot->m_sayTextBuffer.sayText, m_tempStrings);
 				}
+
 				otherBot->m_sayTextBuffer.timeNextChat = engine->GetTime() + otherBot->m_sayTextBuffer.chatDelay;
 			}
 		}
@@ -121,22 +125,24 @@ bool Bot::CheckVisibility(entvars_t* targetEntity, Vector* origin, uint8_t* body
 	if (m_isZombieBot || (m_currentWeapon == WEAPON_KNIFE && !HasPrimaryWeapon()))
 		ignoreGlass = false;
 
+	if (IsValidPlayer(ENT(targetEntity)))
+	{
+		Vector headOrigin = GetPlayerHeadOrigin(ENT(targetEntity));
+		TraceLine(botHead, headOrigin, true, ignoreGlass, GetEntity(), &tr);
+		if (tr.pHit == ENT(targetEntity) || tr.flFraction >= 1.0f)
+		{
+			*bodyPart |= VISIBILITY_HEAD;
+			*bodyPart |= VISIBILITY_BODY;
+			*origin = headOrigin;
+			return (*bodyPart != 0);
+		}
+	}
+
 	TraceLine(botHead, GetEntityOrigin(ENT(targetEntity)), true, ignoreGlass, GetEntity(), &tr);
 	if (tr.pHit == ENT(targetEntity) || tr.flFraction >= 1.0f)
 	{
 		*bodyPart |= VISIBILITY_BODY;
 		*origin = tr.vecEndPos;
-	}
-
-	if (!IsValidPlayer(ENT(targetEntity)))
-		return (*bodyPart != 0);
-
-	Vector headOrigin = GetPlayerHeadOrigin(ENT(targetEntity));
-	TraceLine(botHead, headOrigin, true, ignoreGlass, GetEntity(), &tr);
-	if (tr.pHit == ENT(targetEntity) || tr.flFraction >= 1.0f)
-	{
-		*bodyPart |= VISIBILITY_HEAD;
-		*origin = headOrigin;
 	}
 
 	return (*bodyPart != 0);
@@ -153,13 +159,9 @@ bool Bot::IsEnemyViewable(edict_t* entity, bool setEnemy, bool allCheck, bool ch
 	if (IsNotAttackLab(entity))
 		return false;
 
-	// fix
-	if (!FNullEnt(m_enemy) && m_team == GetTeam(m_enemy))
-		m_enemy = null;
-
-	if (!allCheck)
+	if (allCheck)
 	{
-		if (!IsInViewCone(GetEntityOrigin(entity)))
+		if (entity != m_lastEnemy && !IsInViewCone(GetEntityOrigin(entity)))
 		{
 			if (!m_isZombieBot && GetGameMod() == MODE_ZP && ebot_zm_dark_mode.GetInt() == 1)
 				return false;
@@ -443,7 +445,7 @@ void Bot::ZmCampPointAction(int mode)
 
 void Bot::AvoidEntity(void)
 {
-	if (m_isZombieBot || FNullEnt(m_avoidEntity) || (m_avoidEntity->v.flags & FL_ONGROUND) || (m_avoidEntity->v.effects & EF_NODRAW))
+	if (IsZombieMode() || FNullEnt(m_avoidEntity) || (m_avoidEntity->v.flags & FL_ONGROUND) || (m_avoidEntity->v.effects & EF_NODRAW))
 	{
 		m_avoidEntity = null;
 		m_needAvoidEntity = 0;
@@ -495,9 +497,6 @@ void Bot::AvoidEntity(void)
 
 		if (strcmp(STRING(entity->v.classname), "grenade") == 0)
 		{
-			if (IsZombieMode() && m_isZombieBot)
-				continue;
-
 			if (strcmp(STRING(entity->v.model) + 9, "flashbang.mdl") == 0 && GetGameMod() != MODE_BASE && !IsDeathmatchMode())
 				continue;
 
@@ -553,7 +552,7 @@ void Bot::AvoidEntity(void)
 
 bool Bot::IsBehindSmokeClouds(edict_t* ent)
 {
-	// in zombie mode, flares are counted as smoke and broke bot's vision
+	// in zombie mode, flares are counted as smoke and breaks the bot's vision
 	if (IsZombieMode())
 		return false;
 
@@ -605,10 +604,9 @@ int Bot::GetBestWeaponCarried(void)
 	return weaponIndex;
 }
 
+// this function returns the best secondary weapon of this bot (based on personality prefs)
 int Bot::GetBestSecondaryWeaponCarried(void)
 {
-	// this function returns the best secondary weapon of this bot (based on personality prefs)
-
 	int* ptr = g_weaponPrefs[m_personality];
 	int weaponIndex = 0;
 	int weapons = pev->weapons;
@@ -621,22 +619,23 @@ int Bot::GetBestSecondaryWeaponCarried(void)
 
 	for (int i = 0; i < Const_NumWeapons; i++)
 	{
-		int id = weaponTab[*ptr].id;
+		auto id = weaponTab[*ptr].id;
 
-		if ((weapons & (1 << weaponTab[*ptr].id)) && (id == WEAPON_USP || id == WEAPON_GLOCK18 || id == WEAPON_DEAGLE || id == WEAPON_P228 || id == WEAPON_ELITE || id == WEAPON_FN57))
+		if ((weapons & (1 << static_cast<int>(weaponTab[*ptr].id))) && (id == WEAPON_USP || id == WEAPON_GLOCK18 || id == WEAPON_DEAGLE || id == WEAPON_P228 || id == WEAPON_ELITE || id == WEAPON_FN57))
 		{
 			weaponIndex = i;
 			break;
 		}
+
 		ptr++;
 	}
+
 	return weaponIndex;
 }
 
+// this function compares weapons on the ground to the one the bot is using
 bool Bot::RateGroundWeapon(edict_t* ent)
 {
-	// this function compares weapons on the ground to the one the bot is using
-
 	int hasWeapon = 0;
 	int groundIndex = 0;
 	int* ptr = g_weaponPrefs[m_personality];
@@ -1166,10 +1165,9 @@ void Bot::GetCampDirection(Vector* dest)
 	}
 }
 
+// this function depending on show boolen, shows/remove chatter, icon, on the head of bot
 void Bot::SwitchChatterIcon(bool show)
 {
-	// this function depending on show boolen, shows/remove chatter, icon, on the head of bot.
-
 	if (g_gameVersion == CSVER_VERYOLD)
 		return;
 
@@ -1184,14 +1182,13 @@ void Bot::SwitchChatterIcon(bool show)
 		WRITE_BYTE(show); // switch on/off
 		WRITE_BYTE(GetIndex());
 		MESSAGE_END();
-
 	}
 }
 
 // this function inserts the radio message into the message queue
 void Bot::RadioMessage(int message)
 {
-	if (ebot_use_radio.GetInt() != 1)
+	if (ebot_use_radio.GetInt() <= 0)
 		return;
 
 	if (m_radiotimer > engine->GetTime())
@@ -1203,13 +1200,69 @@ void Bot::RadioMessage(int message)
 	if (GetGameMod() == MODE_DM)
 		return;
 
-	if (IsZombieMode() && message == Radio_NeedBackup)
+	// poor bots spamming this :(
+	if (IsZombieMode() && message == Radio_NeedBackup && !g_waypoint->m_zmHmPoints.IsEmpty())
 		return;
 
 	m_radioSelect = message;
-	PushMessageQueue(CMENU_RADIO);
 
-	m_radiotimer = engine->GetTime() + engine->RandomFloat(5.0f, 15.0f);
+	if (ebot_use_radio.GetInt() != 1)
+	{
+		PlayChatterMessage(GetEqualChatter(message));
+		return;
+	}
+
+	PushMessageQueue(CMENU_RADIO);
+	m_radiotimer = engine->GetTime() + engine->RandomFloat(m_numFriendsLeft, m_numFriendsLeft * 1.5f);
+}
+
+// this function inserts the voice message into the message queue (mostly same as above)
+void Bot::PlayChatterMessage(ChatterMessage message)
+{
+	if (ebot_use_radio.GetInt() <= 1)
+		return;
+
+	if (g_audioTime >= engine->GetTime())
+		return;
+
+	if (m_numFriendsLeft == 0)
+		return;
+
+	if (m_radiotimer > engine->GetTime())
+		return;
+
+	char* voice = "nothing";
+	float dur = -1.0f;
+	GetVoiceAndDur(message, &voice, &dur);
+
+	if (dur == -1.0f)
+		return;
+
+	dur += 1.0f;
+	m_chatterTimer = engine->GetTime() + dur;
+
+	SwitchChatterIcon(true);
+	g_audioTime = m_chatterTimer;
+
+	for (int i = 0; i < engine->GetMaxClients(); i++)
+	{
+		edict_t* ent = INDEXENT(i);
+
+		if (!IsValidPlayer(ent) || IsValidBot(ent) || GetTeam(ent) != m_team)
+			continue;
+
+		MESSAGE_BEGIN(MSG_ONE, g_netMsg->GetId(NETMSG_SENDAUDIO), NULL, ent); // begin message
+		WRITE_BYTE(GetIndex());
+
+		if (!(pev->deadflag & DEAD_DEAD))
+			WRITE_STRING(FormatBuffer("%s/%s.wav", ebot_chatter_path.GetString(), voice));
+
+		WRITE_SHORT(m_voicePitch);
+		MESSAGE_END();
+	}
+
+	m_radiotimer = engine->GetTime() + engine->RandomFloat(m_numFriendsLeft / 2.0f, m_numFriendsLeft * 1.5f);
+	PushMessageQueue(CMENU_RADIO);
 }
 
 // this function checks and executes pending messages
@@ -1312,7 +1365,6 @@ void Bot::CheckMessageQueue(void)
 					for (const auto& client : g_clients)
 					{
 						Bot* bot = g_botManager->GetBot(client.ent);
-
 						if (bot != null && pev != bot->pev && bot->m_team == m_team)
 						{
 							bot->m_radioOrder = m_radioSelect;
@@ -1322,7 +1374,7 @@ void Bot::CheckMessageQueue(void)
 				}
 			}
 
-			if (m_radioSelect != -1)
+			if (m_radioSelect != -1 && ebot_use_radio.GetInt() <= 1)
 			{
 				if (m_radioSelect != Radio_ReportingIn)
 				{
@@ -1333,7 +1385,8 @@ void Bot::CheckMessageQueue(void)
 						m_radioSelect -= Radio_GoGoGo - 1;
 						FakeClientCommand(GetEntity(), "radio2");
 					}
-					else {
+					else
+					{
 						m_radioSelect -= Radio_Affirmative - 1;
 						FakeClientCommand(GetEntity(), "radio3");
 					}
@@ -1369,7 +1422,6 @@ void Bot::CheckMessageQueue(void)
 bool Bot::IsRestricted(int weaponIndex)
 {
 	if (IsNullString(ebot_restrictweapons.GetString()))
-		//return false; // no banned weapons
 		return IsRestrictedAMX(weaponIndex);
 
 	Array <String> bannedWeapons = String(ebot_restrictweapons.GetString()).Split(";");
@@ -1956,8 +2008,7 @@ void Bot::SetConditions(void)
 	// check if there are items needing to be used/collected
 	if (m_itemCheckTime < engine->GetTime() || !FNullEnt(m_pickupItem))
 	{
-		m_itemCheckTime = engine->GetTime() + 3.0f;
-
+		m_itemCheckTime = engine->GetTime() + RANDOM_LONG(2.0f, 4.0f);
 		FindItem();
 	}
 
@@ -2873,12 +2924,17 @@ void Bot::CheckRadioCommands(void)
 	if (FNullEnt(m_radioEntity) || !IsAlive(m_radioEntity))
 		return;
 
+	// dynamic range :)
+	// less bots = more teamwork required
+	if (engine->RandomFloat(1.0f, 100.0f) <= 1.0f * m_numFriendsLeft / 3.0f)
+		return;
+
 	float distance = (GetEntityOrigin(m_radioEntity) - pev->origin).GetLength();
 
 	switch (m_radioOrder)
 	{
 	case Radio_FollowMe:
-		if (IsVisible(GetTopOrigin(m_radioEntity), GetEntity()) && ChanceOf(m_personality == PERSONALITY_RUSHER ? 25 : 50) && FNullEnt(m_enemy) && FNullEnt(m_lastEnemy)) // game crashes...
+		if (IsVisible(GetTopOrigin(m_radioEntity), GetEntity()) && FNullEnt(m_enemy) && FNullEnt(m_lastEnemy)) // game crashes...
 		{
 			int numFollowers = 0;
 
@@ -2914,13 +2970,13 @@ void Bot::CheckRadioCommands(void)
 				PushTask(TASK_FOLLOWUSER, TASKPRI_FOLLOWUSER, -1, (pev->origin - GetEntityOrigin(m_radioEntity)).GetLength() / pev->maxspeed, true);
 			}
 		}
-		else if(ChanceOf(15))
+		else
 			RadioMessage(Radio_Negative);
 
 		break;
 
 	case Radio_StickTogether:
-		if (IsVisible(GetTopOrigin(m_radioEntity), GetEntity()) && ChanceOf(m_personality == PERSONALITY_RUSHER ? 25 : 50) && FNullEnt(m_enemy) && FNullEnt(m_lastEnemy))
+		if (IsVisible(GetTopOrigin(m_radioEntity), GetEntity()) && FNullEnt(m_enemy) && FNullEnt(m_lastEnemy))
 		{
 			RadioMessage(Radio_Affirmative);
 			m_targetEntity = m_radioEntity;
@@ -2935,7 +2991,7 @@ void Bot::CheckRadioCommands(void)
 
 			PushTask(TASK_FOLLOWUSER, TASKPRI_FOLLOWUSER, -1, 20.0f, true);
 		}
-		else if (ChanceOf(75) && FNullEnt(m_enemy) && FNullEnt(m_lastEnemy))
+		else if (FNullEnt(m_enemy) && FNullEnt(m_lastEnemy))
 		{
 			RadioMessage(Radio_Affirmative);
 
@@ -2944,14 +3000,14 @@ void Bot::CheckRadioCommands(void)
 			DeleteSearchNodes();
 			PushTask(TASK_MOVETOPOSITION, TASKPRI_MOVETOPOSITION, -1, 1.0f, true);
 		}
-		else if (ChanceOf(25))
+		else
 			RadioMessage(Radio_Negative);
 
 		break;
 
 	case Radio_CoverMe:
 		// check if line of sight to object is not blocked (i.e. visible)
-		if (IsVisible(pev->origin, m_radioEntity) && ChanceOf(75))
+		if (IsVisible(pev->origin, m_radioEntity))
 		{
 			RadioMessage(Radio_Affirmative);
 
@@ -2972,7 +3028,7 @@ void Bot::CheckRadioCommands(void)
 		break;
 
 	case Radio_HoldPosition:
-		if (m_numEnemiesLeft > 0 && ChanceOf(m_personality == PERSONALITY_RUSHER ? 25 : 75) && !g_waypoint->m_campPoints.IsEmpty())
+		if (m_numEnemiesLeft > 0 && !g_waypoint->m_campPoints.IsEmpty())
 		{
 			int index = FindDefendWaypoint(GetTopOrigin(m_radioEntity));
 
@@ -2988,7 +3044,7 @@ void Bot::CheckRadioCommands(void)
 			else
 				RadioMessage(Radio_Negative);
 		}
-		else if (ChanceOf(25))
+		else
 			RadioMessage(Radio_Negative);
 
 		break;
@@ -3004,39 +3060,25 @@ void Bot::CheckRadioCommands(void)
 				if (m_fearLevel < 0.0f) 
 					m_fearLevel = 0.0f;
 
-				if (ChanceOf(35))
-				{
-					RadioMessage(Radio_Affirmative);
-					m_targetEntity = m_radioEntity;
-					m_position = GetEntityOrigin(m_radioEntity);
+				RadioMessage(Radio_Affirmative);
+				m_targetEntity = m_radioEntity;
+				m_position = GetEntityOrigin(m_radioEntity);
 
-					DeleteSearchNodes();
-					PushTask(TASK_MOVETOPOSITION, TASKPRI_MOVETOPOSITION, -1, (pev->origin - GetEntityOrigin(m_radioEntity)).GetLength() / pev->maxspeed, true);
-				}
-				else if (m_radioOrder == Radio_NeedBackup)
-				{
-					RadioMessage(Radio_Affirmative);
-					m_targetEntity = m_radioEntity;
-					m_position = GetEntityOrigin(m_radioEntity);
-
-					DeleteSearchNodes();
-					PushTask(TASK_MOVETOPOSITION, TASKPRI_MOVETOPOSITION, -1, (pev->origin - GetEntityOrigin(m_radioEntity)).GetLength() / pev->maxspeed, true);
-				}
-				else if (ChanceOf(25))
-					RadioMessage(Radio_Negative);
+				DeleteSearchNodes();
+				PushTask(TASK_MOVETOPOSITION, TASKPRI_MOVETOPOSITION, -1, (pev->origin - GetEntityOrigin(m_radioEntity)).GetLength() / pev->maxspeed, true);
 			}
-			else if (ChanceOf(25))
+			else
 				RadioMessage(Radio_Negative);
 		}
 
 		break;
 
 	case Radio_YouTakePoint:
-		if (IsVisible(GetTopOrigin(m_radioEntity), GetEntity()) && m_isLeader && ChanceOf(75))
+		if (IsVisible(GetTopOrigin(m_radioEntity), GetEntity()) && m_isLeader)
 		{
 			RadioMessage(Radio_Affirmative);
 
-			if(g_bombPlanted)
+			if (g_bombPlanted)
 				m_position = g_waypoint->GetBombPosition();
 			else
 				m_position = GetEntityOrigin(m_radioEntity);
@@ -3065,7 +3107,7 @@ void Bot::CheckRadioCommands(void)
 			}
 			
 		}
-		else if(ChanceOf(25))
+		else
 			RadioMessage(Radio_Negative);
 
 		break;
@@ -3080,7 +3122,7 @@ void Bot::CheckRadioCommands(void)
 			DeleteSearchNodes();
 			PushTask(TASK_MOVETOPOSITION, TASKPRI_MOVETOPOSITION, -1, 1.0f, true);
 		}
-		else if(m_personality != PERSONALITY_RUSHER && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_GOAL) // he's in goal waypoint, its danger!!!
+		else if (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_GOAL) // he's in goal waypoint, its danger!!!
 		{
 			RadioMessage(Radio_Affirmative);
 
@@ -3093,17 +3135,14 @@ void Bot::CheckRadioCommands(void)
 		break;
 
 	case Radio_NeedBackup:
-		if ((FNullEnt(m_enemy) && IsVisible(GetPlayerHeadOrigin(m_radioEntity), GetEntity()) || distance <= 1536.0f || !m_moveToC4) && ChanceOf(50) && m_seeEnemyTime + 5.0f <= engine->GetTime())
+		if ((FNullEnt(m_enemy) && IsVisible(GetPlayerHeadOrigin(m_radioEntity), GetEntity()) || distance <= 1536.0f || !m_moveToC4) && m_seeEnemyTime + 5.0f <= engine->GetTime())
 		{
 			m_fearLevel -= 0.1f;
 
 			if (m_fearLevel < 0.0f)
 				m_fearLevel = 0.0f;
 
-			if (ChanceOf(40))
-				RadioMessage(Radio_Affirmative);
-			else if (m_radioOrder == Radio_NeedBackup && ChanceOf(50))
-				RadioMessage(Radio_Affirmative);
+			RadioMessage(Radio_Affirmative);
 
 			m_targetEntity = m_radioEntity;
 			m_position = GetEntityOrigin(m_radioEntity);
@@ -3111,7 +3150,7 @@ void Bot::CheckRadioCommands(void)
 			DeleteSearchNodes();
 			PushTask(TASK_MOVETOPOSITION, TASKPRI_MOVETOPOSITION, -1, (pev->origin - GetEntityOrigin(m_radioEntity)).GetLength() / pev->maxspeed, true);
 		}
-		else if (ChanceOf(25) && m_radioOrder == Radio_NeedBackup)
+		else
 			RadioMessage(Radio_Negative);
 
 		break;
@@ -3119,10 +3158,7 @@ void Bot::CheckRadioCommands(void)
 	case Radio_GoGoGo:
 		if (m_radioEntity == m_targetEntity)
 		{
-			if (ChanceOf(40))
-				RadioMessage(Radio_Affirmative);
-			else if (m_radioOrder == Radio_NeedBackup)
-				RadioMessage(Radio_Affirmative);
+			RadioMessage(Radio_Affirmative);
 
 			m_targetEntity = nullptr;
 			m_fearLevel -= 0.2f;
@@ -3160,7 +3196,7 @@ void Bot::CheckRadioCommands(void)
 			RadioMessage(Radio_Affirmative);
 			ResetDoubleJumpState();
 		}
-		else if (ChanceOf(35))
+		else
 			RadioMessage(Radio_Negative);
 
 		break;
@@ -3176,7 +3212,7 @@ void Bot::CheckRadioCommands(void)
 			m_targetEntity = nullptr;
 			PushTask(TASK_ESCAPEFROMBOMB, TASKPRI_ESCAPEFROMBOMB, -1, GetBombTimeleft(), true);
 		}
-		else if (ChanceOf(35))
+		else
 			RadioMessage(Radio_Negative);
 
 		break;
@@ -3208,7 +3244,7 @@ void Bot::CheckRadioCommands(void)
 
 			RadioMessage(Radio_Affirmative);
 		}
-		else if (FNullEnt(m_enemy) && FNullEnt(m_lastEnemy) && (ChanceOf(40) || m_radioOrder == Radio_ReportTeam))
+		else if (FNullEnt(m_enemy) && FNullEnt(m_lastEnemy))
 		{
 			TaskComplete();
 
@@ -3222,13 +3258,13 @@ void Bot::CheckRadioCommands(void)
 
 			RadioMessage(Radio_Affirmative);
 		}
-		else if(ChanceOf(20))
+		else
 			RadioMessage(Radio_Negative);
 
 		break;
 
 	case Radio_StormTheFront:
-		if (((FNullEnt(m_enemy) && IsVisible(GetTopOrigin(m_radioEntity), GetEntity())) || distance < 1024.0f) && ChanceOf(50))
+		if ((FNullEnt(m_enemy) && IsVisible(GetTopOrigin(m_radioEntity), GetEntity())) || distance < 1024.0f)
 		{
 			RadioMessage(Radio_Affirmative);
 
@@ -3268,10 +3304,9 @@ void Bot::CheckRadioCommands(void)
 			if (m_agressionLevel < 0.0f)
 				m_agressionLevel = 0.0f;
 
-			if (GetCurrentTask()->taskID == TASK_CAMP && ChanceOf(50) && !FNullEnt(m_lastEnemy))
+			if (GetCurrentTask()->taskID == TASK_CAMP && !FNullEnt(m_lastEnemy))
 			{
 				RadioMessage(Radio_Negative);
-
 				GetCurrentTask()->time += engine->RandomFloat(ebot_camp_min.GetFloat(), ebot_camp_min.GetFloat());
 			}
 			else
@@ -3309,12 +3344,11 @@ void Bot::CheckRadioCommands(void)
 						}
 					}
 				}
-				else if (ChanceOf(50))
+				else
 				{
 					RadioMessage(Radio_Affirmative);
 
 					int seekindex = FindCoverWaypoint(9999.0f);
-
 					if (IsValidWaypoint(seekindex))
 						PushTask(TASK_SEEKCOVER, TASKPRI_SEEKCOVER, seekindex, 3.0f, true);
 
@@ -3329,11 +3363,11 @@ void Bot::CheckRadioCommands(void)
 		switch (GetCurrentTask()->taskID)
 		{
 		case TASK_NORMAL:
-			if (IsValidWaypoint(GetCurrentTask()->data) && ChanceOf(40))
+			if (IsValidWaypoint(GetCurrentTask()->data))
 			{
 				if (!FNullEnt(m_enemy))
 				{
-					if(IsAlive(m_enemy))
+					if (IsAlive(m_enemy))
 						RadioMessage(Radio_EnemySpotted);
 					else
 						RadioMessage(Radio_EnemyDown);
@@ -3354,25 +3388,20 @@ void Bot::CheckRadioCommands(void)
 			break;
 
 		case TASK_MOVETOPOSITION:
-			if (ChanceOf(20))
-			{
-				if (m_seeEnemyTime + 10.0f > engine->GetTime())
-					RadioMessage(Radio_EnemySpotted);
-				else if(FNullEnt(m_enemy) && FNullEnt(m_lastEnemy))
-					RadioMessage(Radio_SectorClear);
-			}
+			if (m_seeEnemyTime + 10.0f > engine->GetTime())
+				RadioMessage(Radio_EnemySpotted);
+			else if(FNullEnt(m_enemy) && FNullEnt(m_lastEnemy))
+				RadioMessage(Radio_SectorClear);
 
 			break;
 
 		case TASK_CAMP:
-			if (ChanceOf(50))
-				RadioMessage(Radio_InPosition);
+			RadioMessage(Radio_InPosition);
 
 			break;
 
 		case TASK_GOINGFORCAMP:
-			if (ChanceOf(40))
-				RadioMessage(Radio_HoldPosition);
+			RadioMessage(Radio_HoldPosition);
 
 			break;
 
@@ -3401,13 +3430,13 @@ void Bot::CheckRadioCommands(void)
 
 		default:
 			if (ChanceOf(15))
-				RadioMessage(Radio_Negative);
-			else if (ChanceOf(15))
 				RadioMessage(Radio_ReportingIn);
 			else if (ChanceOf(15))
 				RadioMessage(Radio_FollowMe);
 			else if (m_seeEnemyTime + 10.0f > engine->GetTime())
 				RadioMessage(Radio_EnemySpotted);
+			else
+				RadioMessage(Radio_Negative);
 
 			break;
 		}
@@ -3464,12 +3493,11 @@ void Bot::CheckRadioCommands(void)
 		{
 			RadioMessage(Radio_Affirmative);
 
-			if (GetCurrentTask()->taskID == TASK_CAMP && ChanceOf(m_personality == PERSONALITY_RUSHER ? 25 : 75))
+			if (GetCurrentTask()->taskID == TASK_CAMP)
 				GetCurrentTask()->time = engine->GetTime() + engine->RandomFloat(ebot_camp_min.GetFloat(), ebot_camp_max.GetFloat());
-			else if (ChanceOf(m_personality == PERSONALITY_RUSHER ? 25 : 75))
+			else
 			{
 				BotTask taskID = GetCurrentTask()->taskID;
-
 				if (taskID == TASK_PAUSE || taskID == TASK_CAMP)
 					TaskComplete();
 
@@ -3528,7 +3556,9 @@ void Bot::SelectLeaderEachTeam(int team)
 			{
 				botLeader->m_isLeader = true;
 
-				if (ChanceOf(40))
+				if (ChanceOf(10))
+					botLeader->PlayChatterMessage(ChatterMessage::Happy);
+				else if (ChanceOf(40))
 					botLeader->RadioMessage(Radio_FollowMe);
 			}
 		}
@@ -3540,7 +3570,9 @@ void Bot::SelectLeaderEachTeam(int team)
 			{
 				botLeader->m_isLeader = true;
 
-				if (ChanceOf(40))
+				if (ChanceOf(10))
+					botLeader->PlayChatterMessage(ChatterMessage::Happy);
+				else if (ChanceOf(40))
 					botLeader->RadioMessage(Radio_FollowMe);
 			}
 		}
@@ -3730,18 +3762,20 @@ void Bot::ChooseAimDirection(void)
 		if (!FNullEnt(m_breakableEntity))
 			m_lookAt = m_breakable;
 		else if (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_LADDER)
+		{
+			m_aimStopTime = 0.0f;
 			m_lookAt = m_destOrigin + pev->view_ofs;
+		}
 		else if (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_USEBUTTON)
 		{
 			edict_t* button = null;
-			button = FindNearestButton("func_button");
+			button = FindNearestButton(STRING(pev->targetname));
 
-			if (button != null && (g_waypoint->GetPath(m_currentWaypointIndex)->origin - GetEntityOrigin(button)).GetLength2D() <= 100.0f)
+			m_aimStopTime = 0.0f;
+			if (button != null)
 				m_lookAt = GetEntityOrigin(button);
 			else
 				m_lookAt = m_destOrigin + pev->view_ofs;
-
-			return;
 		}
 		else if (m_isZombieBot || m_currentWeapon == WEAPON_KNIFE)
 		{
@@ -3795,7 +3829,6 @@ void Bot::Think(void)
 	if (!m_buyingFinished)
 		ResetCollideState();
 
-	pev->flags |= FL_FAKECLIENT;
 	pev->button = 0;
 	m_moveSpeed = 0.0f;
 	m_strafeSpeed = 0.0f;
@@ -3808,8 +3841,14 @@ void Bot::Think(void)
 	m_frameInterval = engine->GetTime() - m_lastThinkTime;
 	m_lastThinkTime = engine->GetTime();
 
+	if (ebot_use_radio.GetInt() != 2 || m_chatterTimer < engine->GetTime())
+		SwitchChatterIcon(false);
+
 	if (m_slowthinktimer <= engine->GetTime())
 	{
+		if (!(pev->flags & FL_FAKECLIENT))
+			pev->flags |= FL_FAKECLIENT;
+
 		if (m_stayTime <= 0.0f)
 		{
 			extern ConVar ebot_random_join_quit;
@@ -3826,19 +3865,21 @@ void Bot::Think(void)
 		m_isBlocked = false;
 		m_isSlowThink = true;
 
-		m_isZombieBot = IsZombieMode() ? IsZombieEntity(GetEntity()) : false;
+		m_isZombieBot = IsZombieEntity(GetEntity());
 		m_team = GetTeam(GetEntity());
-		m_isBomber = pev->weapons & (1 << WEAPON_C4);
+		m_isBomber = (pev->weapons & (1 << WEAPON_C4));
 
 		if (!FNullEnt(m_lastEnemy) && !IsAlive(m_lastEnemy))
 			m_lastEnemy = null;
 
 		// at least walk randomly
-		if (!IsValidWaypoint(GetCurrentTask()->data))
+		if (!IsZombieMode() && !IsValidWaypoint(GetCurrentTask()->data))
 			m_chosenGoalIndex = engine->RandomInt(0, g_numWaypoints - 1);
 
 		if (m_slowthinktimer < engine->GetTime())
-			m_slowthinktimer = engine->GetTime() + engine->RandomFloat(0.9f, 1.1f);
+			m_slowthinktimer = engine->GetTime() + RANDOM_LONG(0.9f, 1.1f);
+
+		CalculatePing();
 	}
 	else
 		m_isSlowThink = false;
@@ -3923,10 +3964,11 @@ void Bot::Think(void)
 				pev->button |= IN_ATTACK;
 			else
 				pev->button |= IN_ATTACK2;
+
+			if (engine->RandomInt(1, 10) == 1)
+				PlayChatterMessage(ChatterMessage::Happy);
 		}
 	}
-
-	SwitchChatterIcon(false);
 
 	static float secondThinkTimer = 0.0f;
 
@@ -3970,7 +4012,7 @@ void Bot::SecondThink(void)
 			PushTask(TASK_THROWFLARE, TASKPRI_THROWGRENADE, -1, engine->RandomFloat(0.6f, 0.9f), false);
 	}
 
-	// force flashlight support
+	// zp & biohazard flashlight support
 	if (ebot_force_flashlight.GetInt() == 1 && !(pev->effects & EF_DIMLIGHT))
 		pev->impulse = 100;
 
@@ -3982,6 +4024,64 @@ void Bot::SecondThink(void)
 
 	if (g_bombPlanted && m_team == TEAM_COUNTER && (pev->origin - g_waypoint->GetBombPosition()).GetLength() <= 768.0f && !IsBombDefusing(g_waypoint->GetBombPosition()))
 		ResetTasks();
+}
+
+void Bot::CalculatePing(void)
+{
+	// save cpu power if no one is lookin' at scoreboard...
+	if (!g_fakePings)
+		return;
+
+	extern ConVar ebot_ping;
+	if (!ebot_ping.GetBool())
+		return;
+
+	int averagePing = 0;
+	int numHumans = 0;
+
+	for (int i = 0; i < engine->GetMaxClients(); i++)
+	{
+		edict_t* ent = INDEXENT(i + 1);
+
+		if (!IsValidPlayer(ent))
+			continue;
+
+		numHumans++;
+
+		int ping, loss;
+		PLAYER_CNX_STATS(ent, &ping, &loss);
+
+		if (ping < 0 || ping > 150)
+			ping = engine->RandomInt(5, 50);
+
+		averagePing += ping;
+	}
+
+	if (numHumans > 0)
+		averagePing /= numHumans;
+	else
+		averagePing = engine->RandomInt(30, 40);
+
+	int botPing = m_basePingLevel + engine->RandomInt(averagePing - averagePing * 0.2f, averagePing + averagePing * 0.2f) + engine->RandomInt(m_difficulty + 3, m_difficulty + 6);
+
+	if (botPing <= 5)
+		botPing = engine->RandomInt(9, 19);
+	else if (botPing > 120)
+		botPing = engine->RandomInt(87, 119);
+
+	for (int j = 0; j < 2; j++)
+	{
+		for (m_pingOffset[j] = 0; m_pingOffset[j] < 4; m_pingOffset[j]++)
+		{
+			if ((botPing - m_pingOffset[j]) % 4 == 0)
+			{
+				m_ping[j] = (botPing - m_pingOffset[j]) / 4;
+				break;
+			}
+		}
+	}
+
+	m_ping[2] = botPing;
 }
 
 void Bot::MoveAction(void)
@@ -4353,6 +4453,7 @@ void Bot::RunTask(void)
 		// bot sprays messy logos all over the place...
 	case TASK_SPRAYLOGO:
 		m_aimFlags |= AIM_ENTITY;
+		m_aimStopTime = 0.0f;
 
 		// bot didn't spray this round?
 		if (m_timeLogoSpray <= engine->GetTime() && m_tasks->time > engine->GetTime())
@@ -6600,17 +6701,22 @@ void Bot::BotAI(void)
 		// use button waypoints
 		if (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_USEBUTTON)
 		{
-			if ((pev->origin - g_waypoint->GetPath(m_currentWaypointIndex)->origin).GetLength2D() <= 50.0f)
+			if ((pev->origin - g_waypoint->GetPath(m_currentWaypointIndex)->origin).GetLength() <= 100.0f)
 			{
 				edict_t* button = null;
-				button = FindNearestButton("func_button");
+				button = FindNearestButton(STRING(pev->targetname));
 
-				if (button != null && (g_waypoint->GetPath(m_currentWaypointIndex)->origin - GetEntityOrigin(button)).GetLength() <= 100.0f)
-					MDLL_Use(button, GetEntity());
-				else
-					pev->button |= IN_USE;
+				if (!m_isSlowThink)
+				{
+					if (button != null)
+						MDLL_Use(button, GetEntity());
+					else
+						pev->button |= IN_USE;
+				}
 			}
 		}
+
+		m_timeWaypointMove = engine->GetTime();
 
 		if (IsInWater()) // special movement for swimming here
 		{
@@ -6770,8 +6876,10 @@ void Bot::BotAI(void)
 			if (!IsValidWaypoint(m_currentWaypointIndex))
 			{
 				DeleteSearchNodes();
-				m_currentWaypointIndex = g_waypoint->FindNearest(pev->origin, 9999.0f, -1, GetEntity());
+				m_currentWaypointIndex = FindWaypoint(false);
 			}
+			else if (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_JUMP && g_waypoint->GetPath(m_currentWaypointIndex)->origin.z - pev->origin.z >= 54.0f)
+				DeleteSearchNodes();
 			else if (!IsVisible(g_waypoint->GetPath(m_currentWaypointIndex)->origin, GetEntity()))
 				DeleteSearchNodes();
 

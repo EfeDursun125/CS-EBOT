@@ -127,53 +127,9 @@ char* HumanizeName(char* name)
     return &outputName[0]; // return terminated string
 }
 
-void HumanizeChat(char* buffer)
-{
-    // this function humanize chat string to be more handwritten
-
-    int length = strlen(buffer); // get length of string
-    int i = 0;
-
-    // sometimes switch text to lowercase
-    // note: since we're using russian chat written in english, we reduce this shit to 4 percent
-    if (engine->RandomInt(1, 100) <= 4)
-    {
-        for (i = 0; i < length; i++)
-            buffer[i] = static_cast <char> (tolower(buffer[i])); // switch to lowercase
-    }
-
-    if (length > 15)
-    {
-        // "length / 2" percent of time drop a character
-        if (engine->RandomInt(1, 100) < (length / 2))
-        {
-            int pos = engine->RandomInt((length / 8), length - (length / 8)); // chose random position in string
-
-            for (i = pos; i < length - 1; i++)
-                buffer[i] = buffer[i + 1]; // overwrite the buffer with stripped string
-
-            buffer[i] = 0x0; // terminate string;
-            length--; // update new string length
-        }
-
-        // "length" / 4 precent of time swap character
-        if (engine->RandomInt(1, 100) < (length / 4))
-        {
-            int pos = engine->RandomInt((length / 8), ((3 * length) / 8)); // choose random position in string
-            char ch = buffer[pos]; // swap characters
-
-            buffer[pos] = buffer[pos + 1];
-            buffer[pos + 1] = ch;
-        }
-    }
-
-    buffer[length] = 0; // terminate string
-}
-
+// this function parses messages from the botchat, replaces keywords and converts names into a more human style
 void Bot::PrepareChatMessage(char* text)
 {
-    // this function parses messages from the botchat, replaces keywords and converts names into a more human style
-
     if (!ebot_chat.GetBool() || IsNullString(text))
         return;
 
@@ -366,14 +322,12 @@ void Bot::PrepareChatMessage(char* text)
     char tempString[160];
     strncpy(tempString, textStart, 159);
 
-    HumanizeChat(tempString);
     strcat(m_tempStrings, tempString);
 }
 
+// this function checks is string contain keyword, and generates relpy to it
 bool CheckKeywords(char* tempMessage, char* reply)
 {
-    // this function checks is string contain keyword, and generates relpy to it
-
     if (!ebot_chat.GetBool() || IsNullString(tempMessage))
         return false;
 
@@ -382,18 +336,20 @@ bool CheckKeywords(char* tempMessage, char* reply)
         ITERATE_ARRAY(g_replyFactory[i].keywords, j)
         {
             // check is keyword has occurred in message
-            if (strstr(tempMessage, g_replyFactory[i].keywords[j]) != null)
+            if (strstr(tempMessage, g_replyFactory[i].keywords[j].GetBuffer()) != null)
             {
-                if (g_replyFactory[i].usedReplies.GetElementNumber() >= g_replyFactory[i].replies.GetElementNumber() / 2)
-                    g_replyFactory[i].usedReplies.RemoveAll();
+                Array <String>& replies = g_replyFactory[i].usedReplies;
+
+                if (replies.GetElementNumber() >= g_replyFactory[i].replies.GetElementNumber() / 2)
+                    replies.RemoveAll();
 
                 bool replyUsed = false;
-                const String& generatedReply = g_replyFactory[i].replies.GetRandomElement();
+                const char* generatedReply = g_replyFactory[i].replies.GetRandomElement();
 
                 // don't say this twice
-                ITERATE_ARRAY(g_replyFactory[i].usedReplies, k)
+                ITERATE_ARRAY(replies, k)
                 {
-                    if (strstr(g_replyFactory[i].usedReplies[k], generatedReply) != null)
+                    if (strstr(replies[k].GetBuffer(), generatedReply) != null)
                         replyUsed = true;
                 }
 
@@ -401,7 +357,7 @@ bool CheckKeywords(char* tempMessage, char* reply)
                 if (!replyUsed)
                 {
                     strcpy(reply, generatedReply); // update final buffer
-                    g_replyFactory[i].usedReplies.Push(generatedReply); //add to ignore list
+                    replies.Push(generatedReply); //add to ignore list
 
                     return true;
                 }
@@ -410,33 +366,31 @@ bool CheckKeywords(char* tempMessage, char* reply)
     }
 
     // didn't find a keyword? 70% of the time use some universal reply
-    if (engine->RandomInt(1, 100) < 70 && !g_chatFactory[CHAT_NOKW].IsEmpty())
+    if (ChanceOf(70) && !g_chatFactory[CHAT_NOKW].IsEmpty())
     {
-        strcpy(reply, g_chatFactory[CHAT_NOKW].GetRandomElement());
+        strcpy(reply, g_chatFactory[CHAT_NOKW].GetRandomElement().GetBuffer());
         return true;
     }
 
     return false;
 }
 
+// this function parse chat buffer, and prepare buffer to keyword searching
 bool Bot::ParseChat(char* reply)
 {
-    // this function parse chat buffer, and prepare buffer to keyword searching
-
     char tempMessage[512];
     strcpy(tempMessage, m_sayTextBuffer.sayText); // copy to safe place
 
     // text to uppercase for keyword parsing
     for (int i = 0; i < static_cast <int> (strlen(tempMessage)); i++)
-        tempMessage[i] = static_cast <char> (toupper(tempMessage[i]));
+        tempMessage[i] = toupper(tempMessage[i]);
 
     return CheckKeywords(tempMessage, reply);
 }
 
+// this function sends reply to a player
 bool Bot::RepliesToPlayer(void)
 {
-    // this function sends reply to a player
-
     if (m_sayTextBuffer.entityIndex != -1 && !IsNullString(m_sayTextBuffer.sayText))
     {
         char text[256];

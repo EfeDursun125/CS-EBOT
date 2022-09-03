@@ -288,7 +288,7 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 		String tempText = String(menu->menuText);
 		tempText.Replace("\v", "\n");
 
-		char* text = g_localizer->TranslateInput(tempText);
+		char* text = tempText;
 		tempText = String(text);
 
 		// make menu looks best
@@ -679,6 +679,7 @@ void CreatePath(char* path)
 void RoundInit(void)
 {
 	g_roundEnded = false;
+	g_audioTime = 0.0f;
 
 	if (GetGameMod() == MODE_BASE)
 	{
@@ -1266,8 +1267,8 @@ bool IsZombieEntity(edict_t* ent)
 	if (!IsValidPlayer(ent))
 		return false;
 
-	if (IsZombieMode()) // Zombie Mod
-		return (GetTeam(ent) == TEAM_TERRORIST);
+	if (IsZombieMode()) // Zombie Mode
+		return GetTeam(ent) == TEAM_TERRORIST;
 
 	return false;
 }
@@ -1347,7 +1348,7 @@ void ServerPrint(const char* format, ...)
 	char string[3072];
 
 	va_start(ap, format);
-	vsprintf(string, g_localizer->TranslateInput(format), ap);
+	vsprintf(string, format, ap);
 	va_end(ap);
 
 	SERVER_PRINT(FormatBuffer("[%s] %s\n", PRODUCT_LOGTAG, string));
@@ -1359,7 +1360,7 @@ void ServerPrintNoTag(const char* format, ...)
 	char string[3072];
 
 	va_start(ap, format);
-	vsprintf(string, g_localizer->TranslateInput(format), ap);
+	vsprintf(string, format, ap);
 	va_end(ap);
 
 	SERVER_PRINT(FormatBuffer("%s\n", string));
@@ -1374,7 +1375,7 @@ void API_TestMSG(const char* format, ...)
 	char string[3072];
 
 	va_start(ap, format);
-	vsprintf(string, g_localizer->TranslateInput(format), ap);
+	vsprintf(string, format, ap);
 	va_end(ap);
 
 	SERVER_PRINT(FormatBuffer("[%s-API Test] %s\n", PRODUCT_LOGTAG, string));
@@ -1386,7 +1387,7 @@ void CenterPrint(const char* format, ...)
 	char string[2048];
 
 	va_start(ap, format);
-	vsprintf(string, g_localizer->TranslateInput(format), ap);
+	vsprintf(string, format, ap);
 	va_end(ap);
 
 	if (IsDedicatedServer())
@@ -1407,7 +1408,7 @@ void ChartPrint(const char* format, ...)
 	char string[2048];
 
 	va_start(ap, format);
-	vsprintf(string, g_localizer->TranslateInput(format), ap);
+	vsprintf(string, format, ap);
 	va_end(ap);
 
 	if (IsDedicatedServer())
@@ -1415,6 +1416,7 @@ void ChartPrint(const char* format, ...)
 		ServerPrint(string);
 		return;
 	}
+
 	strcat(string, "\n");
 
 	MESSAGE_BEGIN(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG));
@@ -1429,7 +1431,7 @@ void ClientPrint(edict_t* ent, int dest, const char* format, ...)
 	char string[2048];
 
 	va_start(ap, format);
-	vsprintf(string, g_localizer->TranslateInput(format), ap);
+	vsprintf(string,format, ap);
 	va_end(ap);
 
 	if (FNullEnt(ent) || ent == g_hostEntity)
@@ -1495,34 +1497,19 @@ const char* GetMapName(void)
 	return &mapName[0]; // and return a pointer to it
 }
 
-bool OpenConfig(const char* fileName, char* errorIfNotExists, File* outFile, bool languageDependant)
+bool OpenConfig(const char* fileName, char* errorIfNotExists, File* outFile)
 {
 	if (outFile->IsValid())
 		outFile->Close();
 
-	if (languageDependant)
-	{
-		extern ConVar ebot_language;
-
-		if (strcmp(fileName, "lang.cfg") <= 0 && ebot_language.GetString () == "en")
-			return false;
-
-		char* languageDependantConfigFile = FormatBuffer("%s/addons/ebot/language/%s_%s", GetModName(), ebot_language.GetString(), fileName);
-
-		// check is file is exists for this language
-		if (TryFileOpen(languageDependantConfigFile))
-			outFile->Open(languageDependantConfigFile, "rt");
-		else
-			outFile->Open(FormatBuffer("%s/addons/ebot/language/en_%s", GetModName(), fileName), "rt");
-	}
-	else
-		outFile->Open(FormatBuffer("%s/addons/ebot/%s", GetModName(), fileName), "rt");
+	outFile->Open(FormatBuffer("%s/addons/ebot/%s", GetModName(), fileName), "rt");
 
 	if (!outFile->IsValid())
 	{
 		AddLogEntry(LOG_ERROR, errorIfNotExists);
 		return false;
 	}
+
 	return true;
 }
 
@@ -1632,7 +1619,7 @@ void AddLogEntry(int logLevel, const char* format, ...)
 	char buffer[512] = { 0, }, levelString[32] = { 0, }, logLine[1024] = { 0, };
 
 	va_start(ap, format);
-	vsprintf(buffer, g_localizer->TranslateInput(format), ap);
+	vsprintf(buffer, format, ap);
 	va_end(ap);
 
 	switch (logLevel)
@@ -1712,38 +1699,6 @@ void MOD_AddLogEntry(int mod, char* format)
 		fp.Print("E-BOT Build: %u.%u.%u.%u  \n", bV16[0], bV16[1], bV16[2], bV16[3]);
 	fp.Print("----------------------------- \n");
 	fp.Close();
-}
-
-char* Localizer::TranslateInput(const char* input)
-{
-	if (IsDedicatedServer())
-		return const_cast <char*> (&input[0]);
-
-	static char string[1024];
-	const char* ptr = input + strlen(input) - 1;
-
-	while (ptr > input && *ptr == '\n')
-		ptr--;
-
-	if (ptr != input)
-		ptr++;
-
-	strncpy(string, input, 1024);
-	strtrim(string);
-
-	ITERATE_ARRAY(m_langTab, i)
-	{
-		if (strcmp(string, m_langTab[i].original) == 0)
-		{
-			strncpy(string, m_langTab[i].translated, 1024);
-
-			if (ptr != input)
-				strncat(string, ptr, 1024 - strlen(string));
-
-			return &string[0];
-		}
-	}
-	return const_cast <char*> (&input[0]); // nothing found
 }
 
 // this function finds nearest to to, player with set of parameters, like his
@@ -1952,7 +1907,7 @@ int GetWeaponReturn(bool needString, const char* weaponAlias, int weaponID)
 	// structure definition for weapon tab
 	struct WeaponTab_t
 	{
-		Weapon weaponID; // weapon id
+		int weaponID; // weapon id
 		const char* alias; // weapon alias
 	};
 
@@ -2009,5 +1964,401 @@ int GetWeaponReturn(bool needString, const char* weaponAlias, int weaponID)
 		if (strncmp(weaponTab[i].alias, weaponAlias, strlen(weaponTab[i].alias)) == 0)
 			return weaponTab[i].weaponID;
 	}
+
 	return -1; // no weapon was found return -1
+}
+
+ChatterMessage GetEqualChatter(int message)
+{
+	ChatterMessage mine = ChatterMessage::Nothing;
+
+	if (message == Radio_Affirmative)
+		mine = ChatterMessage::Yes;
+	else if (message == Radio_Negative)
+		mine = ChatterMessage::No;
+	else if (message == Radio_EnemySpotted)
+		mine = ChatterMessage::SeeksEnemy;
+	else if (message == Radio_NeedBackup)
+		mine = ChatterMessage::SeeksEnemy;
+	else if (message == Radio_TakingFire)
+		mine = ChatterMessage::SeeksEnemy;
+	else if (message == Radio_CoverMe)
+		mine = ChatterMessage::CoverMe;
+	else if (message == Radio_SectorClear)
+		mine = ChatterMessage::Clear;
+
+	return mine;
+}
+
+void GetVoiceAndDur(ChatterMessage message, char* *voice, float *dur)
+{
+	if (message == ChatterMessage::Yes)
+	{
+		int rV = RANDOM_LONG(1, 11);
+		if (rV == 1)
+		{
+			*voice = "affirmative";
+			*dur = 0.0f;
+		}
+		else if (rV == 2)
+		{
+			*voice = "alright";
+			*dur = 0.0f;
+		}
+		else if (rV == 3)
+		{
+			*voice = "alright_lets_do_this";
+			*dur = 1.0f;
+		}
+		else if (rV == 4)
+		{
+			*voice = "alright2";
+			*dur = 0.0f;
+		}
+		else if (rV == 5)
+		{
+			*voice = "ok";
+			*dur = 0.0f;
+		}
+		else if (rV == 6)
+		{
+			*voice = "ok_sir_lets_go";
+			*dur = 1.0f;
+		}
+		else if (rV == 7)
+		{
+			*voice = "ok_cmdr_lets_go";
+			*dur = 1.0f;
+		}
+		else if (rV == 8)
+		{
+			*voice = "ok2";
+			*dur = 0.0f;
+		}
+		else if (rV == 9)
+		{
+			*voice = "roger";
+			*dur = 0.0f;
+		}
+		else if (rV == 10)
+		{
+			*voice = "roger_that";
+			*dur = 0.0f;
+		}
+		else if (rV == 11)
+		{
+			*voice = "yea_ok";
+			*dur = 0.0f;
+		}
+		else
+		{
+			*voice = "you_heard_the_man_lets_go";
+			*dur = 1.0f;
+		}
+	}
+	else if (message == ChatterMessage::No)
+	{
+		int rV = RANDOM_LONG(1, 12);
+		if (rV == 1)
+		{
+			*voice = "ahh_negative";
+			*dur = 1.0f;
+		}
+		else if (rV == 2)
+		{
+			*voice = "negative";
+			*dur = 0.0f;
+		}
+		else if (rV == 3)
+		{
+			*voice = "negative2";
+			*dur = 1.0f;
+		}
+		else if (rV == 4)
+		{
+			*voice = "no";
+			*dur = 0.0f;
+		}
+		else if (rV == 5)
+		{
+			*voice = "ok";
+			*dur = 0.0f;
+		}
+		else if (rV == 6)
+		{
+			*voice = "no_sir";
+			*dur = 0.0f;
+		}
+		else if (rV == 7)
+		{
+			*voice = "no_thanks";
+			*dur = 0.0f;
+		}
+		else if (rV == 8)
+		{
+			*voice = "no2";
+			*dur = 0.0f;
+		}
+		else if (rV == 9)
+		{
+			*voice = "naa";
+			*dur = 0.0f;
+		}
+		else if (rV == 10)
+		{
+			*voice = "nnno_sir";
+			*dur = 0.1f;
+		}
+		else if (rV == 11)
+		{
+			*voice = "hes_broken";
+			*dur = 0.1f;
+		}
+		else if (rV == 12)
+		{
+			*voice = "i_dont_think_so";
+			*dur = 0.0f;
+		}
+		else
+		{
+			*voice = "noo";
+			*dur = 0.0f;
+		}
+	}
+	else if (message == ChatterMessage::SeeksEnemy)
+	{
+		int rV = RANDOM_LONG(1, 15);
+		if (rV == 1)
+		{
+			*voice = "help";
+			*dur = 0.0f;
+		}
+		else if (rV == 2)
+		{
+			*voice = "need_help";
+			*dur = 0.0f;
+		}
+		else if (rV == 3)
+		{
+			*voice = "need_help2";
+			*dur = 0.0f;
+		}
+		else if (rV == 4)
+		{
+			*voice = "taking_fire_need_assistance2";
+			*dur = 1.0f;
+		}
+		else if (rV == 5)
+		{
+			*voice = "engaging_enemies";
+			*dur = 0.8f;
+		}
+		else if (rV == 6)
+		{
+			*voice = "attacking";
+			*dur = 0.0f;
+		}
+		else if (rV == 7)
+		{
+			*voice = "attacking_enemies";
+			*dur = 1.0f;
+		}
+		else if (rV == 8)
+		{
+			*voice = "a_bunch_of_them";
+			*dur = 0.0f;
+		}
+		else if (rV == 9)
+		{
+			*voice = "im_pinned_down";
+			*dur = 0.25f;
+		}
+		else if (rV == 10)
+		{
+			*voice = "im_in_trouble";
+			*dur = 1.0f;
+		}
+		else if (rV == 11)
+		{
+			*voice = "in_combat";
+			*dur = 0.0f;
+		}
+		else if (rV == 12)
+		{
+			*voice = "in_combat2";
+			*dur = 0.0f;
+		}
+		else if (rV == 13)
+		{
+			*voice = "target_acquired";
+			*dur = 0.0f;
+		}
+		else if (rV == 14)
+		{
+			*voice = "target_spotted";
+			*dur = 0.0f;
+		}
+		else
+		{
+			*voice = "i_see_our_target";
+			*dur = 1.0f;
+		}
+	}
+	else if (message == ChatterMessage::Clear)
+	{
+		int rV = RANDOM_LONG(1, 17);
+		if (rV == 1)
+		{
+			*voice = "clear";
+			*dur = 0.0f;
+		}
+		else if (rV == 2)
+		{
+			*voice = "clear2";
+			*dur = 0.0f;
+		}
+		else if (rV == 3)
+		{
+			*voice = "clear3";
+			*dur = 0.0f;
+		}
+		else if (rV == 4)
+		{
+			*voice = "clear4";
+			*dur = 1.0f;
+		}
+		else if (rV == 5)
+		{
+			*voice = "where_are_you_hiding";
+			*dur = 2.0f;
+		}
+		else if (rV == 6)
+		{
+			*voice = "where_could_they_be";
+			*dur = 0.0f;
+		}
+		else if (rV == 7)
+		{
+			*voice = "where_is_it";
+			*dur = 0.4f;
+		}
+		else if (rV == 8)
+		{
+			*voice = "area_clear";
+			*dur = 0.0f;
+		}
+		else if (rV == 9)
+		{
+			*voice = "area_secure";
+			*dur = 0.0f;
+		}
+		else if (rV == 10)
+		{
+			*voice = "anyone_see_anything";
+			*dur = 1.0f;
+		}
+		else if (rV == 11)
+		{
+			*voice = "all_clear_here";
+			*dur = 1.0f;
+		}
+		else if (rV == 12)
+		{
+			*voice = "all_quiet";
+			*dur = 1.0f;
+		}
+		else if (rV == 13)
+		{
+			*voice = "nothing";
+			*dur = 0.7f;
+		}
+		else if (rV == 14)
+		{
+			*voice = "nothing_happening_over_here";
+			*dur = 1.0f;
+		}
+		else if (rV == 15)
+		{
+			*voice = "nothing_here";
+			*dur = 0.0f;
+		}
+		else if (rV == 16)
+		{
+			*voice = "nothing_moving_over_here";
+			*dur = 1.0f;
+		}
+		else
+		{
+			*voice = "anyone_see_them";
+			*dur = 0.0f;
+		}
+	}
+	else if (message == ChatterMessage::CoverMe)
+	{
+		int rV = RANDOM_LONG(1, 2);
+		if (rV == 1)
+		{
+			*voice = "cover_me";
+			*dur = 0.0f;
+		}
+		else
+		{
+			*voice = "cover_me2";
+			*dur = 0.0f;
+		}
+	}
+	else if (message == ChatterMessage::Happy)
+	{
+		int rV = RANDOM_LONG(1, 10);
+		if (rV == 1)
+		{
+			*voice = "yea_baby";
+			*dur = 0.0f;
+		}
+		else if (rV == 2)
+		{
+			*voice = "whos_the_man";
+			*dur = 0.0f;
+		}
+		else if (rV == 3)
+		{
+			*voice = "who_wants_some_more";
+			*dur = 1.0f;
+		}
+		else if (rV == 4)
+		{
+			*voice = "yikes";
+			*dur = 0.0f;
+		}
+		else if (rV == 5)
+		{
+			*voice = "yesss";
+			*dur = 1.0f;
+		}
+		else if (rV == 6)
+		{
+			*voice = "yesss2";
+			*dur = 0.0f;
+		}
+		else if (rV == 7)
+		{
+			*voice = "whoo";
+			*dur = 0.0f;
+		}
+		else if (rV == 8)
+		{
+			*voice = "i_am_dangerous";
+			*dur = 1.0f;
+		}
+		else if (rV == 9)
+		{
+			*voice = "i_am_on_fire";
+			*dur = 1.0f;
+		}
+		else
+		{
+			*voice = "whoo2";
+			*dur = 0.5f;
+		}
+	}
 }

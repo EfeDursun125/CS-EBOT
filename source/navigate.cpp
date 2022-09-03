@@ -25,6 +25,7 @@
 #include <core.h>
 
 ConVar ebot_aimbot("ebot_aimbot", "0");
+ConVar ebot_aim_boost_in_zm("ebot_aim_boost_in_zm", "1");
 
 extern ConVar ebot_anti_block;
 
@@ -497,58 +498,45 @@ bool Bot::DoWaypointNav(void)
 	m_destOrigin = m_waypointOrigin;
 
 	// this waypoint has additional travel flags - care about them
-	if (m_currentTravelFlags & PATHFLAG_JUMP)
+	if (m_currentTravelFlags & PATHFLAG_JUMP && !m_isSlowThink)
 	{
-		// bot is not jumped yet?
-		if (!m_jumpFinished)
+		// cheating for jump, bots cannot do some hard jumps and double jumps too
+		// who cares about double jump for bots? :)
+		if (m_desiredVelocity == nullvec || m_desiredVelocity == -1)
 		{
-			// cheating for jump, bots cannot do some hard jumps and double jumps too
-			// who cares about double jump for bots? :)
-			if (m_desiredVelocity == nullvec || m_desiredVelocity == -1)
-			{
-				pev->button |= IN_JUMP;
+			pev->button |= IN_JUMP;
 
-				pev->velocity.x = ((m_waypointOrigin.x - pev->origin.x) * ((m_waypointOrigin - (pev->origin + pev->velocity * g_pGlobals->frametime)).GetLengthSquared2D() / pev->maxspeed));
-				pev->velocity.y = ((m_waypointOrigin.y - pev->origin.y) * ((m_waypointOrigin - (pev->origin + pev->velocity * g_pGlobals->frametime)).GetLengthSquared2D() / pev->maxspeed));
+			pev->velocity.x = (m_waypointOrigin.x - pev->origin.x) * ((pev->maxspeed / 100.0f) + m_frameInterval);
+			pev->velocity.y = (m_waypointOrigin.y - pev->origin.y) * ((pev->maxspeed / 100.0f) + m_frameInterval);
+		}
+		else if (IsOnFloor() || IsOnLadder())
+		{
+			pev->button |= IN_JUMP;
+			pev->velocity = m_desiredVelocity + (m_desiredVelocity * 0.046f);
+		}
 
-				if (IsOnFloor() || IsOnLadder())
-					pev->velocity.z = (fabsf(m_waypointOrigin.z - pev->origin.z) * ((m_waypointOrigin - (pev->origin + pev->velocity * g_pGlobals->frametime)).GetLength() / pev->maxspeed));
-
-				// do not use z buffer here
-				if (pev->velocity.x > pev->maxspeed)
-					pev->velocity.x = pev->maxspeed;
-
-				if (pev->velocity.y > pev->maxspeed)
-					pev->velocity.y = pev->maxspeed;
-
-				if (pev->velocity.x < -pev->maxspeed)
-					pev->velocity.x = -pev->maxspeed;
-
-				if (pev->velocity.y < -pev->maxspeed)
-					pev->velocity.y = -pev->maxspeed;
-			}
-			else if (IsOnFloor() || IsOnLadder())
-			{
-				pev->button |= IN_JUMP;
-				pev->velocity = m_desiredVelocity + (m_desiredVelocity * 0.046f);
-			}
-
-			if (IsOnFloor() || IsOnLadder())
-			{
-				m_jumpFinished = true;
-				m_checkTerrain = false;
-				m_desiredVelocity = nullvec;
-			}
+		if (IsOnFloor() || IsOnLadder())
+		{
+			m_jumpFinished = true;
+			m_checkTerrain = false;
+			m_desiredVelocity = nullvec;
 		}
 	}
-	else if (currentWaypoint->flags & WAYPOINT_CROUCH)
+	else if (currentWaypoint->flags & WAYPOINT_CROUCH && !(currentWaypoint->flags & WAYPOINT_CAMP))
 		pev->button |= IN_DUCK;
 	
 	float waypointDistance = 0.0f;
-	if (currentWaypoint->flags & WAYPOINT_FALLRISK)
+
+	Vector origin = pev->origin + pev->velocity.SkipZ() * m_frameInterval;
+	if (!IsOnFloor() && !IsInWater() && !IsOnLadder())
+	{
+		origin = pev->origin;
+		waypointDistance = (origin - m_waypointOrigin).GetLengthSquared();
+	}
+	else if (currentWaypoint->flags & WAYPOINT_FALLRISK || currentWaypoint->flags & WAYPOINT_JUMP || m_currentTravelFlags & PATHFLAG_JUMP)
 		waypointDistance = (pev->origin - m_waypointOrigin).GetLengthSquared();
 	else
-		waypointDistance = ((pev->origin + pev->velocity.SkipZ() * m_frameInterval) - m_waypointOrigin).GetLengthSquared();
+		waypointDistance = (origin - m_waypointOrigin).GetLengthSquared();
 
 	float fixedWaypointDistance = Q_rsqrt(waypointDistance);
 
@@ -643,7 +631,9 @@ bool Bot::DoWaypointNav(void)
 	float desiredDistance = 8.0f;
 
 	// initialize the radius for a special waypoint type, where the wpt is considered to be reached
-	if (currentWaypoint->flags & WAYPOINT_LIFT)
+	if (currentWaypoint->flags & WAYPOINT_JUMP || m_currentTravelFlags & PATHFLAG_JUMP)
+		desiredDistance = 8.0f;
+	else if (currentWaypoint->flags & WAYPOINT_LIFT)
 		desiredDistance = 48.0f;
 	else if (pev->flags & FL_DUCKING)
 		desiredDistance = 16.0f;
@@ -660,23 +650,19 @@ bool Bot::DoWaypointNav(void)
 			desiredDistance = 8.0f;
 			break;
 		}
-	}
-
-	if (desiredDistance <= 24.0f && fixedWaypointDistance <= 32.0f && (pev->origin + (pev->velocity.SkipZ() * m_frameInterval) - m_waypointOrigin).GetLengthSquared() >= waypointDistance)
-		desiredDistance = fixedWaypointDistance + 2.0f;
-	else if (!(m_currentTravelFlags & PATHFLAG_JUMP) && (m_waypointOrigin - pev->origin + (pev->velocity.SkipZ() * m_frameInterval)).GetLengthSquared() <= (32.0f * 32.0f) && m_waypointOrigin.z <= pev->origin.z + 32.0f)
-	{
-		if (m_navNode == null || (m_navNode->next != null && g_waypoint->Reachable(GetEntity(), m_navNode->next->index)))
+		else if (desiredDistance <= 24.0f && fixedWaypointDistance <= 32.0f && (origin - m_waypointOrigin).GetLengthSquared() >= waypointDistance)
 			desiredDistance = fixedWaypointDistance + 2.0f;
+		else if (!(m_currentTravelFlags & PATHFLAG_JUMP) && (m_waypointOrigin - origin).GetLengthSquared() <= (32.0f * 32.0f) && m_waypointOrigin.z <= pev->origin.z + 32.0f)
+		{
+			if (m_navNode == null || (m_navNode->next != null && g_waypoint->Reachable(GetEntity(), m_navNode->next->index)))
+				desiredDistance = fixedWaypointDistance + 2.0f;
+		}
 	}
-
+	
 	if (m_waypointGoalAPI != -1 && m_currentWaypointIndex == m_waypointGoalAPI)
 		m_waypointGoalAPI = -1;
 
-	if (!IsOnFloor() && !IsOnLadder())
-		desiredDistance += (m_frameInterval * m_frameInterval);
-
-	if (waypointDistance <= (desiredDistance * desiredDistance) || (pev->flags & FL_DUCKING && m_isBlocked && IsWaypointOccupied(m_currentWaypointIndex)) || (!(currentWaypoint->flags & WAYPOINT_LADDER) && !IsOnLadder() && ((pev->origin + pev->velocity * m_frameInterval) - m_waypointOrigin).GetLengthSquared2D() <= (desiredDistance * desiredDistance)))
+	if (waypointDistance <= (desiredDistance * desiredDistance) || (currentWaypoint->flags & WAYPOINT_ZOMBIEPUSH && pev->flags & FL_DUCKING && m_isBlocked && IsWaypointOccupied(m_currentWaypointIndex)) || (!(currentWaypoint->flags & WAYPOINT_LADDER) && !(currentWaypoint->flags & WAYPOINT_JUMP) && !(m_currentTravelFlags & PATHFLAG_JUMP) && !IsOnLadder() && (origin - m_waypointOrigin).GetLengthSquared2D() <= (desiredDistance * desiredDistance)))
 	{
 		// did we reach a destination waypoint?
 		if (GetCurrentTask()->data == m_currentWaypointIndex)
@@ -874,6 +860,9 @@ inline const float GF_CostCareful(int index, int parent, int team, bool isZombie
 			return 65355.0f;
 	}
 
+	if (path->flags & WAYPOINT_AVOID)
+		return 65355.0f;
+
 	float baseCost = g_exp.GetAStarValue(index, team, false);
 	for (int i = 0; i < Const_MaxPathIndex; i++)
 	{
@@ -925,6 +914,9 @@ inline const float GF_CostNormal(int index, int parent, int team, bool isZombie)
 			return 65355.0f;
 	}
 
+	if (path->flags & WAYPOINT_AVOID)
+		return 65355.0f;
+
 	float baseCost = g_exp.GetAStarValue(index, team, false);
 	if (path->flags & WAYPOINT_LADDER)
 		baseCost *= 3.0f;
@@ -943,6 +935,9 @@ inline const float GF_CostRusher(int index, int parent, int team, bool isZombie)
 	if (isZombie && path->flags & WAYPOINT_HUMANONLY)
 		return 65355.0f;
 	else if (path->flags & WAYPOINT_ZOMBIEONLY)
+		return 65355.0f;
+
+	if (path->flags & WAYPOINT_AVOID)
 		return 65355.0f;
 
 	float pathDist = g_waypoint->GetPathDistanceFloat(parent, index);
@@ -981,6 +976,9 @@ inline const float GF_CostNoHostage(int index, int parent, int team, bool isZomb
 			return 65355.0f;
 	}
 
+	if (path->flags & WAYPOINT_AVOID)
+		return 65355.0f;
+
 	float baseCost = g_exp.GetDamage(index, index, team);
 	float pathDist = g_waypoint->GetPathDistanceFloat(parent, index);
 
@@ -1013,9 +1011,14 @@ void Bot::FindPath(int srcIndex, int destIndex)
 			srcIndex = m_currentWaypointIndex;
 		else // we can try find start waypoint for avoid pathfinding errors
 		{
-			int secondindex = FindWaypoint(false);
-			if (IsValidWaypoint(secondindex))
-				srcIndex = secondindex;
+			int secondIndex = -1;
+			if (pev->flags & FL_DUCKING)
+				secondIndex = g_waypoint->FindNearest(pev->origin, 999999.0f, -1, GetEntity());
+			else
+				secondIndex = FindWaypoint(false);
+
+			if (IsValidWaypoint(secondIndex))
+				srcIndex = secondIndex;
 			else
 			{
 				AddLogEntry(LOG_ERROR, "Pathfinder source path index not valid (%d)", srcIndex);
@@ -1091,7 +1094,6 @@ void Bot::FindPath(int srcIndex, int destIndex)
 			do
 			{
 				PathNode* path = new PathNode;
-
 				if (path == null)
 					return;
 
@@ -1291,25 +1293,26 @@ void Bot::CheckTouchEntity(edict_t* entity)
 	if (!m_isSlowThink)
 		return;
 
-	if (m_currentWeapon == WEAPON_KNIFE &&
-		(!FNullEnt(m_enemy) || !FNullEnt(m_breakableEntity)) &&
-		(m_enemy == entity || m_breakableEntity == entity))
-		KnifeAttack((pev->origin - GetEntityOrigin(entity)).GetLength() + 50.0f);
-	
-	if (IsShootableBreakable(entity))
+	// If we won't be able to break it, don't try
+	if (entity->v.takedamage != DAMAGE_YES)
+		return;
+
+	// See if it's breakable
+	if (FClassnameIs(entity, "func_breakable"))
 	{
-		bool attackBreakable = false;
+		bool breakIt = false;
 		if (m_isStuck || &m_navNode[0] == null)
-			attackBreakable = true;
+			breakIt = true;
 		else if (IsValidWaypoint(m_currentWaypointIndex))
 		{
 			TraceResult tr;
 			TraceLine(pev->origin, g_waypoint->GetPath(m_currentWaypointIndex)->origin, false, false, GetEntity(), &tr);
-			if (tr.pHit == entity)// && tr.flFraction < 1.0f)
-				attackBreakable = true;
+			if (tr.pHit == entity)
+				breakIt = true;
 		}
 
-		if (attackBreakable)
+		// it's breakable - try to shoot it
+		if (breakIt)
 		{
 			m_breakableEntity = entity;
 			m_breakable = GetEntityOrigin(entity);
@@ -1912,10 +1915,9 @@ bool Bot::HasNextPath(void)
 	return (m_navNode != null && m_navNode->next != null);
 }
 
+// advances in our pathfinding list and sets the appropiate destination origins for this bot
 bool Bot::HeadTowardWaypoint(void)
 {
-	// advances in our pathfinding list and sets the appropiate destination origins for this bot
-
 	GetValidWaypoint(); // check if old waypoints is still reliable
 
 	// no waypoints from pathfinding?
@@ -2105,10 +2107,9 @@ bool Bot::HeadTowardWaypoint(void)
 	return true;
 }
 
+// checks if bot is blocked in his movement direction (excluding doors)
 bool Bot::CantMoveForward(Vector normal, TraceResult* tr)
 {
-	// Checks if bot is blocked in his movement direction (excluding doors)
-
 	// first do a trace from the bot's eyes forward...
 	Vector src = EyePosition();
 	Vector forward = src + normal * 24.0f;
@@ -2483,6 +2484,9 @@ bool Bot::CheckCloseAvoidance(const Vector& dirNormal)
 	if (m_seeEnemyTime + 3.0f < engine->GetTime())
 		return false;
 
+	if (m_numFriendsLeft <= 0)
+		return false;
+
 	edict_t* hindrance = nullptr;
 	float distance = 300.0f * 300.0f;
 
@@ -2693,7 +2697,7 @@ void Bot::FacePosition(void)
 	float angleDiffYaw = engine->AngleDiff(direction.y, m_idealAngles.y);
 
 	float lockn = 1.0f;
-	if (IsZombieMode() && !m_isZombieBot && m_isEnemyReachable)
+	if (IsZombieMode() && !m_isZombieBot && (m_isEnemyReachable || ebot_aim_boost_in_zm.GetBool()))
 	{
 		accelerate *= 2.0f;
 		stiffness *= 2.0f;

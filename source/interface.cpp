@@ -28,7 +28,6 @@
 ConVar ebot_password("ebot_password", "", VARTYPE_PASSWORD);
 ConVar ebot_password_key("ebot_password_key", "ebot_wp");
 
-ConVar ebot_language("ebot_language", "en");
 ConVar ebot_version("ebot_version", PRODUCT_VERSION, VARTYPE_READONLY);
 
 ConVar ebot_lockzbot("ebot_lock_zbot", "1");
@@ -193,7 +192,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		char aboutData[] =
 			"+---------------------------------------------------------------------------------+\n"
 			" The E-BOT for Counter-Strike 1.6 " PRODUCT_SUPPORT_VERSION "\n"
-			" Made by " PRODUCT_AUTHOR ", Using SyPB & YaPB Code\n"
+			" Made by " PRODUCT_AUTHOR ", Based on SyPB & YaPB\n"
 			" Website: " PRODUCT_URL "\n"
 			"+---------------------------------------------------------------------------------+\n";
 
@@ -468,18 +467,16 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		// save waypoint data into file on hard disk
 		else if (stricmp(arg1, "save") == 0)
 		{
-			char* waypointSaveMessage = g_localizer->TranslateInput("Waypoints Saved");
-
 			if (FStrEq(arg2, "nocheck"))
 			{
 				g_waypoint->Save();
-				ServerPrint(waypointSaveMessage);
+				ServerPrint("Waypoints Saved");
 				CenterPrint("Waypoints are saved!");
 			}
 			else if (g_waypoint->NodesValid())
 			{
 				g_waypoint->Save();
-				ServerPrint(waypointSaveMessage);
+				ServerPrint("Waypoints Saved");
 			}
 		}
 
@@ -716,7 +713,7 @@ void InitConfig(void)
 	// fixes for crashing if configs couldn't be accessed
 	g_chatFactory.SetSize(CHAT_NUM);
 
-#define SKIP_COMMENTS() if ((line[0] == '/') || (line[0] == '\r') || (line[0] == '\n') || (line[0] == 0) || (line[0] == ' ') || (line[0] == '\t')) continue;
+	#define SKIP_COMMENTS() if ((line[0] == '/') || (line[0] == '\r') || (line[0] == '\n') || (line[0] == 0) || (line[0] == ' ') || (line[0] == '\t')) continue;
 
 	if (!g_botNames.IsEmpty())
 	{
@@ -725,7 +722,7 @@ void InitConfig(void)
 	}
 
 	// NAMING SYSTEM INITIALIZATION
-	if (OpenConfig("names.cfg", "Name configuration file not found.", &fp, true) && g_botNames.IsEmpty())
+	if (g_botNames.IsEmpty() && OpenConfig("names.cfg", "Name configuration file not found.", &fp))
 	{
 		while (fp.GetBuffer(line, 255))
 		{
@@ -747,7 +744,7 @@ void InitConfig(void)
 	}
 
 	// CHAT SYSTEM CONFIG INITIALIZATION
-	if (OpenConfig("chat.cfg", "Chat file not found.", &fp, true))
+	if (OpenConfig("chat.cfg", "Chat file not found.", &fp))
 	{
 		while (fp.GetBuffer(line, 255))
 		{
@@ -815,7 +812,7 @@ void InitConfig(void)
 				break;
 
 			case 3:
-				if (strstr(line, "@KEY") != null)
+				if (strstr(line, "@KEY") != NULL)
 				{
 					if (!replyKey.keywords.IsEmpty() && !replyKey.replies.IsEmpty())
 					{
@@ -987,61 +984,20 @@ void InitConfig(void)
 		fp.Close();
 	}
 
-	extern ConVar ebot_communication_type;
-
-	// LOCALIZER INITITALIZATION
-	if (OpenConfig("lang.cfg", "Specified language not found", &fp, true) && g_gameVersion != CSVER_VERYOLD)
+	// AVATARS INITITALIZATION
+	if (OpenConfig("avatars.cfg", "Avatars config file not found. Avatars will not be displayed.", &fp))
 	{
-		if (IsDedicatedServer())
-			return; // dedicated server will use only english translation
-
-		enum Lang_t { Lang_Original, Lang_Translate, Lang_Default } langState = Lang_Default;
-
-		char buffer[1024];
-		LanguageItem temp = { "", "" };
-
 		while (fp.GetBuffer(line, 255))
 		{
-			if (strncmp(line, "[ORIGINAL]", 10) == 0)
-			{
-				langState = Lang_Original;
+			SKIP_COMMENTS();
 
-				if (!IsNullString(buffer))
-				{
-					strtrim(buffer);
-					temp.translated = buffer;
-					buffer[0] = 0x0;
-				}
+			strtrim(line);
 
-				if (!IsNullString(temp.translated) && !IsNullString(temp.original))
-					g_localizer->m_langTab.Push(temp);
-			}
-			else if (strncmp(line, "[TRANSLATED]", 12) == 0)
-			{
-				strtrim(buffer);
-				temp.original = buffer;
-				buffer[0] = 0x0;
-
-				langState = Lang_Translate;
-			}
-			else
-			{
-				switch (langState)
-				{
-				case Lang_Original:
-					strncat(buffer, line, 1024 - strlen(buffer));
-					break;
-
-				case Lang_Translate:
-					strncat(buffer, line, 1024 - strlen(buffer));
-					break;
-				}
-			}
+			g_botManager->m_avatars.Push(line);
 		}
+
 		fp.Close();
 	}
-	else if (g_gameVersion == CSVER_VERYOLD)
-		AddLogEntry(LOG_DEFAULT, "Multilingual system disabled, due to your Counter-Strike Version!");
 
 	// set personality weapon pointers here
 	g_weaponPrefs[PERSONALITY_NORMAL] = reinterpret_cast <int*> (&g_normalWeaponPrefs);
@@ -1100,18 +1056,12 @@ void GameDLLInit(void)
 	DetectCSVersion(); // determine version of currently running cs
 }
 
-extern ConVar ebot_force_flashlight;
-
 int Spawn(edict_t* ent)
 {
 	// this function asks the game DLL to spawn (i.e, give a physical existence in the virtual
 	// world, in other words to 'display') the entity pointed to by ent in the game. The
 	// Spawn() function is one of the functions any entity is supposed to have in the game DLL,
 	// and any MOD is supposed to implement one for each of its entities.
-
-	// zp & biohazard flashlight support
-	if (ebot_force_flashlight.GetInt() == 1 && !(ent->v.effects & EF_DIMLIGHT))
-		ent->v.impulse = 100;
 
 	const char* entityClassname = STRING(ent->v.classname);
 
@@ -1223,7 +1173,7 @@ void Touch(edict_t* pentTouched, edict_t* pentOther)
 	// the two entities both have velocities, for example two players colliding, this function
 	// is called twice, once for each entity moving.
 
-	if (!FNullEnt(pentTouched) && (pentOther->v.flags & FL_FAKECLIENT))
+	if (!FNullEnt(pentTouched) && !FNullEnt(pentOther) && (pentOther->v.flags & FL_FAKECLIENT))
 	{
 		Bot* bot = g_botManager->GetBot(const_cast <edict_t*> (pentOther));
 		if (bot != null)
@@ -2652,95 +2602,78 @@ void LoadEntityData(void)
 	}
 }
 
-void CalculatePings()
+void SetPing(edict_t* to)
 {
-	int average[2] = { 0, 0 };
-	int numHumans = 0;
+	if (FNullEnt(to))
+		return;
 
-	const auto emit = [](int s0, int s1, int s2)
+	if (!(to->v.flags & FL_CLIENT))
+		return;
+
+	g_fakePings = false;
+	if (!(to->v.button & IN_SCORE) || !(to->v.oldbuttons & IN_SCORE))
+		return;
+
+	g_fakePings = true;
+
+	static int sending;
+
+	// missing from sdk
+	static const int SVC_PINGS = 17;
+
+	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
-		return (s0 & ((1ULL << s1) - 1)) << s2;
-	};
-
-	// first get average ping on server, and store real client pings
-	for (auto& client : g_clients)
-	{
-		if (!(client.flags & CFLAG_USED) || IsValidBot(client.ent))
-			continue;
-
-		int ping, loss;
-		PLAYER_CNX_STATS(client.ent, &ping, &loss);
-
-		// store normal client ping
-		client.ping = emit(loss, 7, 18) | emit(ping > 0 ? ping / 2 : engine->RandomInt(8, 16), 12, 6) | emit(ENTINDEX(client.ent), 5, 1) | 1;
-		client.pingUpdate = true;
-
-		numHumans++;
-
-		average[0] += ping;
-		average[1] += loss;
-	}
-
-	if (numHumans > 0)
-	{
-		average[0] /= numHumans;
-		average[1] /= numHumans;
-	}
-	else
-	{
-		average[0] = engine->RandomInt(30, 40);
-		average[1] = engine->RandomInt(5, 10);
-	}
-
-	// now calculate bot ping based on average from players
-	for (auto& client : g_clients)
-	{
-		if (!(client.flags & CFLAG_USED))
-			continue;
-
-		// we're only intrested in bots here
-		auto bot = g_botManager->GetBot(client.ent);
+		Bot* bot = g_botManager->GetBot(i);
 		if (bot == null)
 			continue;
 
-		int part = static_cast <int> (average[0] * 0.2f);
+		switch (sending)
+		{
+		case 0:
+		{
+			// start a new message
+			MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_PINGS, NULL, to);
+			WRITE_BYTE((bot->m_pingOffset[sending] * 64) + (1 + 2 * i));
+			WRITE_SHORT(bot->m_ping[sending]);
+			sending++;
+		}
+		case 1:
+		{
+			// append additional data
+			WRITE_BYTE((bot->m_pingOffset[sending] * 128) + (2 + 4 * i));
+			WRITE_SHORT(bot->m_ping[sending]);
+			sending++;
+		}
+		case 2:
+		{
+			// append additional data and end message
+			WRITE_BYTE(4 + 8 * i);
+			WRITE_SHORT(bot->m_ping[sending]);
+			WRITE_BYTE(0);
+			MESSAGE_END();
+			sending = 0;
+		}
+		}
+	}
 
-		int botPing = bot->m_basePingLevel + engine->RandomInt(average[0] - part, average[0] + part) + engine->RandomInt(bot->m_difficulty / 2, bot->m_difficulty); // remember me
-		int botLoss = engine->RandomInt(average[1] / 2, average[1]);
-
-		if (botPing <= 5)
-			botPing = engine->RandomInt(10, 23);
-		else if (botPing > 70)
-			botPing = engine->RandomInt(30, 40);
-		
-		client.ping = emit(botLoss, 7, 18) | emit(botPing, 12, 6) | emit(ENTINDEX(client.ent), 5, 1) | 1;
-		client.pingUpdate = true; // force resend ping
+	// end message if not yet sent
+	if (sending)
+	{
+		WRITE_BYTE(0);
+		MESSAGE_END();
 	}
 }
 
-void SetPing(edict_t* to)
+void UpdateClientData(const struct edict_s* ent, int sendweapons, struct clientdata_s* cd)
 {
-	// missing from sdk
-	constexpr int gamePingSVC = 17;
+	extern ConVar ebot_ping;
+	if (ebot_ping.GetBool())
+		SetPing(const_cast <edict_t*> (ent));
 
-	for (auto& client : g_clients)
-	{
-		if (!(client.flags & CFLAG_USED))
-			continue;
-		
-		if (!client.pingUpdate)
-			continue;
+	if (g_isMetamod)
+		RETURN_META(MRES_IGNORED);
 
-		// no ping, no fun
-		if (client.ping <= 0)
-			client.ping = engine->RandomInt(15, 50);
-
-		MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, gamePingSVC, nullptr, to);
-		WRITE_LONG(client.ping);
-		MESSAGE_END();
-
-		client.pingUpdate = false;
-	}
+	(*g_functionTable.pfnUpdateClientData) (ent, sendweapons, cd);
 }
 
 static float secondTimer = 0.0;
@@ -2769,19 +2702,9 @@ void StartFrame(void)
 		}
 	}
 
-	/*extern ConVar ebot_ping;
-	if (ebot_ping.GetBool())
-	{
-		for (auto& client : g_clients)
-			SetPing(client.ent);
-	}*/
-
 	if (secondTimer < engine->GetTime())
 	{
 		LoadEntityData();
-
-		//if (ebot_ping.GetBool())
-		//	CalculatePings();
 
 		int i;
 		if (IsDedicatedServer())
@@ -2844,7 +2767,7 @@ void StartFrame(void)
 			CheckWelcomeMessage();
 		}
 
-		secondTimer = engine->GetTime() + 1.0f;
+		secondTimer = engine->GetTime() + g_waypointOn ? 1.0f : 2.0f;
 	}
 
 	if (g_bombPlanted)
@@ -3489,6 +3412,7 @@ export int GetEntityAPI2(DLL_FUNCTIONS* functionTable, int* /*interfaceVersion*/
 	functionTable->pfnServerDeactivate = ServerDeactivate;
 	functionTable->pfnKeyValue = KeyValue;
 	functionTable->pfnStartFrame = StartFrame;
+	functionTable->pfnUpdateClientData = UpdateClientData;
 	functionTable->pfnTouch = Touch;
 
 	return true;

@@ -30,6 +30,7 @@ float API_Version;
 float amxxDLL_Version = -1.0;
 uint16 amxxDLL_bV16[4];
 
+bool g_fakePings = true;
 bool g_isMetamod = false;
 bool g_roundEnded = true;
 bool g_botsCanPause = false;
@@ -57,6 +58,7 @@ float g_timeRoundMid = 0.0f;
 float g_timeNextBombUpdate = 0.0f;
 float g_timeBombPlanted = 0.0f;
 float g_lastRadioTime[2] = { 0.0f, 0.0f };
+float g_audioTime = 0.0f;
 float g_autoPathDistance = 250.0f;
 
 float g_DelayTimer = 0.0f;
@@ -84,9 +86,7 @@ Vector g_entityGetWpOrigin[entityNum];
 float g_entityGetWpTime[entityNum];
 //******
 
-
 Array <Array <String> > g_chatFactory;
-Array <Array <ChatterItem> > g_chatterFactory;
 Array <NameItem> g_botNames;
 Array <KwChat> g_replyFactory;
 

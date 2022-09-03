@@ -1016,13 +1016,11 @@ bool Bot::KnifeAttack(float attackDistance)
 	return false;
 }
 
+// this function checks, is it better to use pistol instead of current primary weapon
+// to attack our enemy, since current weapon is not very good in this situation
 bool Bot::IsWeaponBadInDistance(int weaponIndex, float distance)
 {
-	// this function checks, is it better to use pistol instead of current primary weapon
-	// to attack our enemy, since current weapon is not very good in this situation.
-
 	int weaponID = g_weaponSelect[weaponIndex].id;
-
 	if (weaponID == WEAPON_KNIFE)
 		return false;
 
@@ -1113,6 +1111,12 @@ void Bot::FocusEnemy(void)
 
 void Bot::CombatFight(void)
 {
+	if (!m_isZombieBot && m_timeWaypointMove >= engine->GetTime())
+	{
+		m_moveToGoal = true;
+		return;
+	}
+
 	if (IsValidWaypoint(m_currentWaypointIndex) && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_FALLRISK)
 	{
 		m_checkFall = true;
@@ -1147,9 +1151,13 @@ void Bot::CombatFight(void)
 
 	if (m_isZombieBot) // zombie ai
 	{
-		DeleteSearchNodes();
-		m_destOrigin = enemyOrigin;
-		m_waypointOrigin = m_destOrigin;
+		if (!(pev->flags & FL_DUCKING))
+		{
+			DeleteSearchNodes();
+			m_destOrigin = enemyOrigin;
+			m_waypointOrigin = m_destOrigin;
+		}
+		
 		m_moveSpeed = pev->maxspeed;
 
 		if (m_isSlowThink && !IsOnLadder() && pev->speed >= pev->maxspeed)
@@ -1160,11 +1168,15 @@ void Bot::CombatFight(void)
 				pev->button |= IN_DUCK;
 		}
 
-		const float targetdist = 128.0f;
+		const float targetdist = pev->flags & FL_DUCKING ? 48.0f : 128.0f;
 		if ((pev->origin - m_destOrigin).GetLength() <= targetdist)
+		{
 			pev->button |= IN_ATTACK;
-
-		return;
+			m_destOrigin = enemyOrigin;
+			m_waypointOrigin = m_destOrigin;
+		}
+		else if (pev->flags & FL_DUCKING)
+			m_moveToGoal = true;
 	}
 	else if (IsZombieMode()) // human ai
 	{
@@ -1206,8 +1218,9 @@ void Bot::CombatFight(void)
 			if (baseDistance > 0.0f)
 			{
 				// better human escape ai
-				if (ebot_escape.GetInt() == 0 && (distance <= baseDistance))
+				if (ebot_escape.GetInt() == 0 && distance <= baseDistance)
 				{
+					pev->button &= ~IN_DUCK;
 					m_destOrigin = enemyOrigin;
 					m_moveSpeed = -pev->maxspeed;
 					m_checkFall = true;
@@ -1220,6 +1233,7 @@ void Bot::CombatFight(void)
 				}
 				else if (ebot_escape.GetInt() == 0 && distance <= (baseDistance + (baseDistance / m_maxDivRange)))
 				{
+					m_destOrigin = enemyOrigin;
 					m_checkFall = true;
 					m_moveToGoal = false;
 					m_moveSpeed = 0.0f;
