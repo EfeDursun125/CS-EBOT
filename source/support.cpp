@@ -120,6 +120,9 @@ float GetShootingConeDeviation(edict_t* ent, Vector* position)
 
 bool IsInViewCone(Vector origin, edict_t* ent)
 {
+	if (FNullEnt(ent))
+		return true;
+
 	MakeVectors(ent->v.v_angle);
 
 	if (((origin - (GetEntityOrigin(ent) + ent->v.view_ofs)).Normalize() | g_pGlobals->v_forward) >= cosf(((ent->v.fov > 0 ? ent->v.fov : 90.0f) / 2) * Math::MATH_PI / 180.0f))
@@ -283,7 +286,7 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 
 	int clientIndex = ENTINDEX(ent) - 1;
 
-	if (menu != null)
+	if (menu != nullptr)
 	{
 		String tempText = String(menu->menuText);
 		tempText.Replace("\v", "\n");
@@ -299,7 +302,7 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 
 		while (strlen(text) >= 64)
 		{
-			MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), null, ent);
+			MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent);
 			WRITE_SHORT(menu->validSlots);
 			WRITE_CHAR(-1);
 			WRITE_BYTE(1);
@@ -312,7 +315,7 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 			text += 64;
 		}
 
-		MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), null, ent);
+		MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent);
 		WRITE_SHORT(menu->validSlots);
 		WRITE_CHAR(-1);
 		WRITE_BYTE(0);
@@ -323,15 +326,16 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 	}
 	else
 	{
-		MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), null, ent);
+		MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent);
 		WRITE_SHORT(0);
 		WRITE_CHAR(0);
 		WRITE_BYTE(0);
 		WRITE_STRING("");
 		MESSAGE_END();
 
-		g_clients[clientIndex].menu = null;
+		g_clients[clientIndex].menu = nullptr;
 	}
+
 	CLIENT_COMMAND(ent, "speak \"player/geiger1\"\n"); // Stops others from hearing menu sounds..
 }
 
@@ -1001,8 +1005,7 @@ bool IsDeathmatchMode(void)
 
 bool ChanceOf(int number)
 {
-	srand(time(0));
-	return (1 + (rand() % 100)) <= number;
+	return engine->RandomInt(1, 100) <= number;
 }
 
 bool IsValidWaypoint(int index)
@@ -1206,7 +1209,7 @@ int SetEntityWaypoint(edict_t* ent, int mode)
 	int wpIndex = -1;
 	int wpIndex2 = -1;
 
-	if (mode == -1 || g_botManager->GetBot(ent) == null)
+	if (mode == -1 || g_botManager->GetBot(ent) == nullptr)
 		wpIndex = g_waypoint->FindNearest(origin, 9999.0f, -1, ent);
 	else
 		wpIndex = g_waypoint->FindNearest(origin, 9999.0f, -1, ent, &wpIndex2, mode);
@@ -1277,15 +1280,21 @@ bool IsValidPlayer(edict_t* ent)
 {
 	if (FNullEnt(ent))
 		return false;
+
 	if ((ent->v.flags & (FL_CLIENT | FL_FAKECLIENT)) || (strcmp(STRING(ent->v.classname), "player") == 0))
 		return true;
+
 	return false;
 }
 
 bool IsValidBot(edict_t* ent)
 {
-	if (g_botManager->GetBot(ent) != null || (!FNullEnt(ent) && (ent->v.flags & FL_FAKECLIENT)))
+	if (FNullEnt(ent))
+		return false;
+
+	if (ent->v.flags & FL_FAKECLIENT || g_botManager->GetBot(ent) != nullptr)
 		return true;
+
 	return false;
 }
 
@@ -1320,7 +1329,7 @@ void HudMessage(edict_t* ent, bool toCenter, const Color& rgb, char* format, ...
 	vsprintf(buffer, format, ap);
 	va_end(ap);
 
-	MESSAGE_BEGIN(MSG_ONE, SVC_TEMPENTITY, null, ent);
+	MESSAGE_BEGIN(MSG_ONE, SVC_TEMPENTITY, nullptr, ent);
 	WRITE_BYTE(TE_TEXTMESSAGE);
 	WRITE_BYTE(1);
 	WRITE_SHORT(FixedSigned16(-1, 1 << 13));
@@ -1524,7 +1533,7 @@ const char* GetWaypointDir(void)
 // pointed to by "function" in order to handle it.
 void RegisterCommand(char* command, void funcPtr(void))
 {
-	if (IsNullString(command) || funcPtr == null)
+	if (IsNullString(command) || funcPtr == nullptr)
 		return; // reliability check
 	REG_SVR_COMMAND(command, funcPtr); // ask the engine to register this new command
 }
@@ -1567,7 +1576,7 @@ void CheckWelcomeMessage(void)
 
 void DetectCSVersion(void)
 {
-	uint8_t* detection = null;
+	uint8_t* detection = nullptr;
 	const char* const infoBuffer = "Game Registered: CS %s (0x%d)";
 
 	// switch version returned by dll loader
@@ -1580,21 +1589,21 @@ void DetectCSVersion(void)
 
 		// counter-strike 1.6 or higher (plus detects for non-steam versions of 1.5)
 	case CSVER_CSTRIKE:
-		detection = (*g_engfuncs.pfnLoadFileForMe) ("events/galil.sc", null);
+		detection = (*g_engfuncs.pfnLoadFileForMe) ("events/galil.sc", nullptr);
 
-		if (detection != null)
+		if (detection != nullptr)
 		{
 			ServerPrint(infoBuffer, "1.6 (Steam)", sizeof(Bot));
 			g_gameVersion = CSVER_CSTRIKE; // just to be sure
 		}
-		else if (detection == null)
+		else if (detection == nullptr)
 		{
 			ServerPrint(infoBuffer, "1.5 (WON)", sizeof(Bot));
 			g_gameVersion = CSVER_VERYOLD; // reset it to WON
 		}
 
 		// if we have loaded the file free it
-		if (detection != null)
+		if (detection != nullptr)
 			(*g_engfuncs.pfnFreeFile) (detection);
 		break;
 
@@ -1603,6 +1612,7 @@ void DetectCSVersion(void)
 		ServerPrint(infoBuffer, "CZ (Steam)", sizeof(Bot));
 		break;
 	}
+
 	engine->GetGameConVarsPointers(); // !!! TODO !!!
 }
 
@@ -1706,7 +1716,7 @@ void MOD_AddLogEntry(int mod, char* format)
 // be filled with bot pointer, else with edict pointer(!).
 bool FindNearestPlayer(void** pvHolder, edict_t* to, float searchDistance, bool sameTeam, bool needBot, bool isAlive, bool needDrawn)
 {
-	edict_t* ent = null, * survive = null; // pointer to temporaly & survive entity
+	edict_t* ent = nullptr, * survive = nullptr; // pointer to temporaly & survive entity
 	float nearestPlayer = 4096.0f; // nearest player
 
 	while (!FNullEnt(ent = FIND_ENTITY_IN_SPHERE(ent, GetEntityOrigin(to), searchDistance)))
@@ -1994,7 +2004,7 @@ void GetVoiceAndDur(ChatterMessage message, char* *voice, float *dur)
 {
 	if (message == ChatterMessage::Yes)
 	{
-		int rV = RANDOM_LONG(1, 11);
+		int rV = engine->RandomInt(1, 11);
 		if (rV == 1)
 		{
 			*voice = "affirmative";
@@ -2058,7 +2068,7 @@ void GetVoiceAndDur(ChatterMessage message, char* *voice, float *dur)
 	}
 	else if (message == ChatterMessage::No)
 	{
-		int rV = RANDOM_LONG(1, 12);
+		int rV = engine->RandomInt(1, 13);
 		if (rV == 1)
 		{
 			*voice = "ahh_negative";
@@ -2127,7 +2137,7 @@ void GetVoiceAndDur(ChatterMessage message, char* *voice, float *dur)
 	}
 	else if (message == ChatterMessage::SeeksEnemy)
 	{
-		int rV = RANDOM_LONG(1, 15);
+		int rV = engine->RandomInt(1, 15);
 		if (rV == 1)
 		{
 			*voice = "help";
@@ -2206,7 +2216,7 @@ void GetVoiceAndDur(ChatterMessage message, char* *voice, float *dur)
 	}
 	else if (message == ChatterMessage::Clear)
 	{
-		int rV = RANDOM_LONG(1, 17);
+		int rV = engine->RandomInt(1, 17);
 		if (rV == 1)
 		{
 			*voice = "clear";
@@ -2295,7 +2305,7 @@ void GetVoiceAndDur(ChatterMessage message, char* *voice, float *dur)
 	}
 	else if (message == ChatterMessage::CoverMe)
 	{
-		int rV = RANDOM_LONG(1, 2);
+		int rV = engine->RandomInt(1, 2);
 		if (rV == 1)
 		{
 			*voice = "cover_me";
@@ -2309,7 +2319,7 @@ void GetVoiceAndDur(ChatterMessage message, char* *voice, float *dur)
 	}
 	else if (message == ChatterMessage::Happy)
 	{
-		int rV = RANDOM_LONG(1, 10);
+		int rV = engine->RandomInt(1, 10);
 		if (rV == 1)
 		{
 			*voice = "yea_baby";
@@ -2362,3 +2372,528 @@ void GetVoiceAndDur(ChatterMessage message, char* *voice, float *dur)
 		}
 	}
 }
+
+/*void BotReplaceConnectionTime(const char* name, float* timeslot)
+{
+	for (int i = 0; i < engine->GetMaxClients(); i++)
+	{
+		auto bot = g_botManager->GetBot(i);
+		if (bot == nullptr)
+			return;
+
+		// find bot by name
+		if (strcmp(STRING(bot->GetEntity()->v.netname), name) != 0)
+			continue;
+
+		float current_time = engine->GetTime();
+		float tempStayTime = bot->m_stayTime;
+
+		// check if stay time has been exceeded
+		if (current_time - bot->m_connectTime > tempStayTime || current_time - bot->m_connectTime <= 0)
+		{
+			// use system wide timer for connection times
+			// bot will stay 30-160 minutes
+			tempStayTime = 60 * engine->RandomFloat(30.0f, 160.0f);
+
+			// bot has been already here for 20%-80% of the total stay time
+			bot->m_connectTime = current_time - tempStayTime * engine->RandomFloat(0.2f, 0.8f);
+		}
+
+		*timeslot = current_time - bot->m_connectTime;
+
+		break;
+	}
+}
+
+static bool msg_get_string(const unsigned char*& msg, size_t& len, char* name, int nlen)
+{
+	int i = 0;
+
+	while (*msg != 0)
+	{
+		if (i < nlen)
+			name[i++] = *msg;
+
+		msg++;
+		if (--len == 0)
+			return false;
+	}
+
+	if (i < nlen)
+		name[i] = 0;
+
+	msg++;
+	if (--len == 0)
+		return false;
+
+	return true;
+}
+
+// find bot connection times and replace
+ssize_t PASCAL handle_player_reply(int socket, const void* message, size_t length, int flags, const struct sockaddr* dest_addr, socklen_t dest_len)
+{
+	unsigned char* newmsg = (unsigned char*)malloc(length);
+	memcpy(newmsg, message, length);
+
+	size_t len = length - 5;
+	const unsigned char* msg = (const unsigned char*)message + 5;
+
+	int i, pcount;
+	size_t offset;
+	char pname[64];
+
+	// get player count
+	pcount = *msg++;
+	if (--len == 0)
+		return call_original_sendto(socket, newmsg, length, flags, dest_addr, dest_len);
+
+	// parse player slots
+	for (i = 0; i < pcount; i++)
+	{
+		// skip player number
+		msg++;
+		if (--len == 0)
+			return(call_original_sendto(socket, newmsg, length, flags, dest_addr, dest_len));
+
+		memset(pname, 0, sizeof(pname));
+
+		// detect bot by name
+		if (!msg_get_string(msg, len, pname, sizeof(pname)))
+			return(call_original_sendto(socket, newmsg, length, flags, dest_addr, dest_len));
+
+		// skip score
+		if (len <= 4)
+			return(call_original_sendto(socket, newmsg, length, flags, dest_addr, dest_len));
+		msg += 4;
+		len -= 4;
+
+		// check that there is enough bytes left
+		if (len < 4)
+			return(call_original_sendto(socket, newmsg, length, flags, dest_addr, dest_len));
+
+		offset = (size_t)msg - (size_t)message;
+
+		BotReplaceConnectionTime(pname, (float*)&newmsg[offset]);
+
+		msg += 4;
+		len -= 4;
+
+		if (len == 0)
+			return(call_original_sendto(socket, newmsg, length, flags, dest_addr, dest_len));
+	}
+
+	return(call_original_sendto(socket, newmsg, length, flags, dest_addr, dest_len));
+}
+
+// find number of bots and replace with zero
+ssize_t PASCAL handle_goldsrc_server_info_reply(int socket, const void* message, size_t length, int flags, const struct sockaddr* dest_addr, socklen_t dest_len)
+{
+	unsigned char* newmsg = (unsigned char*)malloc(length);
+	memcpy(newmsg, message, length);
+
+	ssize_t len = length - 5;
+	unsigned char* msg = (unsigned char*)newmsg + 5;
+
+	bool is_mod;
+
+	// skip IP address and port
+	while (len > 0) {
+		if (*msg == 0) {
+			msg++;
+			len--;
+			break;
+		}
+		msg++;
+		len--;
+	}
+
+	// something is not right here
+	if (len <= 0)
+		goto out; 
+
+	// skip server name
+	// TODO: verify
+	while (len > 0) {
+		if (*msg == 0) {
+			msg++;
+			len--;
+			break;
+		}
+		msg++;
+		len--;
+	}
+
+	// something is not right here
+	if (len <= 0)
+		goto out; 
+
+	// skip map name
+	// TODO: verify
+	while (len > 0) {
+		if (*msg == 0) {
+			msg++;
+			len--;
+			break;
+		}
+		msg++;
+		len--;
+	}
+
+	// something is not right here
+	if (len <= 0)
+		goto out;
+
+	// skip game folder name (valve, gearbox, etc)
+	// TODO: verify
+	while (len > 0)
+	{
+		if (*msg == 0)
+		{
+			msg++;
+			len--;
+			break;
+		}
+
+		msg++;
+		len--;
+	}
+
+	// something is not right here
+	if (len <= 0)
+		goto out;
+
+	// skip game name (Half-life, severian's mod, might be modified by metamod-plugins)
+	while (len > 0)
+	{
+		if (*msg == 0)
+		{
+			msg++;
+			len--;
+			break;
+		}
+
+		msg++;
+		len--;
+	}
+
+	// something is not right here
+	if (len <= 0)
+		goto out;
+
+	// Next we have bytes: players, max.players, protocol, server type,
+	// environment, visibility, 'mod'.
+
+	// players
+	msg++;
+	len--;
+
+	if (len <= 0)
+		goto out;
+
+	// max players
+	if (*msg != 32)// engine->GetMaxClients())
+		goto out;
+
+	msg++;
+	len--;
+
+	if (len <= 0)
+		goto out;
+
+	// protocol
+	msg++;
+	len--;
+
+	if (len <= 0)
+		goto out;
+
+	// server type, dedicated or listen
+	if (*msg != 'D' && *msg != 'd' && *msg != 'L' && *msg != 'l')
+		goto out;
+
+	msg++;
+	len--;
+
+	if (len <= 0)
+		goto out;
+
+	// environment, linux or windows
+	if (*msg != 'W' && *msg != 'W' && *msg != 'L' && *msg != 'l')
+		goto out;
+
+	msg++;
+	len--;
+
+	if (len <= 0)
+		goto out;
+
+	// visibility, 0 or 1
+	if (*msg != 0 && *msg != 1)
+		goto out;
+
+	msg++;
+	len--;
+
+	if (len <= 0)
+		goto out;
+
+	// is mod?
+	is_mod = *msg;
+	if (is_mod != 0 && is_mod != 1)
+		goto out;
+
+	msg++;
+	len--;
+
+	if (len <= 0)
+		goto out;
+
+	// if is mod, we have extra fields...
+	if (is_mod)
+	{
+		// skip, mod homepage url
+		while (len > 0)
+		{
+			if (*msg == 0)
+			{
+				msg++;
+				len--;
+				break;
+			}
+
+			msg++;
+			len--;
+		}
+
+		// something is not right here
+		if (len <= 0)
+			goto out;
+
+		// skip, mod download url
+		while (len > 0)
+		{
+			if (*msg == 0)
+			{
+				msg++;
+				len--;
+				break;
+			}
+
+			msg++;
+			len--;
+		}
+
+		// something is not right here
+		if (len <= 0)
+			goto out;
+
+		// NULL
+		if (*msg != 0)
+			goto out;
+
+		msg++;
+		len--;
+
+		if (len <= 0)
+			goto out;
+
+		// long, version
+		msg += 4;
+		len -= 4;
+
+		if (len <= 0)
+			goto out;
+
+		// long, size
+		msg += 4;
+		len -= 4;
+
+		if (len <= 0)
+			goto out;
+
+		// type, single&multi player == 0, multi only == 1
+		if (*msg != 0 && *msg != 1)
+			goto out;
+
+		msg++;
+		len--;
+
+		if (len <= 0)
+			goto out;
+
+		// dll, 0 or 1
+		if (*msg != 0 && *msg != 1)
+			goto out;
+
+		msg++;
+		len--;
+
+		if (len <= 0)
+			goto out;
+	}
+
+	// VAC, 0 or 1
+	if (*msg != 0 && *msg != 1)
+		goto out;
+
+	msg++;
+	len--;
+
+	if (len <= 0)
+		goto out;
+
+	// TODO: verify
+	// found bot count, replace with zero
+	*msg = 0;
+out:
+	return(call_original_sendto(socket, newmsg, length, flags, dest_addr, dest_len));
+}
+
+// find number of bots and replace with zero
+ssize_t PASCAL handle_source_server_info_reply(int socket, const void* message, size_t length, int flags, const struct sockaddr* dest_addr, socklen_t dest_len)
+{
+	unsigned char* newmsg = (unsigned char*)malloc(length);
+	memcpy(newmsg, message, length);
+
+	ssize_t len = length - 5;
+	unsigned char* msg = (unsigned char*)newmsg + 5;
+
+	// protocol
+	msg++;
+	len--;
+	if (len <= 0)
+		goto out;
+
+	// skip server name
+	// TODO: verify
+	while (len > 0) {
+		if (*msg == 0) {
+			msg++;
+			len--;
+			break;
+		}
+		msg++;
+		len--;
+	}
+
+	// something is not right here 
+	if (len <= 0)
+		goto out;
+
+	// skip map name
+	// TODO: verify
+	while (len > 0) {
+		if (*msg == 0) {
+			msg++;
+			len--;
+			break;
+		}
+		msg++;
+		len--;
+	}
+
+	// something is not right here
+	if (len <= 0)
+		goto out;
+
+	// skip game folder name (valve, gearbox, etc)
+	// TODO: verify
+	while (len > 0) {
+		if (*msg == 0) {
+			msg++;
+			len--;
+			break;
+		}
+		msg++;
+		len--;
+	}
+
+	// something is not right here
+	if (len <= 0)
+		goto out; 
+
+	// skip game name (Half-life, severian's mod, might be modified by metamod-plugins)
+	while (len > 0) {
+		if (*msg == 0) {
+			msg++;
+			len--;
+			break;
+		}
+		msg++;
+		len--;
+	}
+
+	// something is not right here
+	if (len <= 0)
+		goto out;
+
+	// steam id, short
+	msg++;
+	len--;
+
+	if (len <= 0)
+		goto out;
+
+	msg++;
+	len--;
+
+	if (len <= 0)
+		goto out;
+
+	// players
+	msg++;
+	len--;
+	if (len <= 0)
+		goto out;
+
+	// max players
+	if (*msg != engine->GetMaxClients())
+		goto out;
+
+	msg++;
+	len--;
+
+	if (len <= 0)
+		goto out;
+
+	// TODO: verify
+	// found bot count, replace with zero
+	*msg = 0;
+out:
+	return(call_original_sendto(socket, newmsg, length, flags, dest_addr, dest_len));
+}
+
+//
+ssize_t PASCAL sendto_hook(int socket, const void* message, size_t length, int flags, const struct sockaddr* dest_addr, socklen_t dest_len)
+{
+	const unsigned char* orig_buf = (unsigned char*)message;
+
+	if (!g_pGlobals)
+		goto out;
+
+	//if (bot_conntimes < 1) remember me
+	//	goto out;
+
+	if (length > 5 && orig_buf[0] == 0xff && orig_buf[1] == 0xff && orig_buf[2] == 0xff && orig_buf[3] == 0xff)
+	{
+		// check if this is server info reply packet (����m)
+		// old GoldSrc format
+		if (orig_buf[4] == 'm') {
+			return handle_goldsrc_server_info_reply(socket, message, length, flags, dest_addr, dest_len);
+		}
+
+		// check if this is server info reply packet (����I)
+		// new Source format (GoldSrc engine has switched to use this)
+		if (orig_buf[4] == 'I') {
+			return handle_source_server_info_reply(socket, message, length, flags, dest_addr, dest_len);
+		}
+
+		// check if this is player reply packet (����D)
+		if (orig_buf[4] == 'D') {
+			return(handle_player_reply(socket, message, length, flags, dest_addr, dest_len));
+		}
+	}
+
+out:
+	return(call_original_sendto(socket, message, length, flags, dest_addr, dest_len));
+}*/

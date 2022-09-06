@@ -30,7 +30,7 @@ void BotExperience::SetDamage(int start, int goal, int newValue, int team)
     ExpData* data = (m_data + (start * g_numWaypoints) + goal);
 
     // ensure we are in ranges
-    Assert(data != null && (team == TEAM_COUNTER || team == TEAM_TERRORIST));
+    Assert(data != nullptr && (team == TEAM_COUNTER || team == TEAM_TERRORIST));
 
     data->damage[team] = static_cast <uint16_t> (newValue); // set the data
 
@@ -45,7 +45,7 @@ void BotExperience::SetValue(int start, int goal, int newValue, int team)
     ExpData* data = (m_data + (start * g_numWaypoints) + goal);
 
     // ensure we are in ranges
-    Assert(data != null && (team == TEAM_COUNTER || team == TEAM_TERRORIST));
+    Assert(data != nullptr && (team == TEAM_COUNTER || team == TEAM_TERRORIST));
 
     // ensure data in valid range
     if (data->value[team] < -MAX_EXPERIENCE_VALUE)
@@ -62,7 +62,7 @@ void BotExperience::SetDangerIndex(int start, int goal, int newIndex, int team)
     ExpData* data = (m_data + (start * g_numWaypoints) + goal);
 
     // ensure we are in ranges
-    Assert(data != null && (team == TEAM_COUNTER || team == TEAM_TERRORIST));
+    Assert(data != nullptr && (team == TEAM_COUNTER || team == TEAM_TERRORIST));
 
     data->danger[team] = static_cast <int16> (newIndex); // set the data
 }
@@ -200,17 +200,17 @@ void BotExperience::CollectValue(int start, int goal, int health, float goalValu
 
 void BotExperience::Load(void)
 {
-    if (m_data != null)
+    if (m_data != nullptr)
         delete[] m_data;
 
-    m_data = null;
+    m_data = nullptr;
 
     if (g_numWaypoints < 1)
         return;
 
     m_data = new ExpData[g_numWaypoints * g_numWaypoints];
 
-    if (m_data == null)
+    if (m_data == nullptr)
         return;
 
     // initialize table by hand to correct values, and NOT zero it out

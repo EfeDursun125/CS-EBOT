@@ -65,7 +65,7 @@ BotControl::~BotControl(void)
 		if (m_bots[i])
 		{
 			delete m_bots[i];
-			m_bots[i] = null;
+			m_bots[i] = nullptr;
 		}
 	}
 }
@@ -79,12 +79,12 @@ void BotControl::CallGameEntity(entvars_t* vars)
 		return;
 	}
 
-	static EntityPtr_t playerFunction = null;
+	static EntityPtr_t playerFunction = nullptr;
 
-	if (playerFunction == null)
+	if (playerFunction == nullptr)
 		playerFunction = (EntityPtr_t)g_gameLib->GetFunctionAddr("player");
 
-	if (playerFunction != null)
+	if (playerFunction != nullptr)
 		(*playerFunction) (vars);
 }
 
@@ -99,7 +99,7 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 			return -3;
 	}
 
-	edict_t* bot = null;
+	edict_t* bot = nullptr;
 	if (g_numWaypoints < 1) // don't allow creating bots with no waypoints loaded
 	{
 		ServerPrint("No any waypoints for this map, Cannot Add E-BOT");
@@ -216,11 +216,11 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 	int index = ENTINDEX(bot) - 1;
 
 	InternalAssert(index >= 0 && index <= 32); // check index
-	InternalAssert(m_bots[index] == null); // check bot slot
+	InternalAssert(m_bots[index] == nullptr); // check bot slot
 
 	m_bots[index] = new Bot(bot, skill, personality, team, member);
 
-	if (m_bots == null)
+	if (m_bots == nullptr)
 		return -1;
 
 	ServerPrint("Connecting E-Bot - %s | Skill %d", GetEntityName(bot), skill);
@@ -238,48 +238,44 @@ int BotControl::GetIndex(edict_t* ent)
 	if (index < 0 || index >= 32)
 		return -1;
 
-	if (m_bots[index] != null)
+	if (m_bots[index] != nullptr)
 		return index;
 
 	return -1; // if no edict, return -1;
 }
 
+// this function finds a bot specified by index, and then returns pointer to it (using own bot array)
 Bot* BotControl::GetBot(int index)
 {
-	// this function finds a bot specified by index, and then returns pointer to it (using own bot array)
-
 	if (index < 0 || index >= 32)
-		return null;
+		return nullptr;
 
-	if (m_bots[index] != null)
+	if (m_bots[index] != nullptr)
 		return m_bots[index];
 
-	return null; // no bot
+	return nullptr; // no bot
 }
-
+// same as above, but using bot entity
 Bot* BotControl::GetBot(edict_t* ent)
 {
-	// same as above, but using bot entity
-
 	return GetBot(GetIndex(ent));
 }
 
+// this function finds one bot, alive bot :)
 Bot* BotControl::FindOneValidAliveBot(void)
 {
-	// this function finds one bot, alive bot :)
-
 	Array <int> foundBots;
 
 	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
-		if (m_bots[i] != null && IsAlive(m_bots[i]->GetEntity()))
+		if (m_bots[i] != nullptr && IsAlive(m_bots[i]->GetEntity()))
 			foundBots.Push(i);
 	}
 
 	if (!foundBots.IsEmpty())
 		return m_bots[foundBots.GetRandomElement()];
 
-	return null;
+	return nullptr;
 }
 
 void BotControl::DoJoinQuitStuff(void)
@@ -319,7 +315,7 @@ void BotControl::Think(void)
 	extern ConVar ebot_stopbots;
 	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
-		if (m_bots[i] == null)
+		if (m_bots[i] == nullptr)
 			continue;
 
 		bool runThink = false;
@@ -645,7 +641,7 @@ void BotControl::RemoveAll(void)
 
 	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
-		if (m_bots[i] != null)  // is this slot used?
+		if (m_bots[i] != nullptr)  // is this slot used?
 			m_bots[i]->Kick();
 	}
 
@@ -667,7 +663,7 @@ void BotControl::RemoveFromTeam(Team team, bool removeAll)
 	{
 		Bot* bot = g_botManager->GetBot(i);
 
-		if (bot != null && team == bot->m_team)
+		if (bot != nullptr && team == bot->m_team)
 		{
 			bot->Kick();
 
@@ -689,7 +685,7 @@ void BotControl::RemoveMenu(edict_t* ent, int selection)
 	int validSlots = (selection == 4) ? (1 << 9) : ((1 << 8) | (1 << 9));
 	for (int i = ((selection - 1) * 8); i < selection * 8; ++i)
 	{
-		if ((m_bots[i] != null) && !FNullEnt(m_bots[i]->GetEntity()))
+		if ((m_bots[i] != nullptr) && !FNullEnt(m_bots[i]->GetEntity()))
 		{
 			validSlots |= 1 << (i - ((selection - 1) * 8));
 			sprintf(buffer, "%s %1.1d. %s%s\n", buffer, i - ((selection - 1) * 8) + 1, GetEntityName(m_bots[i]->GetEntity()), GetTeam(m_bots[i]->GetEntity()) == TEAM_COUNTER ? " \\y(CT)\\w" : " \\r(T)\\w");
@@ -740,8 +736,7 @@ void BotControl::KillAll(int team)
 	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
 		Bot* bot = g_botManager->GetBot(i);
-
-		if (bot != null)
+		if (bot != nullptr)
 		{
 			if (team != -1 && team != bot->m_team)
 				continue;
@@ -759,7 +754,7 @@ void BotControl::RemoveRandom(void)
 	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
 		Bot* bot = g_botManager->GetBot(i);
-		if (bot != null)  // is this slot used?
+		if (bot != nullptr)  // is this slot used?
 		{
 			bot->Kick();
 			break;
@@ -828,7 +823,7 @@ void BotControl::ListBots(void)
 		edict_t* player = INDEXENT(i);
 
 		// is this player slot valid
-		if (IsValidBot(player) != null && GetBot(player) != null)
+		if (IsValidBot(player) && GetBot(player))
 			ServerPrintNoTag("[%-3.1d] %-9.13s %-17.18s %-3.4s %-3.1d %-3.1d", i, GetEntityName(player), GetBot(player)->m_personality == PERSONALITY_RUSHER ? "rusher" : GetBot(player)->m_personality == PERSONALITY_NORMAL ? "normal" : "careful", GetTeam(player) != 0 ? "CT" : "T", GetBot(player)->m_skill, static_cast <int> (player->v.frags));
 	}
 }
@@ -840,8 +835,7 @@ int BotControl::GetBotsNum(void)
 	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
 		Bot* bot = g_botManager->GetBot(i);
-
-		if (bot != null)
+		if (bot != nullptr)
 			count++;
 	}
 
@@ -854,7 +848,7 @@ int BotControl::GetHumansNum(int mod)
 	int count = 0;
 	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
-		if ((g_clients[i].flags & CFLAG_USED) && m_bots[i] == null)
+		if ((g_clients[i].flags & CFLAG_USED) && m_bots[i] == nullptr)
 		{
 			if (mod == 0)
 				count++;
@@ -872,7 +866,7 @@ int BotControl::GetHumansNum(int mod)
 // this function returns bot with highest frag
 Bot* BotControl::GetHighestFragsBot(int team)
 {
-	Bot* highFragBot = null;
+	Bot* highFragBot = nullptr;
 
 	int bestIndex = 0;
 	float bestScore = -1;
@@ -882,7 +876,7 @@ Bot* BotControl::GetHighestFragsBot(int team)
 	{
 		highFragBot = g_botManager->GetBot(i);
 
-		if (highFragBot != null && IsAlive(highFragBot->GetEntity()) && GetTeam(highFragBot->GetEntity()) == team)
+		if (highFragBot != nullptr && IsAlive(highFragBot->GetEntity()) && GetTeam(highFragBot->GetEntity()) == team)
 		{
 			if (highFragBot->pev->frags > bestScore)
 			{
@@ -911,7 +905,7 @@ void BotControl::CheckTeamEconomics(int team)
 	// start calculating
 	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
-		if (m_bots[i] != null && GetTeam(m_bots[i]->GetEntity()) == team)
+		if (m_bots[i] != nullptr && GetTeam(m_bots[i]->GetEntity()) == team)
 		{
 			if (m_bots[i]->m_moneyAmount <= 1500)
 				numPoorPlayers++;
@@ -939,14 +933,14 @@ void BotControl::Free(void)
 {
 	for (int i = 0; i < 32; i++)
 	{
-		if (m_bots[i] != null)
+		if (m_bots[i] != nullptr)
 		{
 			if (ebot_save_bot_names.GetBool())
-				m_savedBotNames.Push(STRING(m_bots[i]->GetEntity()->v.netname));
+				m_savedBotNames.Push(m_bots[i]->GetEntity()->v.netname);
 
 			m_bots[i]->m_stayTime = 0.0f;
 			delete m_bots[i];
-			m_bots[i] = null;
+			m_bots[i] = nullptr;
 		}
 	}
 }
@@ -955,11 +949,11 @@ void BotControl::Free(void)
 void BotControl::Free(int index)
 {
 	if (ebot_save_bot_names.GetBool())
-		m_savedBotNames.Push(STRING(m_bots[index]->GetEntity()->v.netname));
+		m_savedBotNames.Push(m_bots[index]->GetEntity()->v.netname);
 
 	m_bots[index]->m_stayTime = 0.0f;
 	delete m_bots[index];
-	m_bots[index] = null;
+	m_bots[index] = nullptr;
 }
 
 // this function controls the bot entity
@@ -972,10 +966,10 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 
 	pev = &bot->v;
 
-	if (bot->pvPrivateData != NULL)
+	if (bot->pvPrivateData != nullptr)
 		FREE_PRIVATE(bot);
 
-	bot->pvPrivateData = NULL;
+	bot->pvPrivateData = nullptr;
 	bot->v.frags = 0;
 
 	// create the player entity by calling MOD's player function
@@ -1008,7 +1002,7 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	// initialize all the variables for this bot...
 	m_notStarted = true;  // hasn't joined game yet
 	m_difficulty = ebot_difficulty.GetInt(); // set difficulty
-	m_basePingLevel = engine->RandomInt(15, 75);
+	m_basePingLevel = engine->RandomInt(11, 111);
 
 	m_startAction = CMENU_IDLE;
 	m_moneyAmount = 0;
@@ -1056,7 +1050,7 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	memset(&m_ammo, 0, sizeof(m_ammo));
 
 	m_currentWeapon = 0; // current weapon is not assigned at start
-	m_voicePitch = RANDOM_LONG(80, 120); // assign voice pitch
+	m_voicePitch = engine->RandomInt(80, 120); // assign voice pitch
 
 	m_agressionLevel = m_baseAgressionLevel;
 	m_fearLevel = m_baseFearLevel;
@@ -1112,7 +1106,6 @@ void Bot::NewRound(void)
 	m_chosenGoalIndex = -1;
 	m_myMeshWaypoint = -1;
 	m_loosedBombWptIndex = -1;
-	m_maxDivRange = RANDOM_FLOAT(5, 10);
 
 	m_duckDefuse = false;
 	m_duckDefuseCheckTime = 0.0f;
@@ -1143,11 +1136,11 @@ void Bot::NewRound(void)
 	m_viewDistance = 4096.0f;
 	m_maxViewDistance = 4096.0f;
 
-	m_pickupItem = null;
-	m_itemIgnore = null;
+	m_pickupItem = nullptr;
+	m_itemIgnore = nullptr;
 	m_itemCheckTime = 0.0f;
 
-	m_breakableEntity = null;
+	m_breakableEntity = nullptr;
 	m_breakable = nullvec;
 	m_timeDoorOpen = 0.0f;
 
@@ -1158,10 +1151,10 @@ void Bot::NewRound(void)
 	m_checkFallPoint[1] = nullvec;
 	m_checkFall = false;
 
-	SetEnemy(null);
-	SetLastEnemy(null);
-	SetMoveTarget(null);
-	m_trackingEdict = null;
+	SetEnemy(nullptr);
+	SetLastEnemy(nullptr);
+	SetMoveTarget(nullptr);
+	m_trackingEdict = nullptr;
 	m_timeNextTracking = 0.0f;
 
 	m_buttonPushTime = 0.0f;
@@ -1171,7 +1164,7 @@ void Bot::NewRound(void)
 
 	m_backCheckEnemyTime = 0.0f;
 
-	m_avoidEntity = null;
+	m_avoidEntity = nullptr;
 	m_needAvoidEntity = 0;
 
 	m_lastDamageType = -1;
@@ -1185,11 +1178,11 @@ void Bot::NewRound(void)
 	m_idealReactionTime = g_skillTab[m_skill / 20].minSurpriseTime;
 	m_actualReactionTime = g_skillTab[m_skill / 20].minSurpriseTime;
 
-	m_targetEntity = null;
+	m_targetEntity = nullptr;
 	m_followWaitTime = 0.0f;
 
 	for (i = 0; i < Const_MaxHostages; i++)
-		m_hostages[i] = null;
+		m_hostages[i] = nullptr;
 
 	m_isReloading = false;
 	m_reloadState = RSTATE_NONE;
@@ -1242,7 +1235,7 @@ void Bot::NewRound(void)
 	m_checkKnifeSwitch = true;
 	m_buyingFinished = false;
 
-	m_radioEntity = null;
+	m_radioEntity = nullptr;
 	m_radioOrder = 0;
 	m_defendedBomb = false;
 
@@ -1270,7 +1263,7 @@ void Bot::NewRound(void)
 	m_weaponReloadAPI = false;
 	m_lookAtAPI = nullvec;
 	m_moveAIAPI = false;
-	m_enemyAPI = null;
+	m_enemyAPI = nullptr;
 	m_blockCheckEnemyTime = engine->GetTime();
 	m_knifeDistance1API = 0;
 	m_knifeDistance2API = 0;
@@ -1286,7 +1279,7 @@ void Bot::NewRound(void)
 	PushTask(TASK_NORMAL, TASKPRI_NORMAL, -1, 1.0f, true);
 
 	// hear range based on difficulty
-	m_maxhearrange = float(m_skill * RANDOM_FLOAT(7.0f, 15.0f));
+	m_maxhearrange = float(m_skill * engine->RandomFloat(7.0f, 15.0f));
 	m_moveSpeed = pev->maxspeed;
 
 	m_tempstrafeSpeed = engine->RandomInt(1, 2) == 1 ? pev->maxspeed : -pev->maxspeed;

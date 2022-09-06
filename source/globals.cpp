@@ -30,7 +30,6 @@ float API_Version;
 float amxxDLL_Version = -1.0;
 uint16 amxxDLL_bV16[4];
 
-bool g_fakePings = true;
 bool g_isMetamod = false;
 bool g_roundEnded = true;
 bool g_botsCanPause = false;
@@ -60,6 +59,7 @@ float g_timeBombPlanted = 0.0f;
 float g_lastRadioTime[2] = { 0.0f, 0.0f };
 float g_audioTime = 0.0f;
 float g_autoPathDistance = 250.0f;
+float g_fakePingUpdate = 0.0f;
 
 float g_DelayTimer = 0.0f;
 
@@ -90,25 +90,25 @@ Array <Array <String> > g_chatFactory;
 Array <NameItem> g_botNames;
 Array <KwChat> g_replyFactory;
 
-Library* g_gameLib = null;
+Library* g_gameLib = nullptr;
 
-meta_globals_t* gpMetaGlobals = null;
-gamedll_funcs_t* gpGamedllFuncs = null;
-mutil_funcs_t* gpMetaUtilFuncs = null;
+meta_globals_t* gpMetaGlobals = nullptr;
+gamedll_funcs_t* gpGamedllFuncs = nullptr;
+mutil_funcs_t* gpMetaUtilFuncs = nullptr;
 
 DLL_FUNCTIONS g_functionTable;
-EntityAPI_t g_entityAPI = null;
-NewEntityAPI_t g_getNewEntityAPI = null;
-BlendAPI_t g_serverBlendingAPI = null;
-FuncPointers_t g_funcPointers = null;
+EntityAPI_t g_entityAPI = nullptr;
+NewEntityAPI_t g_getNewEntityAPI = nullptr;
+BlendAPI_t g_serverBlendingAPI = nullptr;
+FuncPointers_t g_funcPointers = nullptr;
 
 enginefuncs_t g_engfuncs;
 Clients g_clients[32];
 WeaponProperty g_weaponDefs[Const_MaxWeapons + 1];
 
-edict_t* g_worldEdict = null;
-edict_t* g_hostEntity = null;
-globalvars_t* g_pGlobals = null;
+edict_t* g_worldEdict = nullptr;
+edict_t* g_hostEntity = nullptr;
+globalvars_t* g_pGlobals = nullptr;
 
 // default tables for personality weapon preferences, overridden by weapons.cfg
 int g_normalWeaponPrefs[Const_NumWeapons] =
@@ -119,8 +119,6 @@ int g_rusherWeaponPrefs[Const_NumWeapons] =
 
 int g_carefulWeaponPrefs[Const_NumWeapons] =
 { 0, 2, 1, 4, 5, 6, 3, 7, 8, 12, 10, 13, 11, 9, 24, 18, 14, 17, 16, 15, 19, 20, 21, 22, 23, 25 };
-
-int g_grenadeBuyMoney[Const_NumWeapons - 23] = { 300, 200, 300 };
 
 SkillDef g_skillTab[6] =
 {
@@ -144,12 +142,12 @@ extern "C" int GetEntityAPI2(DLL_FUNCTIONS * functionTable, int* interfaceVersio
 // metamod engine & dllapi function tables
 metamod_funcs_t gMetaFunctionTable =
 {
-   null, // pfnEntityAPI_t ()
-   null, // pfnEntityAPI_t_Post ()
+   nullptr, // pfnEntityAPI_t ()
+   nullptr, // pfnEntityAPI_t_Post ()
    GetEntityAPI2, // pfnEntityAPI_t2 ()
    GetEntityAPI2_Post, // pfnEntityAPI_t2_Post ()
-   null, // pfnGetNewDLLFunctions ()
-   null, // pfnGetNewDLLFunctions_Post ()
+   nullptr, // pfnGetNewDLLFunctions ()
+   nullptr, // pfnGetNewDLLFunctions_Post ()
    GetEngineFunctions, // pfnGetEngineFunctions ()
    GetEngineFunctions_Post, // pfnGetEngineFunctions_Post ()
 };
@@ -171,29 +169,29 @@ plugin_info_t Plugin_info =
 // table with all available actions for the bots (filtered in & out in Bot::SetConditions) some of them have subactions included
 Task g_taskFilters[] =
 {
-   {null, null, TASK_NORMAL, 0, -1, 0.0f, true},
-   {null, null, TASK_PAUSE, 0, -1, 0.0f, false},
-   {null, null, TASK_MOVETOPOSITION, 0, -1, 0.0f, true},
-   {null, null, TASK_FOLLOWUSER, 0, -1,0.0f, true},
-   {null, null, TASK_PICKUPITEM, 0, -1, 0.0f, true},
-   {null, null, TASK_CAMP, 0, -1, 0.0f, true},
-   {null, null, TASK_PLANTBOMB, 0, -1, 0.0f, false},
-   {null, null, TASK_DEFUSEBOMB, 0, -1, 0.0f, false},
-   {null, null, TASK_FIGHTENEMY, 0, -1, 0.0f, false},
-   {null, null, TASK_HUNTENEMY, 0, -1, 0.0f, false},
-   {null, null, TASK_SEEKCOVER, 0, -1, 0.0f, false},
-   {null, null, TASK_THROWHEGRENADE, 0, -1, 0.0f, false},
-   {null, null, TASK_THROWFBGRENADE, 0, -1, 0.0f, false},
-   {null, null, TASK_THROWSMGRENADE, 0, -1, 0.0f, false},
-   {null, null, TASK_THROWFLARE, 0, -1, 0.0f, false},
-   {null, null, TASK_DOUBLEJUMP, 0, -1, 0.0f, false},
-   {null, null, TASK_ESCAPEFROMBOMB, 0, -1, 0.0f, false},
-   {null, null, TASK_DESTROYBREAKABLE, 0, -1, 0.0f, false},
-   {null, null, TASK_HIDE, 0, -1, 0.0f, false},
-   {null, null, TASK_BLINDED, 0, -1, 0.0f, false},
-   {null, null, TASK_SPRAYLOGO, 0, -1, 0.0f, false},
-   {null, null, TASK_MOVETOTARGET, 0, -1, 0.0f, true},
-   {null, null, TASK_GOINGFORCAMP, 0, -1, 0.0f, true}
+   {nullptr, nullptr, TASK_NORMAL, 0, -1, 0.0f, true},
+   {nullptr, nullptr, TASK_PAUSE, 0, -1, 0.0f, false},
+   {nullptr, nullptr, TASK_MOVETOPOSITION, 0, -1, 0.0f, true},
+   {nullptr, nullptr, TASK_FOLLOWUSER, 0, -1,0.0f, true},
+   {nullptr, nullptr, TASK_PICKUPITEM, 0, -1, 0.0f, true},
+   {nullptr, nullptr, TASK_CAMP, 0, -1, 0.0f, true},
+   {nullptr, nullptr, TASK_PLANTBOMB, 0, -1, 0.0f, false},
+   {nullptr, nullptr, TASK_DEFUSEBOMB, 0, -1, 0.0f, false},
+   {nullptr, nullptr, TASK_FIGHTENEMY, 0, -1, 0.0f, false},
+   {nullptr, nullptr, TASK_HUNTENEMY, 0, -1, 0.0f, false},
+   {nullptr, nullptr, TASK_SEEKCOVER, 0, -1, 0.0f, false},
+   {nullptr, nullptr, TASK_THROWHEGRENADE, 0, -1, 0.0f, false},
+   {nullptr, nullptr, TASK_THROWFBGRENADE, 0, -1, 0.0f, false},
+   {nullptr, nullptr, TASK_THROWSMGRENADE, 0, -1, 0.0f, false},
+   {nullptr, nullptr, TASK_THROWFLARE, 0, -1, 0.0f, false},
+   {nullptr, nullptr, TASK_DOUBLEJUMP, 0, -1, 0.0f, false},
+   {nullptr, nullptr, TASK_ESCAPEFROMBOMB, 0, -1, 0.0f, false},
+   {nullptr, nullptr, TASK_DESTROYBREAKABLE, 0, -1, 0.0f, false},
+   {nullptr, nullptr, TASK_HIDE, 0, -1, 0.0f, false},
+   {nullptr, nullptr, TASK_BLINDED, 0, -1, 0.0f, false},
+   {nullptr, nullptr, TASK_SPRAYLOGO, 0, -1, 0.0f, false},
+   {nullptr, nullptr, TASK_MOVETOTARGET, 0, -1, 0.0f, true},
+   {nullptr, nullptr, TASK_GOINGFORCAMP, 0, -1, 0.0f, true}
 };
 
 WeaponSelect g_weaponSelect[Const_NumWeapons + 1] =
@@ -452,25 +450,25 @@ MenuText g_menus[27] =
 	// kickmenu #1
 	{
 		0x0,
-		null,
+		nullptr,
 	},
 
 	// kickmenu #2
 	{
 		0x0,
-		null,
+		nullptr,
 	},
 
 	// kickmenu #3
 	{
 		0x0,
-		null,
+		nullptr,
 	},
 
 	// kickmenu #4
 	{
 		0x0,
-		null,
+		nullptr,
 	},
 
 	// command menu

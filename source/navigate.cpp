@@ -458,13 +458,13 @@ bool Bot::GoalIsValid(void)
 		return false;
 	else if (goal == m_currentWaypointIndex) // no nodes needed
 		return true;
-	else if (m_navNode == null) // no path calculated
+	else if (m_navNode == nullptr) // no path calculated
 		return false;
 
 	// got path - check if still valid
 	PathNode* node = m_navNode;
 
-	while (node->next != null)
+	while (node->next != nullptr)
 		node = node->next;
 
 	if (node->index == goal)
@@ -555,7 +555,7 @@ bool Bot::DoWaypointNav(void)
 	}
 
 	bool haveDoorEntity = false;
-	edict_t* door_entity = null;
+	edict_t* door_entity = nullptr;
 	while (!FNullEnt(door_entity = FIND_ENTITY_IN_SPHERE(door_entity, pev->origin, fixedWaypointDistance)))
 	{
 		if (strncmp(STRING(door_entity->v.classname), "func_door", 9) == 0)
@@ -583,7 +583,6 @@ bool Bot::DoWaypointNav(void)
 				{
 					m_pickupItem = button;
 					m_pickupType = PICKTYPE_BUTTON;
-
 					m_navTimeset = engine->GetTime();
 				}
 			}
@@ -654,7 +653,7 @@ bool Bot::DoWaypointNav(void)
 			desiredDistance = fixedWaypointDistance + 2.0f;
 		else if (!(m_currentTravelFlags & PATHFLAG_JUMP) && (m_waypointOrigin - origin).GetLengthSquared() <= (32.0f * 32.0f) && m_waypointOrigin.z <= pev->origin.z + 32.0f)
 		{
-			if (m_navNode == null || (m_navNode->next != null && g_waypoint->Reachable(GetEntity(), m_navNode->next->index)))
+			if (m_navNode == nullptr || (m_navNode->next != nullptr && g_waypoint->Reachable(GetEntity(), m_navNode->next->index)))
 				desiredDistance = fixedWaypointDistance + 2.0f;
 		}
 	}
@@ -673,7 +672,7 @@ bool Bot::DoWaypointNav(void)
 
 			return true;
 		}
-		else if (m_navNode == null)
+		else if (m_navNode == nullptr)
 			return false;
 
 		if ((g_mapType & MAP_DE) && g_bombPlanted && m_team == TEAM_COUNTER && GetCurrentTask()->taskID != TASK_ESCAPEFROMBOMB && GetCurrentTask()->data != -1)
@@ -735,10 +734,10 @@ PriorityQueue::PriorityQueue(void)
 
 PriorityQueue::~PriorityQueue(void)
 {
-	if (m_heap != null)
+	if (m_heap != nullptr)
 		delete[] m_heap;
 
-	m_heap = null;
+	m_heap = nullptr;
 }
 
 // inserts a value into the priority queue
@@ -749,7 +748,7 @@ void PriorityQueue::Insert(int value, float priority)
 		m_heapSize += 100;
 		m_heap = (HeapNode_t*)realloc(m_heap, sizeof(HeapNode_t) * m_heapSize);
 
-		if (m_heap == null)
+		if (m_heap == nullptr)
 			return;
 	}
 
@@ -818,6 +817,45 @@ void PriorityQueue::HeapSiftUp(void)
 
 		child = parent;
 	}
+}
+
+inline const float GF_CostHuman(int index, int parent, int team, bool isZombie)
+{
+	Path* path = g_waypoint->GetPath(index);
+	float pathDistance = g_waypoint->GetPathDistanceFloat(parent, index);
+	pathDistance *= pathDistance;
+
+	if (path->flags & WAYPOINT_DJUMP)
+		return 65355.0f;
+
+	if (path->flags & WAYPOINT_ZOMBIEONLY)
+		return 65355.0f;
+
+	if (path->flags & WAYPOINT_AVOID)
+		return 65355.0f;
+
+	int count = 0;
+	float totalDistance = 0.0f;
+	const Vector waypointOrigin = path->origin;
+	for (const auto& client : g_clients)
+	{
+		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || !IsZombieEntity(client.ent))
+			continue;
+
+		float distance = ((client.origin + client.ent->v.velocity * g_pGlobals->frametime) - waypointOrigin).GetLength();
+		if (distance <= path->radius + 64.0f)
+			count++;
+
+		totalDistance += distance;
+	}
+
+	if (count > 0)
+		pathDistance *= count;
+
+	if (totalDistance > 0.0f)
+		pathDistance /= totalDistance;
+
+	return pathDistance;
 }
 
 inline const float GF_CostCareful(int index, int parent, int team, bool isZombie)
@@ -1046,11 +1084,13 @@ void Bot::FindPath(int srcIndex, int destIndex)
 		waypoints[i].state = State::New;
 	}
 
-	const float (*gcalc) (int, int, int, bool) = null;
-	const float (*hcalc) (int, int) = null;
+	const float (*gcalc) (int, int, int, bool) = nullptr;
+	const float (*hcalc) (int, int) = nullptr;
 	hcalc = HF_Distance;
 
-	if (pev->weapons & (1 << WEAPON_C4) || (g_bombPlanted && m_inBombZone))
+	if (IsZombieMode() && !m_isZombieBot)
+		gcalc = GF_CostHuman;
+	else if (pev->weapons & (1 << WEAPON_C4) || (g_bombPlanted && m_inBombZone))
 	{
 		// move faster...
 		if (g_timeRoundMid <= engine->GetTime())
@@ -1089,12 +1129,12 @@ void Bot::FindPath(int srcIndex, int destIndex)
 			DeleteSearchNodes();
 
 			// build the complete path
-			m_navNode = null;
+			m_navNode = nullptr;
 
 			do
 			{
 				PathNode* path = new PathNode;
-				if (path == null)
+				if (path == nullptr)
 					return;
 
 				path->index = currentIndex;
@@ -1193,7 +1233,7 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 		waypoints[i].state = State::New;
 	}
 
-	const float (*hcalc) (int, int) = null;
+	const float (*hcalc) (int, int) = nullptr;
 	hcalc = HF_Distance;
 
 	// put start node into open list
@@ -1214,13 +1254,13 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 			DeleteSearchNodes();
 
 			// build the complete path
-			m_navNode = null;
+			m_navNode = nullptr;
 
 			do
 			{
 				PathNode* path = new PathNode;
 
-				if (path == null)
+				if (path == nullptr)
 					return;
 
 				path->index = currentIndex;
@@ -1272,10 +1312,10 @@ void Bot::DeleteSearchNodes(void)
 	if (m_pathtimer + 1.0f > engine->GetTime())
 		return;
 	
-	PathNode* deletingNode = null;
+	PathNode* deletingNode = nullptr;
 	PathNode* node = m_navNodeStart;
 	
-	while (node != null)
+	while (node != nullptr)
 	{
 		deletingNode = node->next;
 		delete node;
@@ -1283,8 +1323,8 @@ void Bot::DeleteSearchNodes(void)
 		node = deletingNode;
 	}
 	
-	m_navNodeStart = null;
-	m_navNode = null;
+	m_navNodeStart = nullptr;
+	m_navNode = nullptr;
 	m_chosenGoalIndex = -1;
 }
 
@@ -1301,7 +1341,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 	if (FClassnameIs(entity, "func_breakable"))
 	{
 		bool breakIt = false;
-		if (m_isStuck || &m_navNode[0] == null)
+		if (m_isStuck || &m_navNode[0] == nullptr)
 			breakIt = true;
 		else if (IsValidWaypoint(m_currentWaypointIndex))
 		{
@@ -1332,14 +1372,14 @@ void Bot::SetEnemy(edict_t* entity)
 {
 	if (FNullEnt(entity) || !IsAlive(entity))
 	{
-		if (!FNullEnt(m_enemy) && &m_navNode[0] == null)
+		if (!FNullEnt(m_enemy) && &m_navNode[0] == nullptr)
 		{
 			SetEntityWaypoint(GetEntity(), -2);
 			m_currentWaypointIndex = -1;
 			GetValidWaypoint();
 		}
 
-		m_enemy = null;
+		m_enemy = nullptr;
 		m_enemyOrigin = nullvec;
 		return;
 	}
@@ -1373,7 +1413,7 @@ void Bot::SetMoveTarget(edict_t* entity)
 	m_moveTargetOrigin = GetEntityOrigin(entity);
 	if (FNullEnt(entity) || m_moveTargetOrigin == nullvec)
 	{
-		m_moveTargetEntity = null;
+		m_moveTargetEntity = nullptr;
 		m_moveTargetOrigin = nullvec;
 
 		if (GetCurrentTask()->taskID == TASK_MOVETOTARGET)
@@ -1387,8 +1427,8 @@ void Bot::SetMoveTarget(edict_t* entity)
 	}
 
 	m_states &= ~STATE_SEEINGENEMY;
-	SetEnemy(null);
-	SetLastEnemy(null);
+	SetEnemy(nullptr);
+	SetLastEnemy(nullptr);
 	m_enemyUpdateTime = 0.0f;
 	m_aimFlags &= ~AIM_ENEMY;
 
@@ -1417,11 +1457,11 @@ int Bot::GetAimingWaypoint(Vector targetOriginPos)
 
 	PathNode* node = new PathNode;
 
-	if (node == null)
+	if (node == nullptr)
 		return -1;
 
 	node->index = destIndex;
-	node->next = null;
+	node->next = nullptr;
 
 	PathNode* startNode = node;
 
@@ -1435,11 +1475,11 @@ int Bot::GetAimingWaypoint(Vector targetOriginPos)
 		node->next = new PathNode();
 		node = node->next;
 
-		if (node == null)
+		if (node == nullptr)
 			return -1;
 
 		node->index = destIndex;
-		node->next = null;
+		node->next = nullptr;
 
 		if (g_waypoint->IsVisible(m_currentWaypointIndex, destIndex))
 		{
@@ -1448,7 +1488,7 @@ int Bot::GetAimingWaypoint(Vector targetOriginPos)
 		}
 	}
 
-	while (startNode != null)
+	while (startNode != nullptr)
 	{
 		node = startNode->next;
 		delete startNode;
@@ -1599,7 +1639,7 @@ void Bot::SetWaypointOrigin(void)
 		MakeVectors(Vector(pev->angles.x, AngleNormalize(pev->angles.y + engine->RandomFloat(-90.0f, 90.0f)), 0.0f));
 		int sPoint = -1;
 
-		if (&m_navNode[0] != null && m_navNode->next != null)
+		if (&m_navNode[0] != nullptr && m_navNode->next != nullptr)
 		{
 			Vector waypointOrigin[5];
 			for (int i = 0; i < 5; i++)
@@ -1774,7 +1814,6 @@ int Bot::FindDefendWaypoint(Vector origin)
 			continue;
 
 		TraceResult tr{};
-
 		TraceLine(g_waypoint->GetPath(index)->origin, origin, true, true, GetEntity(), &tr);
 
 		if (tr.flFraction == 1.0f && !IsWaypointOccupied(index)) // distance isn't matter
@@ -1884,8 +1923,8 @@ int Bot::FindCoverWaypoint(float maxDistance)
 // pathfinder, to vary paths and find the best waypoint on our way
 bool Bot::GetBestNextWaypoint(void)
 {
-	InternalAssert(m_navNode != null);
-	InternalAssert(m_navNode->next != null);
+	InternalAssert(m_navNode != nullptr);
+	InternalAssert(m_navNode->next != nullptr);
 
 	if (!IsWaypointOccupied(m_navNode->index))
 		return false;
@@ -1912,7 +1951,7 @@ bool Bot::GetBestNextWaypoint(void)
 
 bool Bot::HasNextPath(void)
 {
-	return (m_navNode != null && m_navNode->next != null);
+	return (m_navNode != nullptr && m_navNode->next != nullptr);
 }
 
 // advances in our pathfinding list and sets the appropiate destination origins for this bot
@@ -1921,7 +1960,7 @@ bool Bot::HeadTowardWaypoint(void)
 	GetValidWaypoint(); // check if old waypoints is still reliable
 
 	// no waypoints from pathfinding?
-	if (m_navNode == null)
+	if (m_navNode == nullptr)
 		return false;
 
 	TraceResult tr;
@@ -1930,9 +1969,9 @@ bool Bot::HeadTowardWaypoint(void)
 	m_currentTravelFlags = 0; // reset travel flags (jumping etc)
 
 	// we're not at the end of the list?
-	if (m_navNode != null)
+	if (m_navNode != nullptr)
 	{
-		if (m_navNode->next != null && !(g_waypoint->GetPath(m_navNode->next->index)->flags & WAYPOINT_LADDER))
+		if (m_navNode->next != nullptr && !(g_waypoint->GetPath(m_navNode->next->index)->flags & WAYPOINT_LADDER))
 		{
 			if (m_navNodeStart != m_navNode)
 			{
@@ -1977,13 +2016,17 @@ bool Bot::HeadTowardWaypoint(void)
 						if (static_cast <float> (kills) == m_baseAgressionLevel)
 							m_campButtons |= IN_DUCK;
 						else if (engine->RandomInt(1, 100) > (m_skill + engine->RandomInt(1, 20)))
+						{
 							m_minSpeed = GetWalkSpeed();
+							if (m_currentWeapon == WEAPON_KNIFE)
+								SelectBestWeapon();
+						}
 					}
 				}
 			}
 		}
 
-		if (m_navNode != null)
+		if (m_navNode != nullptr)
 		{
 			int destIndex = m_navNode->index;
 
@@ -2056,10 +2099,10 @@ bool Bot::HeadTowardWaypoint(void)
 								continue;
 							}
 
-							if (&otherBot->m_navNode[0] == null)
+							if (&otherBot->m_navNode[0] == nullptr)
 							{
 								int otherBotLadderWpIndex = otherBot->m_currentWaypointIndex;
-								if (destIndex == otherBotLadderWpIndex || (m_navNode->next != null && m_navNode->next->index == otherBotLadderWpIndex))
+								if (destIndex == otherBotLadderWpIndex || (m_navNode->next != nullptr && m_navNode->next->index == otherBotLadderWpIndex))
 								{
 									waitTime = 2.0f;
 									break;
@@ -2068,7 +2111,7 @@ bool Bot::HeadTowardWaypoint(void)
 								continue;
 							}
 
-							if (otherBot->m_currentWaypointIndex == destIndex && otherBot->m_navNode != null && otherBot->m_navNode->index == m_currentWaypointIndex)
+							if (otherBot->m_currentWaypointIndex == destIndex && otherBot->m_navNode != nullptr && otherBot->m_navNode->index == m_currentWaypointIndex)
 							{
 								waitTime = 2.0f;
 								break;
@@ -2473,6 +2516,7 @@ bool Bot::IsDeadlyDrop(Vector targetOriginPos)
 		lastHeight = height;
 		distance = (targetOriginPos - check).GetLength();  // distance from goal
 	}
+
 	return false;
 }
 
@@ -2521,7 +2565,7 @@ bool Bot::CheckCloseAvoidance(const Vector& dirNormal)
 	if (m_isStuck)
 	{
 		Bot* otherBot = g_botManager->GetBot(hindrance);
-		if (otherBot != null && !IsAntiBlock(hindrance))
+		if (otherBot != nullptr && !IsAntiBlock(hindrance))
 		{
 			otherBot->m_waypointOrigin = m_waypointOrigin;
 			otherBot->m_destOrigin = m_destOrigin;
@@ -2529,6 +2573,7 @@ bool Bot::CheckCloseAvoidance(const Vector& dirNormal)
 			m_tasks->data = otherBot->m_tasks->data;
 			m_prevGoalIndex = otherBot->m_prevGoalIndex;
 			m_chosenGoalIndex = otherBot->m_chosenGoalIndex;
+
 			int index = m_tasks->data;
 			if (index == -1)
 				index = m_chosenGoalIndex;
@@ -2619,7 +2664,7 @@ int Bot::GetCampAimingWaypoint(void)
 		if (!IsVisible(g_waypoint->GetPath(i)->origin, GetEntity()))
 			continue;
 
-		if ((g_waypoint->GetPath(i)->origin - pev->origin).GetLength() > 512.0f)
+		if ((g_waypoint->GetPath(i)->origin - pev->origin).GetLengthSquared() > (512.0f * 512.0f))
 			BestWaypoints.Push(i);
 		else
 			OkWaypoints.Push(i);
@@ -2764,7 +2809,7 @@ void Bot::SetStrafeSpeed(Vector moveDir, float strafeSpeed)
 	else if (!CheckWallOnLeft())
 		m_strafeSpeed = -strafeSpeed;
 	else if (GetCurrentTask()->taskID == TASK_CAMP)
-		m_lastEnemy = null;
+		m_lastEnemy = nullptr;
 }
 
 // find hostage improve
@@ -2773,7 +2818,7 @@ int Bot::FindHostage(void)
 	if (m_team != TEAM_COUNTER || !(g_mapType & MAP_CS) || m_isZombieBot)
 		return -1;
 
-	edict_t* ent = null;
+	edict_t* ent = nullptr;
 
 	while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "hostage_entity")))
 	{
@@ -2783,7 +2828,7 @@ int Bot::FindHostage(void)
 		{
 			Bot* bot = g_botManager->GetBot(client.ent);
 
-			if (bot != null && bot->m_notKilled)
+			if (bot != nullptr && bot->m_notKilled)
 			{
 				for (int j = 0; j < Const_MaxHostages; j++)
 				{
@@ -2815,7 +2860,7 @@ int Bot::FindLoosedBomb(void)
 	if (m_team != TEAM_TERRORIST || !(g_mapType & MAP_DE) || m_isZombieBot)
 		return -1; // don't search for bomb if the player is CT, or it's not defusing bomb
 
-	edict_t* bombEntity = null; // temporaly pointer to bomb
+	edict_t* bombEntity = nullptr; // temporaly pointer to bomb
 
 	// search the bomb on the map
 	while (!FNullEnt(bombEntity = FIND_ENTITY_BY_CLASSNAME(bombEntity, "weaponbox")))
@@ -2852,7 +2897,7 @@ bool Bot::IsWaypointOccupied(int index)
 	// first check if current waypoint of one of the bots is index waypoint
 	for (const auto& client : g_clients)
 	{
-		if (client.ent == NULL || client.ent == GetEntity() || !IsAlive(client.ent) || IsAntiBlock(client.ent) || GetTeam(client.ent) != m_team)
+		if (client.ent == nullptr || client.ent == GetEntity() || !IsAlive(client.ent) || IsAntiBlock(client.ent) || GetTeam(client.ent) != m_team)
 			continue;
 
 		if (IsValidWaypoint(m_currentWaypointIndex) && IsValidWaypoint(m_prevWptIndex[0]))
@@ -2865,7 +2910,7 @@ bool Bot::IsWaypointOccupied(int index)
 				return true;
 
 			Bot* bot = g_botManager->GetBot(client.ent);
-			if (bot != null && bot->m_currentWaypointIndex == index)
+			if (bot != nullptr && bot->m_currentWaypointIndex == index)
 				return true;
 		}
 	}
@@ -2873,16 +2918,15 @@ bool Bot::IsWaypointOccupied(int index)
 	return false;
 }
 
+// this function tries to find nearest to current bot button, and returns pointer to
+// it's entity, also here must be specified the target, that button must open
 edict_t* Bot::FindNearestButton(const char* className)
 {
-	// this function tries to find nearest to current bot button, and returns pointer to
-	// it's entity, also here must be specified the target, that button must open.
-
 	if (IsNullString(className))
-		return null;
+		return nullptr;
 
 	float nearestDistance = FLT_MAX;
-	edict_t* searchEntity = null, * foundEntity = null;
+	edict_t* searchEntity = nullptr, * foundEntity = nullptr;
 
 	// find the nearest button which can open our target
 	while (!FNullEnt(searchEntity = FIND_ENTITY_BY_TARGET(searchEntity, className)))
@@ -2909,7 +2953,7 @@ int Bot::CheckBotPointAPI(int mod)
 		return m_currentWaypointIndex;
 	else if (mod == 2)
 	{
-		if (&m_navNode[0] != null)
+		if (&m_navNode[0] != nullptr)
 			return m_navNode->index;
 	}
 
@@ -2921,7 +2965,7 @@ int Bot::GetNavData(int data)
 	PathNode* navid = &m_navNode[0];
 	int pointNum = 0;
 
-	while (navid != null)
+	while (navid != nullptr)
 	{
 		pointNum++;
 		if (pointNum == data)

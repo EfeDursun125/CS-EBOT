@@ -28,7 +28,7 @@ NetworkMsg::NetworkMsg(void)
 {
     m_message = NETMSG_UNDEFINED;
     m_state = 0;
-    m_bot = null;
+    m_bot = nullptr;
 
     for (int i = 0; i < NETMSG_NUM; i++)
         m_registerdMessages[i] = NETMSG_UNDEFINED;
@@ -217,7 +217,7 @@ void NetworkMsg::Execute(void* p)
         case 2:
             damageBits = PTR_TO_INT(p);
 
-            if (m_bot != null && (damageArmor > 0 || damageTaken > 0))
+            if (m_bot != nullptr && (damageArmor > 0 || damageTaken > 0))
                 m_bot->TakeDamage(m_bot->pev->dmg_inflictor, damageTaken, damageArmor, damageBits);
             break;
         }
@@ -272,7 +272,7 @@ void NetworkMsg::Execute(void* p)
                 break;
 
             Bot* victimer = g_botManager->GetBot(victim);
-            if (victimer != null)
+            if (victimer != nullptr)
             {
                 victimer->GetCurrentTask()->data = -1;
                 victimer->DeleteSearchNodes();
@@ -361,7 +361,7 @@ void NetworkMsg::Execute(void* p)
                 {
                     Bot* bot = g_botManager->GetBot(i);
 
-                    if (bot != null && IsAlive(bot->GetEntity()))
+                    if (bot != nullptr && IsAlive(bot->GetEntity()))
                     {
                         bot->DeleteSearchNodes();
                         bot->ResetTasks();
@@ -369,9 +369,9 @@ void NetworkMsg::Execute(void* p)
                 }
                 g_waypoint->SetBombPosition();
             }
-            else if (m_bot != null && FStrEq(PTR_TO_STR(p), "#Switch_To_BurstFire"))
+            else if (m_bot != nullptr && FStrEq(PTR_TO_STR(p), "#Switch_To_BurstFire"))
                 m_bot->m_weaponBurstMode = BURST_ENABLED;
-            else if (m_bot != null && FStrEq(PTR_TO_STR(p), "#Switch_To_SemiAuto"))
+            else if (m_bot != nullptr && FStrEq(PTR_TO_STR(p), "#Switch_To_SemiAuto"))
                 m_bot->m_weaponBurstMode = BURST_DISABLED;
         }
         break;

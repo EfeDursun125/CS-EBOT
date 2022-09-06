@@ -32,10 +32,9 @@
 
 ConVar ebot_chat("ebot_chat", "1");
 
+// this function strips 'clan' tags specified below in given string buffer
 void StripTags(char* buffer)
 {
-    // this function strips 'clan' tags specified below in given string buffer
-
     // first three tags for Enhanced POD-Bot (e[POD], 3[POD], E[POD])
     char* tagOpen[] = {"e[P", "3[P", "E[P", "-=", "-[", "-]", "-}", "-{", "<[", "<]", "[-", "]-", "{-", "}-", "[[", "[", "{", "]", "}", "<", ">", "-", "|", "=", "+", "("};
     char* tagClose[] = {"]", "]", "]", "=-", "]-", "[-", "{-", "}-", "]>", "[>", "-]", "-[", "-}", "-{", "]]", "]", "}", "[", "{", ">", "<", "-", "|", "=", "+", ")"};
@@ -138,14 +137,14 @@ void Bot::PrepareChatMessage(char* text)
     char* textStart = text;
     char* pattern = text;
 
-    edict_t* talkEntity = null;
+    edict_t* talkEntity = nullptr;
 
-    while (pattern != null)
+    while (pattern != nullptr)
     {
         // all replacement placeholders start with a %
         pattern = strstr(textStart, "%");
 
-        if (pattern != null)
+        if (pattern != nullptr)
         {
             int length = pattern - textStart;
 
@@ -158,7 +157,7 @@ void Bot::PrepareChatMessage(char* text)
             if (*pattern == 'f')
             {
                 int highestFrags = -9000; // just pick some start value
-                edict_t* entity = null;
+                edict_t* entity = nullptr;
 
                 for (const auto& client : g_clients)
                 {
@@ -199,7 +198,7 @@ void Bot::PrepareChatMessage(char* text)
             // teammate alive?
             else if (*pattern == 't')
             {
-                edict_t* entity = null;
+                edict_t* entity = nullptr;
 
                 for (const auto& client : g_clients)
                 {
@@ -244,7 +243,7 @@ void Bot::PrepareChatMessage(char* text)
             }
             else if (*pattern == 'e')
             {
-                edict_t* entity = null;
+                edict_t* entity = nullptr;
 
                 for (const auto& client : g_clients)
                 {
@@ -336,7 +335,7 @@ bool CheckKeywords(char* tempMessage, char* reply)
         ITERATE_ARRAY(g_replyFactory[i].keywords, j)
         {
             // check is keyword has occurred in message
-            if (strstr(tempMessage, g_replyFactory[i].keywords[j].GetBuffer()) != null)
+            if (strstr(tempMessage, g_replyFactory[i].keywords[j].GetBuffer()) != nullptr)
             {
                 Array <String>& replies = g_replyFactory[i].usedReplies;
 
@@ -349,7 +348,7 @@ bool CheckKeywords(char* tempMessage, char* reply)
                 // don't say this twice
                 ITERATE_ARRAY(replies, k)
                 {
-                    if (strstr(replies[k].GetBuffer(), generatedReply) != null)
+                    if (strstr(replies[k].GetBuffer(), generatedReply) != nullptr)
                         replyUsed = true;
                 }
 
@@ -465,7 +464,7 @@ void Bot::ChatSay(bool teamSay, const char* text, ...)
         m_lastStrings[160] = *text;
         m_lastChatEnt = GetEntity();
 
-        MESSAGE_BEGIN(MSG_ONE, g_netMsg->GetId(NETMSG_SAYTEXT), null, client.ent);
+        MESSAGE_BEGIN(MSG_ONE, g_netMsg->GetId(NETMSG_SAYTEXT), nullptr, client.ent);
         WRITE_BYTE(GetIndex());
         WRITE_STRING(tempMessage);
         MESSAGE_END();

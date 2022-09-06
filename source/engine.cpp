@@ -29,53 +29,68 @@ ConVar::ConVar(const char* name, const char* initval, VarType type)
     engine->RegisterVariable(name, initval, type, this);
 }
 
-void Engine::InitFastRNG(void)
-{
-    m_divider = (static_cast <uint64_t> (1)) << 32;
+// from jk_botti
+#if !defined(__GNUC__) || __GNUC__ < 3
+#define likely(x) (x)
+#define unlikely(x) (x)
+#else
+#define likely(x) __builtin_expect((long int)!!(x), true)
+#define unlikely(x) __builtin_expect((long int)!!(x), false)
+#endif
 
-    m_rnd[0] = clock();
-    m_rnd[1] = ~(m_rnd[0] + 6);
-    m_rnd[1] = GetRandomBase();
+static unsigned int rnd_idnum[2] = {1, 1};
+
+/* generates a random 32bit integer */
+static unsigned int fast_generate_random(void)
+{
+    rnd_idnum[0] ^= rnd_idnum[1] << 5;
+
+    rnd_idnum[0] *= 1664525L;
+    rnd_idnum[0] += 1013904223L;
+
+    rnd_idnum[1] *= 1664525L;
+    rnd_idnum[1] += 1013904223L;
+
+    rnd_idnum[1] ^= rnd_idnum[0] << 3;
+
+    return rnd_idnum[0];
 }
 
-uint32_t Engine::GetRandomBase(void)
+void fast_random_seed(unsigned int seed)
 {
-    m_rnd[0] ^= m_rnd[1] << 5;
-
-    m_rnd[0] *= 1664525L;
-    m_rnd[0] += 1013904223L;
-
-    m_rnd[1] *= 1664525L;
-    m_rnd[1] += 1013904223L;
-
-    m_rnd[1] ^= m_rnd[0] << 3;
-
-    return m_rnd[0];
+    rnd_idnum[0] = seed;
+    rnd_idnum[1] = ~(seed + 6);
+    rnd_idnum[1] = fast_generate_random();
 }
 
 float Engine::RandomFloat(float low, float high)
 {
-    if (low >= high)
-        return low;
-    return RANDOM_FLOAT(low, high);
+    const double c_divider = (((unsigned long long)1) << 32) - 1;
+    double rnd;
+
+    if (unlikely(low >= high))
+        return(low);
+
+    rnd = fast_generate_random();
+    rnd *= (double)high - (double)low;
+    rnd /= c_divider;
+
+    return (float)(rnd + (double)low);
 }
 
 int Engine::RandomInt(int low, int high)
 {
-    if (low >= high)
-    {
-        int random = RANDOM_LONG(1, 2);
-        switch (random)
-        {
-        case 1:
-            return low;
-        default:
-            return high;
-        }
-    }
+    const double c_divider = ((unsigned long long)1) << 32;
+    double rnd;
 
-    srand(time(0));
-    return rand() % (high - low + 1) + low;
+    if (unlikely(low >= high))
+        return(low);
+
+    rnd = fast_generate_random();
+    rnd *= (double)high - (double)low + 1.0;
+    rnd /= c_divider;
+
+    return (int)(rnd + (double)low);
 }
 
 float Engine::ApproachAngle(float target, float value, float speed)
@@ -151,7 +166,7 @@ void Engine::PushRegisteredConVarsToEngine(void)
     {
         VarPair* ptr = &m_regVars[i];
 
-        if (ptr == null)
+        if (ptr == nullptr)
             break;
 
         g_engfuncs.pfnCVarRegister(&ptr->reg);
@@ -171,7 +186,7 @@ void Engine::GetGameConVarsPointers(void)
     m_gameVars[GVAR_DEVELOPER] = g_engfuncs.pfnCVarGetPointer("developer");
 
     // if buytime is null, just set it to round time
-    if (m_gameVars[GVAR_BUYTIME] == null)
+    if (m_gameVars[GVAR_BUYTIME] == nullptr)
         m_gameVars[GVAR_BUYTIME] = m_gameVars[3];
 }
 
@@ -301,7 +316,7 @@ void Engine::PrintAllClients(PrintType printType, const char* format, ...)
     {
         strcat(buffer, "\n");
 
-        g_engfuncs.pfnMessageBegin(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG), null, null);
+        g_engfuncs.pfnMessageBegin(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG), nullptr, nullptr);
         g_engfuncs.pfnWriteByte(printType == PRINT_CENTER ? 4 : 3);
         g_engfuncs.pfnWriteString(buffer);
         g_engfuncs.pfnMessageEnd();
@@ -331,7 +346,7 @@ void Engine::DrawLine(const Client& client, const Vector& start, const Vector& e
     if (!client.IsValid())
         return;
 
-    g_engfuncs.pfnMessageBegin(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, null, client);
+    g_engfuncs.pfnMessageBegin(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, client);
     g_engfuncs.pfnWriteByte(TE_BEAMPOINTS);
 
     g_engfuncs.pfnWriteCoord(start.x);

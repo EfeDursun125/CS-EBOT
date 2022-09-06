@@ -40,7 +40,7 @@ void Waypoint::Initialize(void)
         for (int i = 0; i < g_numWaypoints; i++)
         {
             delete m_paths[i];
-            m_paths[i] = null;
+            m_paths[i] = nullptr;
         }
     }
 
@@ -92,7 +92,7 @@ void Waypoint::Analyze(void)
 
                             if (!IsValidWaypoint(endindex))
                             {
-                                edict_t* ent = null;
+                                edict_t* ent = nullptr;
 
                                 while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "hostage_entity")))
                                 {
@@ -631,7 +631,7 @@ void Waypoint::SgdWp_Set(const char* modset)
         }
     }
 
-    edict_t* spawnEntity = null;
+    edict_t* spawnEntity = nullptr;
     while (!FNullEnt(spawnEntity = FIND_ENTITY_BY_CLASSNAME(spawnEntity, "info_player_start")))
     {
         if (g_sgdWaypoint)
@@ -663,7 +663,7 @@ void Waypoint::Add(int flags, Vector waypointOrigin)
     float distance;
 
     Vector forward = nullvec;
-    Path* path = null;
+    Path* path = nullptr;
 
     bool placeNew = true;
     Vector newOrigin = waypointOrigin;
@@ -733,8 +733,7 @@ void Waypoint::Add(int flags, Vector waypointOrigin)
         index = g_numWaypoints;
 
         m_paths[index] = new Path;
-
-        if (m_paths[index] == null)
+        if (m_paths[index] == nullptr)
             return;
 
         path = m_paths[index];
@@ -992,8 +991,8 @@ void Waypoint::Delete(void)
     if (!IsValidWaypoint(index))
         return;
 
-    Path* path = null;
-    InternalAssert(m_paths[index] != null);
+    Path* path = nullptr;
+    InternalAssert(m_paths[index] != nullptr);
 
     int i, j;
 
@@ -1029,7 +1028,7 @@ void Waypoint::Delete(void)
 
     // free deleted node
     delete m_paths[index];
-    m_paths[index] = null;
+    m_paths[index] = nullptr;
 
     // Rotate Path Array down
     for (i = index; i < g_numWaypoints - 1; i++)
@@ -1054,8 +1053,8 @@ void Waypoint::DeleteByIndex(int index)
     if (!IsValidWaypoint(index))
         return;
 
-    Path* path = null;
-    InternalAssert(m_paths[index] != null);
+    Path* path = nullptr;
+    InternalAssert(m_paths[index] != nullptr);
 
     int i, j;
 
@@ -1091,7 +1090,7 @@ void Waypoint::DeleteByIndex(int index)
 
     // free deleted node
     delete m_paths[index];
-    m_paths[index] = null;
+    m_paths[index] = nullptr;
 
     // Rotate Path Array down
     for (i = index; i < g_numWaypoints - 1; i++)
@@ -1392,11 +1391,11 @@ void Waypoint::CalculateWayzone(int index)
             Vector radiusStart = start - g_pGlobals->v_forward * scanDistance;
             Vector radiusEnd = start + g_pGlobals->v_forward * scanDistance;
 
-            TraceHull(radiusStart, radiusEnd, true, head_hull, null, &tr);
+            TraceHull(radiusStart, radiusEnd, true, head_hull, nullptr, &tr);
 
             if (tr.flFraction < 1.0f)
             {
-                TraceLine(radiusStart, radiusEnd, true, null, &tr);
+                TraceLine(radiusStart, radiusEnd, true, nullptr, &tr);
 
                 if (FClassnameIs(tr.pHit, "func_door") || FClassnameIs(tr.pHit, "func_door_rotating"))
                 {
@@ -1415,7 +1414,7 @@ void Waypoint::CalculateWayzone(int index)
             Vector dropStart = start + (g_pGlobals->v_forward * scanDistance);
             Vector dropEnd = dropStart - Vector(0.0f, 0.0f, scanDistance + 60.0f);
 
-            TraceHull(dropStart, dropEnd, true, head_hull, null, &tr);
+            TraceHull(dropStart, dropEnd, true, head_hull, nullptr, &tr);
 
             if (tr.flFraction >= 1.0f)
             {
@@ -1427,7 +1426,7 @@ void Waypoint::CalculateWayzone(int index)
             dropStart = start - (g_pGlobals->v_forward * scanDistance);
             dropEnd = dropStart - Vector(0.0f, 0.0f, scanDistance + 60.0f);
 
-            TraceHull(dropStart, dropEnd, true, head_hull, null, &tr);
+            TraceHull(dropStart, dropEnd, true, head_hull, nullptr, &tr);
 
             if (tr.flFraction >= 1.0f)
             {
@@ -1437,7 +1436,7 @@ void Waypoint::CalculateWayzone(int index)
             }
 
             radiusEnd.z += 34.0f;
-            TraceHull(radiusStart, radiusEnd, true, head_hull, null, &tr);
+            TraceHull(radiusStart, radiusEnd, true, head_hull, nullptr, &tr);
 
             if (tr.flFraction < 1.0f)
             {
@@ -1531,8 +1530,7 @@ bool Waypoint::Load(int mode)
                 for (int i = 0; i < g_numWaypoints; i++)
                 {
                     m_paths[i] = new Path;
-
-                    if (m_paths[i] == null)
+                    if (m_paths[i] == nullptr)
                         return false;
 
                     fp.Read(m_paths[i], sizeof(Path));
@@ -1561,8 +1559,7 @@ bool Waypoint::Load(int mode)
                 for (int i = 0; i < g_numWaypoints; i++)
                 {
                     m_paths[i] = new Path;
-
-                    if (m_paths[i] == null)
+                    if (m_paths[i] == nullptr)
                         return false;
 
                     fp.Read(m_paths[i], sizeof(Path));
@@ -1969,7 +1966,7 @@ void Waypoint::InitializeVisibility(void)
             // first check ducked visibility
             Vector dest = m_paths[i]->origin;
 
-            TraceLine(sourceDuck, dest, true, null, &tr);
+            TraceLine(sourceDuck, dest, true, nullptr, &tr);
 
             // check if line of sight to object is not blocked (i.e. visible)
             if ((tr.flFraction != 1.0f) || tr.fStartSolid)
@@ -1979,7 +1976,7 @@ void Waypoint::InitializeVisibility(void)
 
             res <<= 1;
 
-            TraceLine(sourceStand, dest, true, null, &tr);
+            TraceLine(sourceStand, dest, true, nullptr, &tr);
 
             // check if line of sight to object is not blocked (i.e. visible)
             if ((tr.flFraction != 1.0f) || tr.fStartSolid)
@@ -2035,14 +2032,13 @@ bool Waypoint::IsStandVisible(int srcIndex, int destIndex)
     return !((res & 1) == 1);
 }
 
+// this function returns path information for waypoint pointed by id
 char* Waypoint::GetWaypointInfo(int id)
 {
-    // this function returns path information for waypoint pointed by id.
-
     Path* path = GetPath(id);
 
     // if this path is null, return
-    if (path == null)
+    if (path == nullptr)
         return "\0";
 
     bool jumpPoint = false;
@@ -2520,7 +2516,7 @@ void Waypoint::ShowWaypointMsg(void)
         }
 
         // check if we need to show the facing point index, only if no menu to show
-        if (m_facingAtIndex != -1 && g_clients[ENTINDEX(g_hostEntity) - 1].menu == null)
+        if (m_facingAtIndex != -1 && g_clients[ENTINDEX(g_hostEntity) - 1].menu == nullptr)
         {
             length += sprintf(&tempMessage[length], "\n    Facing Waypoint Information:\n\n"
                 "      Waypoint %d of %d, Radius: %.1f\n"
@@ -2544,7 +2540,7 @@ void Waypoint::ShowWaypointMsg(void)
         }
 
         // draw entire message
-        MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, null, g_hostEntity);
+        MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, g_hostEntity);
         WRITE_BYTE(TE_TEXTMESSAGE);
         WRITE_BYTE(4); // channel
         WRITE_SHORT(FixedSigned16(0, 1 << 13)); // x
@@ -2730,19 +2726,19 @@ void Waypoint::InitPathMatrix(void)
 {
     int i, j, k;
 
-    if (m_distMatrix != null)
+    if (m_distMatrix != nullptr)
         delete[](m_distMatrix);
 
-    if (m_pathMatrix != null)
+    if (m_pathMatrix != nullptr)
         delete[] m_pathMatrix;
 
-    m_distMatrix = null;
-    m_pathMatrix = null;
+    m_distMatrix = nullptr;
+    m_pathMatrix = nullptr;
 
     m_distMatrix = new int[g_numWaypoints * g_numWaypoints];
     m_pathMatrix = new int[g_numWaypoints * g_numWaypoints];
 
-    if (m_distMatrix == null || m_pathMatrix == null)
+    if (m_distMatrix == nullptr || m_pathMatrix == nullptr)
         return;
 
     if (LoadPathMatrix())
@@ -2886,11 +2882,10 @@ bool Waypoint::IsGoalVisited(int index)
     return false;
 }
 
+// this function creates basic waypoint types on map
 void Waypoint::CreateBasic(void)
 {
-    // this function creates basic waypoint types on map
-
-    edict_t* ent = null;
+    edict_t* ent = nullptr;
 
     // first of all, if map contains ladder points, create it
     while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "func_ladder")))
@@ -2911,7 +2906,7 @@ void Waypoint::CreateBasic(void)
         up = down = front;
         down.z = ent->v.absmax.z;
 
-        TraceHull(down, up, true, point_hull, null, &tr);
+        TraceHull(down, up, true, point_hull, nullptr, &tr);
 
         if (POINT_CONTENTS(up) == CONTENTS_SOLID || tr.flFraction != 1.0f)
         {
@@ -2919,7 +2914,7 @@ void Waypoint::CreateBasic(void)
             down.z = ent->v.absmax.z;
         }
 
-        TraceHull(down, up - Vector(0.0f, 0.0f, 1000.0f), true, point_hull, null, &tr);
+        TraceHull(down, up - Vector(0.0f, 0.0f, 1000.0f), true, point_hull, nullptr, &tr);
         up = tr.vecEndPos;
 
         Vector pointOrigin = up + Vector(0.0f, 0.0f, 39.0f);
@@ -3050,17 +3045,14 @@ void Waypoint::CreateBasic(void)
 Path* Waypoint::GetPath(int id)
 {
     Path* path = m_paths[id];
-
-    if (path == null)
-        return null;
-
+    if (path == nullptr)
+        return nullptr;
     return path;
 }
 
+// this function removes waypoint file from the hard disk
 void Waypoint::EraseFromHardDisk(void)
 {
-    // this function removes waypoint file from the hard disk
-
     String deleteList[6];
 
     // if we're delete waypoint, delete all corresponding to it files
@@ -3085,10 +3077,9 @@ void Waypoint::EraseFromHardDisk(void)
     Initialize(); // reintialize points
 }
 
+// this function stores the bomb position as a vector
 void Waypoint::SetBombPosition(bool shouldReset)
 {
-    // this function stores the bomb position as a vector
-
     if (shouldReset)
     {
         m_foundBombOrigin = nullvec;
@@ -3097,8 +3088,7 @@ void Waypoint::SetBombPosition(bool shouldReset)
         return;
     }
 
-    edict_t* ent = null;
-
+    edict_t* ent = nullptr;
     while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "grenade")))
     {
         if (strcmp(STRING(ent->v.model) + 9, "c4.mdl") == 0)
@@ -3192,18 +3182,18 @@ Waypoint::Waypoint(void)
     m_sniperPoints.RemoveAll();
     m_otherPoints.RemoveAll();
 
-    m_distMatrix = null;
-    m_pathMatrix = null;
+    m_distMatrix = nullptr;
+    m_pathMatrix = nullptr;
 }
 
 Waypoint::~Waypoint(void)
 {
-    if (m_distMatrix != null)
+    if (m_distMatrix != nullptr)
         delete[] m_distMatrix;
 
-    if (m_pathMatrix != null)
+    if (m_pathMatrix != nullptr)
         delete[] m_pathMatrix;
 
-    m_distMatrix = null;
-    m_pathMatrix = null;
+    m_distMatrix = nullptr;
+    m_pathMatrix = nullptr;
 }
