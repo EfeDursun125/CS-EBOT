@@ -804,25 +804,25 @@ public:
     {
         float sinePitch = 0.0f, cosinePitch = 0.0f, sineYaw = 0.0f, cosineYaw = 0.0f, sineRoll = 0.0f, cosineRoll = 0.0f;
 
-        Math::SineCosine(Math::DegreeToRadian(x), sinePitch, cosinePitch);	// compute the sine and cosine of the pitch component
+        Math::SineCosine(Math::DegreeToRadian(x), sinePitch, cosinePitch); // compute the sine and cosine of the pitch component
         Math::SineCosine(Math::DegreeToRadian(y), sineYaw, cosineYaw); // compute the sine and cosine of the yaw component
         Math::SineCosine(Math::DegreeToRadian(z), sineRoll, cosineRoll); // compute the sine and cosine of the roll component
 
-        if (forward != null)
+        if (forward != nullptr)
         {
             forward->x = cosinePitch * cosineYaw;
             forward->y = cosinePitch * sineYaw;
             forward->z = -sinePitch;
         }
 
-        if (right != null)
+        if (right != nullptr)
         {
             right->x = -sineRoll * sinePitch * cosineYaw + cosineRoll * sineYaw;
             right->y = -sineRoll * sinePitch * sineYaw - cosineRoll * cosineYaw;
             right->z = -sineRoll * cosinePitch;
         }
 
-        if (upward != null)
+        if (upward != nullptr)
         {
             upward->x = cosineRoll * sinePitch * cosineYaw + sineRoll * sineYaw;
             upward->y = cosineRoll * sinePitch * sineYaw - sineRoll * cosineYaw;
@@ -866,7 +866,7 @@ public:
     //
     Array(int resizeStep = 0)
     {
-        m_elements = NULL;
+        m_elements = nullptr;
         m_itemSize = 0;
         m_itemCount = 0;
         m_resizeStep = resizeStep;
@@ -881,7 +881,7 @@ public:
     //
     Array(const Array <T>& other)
     {
-        m_elements = NULL;
+        m_elements = nullptr;
         m_itemSize = 0;
         m_itemCount = 0;
         m_resizeStep = 0;
@@ -910,8 +910,7 @@ public:
     void Destory(void)
     {
         delete[] m_elements;
-
-        m_elements = NULL;
+        m_elements = nullptr;
         m_itemSize = 0;
         m_itemCount = 0;
     }
@@ -956,7 +955,7 @@ public:
 
         T* buffer = new T[checkSize];
 
-        if (keepData && m_elements != NULL)
+        if (keepData && m_elements != nullptr)
         {
             if (checkSize < m_itemCount)
                 m_itemCount = checkSize;
@@ -1114,7 +1113,7 @@ public:
     //
     bool InsertAt(int index, T* objects, int count = 1, bool enlarge = true)
     {
-        if (objects == NULL || count < 1)
+        if (objects == nullptr || count < 1)
             return false;
 
         int newSize = 0;
@@ -1303,11 +1302,12 @@ public:
 
         T* buffer = new T[m_itemCount];
 
-        if (m_elements != NULL)
+        if (m_elements != nullptr)
         {
             for (int i = 0; i < m_itemCount; i++)
                 buffer[i] = m_elements[i];
         }
+
         delete[] m_elements;
 
         m_elements = buffer;
@@ -1442,7 +1442,7 @@ private:
         // Group: Functions.
         //
     public:
-        inline HashItem(void) : next(null)
+        inline HashItem(void) : next(nullptr)
         {
         }
 
@@ -1488,11 +1488,11 @@ public:
     //
     inline Map <K, V>(int hashSize = 36) : m_hashSize(hashSize), m_table(new HashItem* [hashSize])
     {
-        if (m_table == null)
+        if (m_table == nullptr)
             return;
 
         for (int i = 0; i < hashSize; i++)
-            m_table[i] = null;
+            m_table[i] = nullptr;
     }
 
     //
@@ -1543,11 +1543,11 @@ public:
         m_hashSize = hashSize;
         m_table = new HashItem * [hashSize];
 
-        if (m_table == null)
+        if (m_table == nullptr)
             return;
 
         for (int i = 0; i < hashSize; i++)
-            m_table[i] = null;
+            m_table[i] = nullptr;
     }
 
     //
@@ -1716,13 +1716,13 @@ public:
     bool Remove(const K& keyName)
     {
         int hashID = Map::HashFunc <K>(keyName) % m_hashSize;
-        HashItem* hashItem = m_table[hashID], * nextHash = null;
+        HashItem* hashItem = m_table[hashID], * nextHash = nullptr;
 
-        while (hashItem != null)
+        while (hashItem != nullptr)
         {
             if (m_mapTable[hashItem->index].first == keyName)
             {
-                if (nextHash == null)
+                if (nextHash == nullptr)
                     m_table[hashID] = hashItem->next;
                 else
                     nextHash->next = hashItem->next;
@@ -1751,15 +1751,17 @@ public:
         {
             ptr = m_table[i];
 
-            while (ptr != null)
+            while (ptr != nullptr)
             {
                 next = ptr->next;
 
                 delete ptr;
                 ptr = next;
             }
-            m_table[i] = null;
+
+            m_table[i] = nullptr;
         }
+
         m_mapTable.RemoveAll();
     }
 
@@ -1779,7 +1781,7 @@ public:
     {
         int hashID = Map <K, V>::HashFunc(keyName) % m_hashSize;
 
-        for (HashItem* ptr = m_table[hashID]; ptr != null; ptr = ptr->next)
+        for (HashItem* ptr = m_table[hashID]; ptr != nullptr; ptr = ptr->next)
         {
             if (m_mapTable[ptr->index].first == keyName)
                 return ptr->index;
@@ -1797,6 +1799,7 @@ public:
                 return item;
             }
         }
+
         return -1;
     }
 
@@ -1854,7 +1857,6 @@ private:
         {
             for (int i = 0; i < m_used; i++)
                 newBuffer[i] = m_array[i];
-
             delete[] m_array;
         }
 
@@ -1890,12 +1892,12 @@ private:
     }
 
 public:
-    inline String(void) : m_array(null), m_used(0), m_allocated(0)
+    inline String(void) : m_array(nullptr), m_used(0), m_allocated(0)
     {
         SetCapacity(3);
     }
 
-    inline String(char chr) : m_array(null), m_used(0), m_allocated(0)
+    inline String(char chr) : m_array(nullptr), m_used(0), m_allocated(0)
     {
         SetCapacity(1);
 
@@ -1905,7 +1907,7 @@ public:
         m_used = 1;
     }
 
-    inline String(char* str) : m_array(null), m_used(0), m_allocated(0)
+    inline String(char* str) : m_array(nullptr), m_used(0), m_allocated(0)
     {
         int length = strlen(str);
 
@@ -1915,7 +1917,7 @@ public:
         m_used = length;
     }
 
-    inline String(const char* str) : m_array(null), m_used(0), m_allocated(0)
+    inline String(const char* str) : m_array(nullptr), m_used(0), m_allocated(0)
     {
         int length = strlen(str);
 
@@ -1925,7 +1927,7 @@ public:
         m_used = length;
     }
 
-    inline String(const String& other) : m_array(null), m_used(0), m_allocated(0)
+    inline String(const String& other) : m_array(nullptr), m_used(0), m_allocated(0)
     {
         SetCapacity(other.m_used);
         strcpy(m_array, other.m_array);
@@ -1990,10 +1992,10 @@ public:
 
     inline void Destroy(void)
     {
-        if (m_array != null)
+        if (m_array != nullptr)
         {
             delete[] m_array;
-            m_array = null;
+            m_array = nullptr;
         }
     }
 
@@ -2016,7 +2018,7 @@ public:
     //
     const char* GetBuffer(void)
     {
-        if (m_array == NULL || *m_array == 0x0)
+        if (m_array == nullptr || *m_array == 0x0)
             return "";
 
         return &m_array[0];
@@ -2031,7 +2033,7 @@ public:
     //
     const char* GetBuffer(void) const
     {
-        if (m_array == NULL || *m_array == 0x0)
+        if (m_array == nullptr || *m_array == 0x0)
             return "";
 
         return &m_array[0];
@@ -2203,6 +2205,11 @@ public:
     inline void SetEmpty(void)
     {
         m_used = 0;
+        /*if (m_array != nullptr)
+        {
+            delete[] m_array;
+            m_array = nullptr;
+        }*/
     }
 
     inline int GetLength(void) const
@@ -2212,7 +2219,7 @@ public:
 
     inline bool IsEmpty(void) const
     {
-        return m_used == 0;
+        return m_used <= 0;
     }
 
     inline String Mid(int startIndex) const
@@ -2256,24 +2263,24 @@ public:
     inline String& MakeUpper(void)
     {
         char* ptr = m_array;
-
-        while (*ptr != null)
+        while (ptr != nullptr)
         {
             *ptr = static_cast <char> (toupper(*ptr));
             ptr++;
         }
+
         return *this;
     }
 
     inline String& MakeLower(void)
     {
         char* ptr = m_array;
-
-        while (*ptr != null)
+        while (ptr != nullptr)
         {
             *ptr = static_cast <char> (tolower(*ptr));
             ptr++;
         }
+
         return *this;
     }
 
@@ -2289,7 +2296,7 @@ public:
 
     inline bool Has(const String& other) const
     {
-        return strstr(m_array, other.GetRawData()) != null;
+        return strstr(m_array, other.GetRawData()) != nullptr;
     }
 
     inline int Find(char chr) const
@@ -2384,27 +2391,27 @@ public:
     inline String& TrimRight(char chr)
     {
         char* ptr = m_array;
-        char* last = null;
+        char* last = nullptr;
 
         while (*ptr != 0)
         {
             if (*ptr == chr)
             {
-                if (last == null)
+                if (last == nullptr)
                     last = ptr;
             }
             else
-                last = null;
+                last = nullptr;
 
             ptr++;
         }
 
-        if (last != null)
+        if (last != nullptr)
         {
             int diff = static_cast <int> (last - m_array);
-
             Delete(diff, m_used - diff);
         }
+
         return *this;
     }
 
@@ -2548,6 +2555,29 @@ public:
 
         return holder;
     }
+
+    //
+   // Function: Split
+   //  Splits string using character.
+   //
+   // Parameters:
+   //  separator - Separator to split with.
+   //
+   // Returns:
+   //  Array of slitted strings.
+   //
+   // See Also:
+   //  <Array>
+   //
+    Array <String> Split(char separator)
+    {
+        char sep[2];
+
+        sep[0] = separator;
+        sep[1] = 0x0;
+
+        return Split(sep);
+    }
 };
 
 //
@@ -2581,7 +2611,7 @@ public:
     //
     // Default file class constructor.
     //
-    inline File(void) : m_handle(null), m_size(0)
+    inline File(void) : m_handle(nullptr), m_size(0)
     {
     }
 
@@ -2594,7 +2624,7 @@ public:
     //   filePath - String containing file name.
     //   mode - String containing open mode for file.
     //
-    inline File(const String& filePath, const String& mode = "rt") : m_handle(null), m_size(0)
+    inline File(const String& filePath, const String& mode = "rt") : m_handle(nullptr), m_size(0)
     {
         Open(filePath, mode);
     }
@@ -2650,8 +2680,9 @@ public:
         if (IsValid())
         {
             fclose(m_handle);
-            m_handle = null;
+            m_handle = nullptr;
         }
+
         m_size = 0;
     }
 
@@ -2711,10 +2742,10 @@ public:
         char* tempBuffer = new char[static_cast <uint32_t> (count)];
         buffer.SetEmpty();
 
-        if (tempBuffer == null)
+        if (tempBuffer == nullptr)
             return false;
 
-        if (fgets(tempBuffer, count, m_handle) != null)
+        if (fgets(tempBuffer, count, m_handle) != nullptr)
         {
             buffer = tempBuffer;
             delete[] tempBuffer;
@@ -2740,7 +2771,7 @@ public:
     //
     inline bool GetBuffer(char* buffer, int count = 256) const
     {
-        return fgets(buffer, count, m_handle) != null;
+        return fgets(buffer, count, m_handle) != nullptr;
     }
 
     //
@@ -2899,7 +2930,7 @@ public:
     //
     inline bool IsValid(void) const
     {
-        return m_handle != null;
+        return m_handle != nullptr;
     }
 };
 

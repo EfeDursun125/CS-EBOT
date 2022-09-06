@@ -1685,7 +1685,7 @@ extern enginefuncs_t g_engfuncs;
 #define RANDOM_LONG       (*g_engfuncs.pfnRandomLong)
 #define RANDOM_FLOAT      (*g_engfuncs.pfnRandomFloat)
 #define GETPLAYERAUTHID   (*g_engfuncs.pfnGetPlayerAuthId)
-inline void MESSAGE_BEGIN(int msg_dest, int msg_type, const float* pOrigin = null, edict_t* ed = null)
+inline void MESSAGE_BEGIN(int msg_dest, int msg_type, const float* pOrigin = nullptr, edict_t* ed = nullptr)
 {
     (*g_engfuncs.pfnMessageBegin) (msg_dest, msg_type, pOrigin, ed);
 }
@@ -1708,7 +1708,7 @@ inline void MESSAGE_BEGIN(int msg_dest, int msg_type, const float* pOrigin = nul
 #define ALERT           (*g_engfuncs.pfnAlertMessage)
 #define ENGINE_FPRINTF  (*g_engfuncs.pfnEngineFprintf)
 #define ALLOC_PRIVATE   (*g_engfuncs.pfnPvAllocEntPrivateData)
-#define GET_PRIVATE(pent)  (pent ? (pent->pvPrivateData) : null);
+#define GET_PRIVATE(pent)  (pent ? (pent->pvPrivateData) : nullptr);
 #define FREE_PRIVATE   (*g_engfuncs.pfnFreeEntPrivateData)
 #define ALLOC_STRING   (*g_engfuncs.pfnAllostring)
 #define FIND_ENTITY_BY_STRING   (*g_engfuncs.pfnFindEntityByString)
@@ -2468,7 +2468,7 @@ inline entvars_t* VARS(entvars_t* pev)
 inline entvars_t* VARS(edict_t* pent)
 {
     if (!pent)
-        return null;
+        return nullptr;
 
     return &pent->v;
 }
@@ -2498,7 +2498,7 @@ inline BOOL FNullEnt(EOFFSET eoffset)
 }
 inline BOOL FNullEnt(entvars_t* pev)
 {
-    return pev == null || FNullEnt(OFFSET(pev));
+    return pev == nullptr || FNullEnt(OFFSET(pev));
 }
 inline int FNullEnt(const edict_t* pent)
 {
@@ -2709,16 +2709,14 @@ inline void SET_SERVERINFO(char* key, char* value)
 
 inline char* LOCALINFO(char* key)
 {
-    edict_t* server = null;
-
+    edict_t* server = nullptr;
     return (ENTITY_KEYVALUE(server, key));
 }
 
 inline void SET_LOCALINFO(char* key, char* value)
 {
-    edict_t* server = null;
+    edict_t* server = nullptr;
     char* ifbuf = GET_INFOKEYBUFFER(server);
-
     SET_SERVER_KEYVALUE(ifbuf, key, value);
 }
 
@@ -2741,7 +2739,7 @@ unsigned short FixedUnsigned16(float value, float scale);
 
 #undef GetObject
 
-inline void MakeVectors(const Vector& in)
+static inline void MakeVectors(const Vector& in)
 {
     in.BuildVectors(&g_pGlobals->v_forward, &g_pGlobals->v_right, &g_pGlobals->v_up);
 }
@@ -2882,7 +2880,7 @@ protected:
     edict_t* m_ent;
 
 public:
-    inline Entity(void) : m_ent(null)
+    inline Entity(void) : m_ent(nullptr)
     {
         // nothing todo
     }
@@ -2938,7 +2936,7 @@ public:
 
     inline bool IsValid(void) const
     {
-        if (m_ent == null || g_engfuncs.pfnEntOffsetOfPEntity(m_ent) == 0 || m_ent->free || (m_ent->v.flags & FL_KILLME))
+        if (m_ent == nullptr || g_engfuncs.pfnEntOffsetOfPEntity(m_ent) == 0 || m_ent->free || (m_ent->v.flags & FL_KILLME))
             return false;
 
         return true;
@@ -3156,7 +3154,7 @@ public:
         m_flags = CLIENT_UNASSIGNED;
         m_team = CLIENT_UNASSIGNED;
 
-        m_ent = null;
+        m_ent = nullptr;
     }
 
     Client(edict_t* ent)
@@ -3358,12 +3356,6 @@ public:
     // sends bot command
     void IssueBotCommand(edict_t* ent, const char* fmt, ...);
 
-    // initializes random number generator
-    void InitFastRNG(void);
-
-    // generates a random 32bit random number
-    uint32_t GetRandomBase(void);
-
     // generates random float based on low and high value
     float RandomFloat(float low, float high);
 
@@ -3466,11 +3458,11 @@ public:
 
         if (m_hullNumber != -1)
         {
-            g_engfuncs.pfnTraceHull(m_start, m_end, m_monsters ? 1 : 0, m_hullNumber, m_ignore ? m_ignore : null, &tr);
+            g_engfuncs.pfnTraceHull(m_start, m_end, m_monsters ? 1 : 0, m_hullNumber, m_ignore ? m_ignore : nullptr, &tr);
         }
         else
         {
-            g_engfuncs.pfnTraceLine(m_start, m_end, m_monsters ? 1 : 0 || m_glass ? 0x100 : 0, m_ignore ? m_ignore : null, &tr);
+            g_engfuncs.pfnTraceLine(m_start, m_end, m_monsters ? 1 : 0 || m_glass ? 0x100 : 0, m_ignore ? m_ignore : nullptr, &tr);
         }
 
         m_fraction = tr.flFraction;

@@ -37,7 +37,6 @@
 #include <stdio.h>
 #include <memory.h>
 #include <xmmintrin.h>
-#include <sys/types.h>
 
 #include <engine.h>
 
@@ -701,6 +700,7 @@ private:
 	edict_t* m_lastChatEnt; // for block looping message from same bot
 	int m_radioSelect; // radio entry
 	float m_chatterTimer; // chatter timer
+	ChatterMessage m_lastChatterMessage; // for block looping same line...
 
 	float m_blindRecognizeTime; // time to recognize enemy
 	float m_itemCheckTime; // time next search for items needs to be done
@@ -756,7 +756,6 @@ private:
 	Vector m_entity; // origin of entities like buttons etc.
 	Vector m_camp; // aiming vector when camping.
 
-	float m_timeWaypointMove; // last time bot followed waypoints
 	bool m_wantsToFire; // bot needs consider firing
 	float m_shootAtDeadTime; // time to shoot at dying players
 	edict_t* m_avoidEntity; // pointer to grenade entity to avoid
@@ -873,7 +872,7 @@ private:
 	bool IsInViewCone(Vector origin);
 	void ReactOnSound(void);
 	bool CheckVisibility(entvars_t* targetOrigin, Vector* origin, uint8_t* bodyPart);
-	bool IsEnemyViewable(edict_t* player, bool setEnemy = false, bool allCheck = false, bool checkOnly = false);
+	bool IsEnemyViewable(edict_t* player, bool setEnemy = false, bool checkOnly = false);
 
 	void CheckGrenadeThrow(void);
 	void ThrowFireNade(void);
@@ -911,6 +910,7 @@ private:
 	bool ItemIsVisible(Vector dest, char* itemName);// , bool bomb = false);
 	bool LastEnemyShootable(void);
 	bool IsBehindSmokeClouds(edict_t* ent);
+	void TaskNormal(int i, int destIndex, Vector src);
 	void RunTask(void);
 	void CheckTasksPriorities(void);
 	void PushTask(Task* task);
@@ -979,6 +979,7 @@ private:
 	void FindShortestPath(int srcIndex, int destIndex);
 	void FindPath(int srcIndex, int destIndex);
 	void SecondThink(void);
+	void BotReplaceConnectionTime(const char* name, float* timeslot);
 	void CalculatePing(void);
 
 public:
@@ -1090,10 +1091,10 @@ public:
 	float m_itaimstart; // aim start time
 	float m_slowthinktimer; // slow think timer
 	float m_maxhearrange; // maximum range for hearing enemy
-	float m_maxDivRange; // tweak for human bots for look more realistic
 	float m_aimStopTime; // feel like playing on a phone
 	float m_backCheckEnemyTime; // for amxx support
 	float m_stayTime; // stay time (for simulate server)
+	float m_connectTime; // for fake query
 
 	int m_checkEnemyNum; // check enemy num idk
 	int m_numFriendsLeft; // number of friends alive
@@ -1269,7 +1270,7 @@ public:
 	~NetworkMsg(void) { };
 
 	void Execute(void* p);
-	void Reset(void) { m_message = NETMSG_UNDEFINED; m_state = 0; m_bot = null; };
+	void Reset(void) { m_message = NETMSG_UNDEFINED; m_state = 0; m_bot = nullptr; };
 	void HandleMessageIfRequired(int messageType, int requiredType);
 
 	void SetMessage(int message) { m_message = message; }
@@ -1350,7 +1351,7 @@ public:
 
 	int GetFacingIndex(void);
 	int FindFarest(const Vector& origin, float maxDistance = 9999.0);
-	int FindNearest(Vector origin, float minDistance = 9999.0, int flags = -1, edict_t* entity = null, int* findWaypointPoint = (int*)-2, int mode = -1);
+	int FindNearest(Vector origin, float minDistance = 9999.0, int flags = -1, edict_t* entity = nullptr, int* findWaypointPoint = (int*)-2, int mode = -1);
 	void FindInRadius(Vector origin, float radius, int* holdTab, int* count);
 	void FindInRadius(Array <int>& queueID, float radius, Vector origin);
 
@@ -1452,8 +1453,8 @@ extern bool TryFileOpen(char* fileName);
 extern bool IsDedicatedServer(void);
 extern bool IsVisible(const Vector& origin, edict_t* ent);
 extern bool IsVisibleForKnifeAttack(const Vector& origin, edict_t* ent);
-extern Vector GetWalkablePosition(const Vector& origin, edict_t* ent = null, bool returnNullVec = false);
-extern Vector GetNearestWalkablePosition(const Vector& origin, edict_t* ent = null, bool returnNullVec = false);
+extern Vector GetWalkablePosition(const Vector& origin, edict_t* ent = nullptr, bool returnNullVec = false);
+extern Vector GetNearestWalkablePosition(const Vector& origin, edict_t* ent = nullptr, bool returnNullVec = false);
 extern bool IsAlive(edict_t* ent);
 extern bool IsInViewCone(Vector origin, edict_t* ent);
 extern bool IsWeaponShootingThroughWall(int id);
@@ -1513,7 +1514,7 @@ extern void TraceHull(const Vector& start, const Vector& end, bool ignoreMonster
 
 inline bool IsNullString(const char* input)
 {
-	if (input == null)
+	if (input == nullptr)
 		return true;
 
 	return *input == '\0';
@@ -1528,8 +1529,6 @@ extern ConVar ebot_gamemod;
 #include <compress.h>
 #include <resource.h>
 
-
 #include <Experience.h>
-
 
 #endif // EBOT_INCLUDED

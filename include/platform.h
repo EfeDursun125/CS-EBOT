@@ -117,7 +117,7 @@ public:
 
     Library(const char* fileName)
     {
-        if (fileName == null)
+        if (fileName == NULL)
             return;
 
 #ifdef PLATFORM_WIN32
@@ -143,7 +143,7 @@ public:
     void* GetFunctionAddr(const char* functionName)
     {
         if (!IsLoaded())
-            return null;
+            return NULL;
 
 #ifdef PLATFORM_WIN32
         return GetProcAddress(m_ptr, functionName);
@@ -154,7 +154,7 @@ public:
 
     inline bool IsLoaded(void) const
     {
-        return m_ptr != null;
+        return m_ptr != NULL;
     }
 };
 

@@ -31,7 +31,6 @@ extern float API_Version;
 extern float amxxDLL_Version;
 extern uint16 amxxDLL_bV16[4];
 
-extern bool g_fakePings;
 extern bool g_bombPlanted;
 extern bool g_bombSayString;
 extern bool g_roundEnded;
@@ -60,6 +59,7 @@ extern float g_timeNextBombUpdate;
 extern float g_timeRoundStart;
 extern float g_lastRadioTime[2];
 extern float g_audioTime;
+extern float g_fakePingUpdate;
 
 extern float g_DelayTimer;
 
@@ -72,7 +72,6 @@ extern unsigned short g_killHistory;
 extern int g_normalWeaponPrefs[Const_NumWeapons];
 extern int g_rusherWeaponPrefs[Const_NumWeapons];
 extern int g_carefulWeaponPrefs[Const_NumWeapons];
-extern int g_grenadeBuyMoney[Const_NumWeapons - 23];
 extern int g_radioSelect[32];
 extern int g_lastRadio[2];
 extern int g_storeAddbotVars[4];

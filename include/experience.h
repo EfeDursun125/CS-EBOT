@@ -90,10 +90,9 @@ public:
 
     inline ~BotExperience(void)
     {
-        if (m_data != null)
+        if (m_data != nullptr)
             delete[] m_data;
-
-        m_data = null;
+        m_data = nullptr;
     }
 
     //
