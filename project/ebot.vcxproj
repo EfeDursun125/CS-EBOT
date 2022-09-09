@@ -103,13 +103,13 @@
       <AssemblerOutput>NoListing</AssemblerOutput>
       <EnablePREfast>false</EnablePREfast>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <OmitFramePointers>false</OmitFramePointers>
-      <ExceptionHandling>Sync</ExceptionHandling>
+      <OmitFramePointers>true</OmitFramePointers>
+      <ExceptionHandling>false</ExceptionHandling>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
       <BufferSecurityCheck>false</BufferSecurityCheck>
-      <ControlFlowGuard>Guard</ControlFlowGuard>
+      <ControlFlowGuard>false</ControlFlowGuard>
       <FloatingPointExceptions>false</FloatingPointExceptions>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
@@ -253,7 +253,9 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\source\basecode.cpp" />
+    <ClCompile Include="..\source\basecode.cpp">
+      <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='EBOT_Release|Win32'">MultiThreadedDLL</RuntimeLibrary>
+    </ClCompile>
     <ClCompile Include="..\source\callbacks.cpp" />
     <ClCompile Include="..\source\chatlib.cpp" />
     <ClCompile Include="..\source\combat.cpp" />
