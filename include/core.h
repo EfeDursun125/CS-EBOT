@@ -77,6 +77,7 @@ enum BotTask
 	TASK_ESCAPEFROMBOMB,
 	TASK_DESTROYBREAKABLE,
 	TASK_HIDE,
+	TASK_PLACELASER,
 	TASK_BLINDED,
 	TASK_SPRAYLOGO,
 	TASK_MOVETOTARGET,
@@ -397,6 +398,8 @@ enum WaypointFlag
 	WAYPOINT_HUMANONLY = (1 << 15), // only humans bots can use this waypoint
 	WAYPOINT_ZOMBIEPUSH = (1 << 16), // zombies never return back on this waypoint
 	WAYPOINT_FALLRISK = (1 << 17), // bots never do strafing while on this waypoint
+	WAYPOINT_SPECIFICGRAVITY = (1 << 18), // specific jump gravity check for bot
+	//WAYPOINT_LASER = (1 << 19), // in testing...
 	WAYPOINT_FALLCHECK = (1 << 26), // bots will check ground
 	WAYPOINT_JUMP = (1 << 27), // for jump points
 	WAYPOINT_SNIPER = (1 << 28), // it's a specific sniper point
@@ -456,6 +459,7 @@ const float TASKPRI_HIDE = 92.0f;
 const float TASKPRI_MOVETOTARGET = 93.0f;
 const float TASKPRI_THROWGRENADE = 99.0f;
 const float TASKPRI_DOUBLEJUMP = 99.0f;
+//const float TASKPRI_PLACELASER = 99.5f;
 const float TASKPRI_BLINDED = 100.0f;
 const float TASKPRI_SHOOTBREAKABLE = 100.0f;
 const float TASKPRI_ESCAPEFROMBOMB = 100.0f;
@@ -850,6 +854,7 @@ private:
 	int CheckMaxClip(int weaponId, int* weaponIndex);
 
 	void AvoidEntity(void);
+	//int GetLasermineCount(void);
 
 	void ZombieModeAi(void);
 	void ZmCampPointAction(int mode = 0);
@@ -971,6 +976,7 @@ private:
 	bool IsEnemyProtectedByShield(edict_t* enemy);
 	bool ParseChat(char* reply);
 	bool RepliesToPlayer(void);
+	bool CheckKeywords(char* tempMessage, char* reply);
 	float GetBombTimeleft(void);
 	float GetEstimatedReachTime(void);
 
@@ -995,6 +1001,9 @@ public:
 	int m_gunMinDistanceAPI, m_gunMaxDistanceAPI;
 	int m_waypointGoalAPI;
 	bool m_blockWeaponPickAPI;
+
+	//int m_lasermineCount; // count for lasermine LOL
+	//Vector m_laserminePosition; // where to place lasermine :(
 
 	int m_wantedTeam; // player team bot wants select
 	int m_wantedClass; // player model bot wants to select

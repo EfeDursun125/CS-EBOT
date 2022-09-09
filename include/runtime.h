@@ -2205,11 +2205,11 @@ public:
     inline void SetEmpty(void)
     {
         m_used = 0;
-        /*if (m_array != nullptr)
+        if (m_array != nullptr)
         {
             delete[] m_array;
             m_array = nullptr;
-        }*/
+        }
     }
 
     inline int GetLength(void) const
@@ -2752,6 +2752,7 @@ public:
 
             return true;
         }
+
         delete[] tempBuffer;
 
         return false;
