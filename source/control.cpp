@@ -25,20 +25,20 @@
 #include <core.h>
 
 ConVar ebot_quota("ebot_quota", "10");
-ConVar ebot_forceteam("ebot_forceteam", "any");
-ConVar ebot_auto_players("ebot_auto_players", "-1");
+ConVar ebot_forceteam("ebot_force_team", "any");
+ConVar ebot_auto_players("ebot_auto_players", "-1"); // i don't even know what is this...
 ConVar ebot_quota_save("ebot_quota_save", "-1");
 
 ConVar ebot_difficulty("ebot_difficulty", "4");
-ConVar ebot_minskill("ebot_minskill", "1");
-ConVar ebot_maxskill("ebot_maxskill", "100");
+ConVar ebot_minskill("ebot_min_skill", "1");
+ConVar ebot_maxskill("ebot_max_skill", "100");
 
-ConVar ebot_nametag("ebot_nametag", "2");
+ConVar ebot_nametag("ebot_name_tag", "2");
 ConVar ebot_join_after_player("ebot_join_after_player", "0");
 ConVar ebot_ping("ebot_fake_ping", "1");
 ConVar ebot_display_avatar("ebot_display_avatar", "1");
 
-ConVar ebot_autovacate("ebot_autovacate", "1");
+ConVar ebot_autovacate("ebot_auto_vacate", "1");
 ConVar ebot_save_bot_names("ebot_save_bot_names", "1");
 
 ConVar ebot_random_join_quit("ebot_random_join_quit", "0");
@@ -936,7 +936,7 @@ void BotControl::Free(void)
 		if (m_bots[i] != nullptr)
 		{
 			if (ebot_save_bot_names.GetBool())
-				m_savedBotNames.Push(m_bots[i]->GetEntity()->v.netname);
+				m_savedBotNames.Push(STRING(m_bots[i]->GetEntity()->v.netname));
 
 			m_bots[i]->m_stayTime = 0.0f;
 			delete m_bots[i];
@@ -949,7 +949,7 @@ void BotControl::Free(void)
 void BotControl::Free(int index)
 {
 	if (ebot_save_bot_names.GetBool())
-		m_savedBotNames.Push(m_bots[index]->GetEntity()->v.netname);
+		m_savedBotNames.Push(STRING(m_bots[index]->GetEntity()->v.netname));
 
 	m_bots[index]->m_stayTime = 0.0f;
 	delete m_bots[index];
@@ -1091,6 +1091,10 @@ void Bot::NewRound(void)
 {
 	if (ebot_random_join_quit.GetBool() && m_stayTime > 0.0f && m_stayTime < engine->GetTime())
 		Kick();
+
+	/*extern ConVar ebot_enable_lasermine;
+	if (ebot_enable_lasermine.GetBool())
+		m_lasermineCount = 0;*/
 
 	int i = 0;
 

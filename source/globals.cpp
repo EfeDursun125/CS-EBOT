@@ -188,6 +188,7 @@ Task g_taskFilters[] =
    {nullptr, nullptr, TASK_ESCAPEFROMBOMB, 0, -1, 0.0f, false},
    {nullptr, nullptr, TASK_DESTROYBREAKABLE, 0, -1, 0.0f, false},
    {nullptr, nullptr, TASK_HIDE, 0, -1, 0.0f, false},
+   {nullptr, nullptr, TASK_PLACELASER, 0, -1, 0.0f, false},
    {nullptr, nullptr, TASK_BLINDED, 0, -1, 0.0f, false},
    {nullptr, nullptr, TASK_SPRAYLOGO, 0, -1, 0.0f, false},
    {nullptr, nullptr, TASK_MOVETOTARGET, 0, -1, 0.0f, true},
@@ -576,7 +577,7 @@ MenuText g_menus[27] =
 		"4. Human Only\v"
 		"5. Zombie Push\v"
 		"6. Fall Risk\v"
-		"\v"
+		"8. Specific Gravity (1 = 800)\v"
 		"\v\v"
 		"9. Previous...\v\v"
 		"0. Exit"

@@ -25,7 +25,8 @@
 #include <core.h>
 
 ConVar ebot_aimbot("ebot_aimbot", "0");
-ConVar ebot_aim_boost_in_zm("ebot_aim_boost_in_zm", "1");
+ConVar ebot_aim_boost_in_zm("ebot_zm_aim_boost", "1");
+ConVar ebot_zombies_as_path_cost("ebot_zombie_count_as_path_cost", "1");
 
 extern ConVar ebot_anti_block;
 
@@ -34,7 +35,9 @@ int Bot::FindGoal(void)
 	if (m_waypointGoalAPI != -1)
 		return m_chosenGoalIndex = m_waypointGoalAPI;
 	
-	if (IsZombieMode())
+	if (IsDeathmatchMode() || ChanceOf(20))
+		return m_chosenGoalIndex = engine->RandomInt(0, g_numWaypoints - 1);
+	else if (IsZombieMode())
 	{
 		if (m_isZombieBot)
 		{
@@ -83,19 +86,7 @@ int Bot::FindGoal(void)
 		}
 	}
 
-	// we will hunt enemy or walk randomly
-	if (IsDeathmatchMode() || (g_mapType & MAP_AWP) || (g_mapType & MAP_KA) || (g_mapType & MAP_FY) || (GetGameMod() == MODE_BASE && m_personality == PERSONALITY_RUSHER && ChanceOf(50) && !m_isBomber && !m_isReloading && !m_inBombZone && !g_bombPlanted && !m_isVIP && !HasHostage()))
-	{
-		if (!IsValidWaypoint(m_currentWaypointIndex))
-			GetValidWaypoint();
-
-		if (!FNullEnt(m_lastEnemy) && IsAlive(m_lastEnemy))
-			return m_chosenGoalIndex = g_waypoint->FindNearest(GetEntityOrigin(m_lastEnemy));
-
-		if (IsDeathmatchMode() || ChanceOf(50))
-			return m_chosenGoalIndex = engine->RandomInt(0, g_numWaypoints - 1);
-	}
-	else if (!g_bombPlanted && (g_mapType & MAP_DE) && m_team == TEAM_COUNTER && !m_isReloading && !m_inBombZone) // ct bots must kill t bots.
+	if (!g_bombPlanted && (g_mapType & MAP_DE) && m_team == TEAM_COUNTER && !m_isReloading && !m_inBombZone) // ct bots must kill t bots.
 	{
 		if (!IsValidWaypoint(m_currentWaypointIndex))
 			GetValidWaypoint();
@@ -288,7 +279,7 @@ int Bot::FindGoal(void)
 	campDesire = engine->RandomInt(0, 70) + defensive;
 	backoffDesire = engine->RandomInt(0, 50) + defensive;
 
-	if (UsesSniper() || ((g_mapType & MAP_DE) && m_team == TEAM_COUNTER && !g_bombPlanted) && (GetGameMod() == MODE_BASE || IsDeathmatchMode()))
+	if (UsesSniper() || ((g_mapType & MAP_DE) && m_team == TEAM_COUNTER && !g_bombPlanted) && !IsZombieMode())
 		campDesire = static_cast <int> (engine->RandomFloat(1.5f, 2.5f) * static_cast <float> (campDesire));
 
 	tacticChoice = backoffDesire;
@@ -492,13 +483,13 @@ bool Bot::DoWaypointNav(void)
 
 		m_navTimeset = engine->GetTime();
 	}
+	else if (m_waypointOrigin != nullvec)
+		m_destOrigin = m_waypointOrigin;
 
 	auto currentWaypoint = g_waypoint->GetPath(m_currentWaypointIndex);
 
-	m_destOrigin = m_waypointOrigin;
-
 	// this waypoint has additional travel flags - care about them
-	if (m_currentTravelFlags & PATHFLAG_JUMP && !m_isSlowThink)
+	if (IsOnFloor() && m_currentTravelFlags & PATHFLAG_JUMP && !m_isSlowThink)
 	{
 		// cheating for jump, bots cannot do some hard jumps and double jumps too
 		// who cares about double jump for bots? :)
@@ -819,11 +810,10 @@ void PriorityQueue::HeapSiftUp(void)
 	}
 }
 
-inline const float GF_CostHuman(int index, int parent, int team, bool isZombie)
+inline const float GF_CostHuman(int index, int parent, int team, float gravity, bool isZombie)
 {
 	Path* path = g_waypoint->GetPath(index);
 	float pathDistance = g_waypoint->GetPathDistanceFloat(parent, index);
-	pathDistance *= pathDistance;
 
 	if (path->flags & WAYPOINT_DJUMP)
 		return 65355.0f;
@@ -834,6 +824,9 @@ inline const float GF_CostHuman(int index, int parent, int team, bool isZombie)
 	if (path->flags & WAYPOINT_AVOID)
 		return 65355.0f;
 
+	if (path->flags & WAYPOINT_SPECIFICGRAVITY && gravity < path->campStartY)
+		return 65355.0f;
+	
 	int count = 0;
 	float totalDistance = 0.0f;
 	const Vector waypointOrigin = path->origin;
@@ -843,11 +836,13 @@ inline const float GF_CostHuman(int index, int parent, int team, bool isZombie)
 			continue;
 
 		float distance = ((client.origin + client.ent->v.velocity * g_pGlobals->frametime) - waypointOrigin).GetLength();
-		if (distance <= path->radius + 64.0f)
+		if (distance <= path->radius + 128.0f)
 			count++;
 
 		totalDistance += distance;
 	}
+
+	pathDistance *= pathDistance;
 
 	if (count > 0)
 		pathDistance *= count;
@@ -858,10 +853,13 @@ inline const float GF_CostHuman(int index, int parent, int team, bool isZombie)
 	return pathDistance;
 }
 
-inline const float GF_CostCareful(int index, int parent, int team, bool isZombie)
+inline const float GF_CostCareful(int index, int parent, int team, float gravity, bool isZombie)
 {
 	Path* path = g_waypoint->GetPath(index);
 	float pathDistance = g_waypoint->GetPathDistanceFloat(parent, index);
+
+	if (path->flags & WAYPOINT_SPECIFICGRAVITY && gravity < path->campStartY)
+		return 65355.0f;
 
 	if (isZombie)
 	{
@@ -912,10 +910,13 @@ inline const float GF_CostCareful(int index, int parent, int team, bool isZombie
 	return baseCost / pathDistance;
 }
 
-inline const float GF_CostNormal(int index, int parent, int team, bool isZombie)
+inline const float GF_CostNormal(int index, int parent, int team, float gravity, bool isZombie)
 {
 	Path* path = g_waypoint->GetPath(index);
 	float pathDistance = g_waypoint->GetPathDistanceFloat(parent, index);
+
+	if (path->flags & WAYPOINT_SPECIFICGRAVITY && gravity < path->campStartY)
+		return 65355.0f;
 
 	if (isZombie)
 	{
@@ -962,9 +963,12 @@ inline const float GF_CostNormal(int index, int parent, int team, bool isZombie)
 	return baseCost / pathDistance;
 }
 
-inline const float GF_CostRusher(int index, int parent, int team, bool isZombie)
+inline const float GF_CostRusher(int index, int parent, int team, float gravity, bool isZombie)
 {
 	Path* path = g_waypoint->GetPath(index);
+
+	if (path->flags & WAYPOINT_SPECIFICGRAVITY && gravity < path->campStartY)
+		return 65355.0f;
 
 	// rusher bots never wait for boosting
 	if (path->flags & WAYPOINT_DJUMP)
@@ -985,9 +989,12 @@ inline const float GF_CostRusher(int index, int parent, int team, bool isZombie)
 	return pathDist;
 }
 
-inline const float GF_CostNoHostage(int index, int parent, int team, bool isZombie)
+inline const float GF_CostNoHostage(int index, int parent, int team, float gravity, bool isZombie)
 {
 	Path* path = g_waypoint->GetPath(index);
+
+	if (path->flags & WAYPOINT_SPECIFICGRAVITY && gravity < path->campStartY)
+		return 65355.0f;
 
 	if (path->flags & WAYPOINT_CROUCH)
 		return 65355.0f;
@@ -1028,7 +1035,9 @@ inline const float GF_CostNoHostage(int index, int parent, int team, bool isZomb
 
 inline const float HF_Distance(int start, int goal)
 {
-	return g_waypoint->GetPathDistanceFloat(start, goal);
+	auto sPath = g_waypoint->GetPath(start)->origin;
+	auto ePath = g_waypoint->GetPath(goal)->origin;
+	return (sPath - ePath).GetLengthSquared2D();
 }
 
 // this function finds a path from srcIndex to destIndex
@@ -1049,12 +1058,7 @@ void Bot::FindPath(int srcIndex, int destIndex)
 			srcIndex = m_currentWaypointIndex;
 		else // we can try find start waypoint for avoid pathfinding errors
 		{
-			int secondIndex = -1;
-			if (pev->flags & FL_DUCKING)
-				secondIndex = g_waypoint->FindNearest(pev->origin, 999999.0f, -1, GetEntity());
-			else
-				secondIndex = FindWaypoint(false);
-
+			int secondIndex = FindWaypoint(false);
 			if (IsValidWaypoint(secondIndex))
 				srcIndex = secondIndex;
 			else
@@ -1084,11 +1088,11 @@ void Bot::FindPath(int srcIndex, int destIndex)
 		waypoints[i].state = State::New;
 	}
 
-	const float (*gcalc) (int, int, int, bool) = nullptr;
+	const float (*gcalc) (int, int, int, float, bool) = nullptr;
 	const float (*hcalc) (int, int) = nullptr;
 	hcalc = HF_Distance;
 
-	if (IsZombieMode() && !m_isZombieBot)
+	if (IsZombieMode() && ebot_zombies_as_path_cost.GetBool() && !m_isZombieBot)
 		gcalc = GF_CostHuman;
 	else if (pev->weapons & (1 << WEAPON_C4) || (g_bombPlanted && m_inBombZone))
 	{
@@ -1111,7 +1115,7 @@ void Bot::FindPath(int srcIndex, int destIndex)
 
 	// put start node into open list
 	auto srcWaypoint = &waypoints[srcIndex];
-	srcWaypoint->g = gcalc(srcIndex, -1, m_team, m_isZombieBot);
+	srcWaypoint->g = gcalc(srcIndex, -1, m_team, pev->gravity, m_isZombieBot);
 	srcWaypoint->f = srcWaypoint->g + hcalc(srcIndex, destIndex);
 	srcWaypoint->state = State::Open;
 
@@ -1163,8 +1167,8 @@ void Bot::FindPath(int srcIndex, int destIndex)
 				continue;
 
 			// calculate the F value as F = G + H
-			float g = currWaypoint->g + gcalc(self, currentIndex, m_team, m_isZombieBot);
-			float h = hcalc(srcIndex, destIndex);
+			float g = currWaypoint->g + gcalc(self, currentIndex, m_team, pev->gravity, m_isZombieBot);
+			float h = hcalc(self, destIndex);
 			float f = g + h;
 
 			auto childWaypoint = &waypoints[self];

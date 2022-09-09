@@ -2079,7 +2079,8 @@ char* Waypoint::GetWaypointInfo(int id)
         path->flags & WAYPOINT_ZOMBIEONLY ? "ZOMBIE ONLY " : "",
         path->flags & WAYPOINT_HUMANONLY ? "HUMAN ONLY " : "",
         path->flags & WAYPOINT_ZOMBIEPUSH ? "ZOMBIE PUSH " : "",
-        path->flags & WAYPOINT_FALLRISK ? "FALL RISK " : "");
+        path->flags & WAYPOINT_FALLRISK ? "FALL RISK " : "",
+        path->flags & WAYPOINT_SPECIFICGRAVITY ? "SPECIFIC GRAVITY " : "");
 
     // return the message buffer
     return messageBuffer;
@@ -2200,7 +2201,7 @@ void Waypoint::Think(void)
                 else
                     m_timeCampWaypoint = 0.0f;
 
-                float distance = (m_lastWaypoint - GetEntityOrigin(g_hostEntity)).GetLength();
+                float distance = (m_lastWaypoint - GetEntityOrigin(g_hostEntity)).GetLengthSquared();
                 int newWaypointDistance = (g_numWaypoints >= 800) ? 16384 : 12000;
 
                 if (g_waypoint->GetPath(g_waypoint->FindNearest(m_lastWaypoint, 10.0f))->radius == 0.0f)
@@ -2212,7 +2213,7 @@ void Waypoint::Think(void)
                     {
                         if (IsNodeReachable(GetEntityOrigin(g_hostEntity), m_paths[i]->origin))
                         {
-                            distance = (m_paths[i]->origin - GetEntityOrigin(g_hostEntity)).GetLength();
+                            distance = (m_paths[i]->origin - GetEntityOrigin(g_hostEntity)).GetLengthSquared();
 
                             if (distance < nearestDistance)
                                 nearestDistance = distance;
@@ -2240,16 +2241,16 @@ void Waypoint::Think(void)
     if (g_autoWaypoint && (g_hostEntity->v.flags & (FL_ONGROUND | FL_PARTIALGROUND)))
     {
         // find the distance from the last used waypoint
-        float distance = (m_lastWaypoint - GetEntityOrigin(g_hostEntity)).GetLength();
+        float distance = (m_lastWaypoint - GetEntityOrigin(g_hostEntity)).GetLengthSquared();
 
-        if (distance > 128)
+        if (distance > 16384)
         {
             // check that no other reachable waypoints are nearby...
             for (int i = 0; i < g_numWaypoints; i++)
             {
                 if (IsNodeReachable(GetEntityOrigin(g_hostEntity), m_paths[i]->origin))
                 {
-                    distance = (m_paths[i]->origin - GetEntityOrigin(g_hostEntity)).GetLength();
+                    distance = (m_paths[i]->origin - GetEntityOrigin(g_hostEntity)).GetLengthSquared();
 
                     if (distance < nearestDistance)
                         nearestDistance = distance;
@@ -2257,7 +2258,7 @@ void Waypoint::Think(void)
             }
 
             // make sure nearest waypoint is far enough away...
-            if (nearestDistance >= 128)
+            if (nearestDistance >= 16384)
                 Add(0);  // place a waypoint here
         }
     }
@@ -2348,6 +2349,8 @@ void Waypoint::ShowWaypointMsg(void)
                     nodeColor = Color(250, 75, 150, 255);
                 else if (m_paths[i]->flags & WAYPOINT_FALLRISK)
                     nodeColor = Color(128, 128, 128, 255);
+                else if (m_paths[i]->flags & WAYPOINT_SPECIFICGRAVITY)
+                    nodeColor = Color(128, 128, 128, 255);
 
                 // colorize additional flags
                 Color nodeFlagColor = Color(-1, -1, -1, 0);
@@ -2371,6 +2374,8 @@ void Waypoint::ShowWaypointMsg(void)
                     nodeFlagColor = Color(255, 0, 0, 255);
                 else if (m_paths[i]->flags & WAYPOINT_FALLRISK)
                     nodeFlagColor = Color(250, 75, 150, 255);
+                else if (m_paths[i]->flags & WAYPOINT_SPECIFICGRAVITY)
+                    nodeFlagColor = Color(128, 0, 255, 255);
 
                 nodeColor.alpha = 255;
                 nodeFlagColor.alpha = 255;
@@ -2491,7 +2496,13 @@ void Waypoint::ShowWaypointMsg(void)
         int length;
 
         // show the information about that point
-        if (path->flags & WAYPOINT_ZMHMCAMP || path->flags & WAYPOINT_HMCAMPMESH)
+        if (path->flags & WAYPOINT_SPECIFICGRAVITY)
+        {
+            length = sprintf(tempMessage, "\n\n\n\n\n\n\n    Waypoint Information:\n\n"
+                "      Waypoint %d of %d, Radius: %.1f\n"
+                "      Flags: %s\n\n      %s %f\n      Waypoint Gravity: %f", nearestIndex, g_numWaypoints, path->radius, GetWaypointInfo(nearestIndex), "Your Gravity:", g_hostEntity->v.gravity, path->campStartY);
+        }
+        else if (path->flags & WAYPOINT_ZMHMCAMP || path->flags & WAYPOINT_HMCAMPMESH)
         {
             length = sprintf(tempMessage, "\n\n\n\n\n\n\n    Waypoint Information:\n\n"
                 "      Waypoint %d of %d, Radius: %.1f\n"
@@ -2503,7 +2514,6 @@ void Waypoint::ShowWaypointMsg(void)
                 "      Waypoint %d of %d, Radius: %.1f\n"
                 "      Flags: %s\n\n", nearestIndex, g_numWaypoints, path->radius, GetWaypointInfo(nearestIndex));
         }
-
 
         g_exp.DrawText(nearestIndex, tempMessage, length);
 

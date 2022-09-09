@@ -325,7 +325,7 @@ void Bot::PrepareChatMessage(char* text)
 }
 
 // this function checks is string contain keyword, and generates relpy to it
-bool CheckKeywords(char* tempMessage, char* reply)
+bool Bot::CheckKeywords(char* tempMessage, char* reply)
 {
     if (!ebot_chat.GetBool() || IsNullString(tempMessage))
         return false;

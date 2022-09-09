@@ -24,8 +24,9 @@
 
 #include <core.h>
 
-ConVar ebot_escape("ebot_zombie_escape", "0");
-ConVar ebot_zp_use_grenade_percent("ebot_zp_use_grenade_percent", "40");
+ConVar ebot_escape("ebot_zombie_escape_mode", "0");
+ConVar ebot_zp_use_grenade_percent("ebot_zm_use_grenade_percent", "10");
+ConVar ebot_zp_escape_distance("ebot_zm_escape_distance", "300");
 
 int Bot::GetNearbyFriendsNearPosition(Vector origin, int radius)
 {
@@ -514,7 +515,7 @@ Vector Bot::GetAimPosition(void)
 	else
 		enemyOrigin = m_lastEnemyOrigin;
 
-	if ((GetGameMod() == MODE_BASE || IsDeathmatchMode()) && m_skill <= engine->RandomInt(30, 60))
+	if (!IsZombieMode() && m_skill <= engine->RandomInt(30, 60))
 	{
 		enemyOrigin.x += engine->RandomFloat(m_enemy->v.mins.x, m_enemy->v.maxs.x);
 		enemyOrigin.y += engine->RandomFloat(m_enemy->v.mins.y, m_enemy->v.maxs.y);
@@ -1159,20 +1160,18 @@ void Bot::CombatFight(void)
 
 		const bool NPCEnemy = !IsValidPlayer(m_enemy);
 		const bool enemyIsZombie = IsZombieEntity(m_enemy);
-		float baseDistance = fabsf(m_enemy->v.speed) + 300.0f;
+		float baseDistance = fabsf(m_enemy->v.speed) + ebot_zp_escape_distance.GetFloat();
 
 		if (NPCEnemy || enemyIsZombie)
 		{
 			if (m_currentWeapon == WEAPON_KNIFE)
 			{
-				if (::IsInViewCone(pev->origin, m_enemy) && !NPCEnemy)
-					baseDistance = fabsf(m_enemy->v.speed) + 300.0f;
-				else
+				if (!(::IsInViewCone(pev->origin, m_enemy) && !NPCEnemy))
 					baseDistance = -1.0f;
 			}
 
 			const float distance = (pev->origin - m_enemyOrigin).GetLength();
-			if (m_isSlowThink && distance <= 1024.0f && m_enemy->v.health > 100 && engine->RandomInt(1, 1000) <= ebot_zp_use_grenade_percent.GetInt())
+			if (m_isSlowThink && distance <= 768.0f && m_enemy->v.health > 100 && ChanceOf(ebot_zp_use_grenade_percent.GetInt()))
 			{
 				if (m_skill >= 50)
 				{

@@ -25,8 +25,8 @@
 #include <core.h>
 
 // console vars
-ConVar ebot_password("ebot_password", "", VARTYPE_PASSWORD);
-ConVar ebot_password_key("ebot_password_key", "ebot_wp");
+ConVar ebot_password("ebot_password", "ebot", VARTYPE_PASSWORD);
+ConVar ebot_password_key("ebot_password_key", "ebot_pass");
 
 ConVar ebot_version("ebot_version", PRODUCT_VERSION, VARTYPE_READONLY);
 
@@ -295,6 +295,26 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 			{
 				g_waypoint->GetPath(index)->campStartX = fabsf(static_cast <float> (atof(arg1)));
 				ClientPrint(ent, print_withtag, "Waypoint mesh set to %d", static_cast <int> (g_waypoint->GetPath(index)->campStartX));
+			}
+			else
+				ClientPrint(ent, print_withtag, "Waypoint is not valid");
+		}
+	}
+
+	// sets gravity for waypoint
+	else if (stricmp(arg0, "setgravity") == 0)
+	{
+		if (IsNullString(arg1))
+			ClientPrint(ent, print_withtag, "Please set gravity");
+		else if (FNullEnt(g_hostEntity))
+			ClientPrint(ent, print_withtag, "Please try this in lan game");
+		else
+		{
+			int index = g_waypoint->FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
+			if (IsValidWaypoint(index))
+			{
+				g_waypoint->GetPath(index)->campStartY = fabsf(static_cast <float> (atof(arg1)));
+				ClientPrint(ent, print_withtag, "Waypoint gravity set to %f", g_waypoint->GetPath(index)->campStartY);
 			}
 			else
 				ClientPrint(ent, print_withtag, "Waypoint is not valid");
@@ -1439,6 +1459,10 @@ void ClientCommand(edict_t* ent)
 
 				case 6:
 					g_waypoint->ToggleFlags(WAYPOINT_FALLRISK);
+					break;
+
+				case 7:
+					g_waypoint->ToggleFlags(WAYPOINT_SPECIFICGRAVITY);
 					break;
 
 				case 9:
@@ -2758,7 +2782,11 @@ void StartFrame(void)
 			CheckWelcomeMessage();
 		}
 
-		secondTimer = engine->GetTime() + g_waypointOn ? 1.0f : 2.0f;
+		float time = 2.0f;
+		if (g_waypointOn)
+			time = 1.0f;
+
+		secondTimer = engine->GetTime() + time;
 	}
 
 	if (g_bombPlanted)
