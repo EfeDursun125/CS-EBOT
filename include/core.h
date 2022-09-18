@@ -1231,9 +1231,9 @@ public:
 	Bot* GetBot(int index);
 	Bot* GetBot(edict_t* ent);
 	Bot* FindOneValidAliveBot(void);
-	Bot* GetHighestFragsBot(int team);
+	Bot* GetHighestSkillBot(int team);
 
-	int GetHumansNum(int mod = 0);
+	int GetHumansNum();
 	int GetBotsNum(void);
 
 	void Think(void);
@@ -1245,7 +1245,6 @@ public:
 
 	void AddRandom(void) { AddBot("", -1, -1, -1, -1); }
 	void AddBot(const String& name, int skill, int personality, int team, int member);
-	void AddBot(const String& name, const String& skill, const String& personality, const String& team, const String& member);
 	void FillServer(int selection, int personality = PERSONALITY_NORMAL, int skill = -1, int numToAdd = -1);
 
 	void RemoveAll(void);

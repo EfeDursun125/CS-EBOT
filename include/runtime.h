@@ -63,12 +63,6 @@ typedef signed short int16_t;
 //
 typedef unsigned short uint16_t;
 
-//
-// Macro: null
-//
-// This macro is just a null.
-//
-#define null 0
 
 //
 // Macro: nullvec
@@ -963,6 +957,7 @@ public:
             for (int i = 0; i < m_itemCount; i++)
                 buffer[i] = m_elements[i];
         }
+
         delete[] m_elements;
 
         m_elements = buffer;
@@ -1327,6 +1322,16 @@ public:
         RemoveAt(m_itemCount - 1);
 
         return element;
+    }
+
+    //
+    // Function: PopNoReturn
+    //  Pops element from array without returning last element.
+    //
+    T PopNoReturn(void)
+    {
+        T element = m_elements[m_itemCount - 1];
+        RemoveAt(m_itemCount - 1);
     }
 
     T& Last(void)
@@ -1820,193 +1825,183 @@ public:
 
 class String
 {
-protected:
-    char *m_array;
-    int m_used;
-    int m_allocated;
-
 private:
-    inline bool IsTrimmingCharacter(char chr)
+    char* m_bufferPtr;
+    int m_allocatedSize;
+    int m_stringLength;
+
+    //
+    // Group: Private functions
+    //
+private:
+
+    //
+    // Function: UpdateBufferSize
+    //  Updates the buffer size.
+    //
+    // Parameters:
+    //  size - New size of buffer.
+    //
+    void UpdateBufferSize(int size)
     {
-        return chr == ' ' || chr == '\n' || chr == '\t' || chr == '\r' || chr == '\v' || chr == '\f';
-    }
-
-    inline void MoveItems(int destIndex, int srcIndex)
-    {
-        memmove(m_array + destIndex, m_array + srcIndex, sizeof(char) * (m_used - srcIndex + 1));
-    }
-
-    inline void InsertSpace(int& index, int size)
-    {
-        CorrectIndex(index);
-        GrowLength(size);
-
-        MoveItems(index + size, index);
-    }
-
-    inline void SetCapacity(int newCapacity)
-    {
-        int realCapacity = newCapacity + 1;
-
-        if (realCapacity == m_allocated)
+        if (size <= m_allocatedSize)
             return;
 
-        char* newBuffer = new char[static_cast <uint32_t> (realCapacity)];
+        m_allocatedSize = size + 16;
+        char* tempBuffer = new char[size + 1];
 
-        if (m_allocated > 0)
+        if (m_bufferPtr != nullptr)
         {
-            for (int i = 0; i < m_used; i++)
-                newBuffer[i] = m_array[i];
-            delete[] m_array;
+            strcpy(tempBuffer, m_bufferPtr);
+            tempBuffer[m_stringLength] = 0;
+
+            delete[] m_bufferPtr;
         }
 
-        m_array = newBuffer;
-        m_array[m_used] = 0;
-        m_allocated = realCapacity;
+        m_bufferPtr = tempBuffer;
+        m_allocatedSize = size;
     }
 
-    inline void GrowLength(int howMany)
+    //
+    // Function: MoveItems
+    //  Moves characters inside buffer pointer.
+    //
+    // Parameters:
+    //  destIndex - Destination index.
+    //  sourceIndex - Source index.
+    //
+    void MoveItems(int destIndex, int sourceIndex)
     {
-        int freeSize = m_allocated - m_used - 1;
+        memmove(m_bufferPtr + destIndex, m_bufferPtr + sourceIndex, sizeof(char) * (m_stringLength - sourceIndex + 1));
+    }
 
-        if (howMany <= freeSize)
+    //
+    // Function: Initialize
+    //  Initializes string buffer.
+    //
+    // Parameters:
+    //  length - Initial length of string.
+    //
+    void Initialize(int length)
+    {
+        int freeSize = m_allocatedSize - m_stringLength - 1;
+
+        if (length <= freeSize)
             return;
 
         int delta = 4;
 
-        if (m_allocated > 64)
-            delta = static_cast <int> (m_allocated * 0.5f);
-        else if (m_allocated > 8)
+        if (m_allocatedSize > 64)
+            delta = m_allocatedSize * 0.5;
+        else if (m_allocatedSize > 8)
             delta = 16;
 
-        if (freeSize + delta < howMany)
-            delta = howMany - freeSize;
+        if (freeSize + delta < length)
+            delta = length - freeSize;
 
-        SetCapacity(m_allocated + delta);
+        UpdateBufferSize(m_allocatedSize + delta);
     }
 
-    inline void CorrectIndex(int& index) const
+    //
+    // Function: CorrectIndex
+    //  Gets the correct string end index.
+    //
+    // Parameters:
+    //  index - Holder for index.
+    //
+    void CorrectIndex(int& index) const
     {
-        if (index > m_used)
-            index = m_used;
+        if (index > m_stringLength)
+            index = m_stringLength;
     }
 
+    //
+    // Function: InsertSpace
+    //  Inserts space at specified location, with specified length.
+    //
+    // Parameters:
+    //  index - Location to insert space.
+    //  size - Size of space insert.
+    //
+    void InsertSpace(int& index, int size)
+    {
+        CorrectIndex(index);
+        Initialize(size);
+
+        MoveItems(index + size, index);
+    }
+
+    //
+    // Function: IsTrimChar
+    //  Checks whether input is trimming character.
+    //
+    // Parameters:
+    //  input - Input to check for.
+    //
+    // Returns:
+    //  True if it's a trim char, false otherwise.
+    //
+    bool IsTrimChar(char input)
+    {
+        return input == ' ' || input == '\t' || input == '\n';
+    }
+
+    //
+    // Group: (Con/De)structors
+    //
 public:
-    inline String(void) : m_array(nullptr), m_used(0), m_allocated(0)
+    String(void)
     {
-        SetCapacity(3);
+        m_bufferPtr = nullptr;
+        m_allocatedSize = 0;
+        m_stringLength = 0;
     }
 
-    inline String(char chr) : m_array(nullptr), m_used(0), m_allocated(0)
+    ~String(void)
     {
-        SetCapacity(1);
-
-        m_array[0] = chr;
-        m_array[1] = 0;
-
-        m_used = 1;
+        delete[] m_bufferPtr;
     }
 
-    inline String(char* str) : m_array(nullptr), m_used(0), m_allocated(0)
+    String(const char* bufferPtr)
     {
-        int length = strlen(str);
+        m_bufferPtr = nullptr;
+        m_allocatedSize = 0;
+        m_stringLength = 0;
 
-        SetCapacity(length);
-        strcpy(m_array, str);
-
-        m_used = length;
+        Assign(bufferPtr);
     }
 
-    inline String(const char* str) : m_array(nullptr), m_used(0), m_allocated(0)
+    String(char input)
     {
-        int length = strlen(str);
+        m_bufferPtr = nullptr;
+        m_allocatedSize = 0;
+        m_stringLength = 0;
 
-        SetCapacity(length);
-        strcpy(m_array, str);
-
-        m_used = length;
+        Assign(input);
     }
 
-    inline String(const String& other) : m_array(nullptr), m_used(0), m_allocated(0)
+    String(const String& inputString)
     {
-        SetCapacity(other.m_used);
-        strcpy(m_array, other.m_array);
+        m_bufferPtr = nullptr;
+        m_allocatedSize = 0;
+        m_stringLength = 0;
 
-        m_used = other.m_used;
+        Assign(inputString.GetBuffer());
     }
 
-    inline ~String(void)
-    {
-        Destroy();
-    }
-
-    inline operator const char* (void) const
-    {
-        return m_array;
-    }
-
-    inline operator char* (void)
-    {
-        return m_array;
-    }
-
-    inline operator const double(void) const
-    {
-        return atof(m_array);
-    }
-
-    inline operator double(void)
-    {
-        return atof(m_array);
-    }
-
-    inline operator const float(void) const
-    {
-        return static_cast <const float> (atof(m_array));
-    }
-
-    inline operator float(void)
-    {
-        return static_cast <float> (atof(m_array));
-    }
-
-    inline operator const int(void) const
-    {
-        return atoi(m_array);
-    }
-
-    inline operator int(void)
-    {
-        return atoi(m_array);
-    }
-
-    inline operator const long(void) const
-    {
-        return atoi(m_array);
-    }
-
-    inline operator long(void)
-    {
-        return atoi(m_array);
-    }
-
-    inline void Destroy(void)
-    {
-        if (m_array != nullptr)
-        {
-            delete[] m_array;
-            m_array = nullptr;
-        }
-    }
+    //
+    // Group: Functions
+    //
+public:
 
     inline char* GetRawData(void)
     {
-        return m_array;
+        return m_bufferPtr;
     }
 
     inline const char* GetRawData(void) const
     {
-        return m_array;
+        return m_bufferPtr;
     }
 
     //
@@ -2018,10 +2013,10 @@ public:
     //
     const char* GetBuffer(void)
     {
-        if (m_array == nullptr || *m_array == 0x0)
+        if (m_bufferPtr == nullptr || *m_bufferPtr == 0x0)
             return "";
 
-        return &m_array[0];
+        return &m_bufferPtr[0];
     }
 
     //
@@ -2033,509 +2028,1114 @@ public:
     //
     const char* GetBuffer(void) const
     {
-        if (m_array == nullptr || *m_array == 0x0)
+        if (m_bufferPtr == nullptr || *m_bufferPtr == 0x0)
             return "";
 
-        return &m_array[0];
+        return &m_bufferPtr[0];
     }
 
-    inline char* GetBuffer(int minBufLength)
+    //
+    // Function: ToFloat
+    //  Gets the string as float, if possible.
+    //
+    // Returns:
+    //  Float value of string.
+    //
+    float ToFloat(void)
     {
-        if (minBufLength >= m_allocated)
-            SetCapacity(minBufLength);
-
-        return m_array;
+        return static_cast <float> (atof(m_bufferPtr));
     }
 
-    inline void ReleaseBuffer(void)
+    //
+    // Function: ToInt
+    //  Gets the string as integer, if possible.
+    //
+    // Returns:
+    //  Integer value of string.
+    //
+    int ToInt(void) const
     {
-        ReleaseBuffer(strlen(m_array));
+        return atoi(m_bufferPtr);
     }
 
-    inline void ReleaseBuffer(int newLength)
+    //
+    // Function: ReleaseBuffer
+    //  Terminates the string with null character.
+    //
+    void ReleaseBuffer(void)
     {
-        m_array[newLength] = 0;
-        m_used = newLength;
+        ReleaseBuffer(strlen(m_bufferPtr));
     }
 
-    inline String& operator = (char chr)
+    //
+    // Function: ReleaseBuffer
+    //  Terminates the string with null character with specified buffer end.
+    //
+    // Parameters:
+    //  newLength - End of buffer.
+    //
+    void ReleaseBuffer(int newLength)
     {
-        SetEmpty();
-        SetCapacity(1);
-
-        m_array[0] = chr;
-        m_array[1] = 0;
-
-        m_used = 1;
-        return *this;
+        m_bufferPtr[newLength] = 0;
+        m_stringLength = newLength;
     }
 
-    inline String& operator = (const char* str)
+    //
+    // Function: GetBuffer
+    //  Gets the buffer with specified length.
+    //
+    // Parameters:
+    //  minLength - Length to retrieve.
+    //
+    // Returns:
+    //  Pointer to string buffer.
+    //
+    char* GetBuffer(int minLength)
     {
-        SetEmpty();
-        int length = strlen(str);
+        if (minLength >= m_allocatedSize)
+            UpdateBufferSize(minLength + 1);
 
-        SetCapacity(length);
-        strcpy(m_array, str);
-
-        m_used = length;
-        return *this;
+        return m_bufferPtr;
     }
 
-    inline String& operator = (const String& other)
+    //
+    // Function: GetBufferSetLength
+    //  Gets the buffer with specified length, and terminates string with that length.
+    //
+    // Parameters:
+    //  minLength - Length to retrieve.
+    //
+    // Returns:
+    //  Pointer to string buffer.
+    //
+    char* GetBufferSetLength(int length)
     {
-        if (&other == this)
-            return *this;
+        char* buffer = GetBuffer(length);
 
-        SetEmpty();
+        m_stringLength = length;
+        m_bufferPtr[length] = 0;
 
-        SetCapacity(other.m_used);
-        strcpy(m_array, other.m_array);
-
-        m_used = other.m_used;
-
-        return *this;
+        return buffer;
     }
 
-    inline String& operator += (char chr)
+    //
+    // Function: Append
+    //  Appends the string to existing buffer.
+    //
+    // Parameters:
+    //  bufferPtr - String buffer to append.
+    //
+    void Append(const char* bufferPtr)
     {
-        GrowLength(1);
+        UpdateBufferSize(m_stringLength + strlen(bufferPtr) + 1);
+        strcat(m_bufferPtr, bufferPtr);
 
-        m_array[m_used] = chr;
-        m_array[++m_used] = 0;
-
-        return *this;
+        m_stringLength = strlen(m_bufferPtr);
     }
 
-    inline String& operator += (const char* str)
+    //
+    // Function: Append
+    //  Appends the character to existing buffer.
+    //
+    // Parameters:
+    //  input - Character to append.
+    //
+    void Append(const char input)
     {
-        int length = strlen(str);
+        UpdateBufferSize(m_stringLength + 2);
 
-        GrowLength(length);
-        strcpy(m_array + m_used, str);
-
-        m_used += length;
-        return *this;
+        m_bufferPtr[m_stringLength] = input;
+        m_bufferPtr[m_stringLength++] = 0;
     }
 
-    inline String& operator += (const String& other)
+    //
+    // Function: Append
+    //  Appends the string to existing buffer.
+    //
+    // Parameters:
+    //  inputString - String buffer to append.
+    //
+    void Append(const String& inputString)
     {
-        GrowLength(other.m_used);
-        strcpy(m_array + m_used, other.m_array);
+        const char* bufferPtr = inputString.GetBuffer();
+        UpdateBufferSize(m_stringLength + strlen(bufferPtr));
 
-        m_used += other.m_used;
-        return *this;
+        strcat(m_bufferPtr, bufferPtr);
+        m_stringLength = strlen(m_bufferPtr);
     }
 
-    friend inline String operator + (const String& str1, const String& str2)
+    //
+    // Function: AppendFormat
+    //  Appends the formatted string to existing buffer.
+    //
+    // Parameters:
+    //  fmt - Formatted, tring buffer to append.
+    //
+    void AppendFormat(const char* fmt, ...)
     {
-        String result(str1);
-        result += str2;
+        va_list ap;
+        char buffer[1024];
+
+        va_start(ap, fmt);
+        vsprintf(buffer, fmt, ap);
+        va_end(ap);
+
+        Append(buffer);
+    }
+
+    //
+    // Function: Assign
+    //  Assigns the string to existing buffer.
+    //
+    // Parameters:
+    //  inputString - String buffer to assign.
+    //
+    void Assign(const String& inputString)
+    {
+        Assign(inputString.GetBuffer());
+    }
+
+    //
+    // Function: Assign
+    //  Assigns the character to existing buffer.
+    //
+    // Parameters:
+    //  input - Character to assign.
+    //
+    void Assign(char input)
+    {
+        char psz[2] = { input, 0 };
+        Assign(psz);
+    }
+
+    //
+    // Function: Assign
+    //  Assigns the string to existing buffer.
+    //
+    // Parameters:
+    //  bufferPtr - String buffer to assign.
+    //
+    void Assign(const char* bufferPtr)
+    {
+        if (bufferPtr == nullptr)
+        {
+            UpdateBufferSize(1);
+            m_stringLength = 0;
+            return;
+        }
+
+        UpdateBufferSize(strlen(bufferPtr));
+
+        if (m_bufferPtr != nullptr)
+        {
+            strcpy(m_bufferPtr, bufferPtr);
+            m_stringLength = strlen(m_bufferPtr);
+        }
+        else
+            m_stringLength = 0;
+    }
+
+    //
+    // Function: Assign
+    //  Assigns the formatted string to existing buffer.
+    //
+    // Parameters:
+    //  fmt - Formatted string buffer to assign.
+    //
+    void AssignFormat(const char* fmt, ...)
+    {
+        va_list ap;
+        char buffer[1024];
+
+        va_start(ap, fmt);
+        vsprintf(buffer, fmt, ap);
+        va_end(ap);
+
+        Assign(buffer);
+    }
+
+    //
+    // Function: Empty
+    //  Empties the string.
+    //
+    void SetEmpty(void)
+    {
+        if (m_bufferPtr != nullptr)
+        {
+            m_bufferPtr[0] = 0;
+            m_stringLength = 0;
+        }
+    }
+
+    //
+    // Function: IsEmpty
+    //  Checks whether string is empty.
+    //
+    // Returns:
+    //  True if string is empty, false otherwise.
+    //
+    bool IsEmpty(void) const
+    {
+        if (m_bufferPtr == nullptr || m_stringLength == 0)
+            return true;
+
+        return false;
+    }
+
+    //
+    // Function: GetLength
+    //  Gets the string length.
+    //
+    // Returns:
+    //  Length of string, 0 in case of error.
+    //
+    int GetLength(void)
+    {
+        if (m_bufferPtr == nullptr)
+            return 0;
+
+        return m_stringLength;
+    }
+
+    operator const char* (void) const
+    {
+        return GetBuffer();
+    }
+
+    operator char* (void)
+    {
+        return const_cast <char*> (GetBuffer());
+    }
+
+    operator int(void)
+    {
+        return ToInt();
+    }
+
+    operator long(void)
+    {
+        return static_cast <long> (ToInt());
+    }
+
+    operator float(void)
+    {
+        return ToFloat();
+    }
+
+    operator double(void)
+    {
+        return static_cast <double> (ToFloat());
+    }
+
+    friend String operator + (const String& s1, const String& s2)
+    {
+        String result(s1);
+        result += s2;
 
         return result;
     }
 
-    friend inline String operator + (const String& str, char chr)
+    friend String operator + (const String& holder, char ch)
     {
-        String result(str);
-        result += chr;
+        String result(holder);
+        result += ch;
 
         return result;
     }
 
-    friend inline String operator + (char chr, const String& str)
+    friend String operator + (char ch, const String& holder)
     {
-        String result(chr);
+        String result(ch);
+        result += holder;
+
+        return result;
+    }
+
+    friend String operator + (const String& holder, const char* str)
+    {
+        String result(holder);
         result += str;
 
         return result;
     }
 
-    friend inline String operator + (const String& str1, const char* str2)
+    friend String operator + (const char* str, const String& holder)
     {
-        String result(str1);
-        result += str2;
+        String result(const_cast <char*> (str));
+        result += holder;
 
         return result;
     }
 
-    friend inline String operator + (const char* str1, const String& str2)
+    friend bool operator == (const String& s1, const String& s2)
     {
-        String result(str1);
-        result += str2;
-
-        return result;
+        return s1.Compare(s2) == 0;
     }
 
-    friend inline bool operator == (const String& str1, const String& str2)
+    friend bool operator < (const String& s1, const String& s2)
     {
-        return str1.Compare(str2) == 0;
+        return s1.Compare(s2) < 0;
     }
 
-    friend inline bool operator < (const String& str1, const String& str2)
+    friend bool operator > (const String& s1, const String& s2)
     {
-        return str1.Compare(str2) < 0;
+        return s1.Compare(s2) > 0;
     }
 
-    friend inline bool operator == (const char* str1, const String& str2)
+    friend bool operator == (const char* s1, const String& s2)
     {
-        return str2.Compare(str1) == 0;
+        return s2.Compare(s1) == 0;
     }
 
-    friend inline bool operator == (const String& str1, const char* str2)
+    friend bool operator == (const String& s1, const char* s2)
     {
-        return str1.Compare(str2) == 0;
+        return s1.Compare(s2) == 0;
     }
 
-    friend inline bool operator != (const String& str1, const String& str2)
+    friend bool operator != (const String& s1, const String& s2)
     {
-        return str1.Compare(str2) != 0;
+        return s1.Compare(s2) != 0;
     }
 
-    friend inline bool operator != (const char* str1, const String& str2)
+    friend bool operator != (const char* s1, const String& s2)
     {
-        return str2.Compare(str1) != 0;
+        return s2.Compare(s1) != 0;
     }
 
-    friend inline bool operator != (const String& str1, const char* str2)
+    friend bool operator != (const String& s1, const char* s2)
     {
-        return str1.Compare(str2) != 0;
+        return s1.Compare(s2) != 0;
     }
 
-    inline void SetEmpty(void)
+    String& operator = (const String& inputString)
     {
-        m_used = 0;
-        if (m_array != nullptr)
-        {
-            delete[] m_array;
-            m_array = nullptr;
-        }
+        Assign(inputString);
+        return *this;
     }
 
-    inline int GetLength(void) const
+    String& operator = (const char* bufferPtr)
     {
-        return m_used;
+        Assign(bufferPtr);
+        return *this;
     }
 
-    inline bool IsEmpty(void) const
+    String& operator = (char input)
     {
-        return m_used <= 0;
+        Assign(input);
+        return *this;
     }
 
-    inline String Mid(int startIndex) const
+    String& operator += (const String& inputString)
     {
-        return Mid(startIndex, m_used - startIndex);
+        Append(inputString);
+        return *this;
     }
 
-    inline String Mid(int startIndex, int count) const
+    String& operator += (const char* bufferPtr)
     {
-        if (startIndex + count > m_used)
-            count = m_used - startIndex;
+        Append(bufferPtr);
+        return *this;
+    }
 
-        if (startIndex == 0 && startIndex + count == m_used)
-            return *this;
+    char operator [] (int index)
+    {
+        if (index > m_stringLength)
+            return -1;
 
+        return m_bufferPtr[index];
+    }
+
+    //
+    // Function: Mid
+    //  Gets the substring by specified bounds.
+    //
+    // Parameters:
+    //  startIndex - Start index to get from.
+    //  count - Number of characters to get.
+    //
+    // Returns:
+    //  Tokenized string.
+    //
+    String Mid(int startIndex, int count = -1)
+    {
         String result;
-        result.SetCapacity(count);
 
-        for (int i = 0; i < count; i++)
-            result.m_array[i] = m_array[startIndex + i];
+        if (startIndex >= m_stringLength || !m_bufferPtr)
+            return result;
 
-        result.m_array[count] = 0;
-        result.m_used = count;
+        if (count == -1)
+            count = m_stringLength - startIndex;
+        else if (startIndex + count >= m_stringLength)
+            count = m_stringLength - startIndex;
 
+        int i = 0, j = 0;
+        char* holder = new char[m_stringLength + 1];
+
+        for (i = startIndex; i < startIndex + count; i++)
+            holder[j++] = m_bufferPtr[i];
+
+        holder[j] = 0;
+        result.Assign(holder);
+
+        delete[] holder;
         return result;
     }
 
-    inline String Left(int count) const
+    //
+    // Function: Mid
+    //  Gets the substring by specified bounds.
+    //
+    // Parameters:
+    //  startIndex - Start index to get from.
+    //
+    // Returns:
+    //  Tokenized string.
+    //
+    String Mid(int startIndex)
+    {
+        return Mid(startIndex, m_stringLength - startIndex);
+    }
+
+    //
+    // Function: Left
+    //  Gets the string from left side.
+    //
+    // Parameters:
+    //  count - Number of characters to get.
+    //
+    // Returns:
+    //  Tokenized string.
+    //
+    String Left(int count)
     {
         return Mid(0, count);
     }
 
-    inline String Right(int count) const
+    //
+    // Function: Right
+    //  Gets the string from right side.
+    //
+    // Parameters:
+    //  count - Number of characters to get.
+    //
+    // Returns:
+    //  Tokenized string.
+    //
+    String Right(int count)
     {
-        if (count > m_used)
-            count = m_used;
+        if (count > m_stringLength)
+            count = m_stringLength;
 
-        return Mid(m_used - count, count);
+        return Mid(m_stringLength - count, count);
     }
 
-    inline String& MakeUpper(void)
+    //
+    // Function: ToUpper
+    //  Gets the string in upper case.
+    //
+    // Returns:
+    //  Upped sting.
+    //
+    String ToUpper(void)
     {
-        char* ptr = m_array;
-        while (ptr != nullptr)
+        String result;
+
+        for (int i = 0; i < GetLength(); i++)
+            result += toupper(m_bufferPtr[i]);
+
+        return result;
+    }
+
+    //
+    // Function: ToUpper
+    //  Gets the string in upper case.
+    //
+    // Returns:
+    //  Lowered sting.
+    //
+    String ToLower(void)
+    {
+        String result;
+
+        for (int i = 0; i < GetLength(); i++)
+            result += tolower(m_bufferPtr[i]);
+
+        return result;
+    }
+
+    //
+    // Function: ToReverse
+    //  Reverses the string.
+    //
+    // Returns:
+    //  Reversed string.
+    //
+    String ToReverse(void)
+    {
+        char* source = m_bufferPtr + GetLength() - 1;
+        char* dest = m_bufferPtr;
+
+        while (source > dest)
         {
-            *ptr = static_cast <char> (toupper(*ptr));
-            ptr++;
+            if (*source == *dest)
+            {
+                source--;
+                dest++;
+            }
+            else
+            {
+                char ch = *source;
+
+                *source-- = *dest;
+                *dest++ = ch;
+            }
         }
 
-        return *this;
+        return m_bufferPtr;
     }
 
-    inline String& MakeLower(void)
+    //
+    // Function: MakeUpper
+    //  Converts string to upper case.
+    //
+    void MakeUpper(void)
     {
-        char* ptr = m_array;
-        while (ptr != nullptr)
+        *this = ToUpper();
+    }
+
+    //
+    // Function: MakeLower
+    //  Converts string to lower case.
+    //
+    void MakeLower(void)
+    {
+        *this = ToLower();
+    }
+
+    //
+    // Function: MakeReverse
+    //  Converts string into reverse order.
+    //
+    void MakeReverse(void)
+    {
+        *this = ToReverse();
+    }
+
+    //
+    // Function: Compare
+    //  Compares string with other string.
+    //
+    // Parameters:
+    //  string - String t compare with.
+    //
+    // Returns:
+    //  Zero if they are equal.
+    //
+    int Compare(const String& string) const
+    {
+        return strcmp(m_bufferPtr, string.m_bufferPtr);
+    }
+
+    //
+    // Function: Compare
+    //  Compares string with other string.
+    //
+    // Parameters:
+    //  str - String t compare with.
+    //
+    // Returns:
+    //  Zero if they are equal.
+    //
+    int Compare(const char* str) const
+    {
+        return strcmp(m_bufferPtr, str);
+    }
+
+    //
+    // Function: Collate
+    //  Collate the string.
+    //
+    // Parameters:
+    //  string - String to collate.
+    //
+    // Returns:
+    //  One on success.
+    //
+    int Collate(const String& string) const
+    {
+        return strcoll(m_bufferPtr, string.m_bufferPtr);
+    }
+
+    //
+    // Function: Find
+    //  Find the character.
+    //
+    // Parameters:
+    //  input - Character to search for.
+    //
+    // Returns:
+    //  Index of character.
+    //
+    int Find(char input) const
+    {
+        return Find(input, 0);
+    }
+
+    //
+    // Function: Find
+    //  Find the character.
+    //
+    // Parameters:
+    //  input - Character to search for.
+    //  startIndex - Start index to search from.
+    //
+    // Returns:
+    //  Index of character.
+    //
+    int Find(char input, int startIndex) const
+    {
+        char* str = m_bufferPtr + startIndex;
+
+        for (;;)
         {
-            *ptr = static_cast <char> (tolower(*ptr));
-            ptr++;
-        }
+            if (*str == input)
+                return str - m_bufferPtr;
 
-        return *this;
-    }
-
-    inline int Compare(const String& str) const
-    {
-        return strcmp(m_array, str.m_array);
-    }
-
-    inline int Compare(const char* str) const
-    {
-        return strcmp(m_array, str);
-    }
-
-    inline bool Has(const String& other) const
-    {
-        return strstr(m_array, other.GetRawData()) != nullptr;
-    }
-
-    inline int Find(char chr) const
-    {
-        return Find(chr, 0);
-    }
-
-    inline int Find(char chr, int startIndex) const
-    {
-        char* ptr = m_array + startIndex;
-
-        for (; ;)
-        {
-            if (*ptr == chr)
-                return static_cast <int> (ptr - m_array);
-
-            if (*ptr == 0)
+            if (*str == 0)
                 return -1;
 
-            ptr++;
+            str++;
         }
     }
 
-    inline int Find(const String& str) const
+    //
+    // Function: Find
+    //  Tries to find string.
+    //
+    // Parameters:
+    //  string - String to search for.
+    //
+    // Returns:
+    //  Position of found string.
+    //
+    int Find(const String& string) const
     {
-        return Find(str, 0);
+        return Find(string, 0);
     }
 
-    inline int Find(const String& str, int startIndex) const
+    //
+    // Function: Find
+    //  Tries to find string from specified index.
+    //
+    // Parameters:
+    //  string - String to search for.
+    //  startIndex - Index to start search from.
+    //
+    // Returns:
+    //  Position of found string.
+    //
+    int Find(const String& string, int startIndex) const
     {
-        if (str.IsEmpty())
+        if (string.m_stringLength == 0)
             return startIndex;
 
-        for (; startIndex < m_used; startIndex++)
+        for (; startIndex < m_stringLength; startIndex++)
         {
             int j;
 
-            for (j = 0; j < str.m_used && startIndex + j < m_used; j++)
+            for (j = 0; j < string.m_stringLength && startIndex + j < m_stringLength; j++)
             {
-                if (m_array[startIndex + j] != str.m_array[j])
+                if (m_bufferPtr[startIndex + j] != string.m_bufferPtr[j])
                     break;
             }
 
-            if (j == str.m_used)
+            if (j == string.m_stringLength)
                 return startIndex;
         }
         return -1;
     }
 
-    inline int ReverseFind(char chr) const
+    //
+    // Function: ReverseFind
+    //  Tries to find character in reverse order.
+    //
+    // Parameters:
+    //  ch - Character to search for.
+    //
+    // Returns:
+    //  Position of found character.
+    //
+    int ReverseFind(char ch)
     {
-        if (m_used == 0)
+        if (m_stringLength == 0)
             return -1;
 
-        char* ptr = m_array + m_used - 1;
+        char* str = m_bufferPtr + m_stringLength - 1;
 
-        for (; ;)
+        for (;;)
         {
-            if (*ptr == chr)
-                return static_cast <int> (ptr - m_array);
+            if (*str == ch)
+                return str - m_bufferPtr;
 
-            if (ptr == m_array)
+            if (str == m_bufferPtr)
                 return -1;
-
-            ptr--;
+            str--;
         }
-        return -1;
     }
 
-    inline int FindOneOf(const String& str) const
+    //
+    // Function: FindOneOf
+    //  Find one of occurrences of string.
+    //
+    // Parameters:
+    //  string - String to search for.
+    //
+    // Returns:
+    //  -1 in case of nothing is found, start of string in buffer otherwise.
+    //
+    int FindOneOf(const String& string)
     {
-        for (int i = 0; i < m_used; i++)
+        for (int i = 0; i < m_stringLength; i++)
         {
-            if (str.Find(m_array[i]) >= 0)
+            if (string.Find(m_bufferPtr[i]) >= 0)
                 return i;
         }
         return -1;
     }
 
-    inline String& TrimLeft(char chr)
+    //
+    // Function: TrimRight
+    //  Trims string from right side.
+    //
+    // Returns:
+    //  Trimmed string.
+    //
+    String& TrimRight(void)
     {
-        char* ptr = m_array;
-
-        while (chr == *ptr)
-            ptr++;
-
-        Delete(0, ptr - m_array);
-
-        return *this;
-    }
-
-    inline String& TrimRight(char chr)
-    {
-        char* ptr = m_array;
+        char* str = m_bufferPtr;
         char* last = nullptr;
 
-        while (*ptr != 0)
+        while (*str != 0)
         {
-            if (*ptr == chr)
+            if (IsTrimChar(*str))
             {
                 if (last == nullptr)
-                    last = ptr;
+                    last = str;
             }
             else
                 last = nullptr;
-
-            ptr++;
+            str++;
         }
 
         if (last != nullptr)
+            Delete(last - m_bufferPtr);
+
+        return *this;
+    }
+
+    //
+    // Function: TrimLeft
+    //  Trims string from left side.
+    //
+    // Returns:
+    //  Trimmed string.
+    //
+    String& TrimLeft(void)
+    {
+        char* str = m_bufferPtr;
+
+        while (IsTrimChar(*str))
+            str++;
+
+        if (str != m_bufferPtr)
         {
-            int diff = static_cast <int> (last - m_array);
-            Delete(diff, m_used - diff);
+            int first = int(str - GetBuffer());
+            char* buffer = GetBuffer(GetLength());
+
+            str = buffer + first;
+            int length = GetLength() - first;
+
+            memmove(buffer, str, (length + 1) * sizeof(char));
+            ReleaseBuffer(length);
         }
-
         return *this;
     }
 
-
-    inline String& TrimLeft(void)
-    {
-        int index = 0;
-
-        for (; index < m_used && IsTrimmingCharacter(m_array[index]); index++);
-        Delete(0, index);
-
-        return *this;
-    }
-
-    inline String& TrimRight(void)
-    {
-        int srcIndex = m_used - 1, destIndex = 0;
-
-        for (; srcIndex < m_used && IsTrimmingCharacter(m_array[srcIndex]); srcIndex--, destIndex++);
-        Delete(srcIndex + 1, destIndex);
-
-        return *this;
-    }
-
-    inline String& Trim(void)
+    //
+    // Function: Trim
+    //  Trims string from both sides.
+    //
+    // Returns:
+    //  Trimmed string.
+    //
+    String& Trim(void)
     {
         return TrimRight().TrimLeft();
     }
 
-    inline String& TrimQuotes(void)
+    //
+    // Function: TrimRight
+    //  Trims specified character at the right of the string.
+    //
+    // Parameters:
+    //  ch - Character to trim.
+    //
+    void TrimRight(char ch)
     {
-        return TrimRight('\'').TrimRight('\"').TrimLeft('\'').TrimLeft('\"');
+        const char* str = m_bufferPtr;
+        const char* last = nullptr;
+
+        while (*str != 0)
+        {
+            if (*str == ch)
+            {
+                if (last == nullptr)
+                    last = str;
+            }
+            else
+                last = nullptr;
+
+            str++;
+        }
+
+        if (last != nullptr)
+        {
+            int i = last - m_bufferPtr;
+            Delete(i, m_stringLength - i);
+        }
     }
 
-    inline int Insert(int index, char chr)
+    //
+    // Function: TrimLeft
+    //  Trims specified character at the left of the string.
+    //
+    // Parameters:
+    //  ch - Character to trim.
+    //
+    void TrimLeft(char ch)
+    {
+        char* str = m_bufferPtr;
+
+        while (ch == *str)
+            str++;
+
+        Delete(0, str - m_bufferPtr);
+    }
+
+    //
+    // Function: Insert
+    //  Inserts character at specified index.
+    //
+    // Parameters:
+    //  index - Position to insert string.
+    //  ch - Character to insert.
+    //
+    // Returns:
+    //  New string length.
+    //
+    int Insert(int index, char ch)
     {
         InsertSpace(index, 1);
 
-        m_array[index] = chr;
-        m_used++;
+        m_bufferPtr[index] = ch;
+        m_stringLength++;
 
-        return m_used;
+        return m_stringLength;
     }
 
-    inline int Insert(int index, const String& str)
+    //
+    // Function: Insert
+    //  Inserts string at specified index.
+    //
+    // Parameters:
+    //  index - Position to insert string.
+    //  string - Text to insert.
+    //
+    // Returns:
+    //  New string length.
+    //
+    int Insert(int index, const String& string)
     {
         CorrectIndex(index);
 
-        if (str.IsEmpty())
-            return m_used;
+        if (string.m_stringLength == 0)
+            return m_stringLength;
 
-        int numInsertChars = str.GetLength();
+        int numInsertChars = string.m_stringLength;
         InsertSpace(index, numInsertChars);
 
         for (int i = 0; i < numInsertChars; i++)
-            m_array[index + i] = str[i];
+            m_bufferPtr[index + i] = string[i];
+        m_stringLength += numInsertChars;
 
-        m_used += numInsertChars;
-        return m_used;
+        return m_stringLength;
     }
 
-    inline int Replace(char oldChar, char newChar)
+    //
+    // Function: Replace
+    //  Replaces old characters with new one.
+    //
+    // Parameters:
+    //  oldCharacter - Old character to replace.
+    //  newCharacter - New character to replace with.
+    //
+    // Returns:
+    //  Number of occurrences replaced.
+    //
+    int Replace(char oldCharacter, char newCharacter)
     {
-        if (oldChar == newChar)
+        if (oldCharacter == newCharacter)
             return 0;
 
-        int number = 0;
-        int pos = 0;
+        static int num = 0;
+        int position = 0;
 
-        while (pos < GetLength())
+        while (position < GetLength())
         {
-            pos = Find(oldChar, pos);
+            position = Find(oldCharacter, position);
 
-            if (pos < 0)
+            if (position < 0)
                 break;
 
-            m_array[pos] = newChar;
+            m_bufferPtr[position] = newCharacter;
 
-            pos++;
-            number++;
+            position++;
+            num++;
         }
-        return number;
+        return num;
     }
 
-    inline int Replace(const String& oldString, const String& newString)
+    //
+    // Function: Replace
+    //  Replaces string in other string.
+    //
+    // Parameters:
+    //  oldString - Old string to replace.
+    //  newString - New string to replace with.
+    //
+    // Returns:
+    //  Number of characters replaced.
+    //
+    int Replace(const String& oldString, const String& newString)
     {
-        if (oldString.IsEmpty() || oldString == newString)
+        if (oldString.m_stringLength == 0)
             return 0;
 
-        int oldStringLength = oldString.GetLength();
-        int newStringLength = newString.GetLength();
+        if (newString.m_stringLength == 0)
+            return 0;
 
-        int number = 0;
-        int pos = 0;
+        int oldLength = oldString.m_stringLength;
+        int newLength = newString.m_stringLength;
 
-        while (pos < m_used)
+        int num = 0;
+        int position = 0;
+
+        while (position < m_stringLength)
         {
-            pos = Find(oldString, pos);
+            position = Find(oldString, position);
 
-            if (pos < 0)
+            if (position < 0)
                 break;
 
-            Delete(pos, oldStringLength);
-            Insert(pos, newString);
+            Delete(position, oldLength);
+            Insert(position, newString);
 
-            pos += newStringLength;
-            number++;
+            position += newLength;
+            num++;
         }
-        return number;
+        return num;
     }
 
-    inline int Delete(int index, int count = 1)
+    //
+    // Function: Delete
+    //  Deletes characters from string.
+    //
+    // Parameters:
+    //  index - Start of characters remove.
+    //  count - Number of characters to remove.
+    //
+    // Returns:
+    //  New string length.
+    //
+    int Delete(int index, int count = 1)
     {
-        if (index + count > m_used)
+        if (index + count > m_stringLength)
+            count = m_stringLength - index;
 
-            count = m_used - index;
         if (count > 0)
         {
             MoveItems(index, index + count);
-            m_used -= count;
+            m_stringLength -= count;
         }
-        return m_used;
+        return m_stringLength;
     }
 
+    //
+    // Function: TrimQuotes
+    //  Trims trailing quotes.
+    //
+    // Returns:
+    //  Trimmed string.
+    //
+    String TrimQuotes(void)
+    {
+        TrimRight('\"');
+        TrimRight('\'');
+
+        TrimLeft('\"');
+        TrimLeft('\'');
+
+        return *this;
+    }
+
+    //
+    // Function: Contains
+    //  Checks whether string contains something.
+    //
+    // Parameters:
+    //  what - String to check.
+    //
+    // Returns:
+    //  True if string exists, false otherwise.
+    //
+    bool Contains(const String& what)
+    {
+        return strstr(m_bufferPtr, what.m_bufferPtr) != nullptr;
+    }
+
+    //
+    // Function: Hash
+    //  Gets the string hash.
+    //
+    // Returns:
+    //  Hash of the string.
+    //
+    unsigned long Hash(void)
+    {
+        unsigned long hash = 0;
+        const char* ptr = m_bufferPtr;
+
+        while (*ptr)
+        {
+            hash = (hash << 5) + hash + (*ptr);
+            ptr++;
+        }
+        return hash;
+    }
+
+    //
+    // Function: Split
+    //  Splits string using string separator.
+    //
+    // Parameters:
+    //  separator - Separator to split with.
+    //
+    // Returns:
+    //  Array of slitted strings.
+    //
+    // See Also:
+    //  <Array>
+    //
     Array <String> Split(const char* separator)
     {
         Array <String> holder;
@@ -2543,8 +3143,8 @@ public:
 
         do
         {
-            index += strspn(&m_array[index], separator);
-            tokenLength = strcspn(&m_array[index], separator);
+            index += strspn(&m_bufferPtr[index], separator);
+            tokenLength = strcspn(&m_bufferPtr[index], separator);
 
             if (tokenLength > 0)
                 holder.Push(Mid(index, tokenLength));
@@ -2557,18 +3157,18 @@ public:
     }
 
     //
-   // Function: Split
-   //  Splits string using character.
-   //
-   // Parameters:
-   //  separator - Separator to split with.
-   //
-   // Returns:
-   //  Array of slitted strings.
-   //
-   // See Also:
-   //  <Array>
-   //
+    // Function: Split
+    //  Splits string using character.
+    //
+    // Parameters:
+    //  separator - Separator to split with.
+    //
+    // Returns:
+    //  Array of slitted strings.
+    //
+    // See Also:
+    //  <Array>
+    //
     Array <String> Split(char separator)
     {
         char sep[2];
