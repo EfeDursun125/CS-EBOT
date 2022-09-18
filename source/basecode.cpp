@@ -136,7 +136,7 @@ bool Bot::CheckVisibility(entvars_t* targetEntity, Vector* origin, uint8_t* body
 		}
 	}
 
-	TraceLine(botHead, GetEntityOrigin(ENT(targetEntity)), true, ignoreGlass, GetEntity(), &tr);
+	TraceLine(GetEntityOrigin(GetEntity()), GetEntityOrigin(ENT(targetEntity)), true, ignoreGlass, GetEntity(), &tr);
 	if (tr.pHit == ENT(targetEntity) || tr.flFraction >= 1.0f)
 	{
 		*bodyPart |= VISIBILITY_BODY;
@@ -3529,7 +3529,7 @@ void Bot::SelectLeaderEachTeam(int team)
 	{
 		if (team == TEAM_TERRORIST && !g_leaderChoosen[TEAM_TERRORIST])
 		{
-			botLeader = g_botManager->GetHighestFragsBot(team);
+			botLeader = g_botManager->GetHighestSkillBot(team);
 
 			if (botLeader != nullptr)
 			{
@@ -3543,7 +3543,7 @@ void Bot::SelectLeaderEachTeam(int team)
 		}
 		else if (team == TEAM_COUNTER && !g_leaderChoosen[TEAM_COUNTER])
 		{
-			botLeader = g_botManager->GetHighestFragsBot(team);
+			botLeader = g_botManager->GetHighestSkillBot(team);
 
 			if (botLeader != nullptr)
 			{

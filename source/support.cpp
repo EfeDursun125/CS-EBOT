@@ -386,7 +386,7 @@ void DecalTrace(entvars_t* pev, TraceResult* trace, int logotypeIndex)
 		}
 	}
 
-	if (logotypes[logotypeIndex].Has("{"))
+	if (logotypes[logotypeIndex].Contains("{"))
 	{
 		MESSAGE_BEGIN(MSG_BROADCAST, SVC_TEMPENTITY);
 		WRITE_BYTE(TE_PLAYERDECAL);

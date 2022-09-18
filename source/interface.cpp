@@ -162,7 +162,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		if (IsValidBot(cmd))
 		{
 			FakeClientCommand(cmd, arg2);
-			ClientPrint(cmd, print_withtag, "Bot %s executing command %s", GetEntityName(ent), &arg2[0]);
+			ClientPrint(cmd, print_withtag, "E-Bot %s executing command %s", GetEntityName(ent), &arg2[0]);
 		}
 		else
 			ClientPrint(cmd, print_withtag, "Player is NOT Bot!");
@@ -206,60 +206,60 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 	// display some sort of help information
 	else if (stricmp(arg0, "?") == 0 || stricmp(arg0, "help") == 0)
 	{
-		ClientPrint(ent, print_console, "Bot Commands:");
-		ClientPrint(ent, print_console, "ebot version            - display version information.");
-		ClientPrint(ent, print_console, "ebot about              - show bot about information.");
-		//ClientPrint (ent, print_console, "ebot add                - create a bot in current game.");
-		ClientPrint(ent, print_console, "ebot fill               - fill the server with random bots.");
-		ClientPrint(ent, print_console, "ebot kickall            - disconnects all bots from current game.");
-		ClientPrint(ent, print_console, "ebot killbots           - kills all bots in current game.");
-		ClientPrint(ent, print_console, "ebot kick               - disconnect one random bot from game.");
-		ClientPrint(ent, print_console, "ebot weaponmode         - select bot weapon mode.");
-		ClientPrint(ent, print_console, "ebot votemap            - allows dead bots to vote for specific map.");
-		ClientPrint(ent, print_console, "ebot cmenu              - displaying bots command menu.");
+		ClientPrint(ent, print_console, "E-Bot Commands:");
+		ClientPrint(ent, print_console, "ebot version            - display version information");
+		ClientPrint(ent, print_console, "ebot about              - show bot about information");
+		//ClientPrint (ent, print_console, "ebot add                - create a e-bot in current game.");
+		ClientPrint(ent, print_console, "ebot fill               - fill the server with random e-bots");
+		ClientPrint(ent, print_console, "ebot kickall            - disconnects all e-bots from current game");
+		ClientPrint(ent, print_console, "ebot killbots           - kills all e-bots in current game");
+		ClientPrint(ent, print_console, "ebot kick               - disconnect one random e-bot from game");
+		ClientPrint(ent, print_console, "ebot weaponmode         - select e-bot weapon mode");
+		ClientPrint(ent, print_console, "ebot votemap            - allows dead e-bots to vote for specific map");
+		ClientPrint(ent, print_console, "ebot cmenu              - displaying e-bots command menu");
 
 
-		ClientPrint(ent, print_console, "ebot_add                - create a bot in current game.");
+		ClientPrint(ent, print_console, "ebot_add                - create a e-bot in current game");
 
 		if (!IsDedicatedServer())
 			ServerPrintNoTag("ebot sgdwp on           - New making waypoint system from ebot");
 
 		if (stricmp(arg1, "full") == 0 || stricmp(arg1, "f") == 0 || stricmp(arg1, "?") == 0)
 		{
-			ClientPrint(ent, print_console, "ebot add_t              - creates one random bot to terrorist team.");
-			ClientPrint(ent, print_console, "ebot add_ct             - creates one random bot to ct team.");
-			ClientPrint(ent, print_console, "ebot kick_t             - disconnect one random bot from terrorist team.");
-			ClientPrint(ent, print_console, "ebot kick_ct            - disconnect one random bot from ct team.");
-			ClientPrint(ent, print_console, "ebot kill_t             - kills all bots on terrorist team.");
-			ClientPrint(ent, print_console, "ebot kill_ct            - kills all bots on ct team.");
-			ClientPrint(ent, print_console, "ebot list               - display list of bots currently playing.");
-			ClientPrint(ent, print_console, "ebot order              - execute specific command on specified bot.");
-			ClientPrint(ent, print_console, "ebot time               - displays current time on server.");
-			ClientPrint(ent, print_console, "ebot deletewp           - erase waypoint file from hard disk (permanently).");
+			ClientPrint(ent, print_console, "ebot add_t              - creates one random e-bot to terrorist team");
+			ClientPrint(ent, print_console, "ebot add_ct             - creates one random e-bot to ct team");
+			ClientPrint(ent, print_console, "ebot kick_t             - disconnect one random e-bot from terrorist team");
+			ClientPrint(ent, print_console, "ebot kick_ct            - disconnect one random e-bot from ct team");
+			ClientPrint(ent, print_console, "ebot kill_t             - kills all e-bots on terrorist team");
+			ClientPrint(ent, print_console, "ebot kill_ct            - kills all e-bots on ct team");
+			ClientPrint(ent, print_console, "ebot list               - display list of e-bots currently playing");
+			ClientPrint(ent, print_console, "ebot order              - execute specific command on specified e-bot");
+			ClientPrint(ent, print_console, "ebot time               - displays current time on server");
+			ClientPrint(ent, print_console, "ebot deletewp           - delete waypoint file from hard disk (permanently)");
 
 			if (!IsDedicatedServer())
 			{
-				ServerPrintNoTag("ebot autowp            - toggle autowppointing.");
-				ServerPrintNoTag("ebot wp                - toggle waypoint showing.");
+				ServerPrintNoTag("ebot autowp            - toggle autowppointing");
+				ServerPrintNoTag("ebot wp                - toggle waypoint showing");
 				ServerPrintNoTag("ebot wp on noclip      - enable noclip cheat");
-				ServerPrintNoTag("ebot wp save nocheck   - save waypoints without checking.");
-				ServerPrintNoTag("ebot wp add            - open menu for waypoint creation.");
-				ServerPrintNoTag("ebot wp menu           - open main waypoint menu.");
-				ServerPrintNoTag("ebot wp addbasic       - creates basic waypoints on map.");
-				ServerPrintNoTag("ebot wp find           - show direction to specified waypoint.");
-				ServerPrintNoTag("ebot wp load           - wload the waypoint file from hard disk.");
-				ServerPrintNoTag("ebot wp check          - checks if all waypoints connections are valid.");
-				ServerPrintNoTag("ebot wp cache          - cache nearest waypoint.");
-				ServerPrintNoTag("ebot wp teleport       - teleport hostile to specified waypoint.");
-				ServerPrintNoTag("ebot wp setradius      - manually sets the wayzone radius for this waypoint.");
-				ServerPrintNoTag("ebot path autodistance - opens menu for setting autopath maximum distance.");
-				ServerPrintNoTag("ebot path cache        - remember the nearest to player waypoint.");
-				ServerPrintNoTag("ebot path create       - opens menu for path creation.");
-				ServerPrintNoTag("ebot path delete       - delete path from cached to nearest waypoint.");
-				ServerPrintNoTag("ebot path create_in    - creating incoming path connection.");
-				ServerPrintNoTag("ebot path create_out   - creating outgoing path connection.");
-				ServerPrintNoTag("ebot path create_both  - creating both-ways path connection.");
-				ServerPrintNoTag("ebot exp save          - save the experience data.");
+				ServerPrintNoTag("ebot wp save nocheck   - save waypoints without checking");
+				ServerPrintNoTag("ebot wp add            - open menu for waypoint creation");
+				ServerPrintNoTag("ebot wp menu           - open main waypoint menu");
+				ServerPrintNoTag("ebot wp addbasic       - creates basic waypoints on map");
+				ServerPrintNoTag("ebot wp find           - show direction to specified waypoint");
+				ServerPrintNoTag("ebot wp load           - wload the waypoint file from hard disk");
+				ServerPrintNoTag("ebot wp check          - checks if all waypoints connections are valid");
+				ServerPrintNoTag("ebot wp cache          - cache nearest waypoint");
+				ServerPrintNoTag("ebot wp teleport       - teleport hostile to specified waypoint");
+				ServerPrintNoTag("ebot wp setradius      - manually sets the wayzone radius for this waypoint");
+				ServerPrintNoTag("ebot path autodistance - opens menu for setting autopath maximum distance");
+				ServerPrintNoTag("ebot path cache        - remember the nearest to player waypoint");
+				ServerPrintNoTag("ebot path create       - opens menu for path creation");
+				ServerPrintNoTag("ebot path delete       - delete path from cached to nearest waypoint");
+				ServerPrintNoTag("ebot path create_in    - creating incoming path connection");
+				ServerPrintNoTag("ebot path create_out   - creating outgoing path connection");
+				ServerPrintNoTag("ebot path create_both  - creating both-ways path connection");
+				ServerPrintNoTag("ebot exp save          - save the experience data");
 			}
 		}
 	}
@@ -271,7 +271,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 			ClientPrint(ent, print_withtag, "Please specify health");
 		else
 		{
-			ClientPrint(ent, print_withtag, "Bot health is set to %d%%", atoi(arg1));
+			ClientPrint(ent, print_withtag, "E-Bot health is set to %d%%", atoi(arg1));
 
 			for (int i = 0; i < engine->GetMaxClients(); i++)
 			{
@@ -400,23 +400,24 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 			g_waypointOn = true;
 			ServerPrint("Waypoint Editing Enabled");
 
-			// enables noclip cheat
-			if (stricmp(arg2, "noclip") == 0)
+			ServerCommand("ebot wp mdl on");
+		}
+
+		// enables noclip cheat
+		else if (stricmp(arg1, "noclip") == 0)
+		{
+			if (g_editNoclip)
 			{
-				if (g_editNoclip)
-				{
-					g_hostEntity->v.movetype = MOVETYPE_WALK;
-					ServerPrint("Noclip Cheat Disabled");
-				}
-				else
-				{
-					g_hostEntity->v.movetype = MOVETYPE_NOCLIP;
-					ServerPrint("Noclip Cheat Enabled");
-				}
-				g_editNoclip ^= true; // switch on/off (XOR it!)
+				g_hostEntity->v.movetype = MOVETYPE_WALK;
+				ServerPrint("Noclip Cheat Disabled");
+			}
+			else
+			{
+				g_hostEntity->v.movetype = MOVETYPE_NOCLIP;
+				ServerPrint("Noclip Cheat Enabled");
 			}
 
-			ServerCommand("ebot wp mdl on");
+			g_editNoclip ^= true; // switch on/off (XOR it!)
 		}
 
 		// switching waypoint editing off
@@ -896,7 +897,7 @@ void InitConfig(void)
 			if (pair[0] == "MapStandard")
 			{
 				if (splitted.GetElementNumber() != Const_NumWeapons)
-					AddLogEntry(LOG_FATAL, "%s entry in general config is not valid.", &pair[0][0]);
+					AddLogEntry(LOG_FATAL, "%s entry in general config is not valid.", pair[0][0]);
 
 				for (int i = 0; i < Const_NumWeapons; i++)
 					g_weaponSelect[i].teamStandard = splitted[i];
@@ -904,7 +905,7 @@ void InitConfig(void)
 			else if (pair[0] == "MapAS")
 			{
 				if (splitted.GetElementNumber() != Const_NumWeapons)
-					AddLogEntry(LOG_FATAL, "%s entry in general config is not valid.", &pair[0][0]);
+					AddLogEntry(LOG_FATAL, "%s entry in general config is not valid.", pair[0][0]);
 
 				for (int i = 0; i < Const_NumWeapons; i++)
 					g_weaponSelect[i].teamAS = splitted[i];
@@ -912,7 +913,7 @@ void InitConfig(void)
 			else if (pair[0] == "PersonalityNormal")
 			{
 				if (splitted.GetElementNumber() != Const_NumWeapons)
-					AddLogEntry(LOG_FATAL, "%s entry in general config is not valid.", &pair[0][0]);
+					AddLogEntry(LOG_FATAL, "%s entry in general config is not valid.", pair[0][0]);
 
 				for (int i = 0; i < Const_NumWeapons; i++)
 					g_normalWeaponPrefs[i] = splitted[i];
@@ -920,7 +921,7 @@ void InitConfig(void)
 			else if (pair[0] == "PersonalityRusher")
 			{
 				if (splitted.GetElementNumber() != Const_NumWeapons)
-					AddLogEntry(LOG_FATAL, "%s entry in general config is not valid.", &pair[0][0]);
+					AddLogEntry(LOG_FATAL, "%s entry in general config is not valid.", pair[0][0]);
 
 				for (int i = 0; i < Const_NumWeapons; i++)
 					g_rusherWeaponPrefs[i] = splitted[i];
@@ -928,29 +929,29 @@ void InitConfig(void)
 			else if (pair[0] == "PersonalityCareful")
 			{
 				if (splitted.GetElementNumber() != Const_NumWeapons)
-					AddLogEntry(LOG_FATAL, "%s entry in general config is not valid.", &pair[0][0]);
+					AddLogEntry(LOG_FATAL, "%s entry in general config is not valid.", pair[0][0]);
 
 				for (int i = 0; i < Const_NumWeapons; i++)
 					g_carefulWeaponPrefs[i] = splitted[i];
 			}
-			else if (pair[0].Has("Skill"))
+			else if (pair[0].Contains("Skill"))
 			{
 				if (splitted.GetElementNumber() != 8)
-					AddLogEntry(LOG_FATAL, "%s entry in general config is not valid.", &pair[0][0]);
+					AddLogEntry(LOG_FATAL, "%s entry in general config is not valid.", pair[0][0]);
 
 				int parserState = 0;
 
-				if (pair[0].Has("Easy"))
+				if (pair[0].Contains("Easy"))
 					parserState = 0;
-				else if (pair[0].Has("Fair"))
+				else if (pair[0].Contains("Fair"))
 					parserState = 1;
-				else if (pair[0].Has("Normal"))
+				else if (pair[0].Contains("Normal"))
 					parserState = 2;
-				else if (pair[0].Has("Hard"))
+				else if (pair[0].Contains("Hard"))
 					parserState = 3;
-				else if (pair[0].Has("Expert"))
+				else if (pair[0].Contains("Expert"))
 					parserState = 4;
-				else if (pair[0].Has("Elite"))
+				else if (pair[0].Contains("Elite"))
 					parserState = 5;
 
 				for (int i = 0; i < 8; i++)
@@ -1090,7 +1091,7 @@ int Spawn(edict_t* ent)
 
 		RoundInit();
 
-		g_mapType = null; // reset map type as worldspawn is the first entity spawned
+		g_mapType = 0; // reset map type as worldspawn is the first entity spawned
 		g_worldEdict = ent; // save the world entity for future use
 	}
 	else if (strcmp(entityClassname, "player_weaponstrip") == 0)
@@ -1632,7 +1633,7 @@ void ClientCommand(edict_t* ent)
 					break;
 
 				case 8:
-					ServerCommand("ebot wp on noclip");
+					ServerCommand("ebot wp noclip");
 					break;
 
 				case 9:

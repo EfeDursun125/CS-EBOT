@@ -2037,7 +2037,7 @@ char* Waypoint::GetWaypointInfo(int id)
 {
     Path* path = GetPath(id);
 
-    // if this path is null, return
+    // if this path is nullptr, return
     if (path == nullptr)
         return "\0";
 
@@ -3078,10 +3078,10 @@ void Waypoint::EraseFromHardDisk(void)
         if (TryFileOpen(deleteList[i]))
         {
             unlink(deleteList[i]);
-            AddLogEntry(LOG_DEFAULT, "File %s, has been deleted from the disk", &deleteList[i][0]);
+            AddLogEntry(LOG_DEFAULT, "File %s, has been deleted from the disk", deleteList[i][0]);
         }
         else
-            AddLogEntry(LOG_ERROR, "Unable to open %s", &deleteList[i][0]);
+            AddLogEntry(LOG_ERROR, "Unable to open %s", deleteList[i][0]);
     }
 
     Initialize(); // reintialize points

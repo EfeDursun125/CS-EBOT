@@ -34,7 +34,6 @@ ConVar ebot_minskill("ebot_min_skill", "1");
 ConVar ebot_maxskill("ebot_max_skill", "100");
 
 ConVar ebot_nametag("ebot_name_tag", "2");
-ConVar ebot_join_after_player("ebot_join_after_player", "0");
 ConVar ebot_ping("ebot_fake_ping", "1");
 ConVar ebot_display_avatar("ebot_display_avatar", "1");
 
@@ -92,13 +91,6 @@ void BotControl::CallGameEntity(entvars_t* vars)
 // then sends result to bot constructor
 int BotControl::CreateBot(String name, int skill, int personality, int team, int member)
 {
-	if (ebot_join_after_player.GetBool() == true)
-	{
-		int playerNum = GetHumansNum(1);
-		if (playerNum == 0)
-			return -3;
-	}
-
 	edict_t* bot = nullptr;
 	if (g_numWaypoints < 1) // don't allow creating bots with no waypoints loaded
 	{
@@ -201,15 +193,15 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 
 	char botName[64];
 	if (ebot_nametag.GetInt() == 2)
-		snprintf(botName, sizeof botName, "[E-BOT] %s (%d)", outputName, skill);
+		snprintf(botName, sizeof(botName), "[E-BOT] %s (%d)", outputName, skill);
 	else if (ebot_nametag.GetInt() == 1)
-		snprintf(botName, sizeof botName, "[E-BOT] %s", outputName);
+		snprintf(botName, sizeof(botName), "[E-BOT] %s", outputName);
 	else
-		strncpy(botName, outputName, sizeof botName);
+		strncpy(botName, outputName, sizeof(botName));
 
 	if (FNullEnt((bot = (*g_engfuncs.pfnCreateFakeClient) (botName))))
 	{
-		CenterPrint("Maximum players reached (%d/%d). Unable to create Bot.", engine->GetMaxClients(), engine->GetMaxClients());
+		CenterPrint(" Unable to create E-Bot, Maximum players reached (%d/%d)", engine->GetMaxClients(), engine->GetMaxClients());
 		return -2;
 	}
 
@@ -342,10 +334,9 @@ void BotControl::Think(void)
 	}
 }
 
+// this function putting bot creation process to queue to prevent engine crashes
 void BotControl::AddBot(const String& name, int skill, int personality, int team, int member)
 {
-	// this function putting bot creation process to queue to prevent engine crashes
-
 	CreateItem queueID;
 
 	// fill the holder
@@ -356,25 +347,6 @@ void BotControl::AddBot(const String& name, int skill, int personality, int team
 	queueID.member = member;
 
 	// put to queue
-	m_creationTab.Push(queueID);
-
-	// keep quota number up to date
-	if (GetBotsNum() + 1 > ebot_quota.GetInt())
-		ebot_quota.SetInt(GetBotsNum() + 1);
-}
-
-// this function is same as the function above, but accept as parameters string instead of integers
-void BotControl::AddBot(const String& name, const String& skill, const String& personality, const String& team, const String& member)
-{
-	CreateItem queueID;
-	const String& any = "*";
-
-	queueID.name = (name.IsEmpty() || (name == any)) ? String("\0") : name;
-	queueID.skill = (skill.IsEmpty() || (skill == any)) ? -1 : int(skill);
-	queueID.team = (team.IsEmpty() || (team == any)) ? -1 : int(team);
-	queueID.member = (member.IsEmpty() || (member == any)) ? -1 : int(member);
-	queueID.personality = (personality.IsEmpty() || (personality == any)) ? -1 : int(personality);
-
 	m_creationTab.Push(queueID);
 
 	// keep quota number up to date
@@ -631,18 +603,19 @@ void BotControl::FillServer(int selection, int personality, int skill, int numTo
 	}
 
 	ebot_quota.SetInt(toAdd);
-	CenterPrint("Fill Server with %s bots...", &teamDescs[selection][0]);
+	CenterPrint("Filling the server with %s e-bots", &teamDescs[selection][0]);
 }
 
 // this function drops all bot clients from server (this function removes only ebots)
 void BotControl::RemoveAll(void)
 {
-	CenterPrint("Bots are removed from server.");
+	CenterPrint("E-Bots are removed from server");
 
 	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
-		if (m_bots[i] != nullptr)  // is this slot used?
-			m_bots[i]->Kick();
+		Bot* bot = g_botManager->GetBot(i);
+		if (bot != nullptr) // is this slot used?
+			bot->Kick();
 	}
 
 	m_creationTab.RemoveAll();
@@ -843,48 +816,41 @@ int BotControl::GetBotsNum(void)
 }
 
 // this function returns number of humans playing on the server
-int BotControl::GetHumansNum(int mod)
+int BotControl::GetHumansNum()
 {
 	int count = 0;
 	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
-		if ((g_clients[i].flags & CFLAG_USED) && m_bots[i] == nullptr)
-		{
-			if (mod == 0)
-				count++;
-			else
-			{
-				int team = *((int*)INDEXENT(i + 1)->pvPrivateData + OFFSET_TEAM);
-				if (team == (TEAM_COUNTER + 1) || team == (TEAM_TERRORIST + 1))
-					count++;
-			}
-		}
+		if (IsValidBot(g_clients[i].ent))
+			count++;
 	}
+
 	return count;
 }
 
 // this function returns bot with highest frag
-Bot* BotControl::GetHighestFragsBot(int team)
+Bot* BotControl::GetHighestSkillBot(int team)
 {
 	Bot* highFragBot = nullptr;
 
 	int bestIndex = 0;
-	float bestScore = -1;
+	int bestSkill = -1;
 
 	// search bots in this team
 	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
 		highFragBot = g_botManager->GetBot(i);
 
-		if (highFragBot != nullptr && IsAlive(highFragBot->GetEntity()) && GetTeam(highFragBot->GetEntity()) == team)
+		if (highFragBot != nullptr && GetTeam(highFragBot->GetEntity()) == team)
 		{
-			if (highFragBot->pev->frags > bestScore)
+			if (highFragBot->m_skill > bestSkill)
 			{
 				bestIndex = i;
-				bestScore = highFragBot->pev->frags;
+				bestSkill = highFragBot->m_skill;
 			}
 		}
 	}
+
 	return GetBot(bestIndex);
 }
 
@@ -983,7 +949,7 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 		SET_CLIENT_KEYVALUE(clientIndex, buffer, "*bot", "1");
 
 	rejectReason[0] = 0; // reset the reject reason template string
-	MDLL_ClientConnect(bot, "E-@BOT", FormatBuffer("127.0.0.%d", ENTINDEX(bot) + 100), rejectReason);
+	MDLL_ClientConnect(bot, "E-BOT", FormatBuffer("%d.%d.%d.%d", engine->RandomInt(1, 255), engine->RandomInt(1, 255), engine->RandomInt(1, 255), engine->RandomInt(1, 255)), rejectReason);
 
 	// should be set after client connect
 	if (ebot_display_avatar.GetBool() && !g_botManager->m_avatars.IsEmpty())
@@ -1328,12 +1294,14 @@ void Bot::Kick(void)
 		return;
 
 	ServerCommand("kick \"%s\"", GetEntityName(GetEntity()));
-	CenterPrint("Bot '%s' kicked", GetEntityName(GetEntity()));
+	CenterPrint("E-Bot '%s' kicked from the server", GetEntityName(GetEntity()));
 
 	if (g_botManager->GetBotsNum() - 1 < ebot_quota.GetInt())
 		ebot_quota.SetInt(g_botManager->GetBotsNum() - 1);
 
-	g_botManager->m_savedBotNames.Pop();
+	// crash..
+	/*if (!g_botManager->m_savedBotNames.IsEmpty())
+		g_botManager->m_savedBotNames.PopNoReturn();*/
 }
 
 // this function handles the selection of teams & class
