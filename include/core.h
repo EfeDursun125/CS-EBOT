@@ -36,7 +36,11 @@
 
 #include <stdio.h>
 #include <memory.h>
+
+// SSE
 #include <xmmintrin.h>
+#include <emmintrin.h>
+#include <immintrin.h>
 
 #include <engine.h>
 
@@ -50,7 +54,11 @@ using namespace Math;
 #include <float.h>
 #include <time.h>
 
-#include "runtime.h"
+#include <runtime.h>
+
+#include <future>
+
+using namespace std;
 
 const int checkEntityNum = 20;
 const int checkEnemyNum = 128;
@@ -77,7 +85,6 @@ enum BotTask
 	TASK_ESCAPEFROMBOMB,
 	TASK_DESTROYBREAKABLE,
 	TASK_HIDE,
-	TASK_PLACELASER,
 	TASK_BLINDED,
 	TASK_SPRAYLOGO,
 	TASK_MOVETOTARGET,
@@ -376,7 +383,8 @@ enum MapType
 	MAP_KA = (1 << 4),
 	MAP_FY = (1 << 5),
 	MAP_AWP = (1 << 6),
-	MAP_HE = (1 << 7)
+	MAP_HE = (1 << 7),
+	MAP_ZE = (1 << 8)
 };
 
 // defines for waypoint flags field (32 bits are available)
@@ -399,7 +407,7 @@ enum WaypointFlag
 	WAYPOINT_ZOMBIEPUSH = (1 << 16), // zombies never return back on this waypoint
 	WAYPOINT_FALLRISK = (1 << 17), // bots never do strafing while on this waypoint
 	WAYPOINT_SPECIFICGRAVITY = (1 << 18), // specific jump gravity check for bot
-	//WAYPOINT_LASER = (1 << 19), // in testing...
+	WAYPOINT_ONLYONE = (1 << 19), // to avoid multiple bots stuck on same waypoint
 	WAYPOINT_FALLCHECK = (1 << 26), // bots will check ground
 	WAYPOINT_JUMP = (1 << 27), // for jump points
 	WAYPOINT_SNIPER = (1 << 28), // it's a specific sniper point
@@ -459,7 +467,6 @@ const float TASKPRI_HIDE = 92.0f;
 const float TASKPRI_MOVETOTARGET = 93.0f;
 const float TASKPRI_THROWGRENADE = 99.0f;
 const float TASKPRI_DOUBLEJUMP = 99.0f;
-//const float TASKPRI_PLACELASER = 99.5f;
 const float TASKPRI_BLINDED = 100.0f;
 const float TASKPRI_SHOOTBREAKABLE = 100.0f;
 const float TASKPRI_ESCAPEFROMBOMB = 100.0f;
@@ -739,7 +746,7 @@ private:
 
 	int m_currentWaypointIndex; // current waypoint index
 	int m_travelStartIndex; // travel start index to double jump action
-	int m_prevWptIndex[2]; // previous waypoint indices from waypoint find
+	int m_prevWptIndex; // previous waypoint indices from waypoint find
 	int m_waypointFlags; // current waypoint flags
 	int m_loosedBombWptIndex; // nearest to loosed bomb waypoint
 
@@ -778,6 +785,7 @@ private:
 	int m_reloadState; // current reload state
 	int m_voicePitch; // bot voice pitch
 	bool m_isZombieBot; // checks bot if zombie
+	bool m_zombiePush; // we must push???
 	bool m_isBomber; // checks bot has C4
 	int m_team; // bot's team
 
@@ -852,9 +860,10 @@ private:
 	void CheckBurstMode(float distance);
 
 	int CheckMaxClip(int weaponId, int* weaponIndex);
+	void CheckTerrain(Vector directionNormal, float movedDistance);
+	void CheckFall(void);
 
 	void AvoidEntity(void);
-	//int GetLasermineCount(void);
 
 	void ZombieModeAi(void);
 	void ZmCampPointAction(int mode = 0);
@@ -868,7 +877,6 @@ private:
 
 	bool DoWaypointNav(void);
 	bool EnemyIsThreat(void);
-	void FacePosition(void);
 	bool IsRestricted(int weaponIndex);
 	bool IsRestrictedAMX(int weaponIndex);
 
@@ -885,6 +893,7 @@ private:
 
 	edict_t* FindNearestButton(const char* className);
 	edict_t* FindBreakable(void);
+	edict_t* FindButton(void);
 	int FindCoverWaypoint(float maxDistance);
 	int FindDefendWaypoint(Vector origin);
 	int FindGoal(void);
@@ -982,10 +991,8 @@ private:
 
 	int GetCampAimingWaypoint(void);
 	int GetAimingWaypoint(Vector targetOriginPos);
-	void FindShortestPath(int srcIndex, int destIndex);
 	void FindPath(int srcIndex, int destIndex);
 	void SecondThink(void);
-	void BotReplaceConnectionTime(const char* name, float* timeslot);
 	void CalculatePing(void);
 
 public:
@@ -1001,9 +1008,6 @@ public:
 	int m_gunMinDistanceAPI, m_gunMaxDistanceAPI;
 	int m_waypointGoalAPI;
 	bool m_blockWeaponPickAPI;
-
-	//int m_lasermineCount; // count for lasermine LOL
-	//Vector m_laserminePosition; // where to place lasermine :(
 
 	int m_wantedTeam; // player team bot wants select
 	int m_wantedClass; // player model bot wants to select
@@ -1081,6 +1085,9 @@ public:
 
 	int m_pingOffset[2]; // offset for faking pings
 	int m_ping[3]; // bots pings in scoreboard
+	float m_trackTime; // more realistic aim
+	Vector m_tempAim; // A++
+	Vector m_tempVel; // C
 
 	edict_t* m_enemy; // pointer to enemy entity
 	float m_enemyUpdateTime; // time to check for new enemies
@@ -1147,6 +1154,7 @@ public:
 	inline Vector EarPosition(void) { return pev->origin + pev->view_ofs; };
 
 	void Think(void);
+	void FacePosition(void);
 	void UpdateAI(void);
 	void NewRound(void);
 	void EquipInBuyzone(int buyCount);
@@ -1159,7 +1167,7 @@ public:
 	void SetMoveTarget(edict_t* entity);
 	void SetLastEnemy(edict_t* entity);
 
-	void DeleteSearchNodes(void);
+	void DeleteSearchNodes(bool skip = false);
 	Task* GetCurrentTask(void);
 
 	//void MoveTargetSrc(void);
@@ -1195,6 +1203,7 @@ public:
 	bool UsesBadPrimary(void);
 	bool HasPrimaryWeapon(void);
 	bool HasShield(void);
+	bool IsSniper(void);
 	bool IsShieldDrawn(void);
 
 	int CheckBotPointAPI(int mod);
@@ -1233,14 +1242,13 @@ public:
 	Bot* FindOneValidAliveBot(void);
 	Bot* GetHighestSkillBot(int team);
 
-	int GetHumansNum();
 	int GetBotsNum(void);
+	int GetHumansNum(void);
 
 	void Think(void);
 	void DoJoinQuitStuff(void);
 	void Free(void);
 	void Free(int index);
-	//void CheckAutoVacate (edict_t *ent);
 	void CheckBotNum(void);
 
 	void AddRandom(void) { AddBot("", -1, -1, -1, -1); }
@@ -1437,7 +1445,7 @@ public:
 // prototypes of bot functions...
 extern int GetWeaponReturn(bool isString, const char* weaponAlias, int weaponID = -1);
 extern int GetTeam(edict_t* ent);
-extern int GetGameMod(void);
+extern int GetGameMode(void);
 extern bool IsZombieEntity(edict_t* ent);
 
 extern void SetGameMod(int gamemode);
@@ -1446,8 +1454,17 @@ extern bool IsDeathmatchMode(void);
 extern bool IsValidWaypoint(int index);
 extern bool ChanceOf(int number);
 extern float Q_rsqrt(float number);
-extern float DotProduct(Vector a, Vector b);
 extern float Clamp(float a, float b, float c);
+extern float SquaredF(float a);
+extern float MultiplyFloat(float a, float b);
+extern float AddTime(float time);
+extern Vector AddVector(Vector a, Vector b);
+extern Vector MultiplyVector(Vector a, Vector b);
+extern int AddInt(float a, float b);
+extern float AddFloat(float a, float b);
+extern float DivideFloat(float a, float b);
+extern float MaxFloat(float a, float b);
+extern float MinFloat(float a, float b);
 extern ChatterMessage GetEqualChatter(int message);
 extern void GetVoiceAndDur(ChatterMessage message, char* *voice, float *dur);
 
@@ -1514,7 +1531,6 @@ extern void MOD_AddLogEntry(int mode, char* format);
 extern void DisplayMenuToClient(edict_t* ent, MenuText* menu);
 extern void DecalTrace(entvars_t* pev, TraceResult* trace, int logotypeIndex);
 extern void SoundAttachToThreat(edict_t* ent, const char* sample, float volume);
-extern void SoundSimulateUpdate(int playerIndex);
 
 extern void TraceLine(const Vector& start, const Vector& end, bool ignoreMonsters, bool ignoreGlass, edict_t* ignoreEntity, TraceResult* ptr);
 extern void TraceLine(const Vector& start, const Vector& end, bool ignoreMonsters, edict_t* ignoreEntity, TraceResult* ptr);

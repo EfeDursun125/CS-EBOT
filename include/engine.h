@@ -255,6 +255,10 @@ public:
 
     inline float Length(void) const
     {
+#ifdef __SSE2__
+        float number = _mm_cvtss_f32(_mm_add_ss(_mm_mul_ss(_mm_load_ss(&x), _mm_load_ss(&x)), _mm_mul_ss(_mm_load_ss(&y), _mm_load_ss(&y))));
+        return _mm_cvtss_f32(_mm_sqrt_ss(_mm_load_ss(&number)));
+#else
         float number = x * x + y * y;
         long i;
         float x2, y;
@@ -266,6 +270,7 @@ public:
         y = *(float*)&i;
         y = y * (threehalfs - (x2 * y * y));
         return y * number;
+#endif
     }
 
     inline Vector2D Normalize(void) const
@@ -274,15 +279,18 @@ public:
 
         float flLen = Length();
         if (flLen == 0)
-        {
             return Vector2D(0, 0);
-        }
         else
         {
             flLen = 1 / flLen;
+#ifdef __SSE2__
+            return Vector2D(_mm_cvtss_f32(_mm_mul_ss(_mm_load_ss(&x), _mm_load_ss(&flLen))), _mm_cvtss_f32(_mm_mul_ss(_mm_load_ss(&y), _mm_load_ss(&flLen))));
+#else
             return Vector2D(x * flLen, y * flLen);
+#endif
         }
     }
+
     float x, y;
 };
 
@@ -290,6 +298,7 @@ inline float DotProduct(const Vector2D& a, const Vector2D& b)
 {
     return (a.x * b.x + a.y * b.y);
 }
+
 inline Vector2D operator* (float fl, const Vector2D& v)
 {
     return v * fl;
@@ -360,6 +369,9 @@ public:
     inline float Length(void) const
     {
         float number = x * x + y * y + z * z;
+#ifdef __SSE2__
+        return _mm_cvtss_f32(_mm_sqrt_ss(_mm_load_ss(&number)));
+#else
         long i;
         float x2, y;
         const float threehalfs = 1.5F;
@@ -370,6 +382,7 @@ public:
         y = *(float*)&i;
         y = y * (threehalfs - (x2 * y * y));
         return y * number;
+#endif
     }
     operator float* ()
     {
@@ -389,7 +402,11 @@ public:
             return Vector(0, 0, 1);       // ????
 
         flLen = 1 / flLen;
+#ifdef __SSE2__
+        return Vector(_mm_cvtss_f32(_mm_mul_ss(_mm_load_ss(&x), _mm_load_ss(&flLen))), _mm_cvtss_f32(_mm_mul_ss(_mm_load_ss(&y), _mm_load_ss(&flLen))), _mm_cvtss_f32(_mm_mul_ss(_mm_load_ss(&z), _mm_load_ss(&flLen))));
+#else
         return Vector(x * flLen, y * flLen, z * flLen);
+#endif
     }
 
     inline Vector IgnoreZComponent(void) const
@@ -408,6 +425,10 @@ public:
     }
     inline float Length2D(void) const
     {
+#ifdef __SSE2__
+        float number = _mm_cvtss_f32(_mm_add_ss(_mm_mul_ss(_mm_load_ss(&x), _mm_load_ss(&x)), _mm_mul_ss(_mm_load_ss(&y), _mm_load_ss(&y))));
+        return _mm_cvtss_f32(_mm_sqrt_ss(_mm_load_ss(&number)));
+#else
         float number = x * x + y * y;
         long i;
         float x2, y;
@@ -419,6 +440,7 @@ public:
         y = *(float*)&i;
         y = y * (threehalfs - (x2 * y * y));
         return y * number;
+#endif
     }
 
     // Members
@@ -428,10 +450,12 @@ inline Vector operator* (float fl, const Vector& v)
 {
     return v * fl;
 }
+
 inline float DotProduct(const Vector& a, const Vector& b)
 {
     return (a.x * b.x + a.y * b.y + a.z * b.z);
 }
+
 inline Vector CrossProduct(const Vector& a, const Vector& b)
 {
     return Vector(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
@@ -2313,9 +2337,6 @@ typedef int(*_AMXX_GET_ENTITY_WAYPOINT_ID) (int index);
 //#define MAX_LOGMSG_LEN  1024
 
 
-
-
-
 void inline UTIL_TraceLine(const Vector& start, const Vector& end, bool ignoreMonsters, bool ignoreGlass, edict_t* ignoreEntity, TraceResult* ptr)
 {
 
@@ -2330,14 +2351,10 @@ void inline UTIL_TraceLine(const Vector& start, const Vector& end, bool ignoreMo
 
 void inline UTIL_TraceHull(const Vector& start, const Vector& end, bool ignoreMonsters, int hullNumber, edict_t* ignoreEntity, TraceResult* ptr)
 {
-
     (*g_engfuncs.pfnTraceHull) (start, end, ignoreMonsters ? 1 : 0, hullNumber, ignoreEntity, ptr);
 }
 
 Vector UTIL_VecToAngles(const Vector& vec);
-
-
-
 
 #ifdef _WIN32
 #pragma once
@@ -3202,12 +3219,12 @@ public:
 
     inline bool operator == (const Entity& other) const
     {
-        return IsValid() && m_ent == other;
+        return IsValid(); //&& m_ent == other;
     }
 
     inline bool operator != (const Entity& other) const
     {
-        return m_ent != other;
+        return true;// m_ent != other;
     }
 
 public:
@@ -3347,10 +3364,6 @@ public:
 
     float AngleDiff(float destAngle, float srcAngle);
 
-    float Max(float one, float two);
-
-    int MinInt(int one, int two);
-
     float DoClamp(float a, float b, float c);
 
     // sends bot command
@@ -3457,13 +3470,9 @@ public:
         TraceResult tr;
 
         if (m_hullNumber != -1)
-        {
             g_engfuncs.pfnTraceHull(m_start, m_end, m_monsters ? 1 : 0, m_hullNumber, m_ignore ? m_ignore : nullptr, &tr);
-        }
         else
-        {
             g_engfuncs.pfnTraceLine(m_start, m_end, m_monsters ? 1 : 0 || m_glass ? 0x100 : 0, m_ignore ? m_ignore : nullptr, &tr);
-        }
 
         m_fraction = tr.flFraction;
         m_planeNormal = tr.vecPlaneNormal;

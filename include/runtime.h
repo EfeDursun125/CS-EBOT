@@ -556,7 +556,7 @@ public:
     inline float GetLength(void) const
     {
         float number = x * x + y * y + z * z;
-#ifndef __SSE2__
+#ifdef __SSE2__
         return _mm_cvtss_f32(_mm_sqrt_ss(_mm_load_ss(&number)));
 #else
         long i;
@@ -585,10 +585,11 @@ public:
     //
     inline float GetLength2D(void) const
     {
-        float number = x * x + y * y;
-#ifndef __SSE2__
+#ifdef __SSE2__
+        float number = _mm_cvtss_f32(_mm_add_ss(_mm_mul_ss(_mm_load_ss(&x), _mm_load_ss(&x)), _mm_mul_ss(_mm_load_ss(&y), _mm_load_ss(&y))));
         return _mm_cvtss_f32(_mm_sqrt_ss(_mm_load_ss(&number)));
 #else
+        float number = x * x + y * y;
         long i;
         float x2, y;
         const float threehalfs = 1.5F;
@@ -1033,6 +1034,7 @@ public:
             if (!enlarge || !SetSize(index + 1))
                 return false;
         }
+
         m_elements[index] = object;
 
         if (index >= m_itemCount)

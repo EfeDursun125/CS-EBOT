@@ -50,9 +50,9 @@
 #define SUPPORT_SWNPC_VERSION_F 1.48
 
 // E-BOT Version
-#define PRODUCT_VERSION_DWORD 1,05,20220909,6 // yyyy/mm/dd
-#define PRODUCT_VERSION "1.05"
-#define PRODUCT_VERSION_F 1.05
+#define PRODUCT_VERSION_DWORD 1,06,20220928,7 // yyyy/mm/dd
+#define PRODUCT_VERSION "1.06"
+#define PRODUCT_VERSION_F 1.06
 
 // general product information
 #define PRODUCT_NAME "E-BOT"
