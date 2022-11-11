@@ -63,6 +63,9 @@ float g_fakePingUpdate = 0.0f;
 
 float g_DelayTimer = 0.0f;
 
+int humansNumber;
+int botsNumber;
+
 int g_lastRadio[2];
 int g_storeAddbotVars[4];
 int g_radioSelect[32];
@@ -188,7 +191,6 @@ Task g_taskFilters[] =
    {nullptr, nullptr, TASK_ESCAPEFROMBOMB, 0, -1, 0.0f, false},
    {nullptr, nullptr, TASK_DESTROYBREAKABLE, 0, -1, 0.0f, false},
    {nullptr, nullptr, TASK_HIDE, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_PLACELASER, 0, -1, 0.0f, false},
    {nullptr, nullptr, TASK_BLINDED, 0, -1, 0.0f, false},
    {nullptr, nullptr, TASK_SPRAYLOGO, 0, -1, 0.0f, false},
    {nullptr, nullptr, TASK_MOVETOTARGET, 0, -1, 0.0f, true},
@@ -259,7 +261,7 @@ FireDelay g_fireDelay[Const_NumWeapons + 1] =
 };
 
 // bot menus
-MenuText g_menus[27] =
+MenuText g_menus[28] =
 {
 	// main menu
 	{
@@ -435,15 +437,15 @@ MenuText g_menus[27] =
 	// set waypoint flag menu
 	{
 		0x3ff,
-		"\\yToggle Waypoint Flags (Page 1/2)\\w\v\v"
+		"\\yToggle Waypoint Flags (Page 1/3)\\w\v\v"
 		"1. Fall Check\v"
 		"2. Terrorists Specific\v"
 		"3. CTs Specific\v"
 		"4. Use Elevator\v"
 		"5. Sniper Point (\\yFor Camp Points Only!\\w)\v"
 		"6. Zombie Mode Camp\v"
-		"7. Crouch\v"
-		"8. \\yDelete All Flags!\\ \v\v"
+		"7. \\yDelete All Flags!\\ \v\v"
+		"8. Previous...\v"
 		"9. Next...\v\v"
 		"0. Exit"
 	},
@@ -570,16 +572,32 @@ MenuText g_menus[27] =
 	// set waypoint flag menu
 	{
 		0x3ff,
-		"\\yToggle Waypoint Flags (Page 2/2)\\w\v\v"
+		"\\yToggle Waypoint Flags (Page 2/3)\\w\v\v"
 		"1. Use Button\v"
 		"2. Human Camp Mesh\v"
 		"3. Zombie Only\v"
 		"4. Human Only\v"
 		"5. Zombie Push\v"
 		"6. Fall Risk\v"
-		"8. Specific Gravity (1 = 800)\v"
+		"7. Specific Gravity (1 = 800)\v\v"
+		"8. Previous...\v"
+		"9. Next...\v\v"
+		"0. Exit"
+	},
+
+	// set waypoint flag menu
+	{
+		0x3ff,
+		"\\yToggle Waypoint Flags (Page 3/3)\\w\v\v"
+		"1. Crouch\v"
+		"2. Only One Bot\v"
+		"\v"
+		"\v"
+		"\v"
+		"\v"
 		"\v\v"
-		"9. Previous...\v\v"
+		"8. Previous...\v"
+		"9. Next...\v\v"
 		"0. Exit"
 	}
 };

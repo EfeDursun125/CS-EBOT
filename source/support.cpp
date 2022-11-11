@@ -685,7 +685,7 @@ void RoundInit(void)
 	g_roundEnded = false;
 	g_audioTime = 0.0f;
 
-	if (GetGameMod() == MODE_BASE)
+	if (GetGameMode() == MODE_BASE)
 	{
 		// check team economics
 		g_botManager->CheckTeamEconomics(TEAM_TERRORIST);
@@ -778,7 +778,7 @@ void AutoLoadGameMode(void)
 				if (bteGameModAi[i] == 2 && i != 5)
 					g_DelayTimer = engine->GetTime() + 20.0f + CVAR_GET_FLOAT("mp_freezetime");
 
-				if (checkShowTextTime < 3 || GetGameMod() != bteGameModAi[i])
+				if (checkShowTextTime < 3 || GetGameMode() != bteGameModAi[i])
 					ServerPrint("*** E-BOT Auto Game Mode Setting: CS:BTE [%s] [%d] ***", bteGameINI[i], bteGameModAi[i]);
 
 				if (i == 3 || i == 9)
@@ -828,7 +828,7 @@ void AutoLoadGameMode(void)
 
 			if (delayTime > 0)
 			{
-				if (checkShowTextTime < 3 || GetGameMod() != MODE_ZP)
+				if (checkShowTextTime < 3 || GetGameMode() != MODE_ZP)
 					ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Mode (Plague/Escape) ***");
 
 				SetGameMod(MODE_ZP);
@@ -836,6 +836,14 @@ void AutoLoadGameMode(void)
 				goto lastly;
 			}
 		}
+	}
+
+	// zombie escape
+	if (g_mapType & MAP_ZE)
+	{
+		extern ConVar ebot_escape;
+		ebot_escape.SetInt(1);
+		ServerPrint("*** E-BOT Detected Zombie Escape Map: ebot_zombie_escape_mode is set to 1 ***");
 	}
 
 	// Base Builder
@@ -854,7 +862,7 @@ void AutoLoadGameMode(void)
 
 			if (delayTime > 0)
 			{
-				if (checkShowTextTime < 3 || GetGameMod() != MODE_ZP)
+				if (checkShowTextTime < 3 || GetGameMode() != MODE_ZP)
 					ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Mode (Base Builder) ***");
 
 				SetGameMod(MODE_ZP);
@@ -872,14 +880,14 @@ void AutoLoadGameMode(void)
 	{
 		if (CVAR_GET_FLOAT("DMKD_DMMODE") == 1)
 		{
-			if (checkShowTextTime < 3 || GetGameMod() != MODE_DM)
+			if (checkShowTextTime < 3 || GetGameMode() != MODE_DM)
 				ServerPrint("*** E-BOT Auto Game Mode Setting: DM:KD-DM ***");
 
 			SetGameMod(MODE_DM);
 		}
 		else
 		{
-			if (checkShowTextTime < 3 || GetGameMod() != MODE_TDM)
+			if (checkShowTextTime < 3 || GetGameMode() != MODE_TDM)
 				ServerPrint("*** E-BOT Auto Game Mode Setting: DM:KD-TDM ***");
 
 			SetGameMod(MODE_TDM);
@@ -892,7 +900,7 @@ void AutoLoadGameMode(void)
 	Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/zombiehell.cfg", GetModName());
 	if (TryFileOpen(Plugin_INI) && CVAR_GET_FLOAT("zh_zombie_maxslots") > 0)
 	{
-		if (checkShowTextTime < 3 || GetGameMod() != MODE_ZH)
+		if (checkShowTextTime < 3 || GetGameMode() != MODE_ZH)
 			ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Hell ***");
 
 		SetGameMod(MODE_ZH);
@@ -920,7 +928,7 @@ void AutoLoadGameMode(void)
 
 			if (delayTime > 0)
 			{
-				if (checkShowTextTime < 3 || GetGameMod() != MODE_ZP)
+				if (checkShowTextTime < 3 || GetGameMode() != MODE_ZP)
 					ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Mode (Biohazard) ***");
 
 				SetGameMod(MODE_ZP);
@@ -952,7 +960,7 @@ void AutoLoadGameMode(void)
 		{
 			if (freeForAll->value > 0.0f)
 			{
-				if (checkShowTextTime < 3 || GetGameMod() != MODE_DM)
+				if (checkShowTextTime < 3 || GetGameMode() != MODE_DM)
 					ServerPrint("*** E-BOT Auto Game Mode Setting: CSDM-DM ***");
 
 				SetGameMod(MODE_DM);
@@ -962,14 +970,14 @@ void AutoLoadGameMode(void)
 
 	if (checkShowTextTime < 3)
 	{
-		if (GetGameMod() == MODE_BASE)
+		if (GetGameMode() == MODE_BASE)
 			ServerPrint("*** E-BOT Auto Game Mode Setting: Base Mode ***");
 		else
 			ServerPrint("*** E-BOT Auto Game Mode Setting: N/A ***");
 	}
 
 lastly:
-	if (GetGameMod() != MODE_BASE)
+	if (GetGameMode() != MODE_BASE)
 		g_mapType |= MAP_DE;
 	else
 		g_exp.UpdateGlobalKnowledge(); // update experience data on round start
@@ -1023,22 +1031,14 @@ bool IsValidWaypoint(int index)
 	return true;
 }
 
-int GetGameMod(void)
+int GetGameMode(void)
 {
 	return ebot_gamemod.GetInt();
 }
 
-float DotProduct(Vector a, Vector b)
-{
-	int product = 0;
-	for (int i = 0; i < 3; i++)
-		product = product + a[i] * b[i];
-	return product;
-}
-
 float Q_rsqrt(float number)
 {
-#ifndef __SSE2__
+#ifdef __SSE2__
 	return _mm_cvtss_f32(_mm_sqrt_ss(_mm_load_ss(&number)));
 #else
 	long i;
@@ -1056,10 +1056,113 @@ float Q_rsqrt(float number)
 
 float Clamp(float a, float b, float c)
 {
-#ifndef __SSE2__
+#ifdef __SSE2__
 	return _mm_cvtss_f32(_mm_min_ss(_mm_max_ss(_mm_load_ss(&a), _mm_load_ss(&b)), _mm_load_ss(&c)));
 #else
 	return engine->DoClamp(a, b, c);
+#endif
+}
+
+float SquaredF(float a)
+{
+	return MultiplyFloat(a, a);
+}
+
+float MultiplyFloat(float a, float b)
+{
+#ifdef __SSE2__
+	return _mm_cvtss_f32(_mm_mul_ss(_mm_load_ss(&a), _mm_load_ss(&b)));
+#else
+	return a * b;
+#endif
+}
+
+float AddTime(float a)
+{
+#ifdef __SSE2__
+	return _mm_cvtss_f32(_mm_add_ss(_mm_load_ss(&g_pGlobals->time), _mm_load_ss(&a)));
+#else
+	return g_pGlobals->time + a;
+#endif
+}
+
+Vector AddVector(Vector a, Vector b)
+{
+#ifdef __SSE2__
+	Vector newVec;
+	newVec.x = _mm_cvtss_f32(_mm_add_ss(_mm_load_ss(&a.x), _mm_load_ss(&b.x)));
+	newVec.y = _mm_cvtss_f32(_mm_add_ss(_mm_load_ss(&a.y), _mm_load_ss(&b.y)));
+	newVec.z = _mm_cvtss_f32(_mm_add_ss(_mm_load_ss(&a.z), _mm_load_ss(&b.z)));
+	return newVec;
+#else
+	return a + b;
+#endif
+}
+
+Vector MultiplyVector(Vector a, Vector b)
+{
+#ifdef __SSE2__
+	Vector newVec;
+	newVec.x = _mm_cvtss_f32(_mm_mul_ss(_mm_load_ss(&a.x), _mm_load_ss(&b.x)));
+	newVec.y = _mm_cvtss_f32(_mm_mul_ss(_mm_load_ss(&a.y), _mm_load_ss(&b.y)));
+	newVec.z = _mm_cvtss_f32(_mm_mul_ss(_mm_load_ss(&a.z), _mm_load_ss(&b.z)));
+	return newVec;
+#else
+	return a * b;
+#endif
+}
+
+int AddInt(int a, int b)
+{
+#ifdef __SSE2__
+	return _mm_cvtsi128_si32(_mm_add_epi32(_mm_loadu_si32(&a), _mm_loadu_si32(&b)));
+#else
+	return a + b;
+#endif
+}
+
+float AddFloat(float a, float b)
+{
+#ifdef __SSE2__
+	return _mm_cvtss_f32(_mm_add_ss(_mm_load_ss(&a), _mm_load_ss(&b)));
+#else
+	return a + b;
+#endif
+}
+
+float DivideFloat(float a, float b)
+{
+#ifdef __SSE2__
+	return _mm_cvtss_f32(_mm_div_ss(_mm_load_ss(&a), _mm_load_ss(&b)));
+#else
+	return a / b;
+#endif
+}
+
+float MaxFloat(float a, float b)
+{
+#ifdef __SSE2__
+		return _mm_cvtss_f32(_mm_max_ss(_mm_load_ss(&a), _mm_load_ss(&b)));
+#else
+	if (a > b)
+		return a;
+	else if (b > a)
+		return b;
+
+	return b;
+#endif
+}
+
+float MinFloat(float a, float b)
+{
+#ifdef __SSE2__
+		return _mm_cvtss_f32(_mm_min_ss(_mm_load_ss(&a), _mm_load_ss(&b)));
+#else
+	if (a < b)
+		return a;
+	else if (b < a)
+		return b;
+	return b;
 #endif
 }
 
@@ -1103,9 +1206,9 @@ int GetTeam(edict_t* ent)
 		return player_team;
 	}
 
-	if (GetGameMod() == MODE_DM)
+	if (GetGameMode() == MODE_DM)
 		player_team = client * client;
-	else if (GetGameMod() == MODE_ZP)
+	else if (GetGameMode() == MODE_ZP)
 	{
 		if (g_DelayTimer > engine->GetTime())
 			player_team = TEAM_COUNTER;
@@ -1114,7 +1217,7 @@ int GetTeam(edict_t* ent)
 		else
 			player_team = *((int*)ent->pvPrivateData + OFFSET_TEAM) - 1;
 	}
-	else if (GetGameMod() == MODE_NOTEAM)
+	else if (GetGameMode() == MODE_NOTEAM)
 		player_team = 2;
 	else
 		player_team = *((int*)ent->pvPrivateData + OFFSET_TEAM) - 1;
@@ -1838,84 +1941,6 @@ void SoundAttachToThreat(edict_t* ent, const char* sample, float volume)
 		g_clients[index].hearingDistance = 1024.0f * volume;
 		g_clients[index].timeSoundLasting = engine->GetTime() + 3.0f;
 		g_clients[index].soundPosition = origin;
-	}
-}
-
-// this function tries to simulate playing of sounds to let the bots hear sounds which aren't
-// captured through server sound hooking
-void SoundSimulateUpdate(int playerIndex)
-{
-	InternalAssert(playerIndex >= 0);
-	InternalAssert(playerIndex < engine->GetMaxClients());
-
-	if (playerIndex < 0 || playerIndex >= engine->GetMaxClients())
-		return; // reliability check
-
-	edict_t* player = g_clients[playerIndex].ent;
-
-	float velocity = player->v.velocity.GetLength2D();
-	float hearDistance = 0.0f;
-	float timeSound = 0.0f;
-	float timeMaxSound = 0.5f;
-
-	if (player->v.oldbuttons & IN_ATTACK) // pressed attack button?
-	{
-		hearDistance = 3072.0f;
-		timeSound = engine->GetTime() + 0.3f;
-		timeMaxSound = 0.3f;
-	}
-	else if (player->v.oldbuttons & IN_USE) // pressed used button?
-	{
-		hearDistance = 512.0f;
-		timeSound = engine->GetTime() + 0.5f;
-		timeMaxSound = 0.5f;
-	}
-	else if (player->v.oldbuttons & IN_RELOAD) // pressed reload button?
-	{
-		hearDistance = 512.0f;
-		timeSound = engine->GetTime() + 0.5f;
-		timeMaxSound = 0.5f;
-	}
-	else if (player->v.movetype == MOVETYPE_FLY) // uses ladder?
-	{
-		if (fabs(player->v.velocity.z) > 50.0f)
-		{
-			hearDistance = 1024.0f;
-			timeSound = engine->GetTime() + 0.3f;
-			timeMaxSound = 0.3f;
-		}
-	}
-	else
-	{
-		if (engine->IsFootstepsOn())
-		{
-			// moves fast enough?
-			hearDistance = 1280.0f * (velocity / 240);
-			timeSound = engine->GetTime() + 0.3f;
-			timeMaxSound = 0.3f;
-		}
-	}
-
-	if (hearDistance <= 0.0f)
-		return; // didn't issue sound?
-
-	 // some sound already associated
-	if (g_clients[playerIndex].timeSoundLasting > engine->GetTime())
-	{
-		if (g_clients[playerIndex].hearingDistance <= hearDistance)
-		{
-			// override it with new
-			g_clients[playerIndex].hearingDistance = hearDistance;
-			g_clients[playerIndex].timeSoundLasting = timeSound;
-			g_clients[playerIndex].soundPosition = GetEntityOrigin(player);
-		}
-	}
-	else
-	{
-		// just remember it
-		g_clients[playerIndex].hearingDistance = hearDistance;
-		g_clients[playerIndex].timeSoundLasting = timeSound;
-		g_clients[playerIndex].soundPosition = GetEntityOrigin(player);
 	}
 }
 

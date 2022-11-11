@@ -29,68 +29,20 @@ ConVar::ConVar(const char* name, const char* initval, VarType type)
     engine->RegisterVariable(name, initval, type, this);
 }
 
-// from jk_botti
-#if !defined(__GNUC__) || __GNUC__ < 3
-#define likely(x) (x)
-#define unlikely(x) (x)
-#else
-#define likely(x) __builtin_expect((long int)!!(x), true)
-#define unlikely(x) __builtin_expect((long int)!!(x), false)
-#endif
-
-static unsigned int rnd_idnum[2] = {1, 1};
-
-/* generates a random 32bit integer */
-static unsigned int fast_generate_random(void)
-{
-    rnd_idnum[0] ^= rnd_idnum[1] << 5;
-
-    rnd_idnum[0] *= 1664525L;
-    rnd_idnum[0] += 1013904223L;
-
-    rnd_idnum[1] *= 1664525L;
-    rnd_idnum[1] += 1013904223L;
-
-    rnd_idnum[1] ^= rnd_idnum[0] << 3;
-
-    return rnd_idnum[0];
-}
-
-void fast_random_seed(unsigned int seed)
-{
-    rnd_idnum[0] = seed;
-    rnd_idnum[1] = ~(seed + 6);
-    rnd_idnum[1] = fast_generate_random();
-}
-
 float Engine::RandomFloat(float low, float high)
 {
-    const double c_divider = (((unsigned long long)1) << 32) - 1;
-    double rnd;
+    if (low >= high)
+        return low;
 
-    if (unlikely(low >= high))
-        return(low);
-
-    rnd = fast_generate_random();
-    rnd *= (double)high - (double)low;
-    rnd /= c_divider;
-
-    return (float)(rnd + (double)low);
+    return RANDOM_FLOAT(low, high);
 }
 
 int Engine::RandomInt(int low, int high)
 {
-    const double c_divider = ((unsigned long long)1) << 32;
-    double rnd;
+    if (low >= high)
+        return low;
 
-    if (unlikely(low >= high))
-        return(low);
-
-    rnd = fast_generate_random();
-    rnd *= (double)high - (double)low + 1.0;
-    rnd /= c_divider;
-
-    return (int)(rnd + (double)low);
+    return RANDOM_LONG(low, high);
 }
 
 float Engine::ApproachAngle(float target, float value, float speed)
@@ -117,24 +69,6 @@ float Engine::AngleDiff(float destAngle, float srcAngle)
 float Engine::DoClamp(float a, float b, float c)
 {
     return (a > c ? c : (a < b ? b : a));
-}
-
-int Engine::MinInt(int one, int two)
-{
-    if (one < two)
-        return one;
-    else if (two < one)
-        return two;
-    return two;
-}
-
-float Engine::Max(float one, float two)
-{
-    if (one > two)
-        return one;
-    else if (two > one)
-        return two;
-    return two;
 }
 
 void Engine::RegisterVariable(const char* variable, const char* value, VarType varType, ConVar* self)

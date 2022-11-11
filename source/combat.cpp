@@ -26,11 +26,12 @@
 
 ConVar ebot_escape("ebot_zombie_escape_mode", "0");
 ConVar ebot_zp_use_grenade_percent("ebot_zm_use_grenade_percent", "10");
-ConVar ebot_zp_escape_distance("ebot_zm_escape_distance", "300");
+ConVar ebot_zp_escape_distance("ebot_zm_escape_distance", "200");
+ConVar ebot_zombie_speed_factor("ebot_zombie_speed_factor", "1.0");
 
 int Bot::GetNearbyFriendsNearPosition(Vector origin, int radius)
 {
-	if (GetGameMod() == MODE_DM)
+	if (GetGameMode() == MODE_DM)
 		return 0;
 
 	int count = 0;
@@ -75,9 +76,9 @@ void Bot::ResetCheckEnemy()
 		m_checkEnemyDistance[i] = 9999.9f;
 	}
 
-	for (i = 0; i < engine->GetMaxClients(); i++)
+	for (i = 1; i <= engine->GetMaxClients(); i++)
 	{
-		entity = INDEXENT(i + 1);
+		entity = INDEXENT(i);
 		if (!IsAlive(entity) || GetTeam(entity) == m_team || GetEntity() == entity)
 			continue;
 
@@ -213,7 +214,7 @@ bool Bot::LookupEnemy(void)
 			SetLastEnemy(nullptr);
 			m_enemyUpdateTime = 0.0f;
 
-			if (GetGameMod() == MODE_DM)
+			if (GetGameMode() == MODE_DM)
 				m_fearLevel += 0.15f;
 		}
 
@@ -424,7 +425,7 @@ bool Bot::LookupEnemy(void)
 			return true;
 		}
 
-		if (m_seeEnemyTime + 3.0f < engine->GetTime() && (pev->weapons & (1 << WEAPON_C4) || HasHostage() || !FNullEnt(m_targetEntity)))
+		if (m_seeEnemyTime + 3.0f < engine->GetTime() && (m_isBomber || HasHostage() || !FNullEnt(m_targetEntity)))
 			RadioMessage(Radio_EnemySpotted);
 
 		m_targetEntity = nullptr;
@@ -528,7 +529,7 @@ Vector Bot::GetAimPosition(void)
 // bot can't hurt teammates, if friendly fire is not enabled...
 bool Bot::IsFriendInLineOfFire(float distance)
 {
-	if (!engine->IsFriendlyFireOn() || GetGameMod() == MODE_DM)
+	if (!engine->IsFriendlyFireOn() || GetGameMode() == MODE_DM)
 		return false;
 
 	MakeVectors(pev->v_angle);
@@ -557,9 +558,9 @@ bool Bot::IsFriendInLineOfFire(float distance)
 	}
 
 	edict_t* entity = nullptr;
-	for (i = 0; i < engine->GetMaxClients(); i++)
+	for (i = 1; i <= engine->GetMaxClients(); i++)
 	{
-		entity = INDEXENT(i + 1);
+		entity = INDEXENT(i);
 
 		if (FNullEnt(entity) || !IsAlive(entity) || GetTeam(entity) != m_team || GetEntity() == entity)
 			continue;
@@ -581,7 +582,7 @@ bool Bot::IsFriendInLineOfFire(float distance)
 
 int CorrectGun(int weaponID)
 {
-	if (GetGameMod() != MODE_BASE)
+	if (GetGameMode() != MODE_BASE)
 		return 0;
 
 	if (weaponID == WEAPON_AUG || weaponID == WEAPON_M4A1 || weaponID == WEAPON_SG552 || weaponID == WEAPON_AK47 || weaponID == WEAPON_FAMAS || weaponID == WEAPON_GALIL)
@@ -679,7 +680,7 @@ bool Bot::DoFirePause(float distance)//, FireDelay *fireDelay)
 		m_moveSpeed = 0.0f;
 		m_strafeSpeed = 0.0f;
 
-		if (pev->speed >= pev->maxspeed && GetGameMod() != MODE_ZP)
+		if (pev->speed >= pev->maxspeed && GetGameMode() != MODE_ZP)
 		{
 			m_firePause = engine->GetTime() + 0.1f;
 			return true;
@@ -776,7 +777,7 @@ WeaponSelectEnd:
 		m_reloadCheckTime = engine->GetTime() + 5.0f;
 	}
 	
-	if (m_currentWeapon == WEAPON_KNIFE && selectId != WEAPON_KNIFE && GetGameMod() == MODE_ZP && !m_isZombieBot)
+	if (m_currentWeapon == WEAPON_KNIFE && selectId != WEAPON_KNIFE && GetGameMode() == MODE_ZP && !m_isZombieBot)
 	{
 		m_reloadState = RSTATE_PRIMARY;
 		m_reloadCheckTime = engine->GetTime() + 2.5f;
@@ -1044,7 +1045,7 @@ bool Bot::IsWeaponBadInDistance(int weaponIndex, float distance)
 	if ((weaponID == WEAPON_M3 || weaponID == WEAPON_XM1014) && distance > 750.0f)
 		return true;
 
-	if (GetGameMod() == MODE_BASE)
+	if (GetGameMode() == MODE_BASE)
 	{
 		if ((weaponID == WEAPON_SCOUT || weaponID == WEAPON_AWP || weaponID == WEAPON_G3SG1 || weaponID == WEAPON_SG550) && distance < 300.0f)
 			return true;
@@ -1138,7 +1139,7 @@ void Bot::CombatFight(void)
 		DeleteSearchNodes();
 		m_moveSpeed = pev->maxspeed;
 
-		if (m_isSlowThink && !IsOnLadder() && pev->speed >= pev->maxspeed)
+		if (!(pev->flags & FL_DUCKING) && m_isSlowThink && engine->RandomInt(1, 2) == 1 && !IsOnLadder() && pev->speed >= pev->maxspeed)
 		{
 			if (engine->RandomInt(1, 2) == 1)
 				pev->button |= IN_JUMP;
@@ -1147,7 +1148,7 @@ void Bot::CombatFight(void)
 		}
 
 		pev->button |= IN_ATTACK;
-		m_destOrigin = m_enemyOrigin;
+		m_destOrigin = m_enemyOrigin + m_enemy->v.velocity;
 		if (!(pev->flags & FL_DUCKING))
 			m_waypointOrigin = m_destOrigin;
 	}
@@ -1160,7 +1161,7 @@ void Bot::CombatFight(void)
 
 		const bool NPCEnemy = !IsValidPlayer(m_enemy);
 		const bool enemyIsZombie = IsZombieEntity(m_enemy);
-		float baseDistance = fabsf(m_enemy->v.speed) + ebot_zp_escape_distance.GetFloat();
+		float baseDistance = ebot_zp_escape_distance.GetFloat();
 
 		if (NPCEnemy || enemyIsZombie)
 		{
@@ -1170,7 +1171,9 @@ void Bot::CombatFight(void)
 					baseDistance = -1.0f;
 			}
 
-			const float distance = (pev->origin - m_enemyOrigin).GetLength();
+			const Vector speedFactor = m_enemyOrigin + m_enemy->v.velocity * ebot_zombie_speed_factor.GetFloat();
+
+			const float distance = (pev->origin - speedFactor).GetLength();
 			if (m_isSlowThink && distance <= 768.0f && m_enemy->v.health > 100 && ChanceOf(ebot_zp_use_grenade_percent.GetInt()))
 			{
 				if (m_skill >= 50)
@@ -1198,7 +1201,7 @@ void Bot::CombatFight(void)
 				if (distance <= baseDistance)
 				{
 					DeleteSearchNodes();
-					tempDestOrigin = m_enemyOrigin;
+					tempDestOrigin = speedFactor;
 					tempMoveSpeed = -pev->maxspeed;
 					m_checkFall = true;
 				}
@@ -1490,6 +1493,20 @@ bool Bot::UsesSniper(void)
 	return m_currentWeapon == WEAPON_AWP || m_currentWeapon == WEAPON_G3SG1 || m_currentWeapon == WEAPON_SCOUT || m_currentWeapon == WEAPON_SG550;
 }
 
+bool Bot::IsSniper(void)
+{
+	if (pev->weapons & (1 << WEAPON_AWP))
+		return true;
+	else if (pev->weapons & (1 << WEAPON_G3SG1))
+		return true;
+	else if (pev->weapons & (1 << WEAPON_SCOUT))
+		return true;
+	else if (pev->weapons & (1 << WEAPON_SG550))
+		return true;
+
+	return false;
+}
+
 bool Bot::UsesRifle(void)
 {
 	WeaponSelect* selectTab = &g_weaponSelect[0];
@@ -1575,21 +1592,9 @@ void Bot::SelectBestWeapon(void)
 	if (!m_isSlowThink)
 		return;
 
-	if (!IsZombieMode() && m_numEnemiesLeft == 0)
-	{
-		SelectWeaponByName("weapon_knife");
-		return;
-	}
-
 	// never change weapon while reloading if theres no enemy
 	if (FNullEnt(m_enemy) && m_isReloading)
 		return;
-
-	if (!IsZombieMode() && !FNullEnt(m_enemy) && (pev->origin - GetEntityOrigin(m_enemy)).GetLength() <= 128.0f)
-	{
-		SelectWeaponByName("weapon_knife");
-		return;
-	}
 
 	if (GetCurrentTask()->taskID == TASK_THROWHEGRENADE)
 		return;
@@ -1599,6 +1604,21 @@ void Bot::SelectBestWeapon(void)
 
 	if (GetCurrentTask()->taskID == TASK_THROWSMGRENADE)
 		return;
+
+	if (!IsZombieMode())
+	{
+		if (m_numEnemiesLeft == 0)
+		{
+			SelectWeaponByName("weapon_knife");
+			return;
+		}
+
+		if (!FNullEnt(m_enemy) && GetCurrentTask()->taskID == TASK_FIGHTENEMY && (pev->origin - GetEntityOrigin(m_enemy)).GetLength() <= 128.0f)
+		{
+			SelectWeaponByName("weapon_knife");
+			return;
+		}
+	}
 
 	WeaponSelect* selectTab = &g_weaponSelect[0];
 
@@ -1692,7 +1712,7 @@ void Bot::SelectWeaponbyNumber(int num)
 
 void Bot::CommandTeam(void)
 {
-	if (GetGameMod() != MODE_BASE && GetGameMod() != MODE_TDM)
+	if (GetGameMode() != MODE_BASE && GetGameMode() != MODE_TDM)
 		return;
 
 	// prevent spamming

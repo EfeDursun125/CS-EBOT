@@ -340,7 +340,7 @@ void NetworkMsg::Execute(void* p)
             {
                 g_roundEnded = true;
 
-                if (GetGameMod() == MODE_BASE)
+                if (GetGameMode() == MODE_BASE)
                 {
                     if (FStrEq(PTR_TO_STR(p), "#CTs_Win"))
                         g_botManager->SetLastWinner(TEAM_COUNTER); // update last winner for economics
@@ -379,7 +379,7 @@ void NetworkMsg::Execute(void* p)
     case NETMSG_BARTIME:
         if (m_state == 0)
         {
-            if (GetGameMod() == MODE_BASE)
+            if (GetGameMode() == MODE_BASE)
             {
                 if (PTR_TO_INT(p) > 0)
                     m_bot->m_hasProgressBar = true; // the progress bar on a hud

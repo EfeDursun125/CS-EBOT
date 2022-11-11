@@ -212,7 +212,7 @@ void Bot::PrepareChatMessage(char* text)
 
                 if (!FNullEnt(entity))
                 {
-                    if (!FNullEnt(pev->dmg_inflictor) && (GetTeam(GetEntity()) == GetTeam(pev->dmg_inflictor)))
+                    if (!FNullEnt(pev->dmg_inflictor) && m_team == GetTeam(pev->dmg_inflictor))
                         talkEntity = pev->dmg_inflictor;
                     else
                         talkEntity = entity;
@@ -397,7 +397,7 @@ bool Bot::RepliesToPlayer(void)
         // check is time to chat is good
         if (m_sayTextBuffer.timeNextChat < engine->GetTime())
         {
-            if (engine->RandomInt(1, 100) < m_sayTextBuffer.chatProbability + engine->RandomInt(2, 10) && ParseChat(text))
+            if (engine->RandomInt(1, 100) <= m_sayTextBuffer.chatProbability + engine->RandomInt(20, 60) && ParseChat(text))
             {
                 PrepareChatMessage(text);
                 PushMessageQueue(CMENU_SAY);

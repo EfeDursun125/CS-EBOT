@@ -247,6 +247,7 @@ Bot* BotControl::GetBot(int index)
 
 	return nullptr; // no bot
 }
+
 // same as above, but using bot entity
 Bot* BotControl::GetBot(edict_t* ent)
 {
@@ -297,12 +298,27 @@ void BotControl::DoJoinQuitStuff(void)
 	if (min > max)
 		max = min * 1.5f;
 
-	m_randomJoinTime = engine->GetTime() + RANDOM_FLOAT(min, max);
+	m_randomJoinTime = AddTime(RANDOM_FLOAT(min, max));
+}
+
+void ThreadedThink(int i)
+{
+	g_botManager->GetBot(i)->Think();
+}
+
+void ThreadedFacePosition(int i)
+{
+	g_botManager->GetBot(i)->FacePosition();
+}
+
+void ThreadedJoinQuit(void)
+{
+	g_botManager->DoJoinQuitStuff();
 }
 
 void BotControl::Think(void)
 {
-	DoJoinQuitStuff();
+	async(launch::async, ThreadedJoinQuit);
 
 	extern ConVar ebot_stopbots;
 	for (int i = 0; i < engine->GetMaxClients(); i++)
@@ -320,11 +336,11 @@ void BotControl::Think(void)
 
 		if (runThink)
 		{
-			m_bots[i]->m_thinkTimer = engine->GetTime() + (engine->RandomFloat(0.95f, 1.05f) / 20.0f);
-			m_bots[i]->Think();
+			m_bots[i]->m_thinkTimer = AddTime(engine->RandomFloat(0.9f, 1.1f) / 20.0f);
+			async(launch::async, ThreadedThink, i);
 		}
 		else if (!ebot_stopbots.GetBool() && m_bots[i]->m_notKilled)
-			m_bots[i]->FacePosition();
+			async(launch::async, ThreadedFacePosition, i);
 
 		m_bots[i]->m_moveAnglesForRunMove = m_bots[i]->m_moveAngles;
 		m_bots[i]->m_moveSpeedForRunMove = m_bots[i]->m_moveSpeed;
@@ -482,7 +498,7 @@ int BotControl::AddBotAPI(const String& name, int skill, int team)
 		ebot_quota.SetInt(GetBotsNum());
 	}
 
-	m_maintainTime = engine->GetTime() + 0.2f;
+	m_maintainTime = AddTime(0.2f);
 
 	return resultOfCall;
 }
@@ -511,7 +527,7 @@ void BotControl::MaintainBotQuota(void)
 			ebot_quota.SetInt(GetBotsNum());
 		}
 
-		m_maintainTime = engine->GetTime() + 0.15f;
+		m_maintainTime = AddTime(0.15f);
 	}
 
 	if (ebot_random_join_quit.GetBool())
@@ -525,7 +541,7 @@ void BotControl::MaintainBotQuota(void)
 		int desiredBotCount = ebot_quota.GetInt();
 		
 		if (ebot_autovacate.GetBool())
-			desiredBotCount = engine->MinInt(desiredBotCount, maxClients - (GetHumansNum() + 1));
+			desiredBotCount = __min(desiredBotCount, maxClients - (GetHumansNum() + 1));
 		
 		if (botNumber > desiredBotCount)
 			RemoveRandom();
@@ -539,13 +555,13 @@ void BotControl::MaintainBotQuota(void)
 		else if (ebot_quota.GetInt() < 0)
 			ebot_quota.SetInt(0);
 
-		m_maintainTime = engine->GetTime() + 0.5f;
+		m_maintainTime = AddTime(0.5f);
 	}
 }
 
 void BotControl::InitQuota(void)
 {
-	m_maintainTime = engine->GetTime() + 2.0f;
+	m_maintainTime = AddTime(2.0f);
 	m_creationTab.RemoveAll();
 	for (int i = 0; i < entityNum; i++)
 		SetEntityActionData(i);
@@ -807,8 +823,7 @@ int BotControl::GetBotsNum(void)
 	int count = 0;
 	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
-		Bot* bot = g_botManager->GetBot(i);
-		if (bot != nullptr)
+		if (m_bots[i] != nullptr)
 			count++;
 	}
 
@@ -821,7 +836,7 @@ int BotControl::GetHumansNum()
 	int count = 0;
 	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
-		if (IsValidBot(g_clients[i].ent))
+		if ((g_clients[i].flags & CFLAG_USED) && m_bots[i] == nullptr)
 			count++;
 	}
 
@@ -859,7 +874,7 @@ Bot* BotControl::GetHighestSkillBot(int team)
 // buy primary weapons.
 void BotControl::CheckTeamEconomics(int team)
 {
-	if (GetGameMod() != MODE_BASE)
+	if (GetGameMode() != MODE_BASE)
 	{
 		m_economicsGood[team] = true;
 		return;
@@ -1058,10 +1073,6 @@ void Bot::NewRound(void)
 	if (ebot_random_join_quit.GetBool() && m_stayTime > 0.0f && m_stayTime < engine->GetTime())
 		Kick();
 
-	/*extern ConVar ebot_enable_lasermine;
-	if (ebot_enable_lasermine.GetBool())
-		m_lasermineCount = 0;*/
-
 	int i = 0;
 
 	// delete all allocated path nodes
@@ -1080,9 +1091,7 @@ void Bot::NewRound(void)
 	m_duckDefuse = false;
 	m_duckDefuseCheckTime = 0.0f;
 
-	m_prevWptIndex[0] = -1;
-	m_prevWptIndex[1] = -1;
-	m_prevWptIndex[2] = -1;
+	m_prevWptIndex = -1;
 
 	m_navTimeset = engine->GetTime();
 
@@ -1189,7 +1198,7 @@ void Bot::NewRound(void)
 		m_currentWeapon = 0;
 	}
 
-	m_nextBuyTime = engine->GetTime() + engine->RandomFloat(0.6f, 1.2f);
+	m_nextBuyTime = AddTime(engine->RandomFloat(0.6f, 1.2f));
 
 	m_buyPending = false;
 	m_inBombZone = false;
@@ -1209,7 +1218,7 @@ void Bot::NewRound(void)
 	m_radioOrder = 0;
 	m_defendedBomb = false;
 
-	m_timeLogoSpray = engine->GetTime() + engine->RandomFloat(0.5f, 2.0f);
+	m_timeLogoSpray = AddTime(engine->RandomFloat(0.5f, 2.0f));
 	m_spawnTime = engine->GetTime();
 	m_lastChatTime = engine->GetTime();
 	pev->button = 0;
@@ -1299,7 +1308,7 @@ void Bot::Kick(void)
 	if (g_botManager->GetBotsNum() - 1 < ebot_quota.GetInt())
 		ebot_quota.SetInt(g_botManager->GetBotsNum() - 1);
 
-	// crash..
+	// crash...
 	/*if (!g_botManager->m_savedBotNames.IsEmpty())
 		g_botManager->m_savedBotNames.PopNoReturn();*/
 }
@@ -1339,7 +1348,7 @@ void Bot::StartGame(void)
 		m_notStarted = false;
 
 		// check for greeting other players, since we connected
-		if (engine->RandomInt(0, 100) < 20)
+		if (engine->RandomInt(1, 3) == 1)
 			ChatMessage(CHAT_HELLO);
 	}
 }

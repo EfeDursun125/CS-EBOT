@@ -49,10 +49,6 @@ ConVar ebot_eco_rounds("ebot_eco_rounds", "1");
 
 ConVar ebot_chatter_path("ebot_chatter_path", "radio/bot");
 
-/*ConVar ebot_enable_lasermine("ebot_enable_lasermine", "0");
-ConVar ebot_lasermine_max("ebot_lasermine_max", "2");
-ConVar ebot_lasermine_classname("ebot_lasermine_classname", "zp_lasermine");*/
-
 // this function get the current message from the bots message queue
 int Bot::GetMessageQueue(void)
 {
@@ -99,7 +95,7 @@ float Bot::InFieldOfView(Vector destination)
 
 	if (absoluteAngle > 180.0f)
 		absoluteAngle = 360.0f - absoluteAngle;
-
+	
 	return absoluteAngle;
 }
 
@@ -115,7 +111,7 @@ bool Bot::CheckVisibility(entvars_t* targetEntity, Vector* origin, uint8_t* body
 
 	Vector botHead = EyePosition();
 	if (pev->flags & FL_DUCKING)
-		botHead = botHead + (VEC_HULL_MIN - VEC_DUCK_HULL_MIN);
+		botHead = AddVector(botHead, (VEC_HULL_MIN - VEC_DUCK_HULL_MIN));
 
 	bool ignoreGlass = true;
 
@@ -161,7 +157,7 @@ bool Bot::IsEnemyViewable(edict_t* entity, bool setEnemy, bool checkOnly)
 	{
 		if (!IsInViewCone(GetEntityOrigin(entity)))
 		{
-			if ((!m_isZombieBot && GetGameMod() == MODE_ZP && ebot_zm_dark_mode.GetInt() == 1))
+			if ((!m_isZombieBot && GetGameMode() == MODE_ZP && ebot_zm_dark_mode.GetInt() == 1))
 				return false;
 
 			if (m_backCheckEnemyTime == 0.0f)
@@ -175,19 +171,19 @@ bool Bot::IsEnemyViewable(edict_t* entity, bool setEnemy, bool checkOnly)
 						return false;
 
 					if (m_damageTime < engine->GetTime())
-						m_backCheckEnemyTime = engine->GetTime() + engine->RandomFloat(0.5f, 1.5f);
+						m_backCheckEnemyTime = AddTime(engine->RandomFloat(0.5f, 1.5f));
 				}
-				else if (GetGameMod() == MODE_ZP)
-					m_backCheckEnemyTime = engine->GetTime() + engine->RandomFloat(0.15f, 0.5f);
+				else if (GetGameMode() == MODE_ZP)
+					m_backCheckEnemyTime = AddTime(engine->RandomFloat(0.15f, 0.5f));
 				else
 				{
 					float addTime = engine->RandomFloat(0.2f, 0.8f);
 					if (m_skill == 100 && !FNullEnt(m_enemy))
 						addTime = 0.2f;
 					else
-						addTime += 0.4f;
+						addTime = AddFloat(addTime, 0.4f);
 
-					m_backCheckEnemyTime = engine->GetTime() + addTime;
+					m_backCheckEnemyTime = AddTime(addTime);
 				}
 
 				if (m_backCheckEnemyTime != 0.0f && m_backCheckEnemyTime >= engine->GetTime())
@@ -291,7 +287,7 @@ void Bot::ZombieModeAi(void)
 				continue;
 
 			extern ConVar ebot_escape;
-			if (GetGameMod() == MODE_ZH || ebot_escape.GetBool())
+			if (GetGameMode() == MODE_ZH || ebot_escape.GetBool())
 				entity = client.ent;
 			else
 			{
@@ -338,6 +334,9 @@ void Bot::ZombieModeAi(void)
 void Bot::ZmCampPointAction(int mode)
 {
 	if (!IsZombieMode())
+		return;
+
+	if (m_isZombieBot)
 		return;
 
 	if (g_waypoint->m_zmHmPoints.IsEmpty())
@@ -413,7 +412,7 @@ void Bot::ZmCampPointAction(int mode)
 		SelectBestWeapon();
 		MakeVectors(pev->v_angle);
 
-		m_timeCamping = engine->GetTime() + 9999.0f;
+		m_timeCamping = AddTime(9999.0f);
 		PushTask(TASK_CAMP, TASKPRI_CAMP, -1, m_timeCamping, true);
 
 		m_camp.x = g_waypoint->GetPath(m_zhCampPointIndex)->campStartX;
@@ -432,19 +431,6 @@ void Bot::ZmCampPointAction(int mode)
 		m_checkCampPointTime = 0.0f;
 	}
 }
-
-/*int Bot::GetLasermineCount(void)
-{
-	int count = 0;
-	edict_t* lasermine = nullptr;
-	while (!FNullEnt(lasermine = FIND_ENTITY_BY_CLASSNAME(lasermine, ebot_lasermine_classname.GetString())))
-	{
-		if (lasermine->v.owner == GetEntity())
-			count++;
-	}
-
-	return count;
-}*/
 
 void Bot::AvoidEntity(void)
 {
@@ -733,6 +719,29 @@ edict_t* Bot::FindBreakable(void)
 	return m_breakableEntity;
 }
 
+// this function checks buttons for use button waypoint
+edict_t* Bot::FindButton(void)
+{
+	float nearestDistance = FLT_MAX;
+	edict_t* searchEntity = nullptr, * foundEntity = nullptr;
+
+	// find the nearest button which can open our target
+	while (!FNullEnt(searchEntity = FIND_ENTITY_BY_CLASSNAME(searchEntity, "func_button")))
+	{
+		Vector entityOrign = GetEntityOrigin(searchEntity);
+
+		float distance = (pev->origin - entityOrign).GetLengthSquared();
+
+		if (distance <= nearestDistance)
+		{
+			nearestDistance = distance;
+			foundEntity = searchEntity;
+		}
+	}
+
+	return foundEntity;
+}
+
 void Bot::FindItem(void)
 {
 	if (IsZombieMode() && m_currentWeapon != WEAPON_KNIFE) // if we're holding knife, mostly our guns dont have a ammo
@@ -917,7 +926,7 @@ void Bot::FindItem(void)
 				m_itemIgnore = ent;
 				allowPickup = false;
 
-				if (m_skill > 80 && engine->RandomInt(0, 100) < 50 && GetCurrentTask()->taskID != TASK_GOINGFORCAMP && GetCurrentTask()->taskID != TASK_CAMP)
+				if (m_skill > 80 && ChanceOf(50) && GetCurrentTask()->taskID != TASK_GOINGFORCAMP && GetCurrentTask()->taskID != TASK_CAMP)
 				{
 					int index = FindDefendWaypoint(entityOrigin);
 
@@ -959,8 +968,8 @@ void Bot::FindItem(void)
 		{
 			if (pickupType == PICKTYPE_HOSTAGE)
 			{
-				if (FNullEnt(ent) || ent->v.health <= 0)
-					allowPickup = false; // never pickup dead hostage
+				if (FNullEnt(ent) || ent->v.health <= 0 || ent->v.speed > 1.0f)
+					allowPickup = false; // never pickup dead/moving hostages
 				else
 				{
 					for (const auto& client : g_clients)
@@ -1165,7 +1174,7 @@ void Bot::RadioMessage(int message)
 		return;
 	}
 
-	if (GetGameMod() == MODE_DM)
+	if (GetGameMode() == MODE_DM)
 		return;
 
 	// poor bots spamming this :(
@@ -1248,7 +1257,7 @@ void Bot::CheckMessageQueue(void)
 	auto state = GetMessageQueue();
 
 	// nothing to do?
-	if (state == CMENU_IDLE || (state == CMENU_RADIO && GetGameMod() == MODE_DM))
+	if (state == CMENU_IDLE || (state == CMENU_RADIO && GetGameMode() == MODE_DM))
 		return;
 
 	switch (state)
@@ -2252,7 +2261,13 @@ void Bot::CheckTasksPriorities(void)
 // this function builds task
 void Bot::PushTask(BotTask taskID, float desire, int data, float time, bool canContinue)
 {
-	Task task = { nullptr, nullptr, taskID, desire, data, time, canContinue };
+	float realTime = -1.0f;
+
+	// auto game time
+	if (time != -1.0f && time < engine->GetTime())
+		realTime = AddTime(time);
+
+	Task task = { nullptr, nullptr, taskID, desire, data, realTime, canContinue };
 	PushTask(&task); // use standard function to start task
 }
 
@@ -2545,7 +2560,7 @@ void Bot::TaskComplete(void)
 
 void Bot::CheckGrenadeThrow(void)
 {
-	if (m_isZombieBot)
+	if (IsZombieMode() && !m_isZombieBot)
 		return;
 
 	if (ebot_knifemode.GetBool() || m_grenadeCheckTime >= engine->GetTime() || m_isUsingGrenade || GetCurrentTask()->taskID == TASK_PLANTBOMB || GetCurrentTask()->taskID == TASK_DEFUSEBOMB || m_isReloading)
@@ -2554,24 +2569,24 @@ void Bot::CheckGrenadeThrow(void)
 		return;
 	}
 
-	m_grenadeCheckTime = engine->GetTime() + 1.0f;
+	m_grenadeCheckTime = AddTime(0.5f);
 
 	int grenadeToThrow = CheckGrenades();
 	if (grenadeToThrow == -1)
 	{
 		m_states &= ~(STATE_THROWEXPLODE | STATE_THROWFLASH | STATE_THROWSMOKE);
-		m_grenadeCheckTime = engine->GetTime() + 12.0f;
+		m_grenadeCheckTime = AddTime(10.0f);
 		return;
 	}
 
 	edict_t* targetEntity = nullptr;
-	if (GetGameMod() == MODE_BASE)
+	if (GetGameMode() == MODE_BASE || IsDeathmatchMode())
 		targetEntity = m_lastEnemy;
 	else if (IsZombieMode())
 	{
-		if (m_isZombieBot && !FNullEnt(m_moveTargetEntity))
+		if (!FNullEnt(m_moveTargetEntity))
 			targetEntity = m_moveTargetEntity;
-		else if (!m_isZombieBot && !FNullEnt(m_enemy))
+		else if (!FNullEnt(m_enemy))
 			targetEntity = m_enemy;
 	}
 	else
@@ -2580,20 +2595,20 @@ void Bot::CheckGrenadeThrow(void)
 	if (FNullEnt(targetEntity))
 	{
 		m_states &= ~(STATE_THROWEXPLODE | STATE_THROWFLASH | STATE_THROWSMOKE);
-		m_grenadeCheckTime = engine->GetTime() + 5.0f;
+		m_grenadeCheckTime = AddTime(1.0f);
 		return;
 	}
 
-	if ((grenadeToThrow == WEAPON_HEGRENADE || grenadeToThrow == WEAPON_SMGRENADE) && engine->RandomInt(0, 100) < 45 && !(m_states & (STATE_SEEINGENEMY | STATE_THROWEXPLODE | STATE_THROWFLASH | STATE_THROWSMOKE)))
+	if ((grenadeToThrow == WEAPON_HEGRENADE || grenadeToThrow == WEAPON_SMGRENADE) && !(m_states & (STATE_SEEINGENEMY | STATE_THROWEXPLODE | STATE_THROWFLASH | STATE_THROWSMOKE)))
 	{
 		float distance = (GetEntityOrigin(targetEntity) - pev->origin).GetLength();
 
 		// is enemy to high to throw
-		if ((GetEntityOrigin(targetEntity).z > (pev->origin.z + 650.0f)) || !(targetEntity->v.flags & (FL_ONGROUND | FL_DUCKING)))
+		if ((GetEntityOrigin(targetEntity).z > AddFloat(pev->origin.z, 650.0f)) || !(targetEntity->v.flags & (FL_ONGROUND | FL_DUCKING)))
 			distance = FLT_MAX; // just some crazy value
 
 		// enemy is within a good throwing distance ?
-		if (distance > (grenadeToThrow == WEAPON_SMGRENADE ? 400 : 600) && distance < 768.0f)
+		if (distance > (grenadeToThrow == WEAPON_SMGRENADE ? 400 : 600) && distance <= 768.0f)
 		{
 			// care about different types of grenades
 			if (grenadeToThrow == WEAPON_HEGRENADE)
@@ -2601,12 +2616,12 @@ void Bot::CheckGrenadeThrow(void)
 				bool allowThrowing = true;
 
 				// check for teammates
-				if (GetGameMod() == MODE_BASE && GetNearbyFriendsNearPosition(GetEntityOrigin(targetEntity), 256) > 0)
+				if (GetGameMode() == MODE_BASE && GetNearbyFriendsNearPosition(GetEntityOrigin(targetEntity), 256) > 0)
 					allowThrowing = false;
 
 				if (allowThrowing && m_seeEnemyTime + 2.0 < engine->GetTime())
 				{
-					Vector enemyPredict = ((targetEntity->v.velocity * 0.5).SkipZ() + GetEntityOrigin(targetEntity));
+					Vector enemyPredict = AddVector((targetEntity->v.velocity * 0.5).SkipZ(), GetEntityOrigin(targetEntity));
 					int searchTab[4], count = 4;
 
 					float searchRadius = targetEntity->v.velocity.GetLength2D();
@@ -2626,7 +2641,7 @@ void Bot::CheckGrenadeThrow(void)
 						m_throw = g_waypoint->GetPath(searchTab[count--])->origin;
 						Vector src = CheckThrow(EyePosition(), m_throw);
 
-						if (src.GetLength() < 100.0f)
+						if (src.GetLength() <= 100.0f)
 							src = CheckToss(EyePosition(), m_throw);
 
 						if (src == nullvec)
@@ -2642,7 +2657,7 @@ void Bot::CheckGrenadeThrow(void)
 				else
 					m_states &= ~STATE_THROWEXPLODE;
 			}
-			else if (GetGameMod() == MODE_BASE && grenadeToThrow == WEAPON_SMGRENADE)
+			else if (GetGameMode() == MODE_BASE && grenadeToThrow == WEAPON_SMGRENADE)
 			{
 				// start smoke grenade throwing?
 				if ((m_states & STATE_SEEINGENEMY) && GetShootingConeDeviation(m_enemy, &pev->origin) >= 0.90)
@@ -2652,12 +2667,12 @@ void Bot::CheckGrenadeThrow(void)
 			}
 		}
 	}
-	else if (grenadeToThrow == WEAPON_FBGRENADE && (GetEntityOrigin(targetEntity) - pev->origin).GetLength() < 800 && !(m_aimFlags & AIM_ENEMY) && engine->RandomInt(0, 100) < 60)
+	else if (grenadeToThrow == WEAPON_FBGRENADE && (GetEntityOrigin(targetEntity) - pev->origin).GetLength() <= 800 && !(m_aimFlags & AIM_ENEMY))
 	{
 		bool allowThrowing = true;
 		Array <int> inRadius;
 
-		g_waypoint->FindInRadius(inRadius, 256, GetEntityOrigin(targetEntity) + (targetEntity->v.velocity * 0.5).SkipZ());
+		g_waypoint->FindInRadius(inRadius, 256, AddVector(GetEntityOrigin(targetEntity), (targetEntity->v.velocity * 0.5).SkipZ()));
 
 		ITERATE_ARRAY(inRadius, i)
 		{
@@ -2667,7 +2682,7 @@ void Bot::CheckGrenadeThrow(void)
 			m_throw = g_waypoint->GetPath(i)->origin;
 			Vector src = CheckThrow(EyePosition(), m_throw);
 
-			if (src.GetLength() < 100)
+			if (src.GetLength() <= 100)
 				src = CheckToss(EyePosition(), m_throw);
 
 			if (src == nullvec)
@@ -2684,7 +2699,7 @@ void Bot::CheckGrenadeThrow(void)
 			m_states &= ~STATE_THROWFLASH;
 	}
 
-	const float randTime = engine->GetTime() + engine->RandomFloat(2.0f, 3.5f);
+	const float randTime = AddTime(engine->RandomFloat(2.0f, 4.0f));
 
 	if (m_states & STATE_THROWEXPLODE)
 		PushTask(TASK_THROWHEGRENADE, TASKPRI_THROWGRENADE, -1, randTime, false);
@@ -2727,29 +2742,27 @@ bool Bot::ReactOnEnemy(void)
 	if (IsOnLadder())
 		return m_isEnemyReachable = false;
 
-	if (FNullEnt(m_enemy))
-		return m_isEnemyReachable = false;
-
 	if (!EnemyIsThreat())
 		return m_isEnemyReachable = false;
 
-	if (m_isZombieBot && m_damageTime + 5.0f > engine->GetTime() && IsValidWaypoint(m_currentWaypointIndex) && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_ZOMBIEPUSH)
-	{
-		m_enemyReachableTimer = engine->GetTime() + engine->RandomFloat(0.75f, 1.5f);
-		return m_isEnemyReachable = false;
-	}
-
-	Vector enemyHead = GetPlayerHeadOrigin(m_enemy);
-	float enemyDistance = (pev->origin - enemyHead).GetLength();
-	int ownIndex = m_currentWaypointIndex;
-	int enemyIndex = g_waypoint->FindNearest(GetEntityOrigin(m_enemy), 9999.0f, -1, GetEntity());
-	auto currentWaypoint = g_waypoint->GetPath(m_currentWaypointIndex);
-
 	if (m_enemyReachableTimer < engine->GetTime())
 	{
+		Vector enemyHead = GetPlayerHeadOrigin(m_enemy);
+		int ownIndex = m_currentWaypointIndex;
+		int enemyIndex = g_waypoint->FindNearest(GetEntityOrigin(m_enemy), 9999.0f, -1, GetEntity());
+		auto currentWaypoint = g_waypoint->GetPath(m_currentWaypointIndex);
+
 		if (m_isZombieBot)
 		{
+			float enemyDistance = (pev->origin - enemyHead).GetLength();
+
 			m_isEnemyReachable = false;
+
+			if (!(currentWaypoint->flags & WAYPOINT_FALLRISK))
+			{
+				m_isEnemyReachable = true;
+				goto last;
+			}
 
 			if (pev->flags & FL_DUCKING)
 			{
@@ -2776,7 +2789,7 @@ bool Bot::ReactOnEnemy(void)
 			{
 				float radius = 128.0f;
 				if (IsValidWaypoint(ownIndex) && !(currentWaypoint->flags & WAYPOINT_FALLCHECK))
-					radius += currentWaypoint->radius;
+					radius = AddFloat(radius, currentWaypoint->radius);
 
 				if (enemyDistance > radius)
 					m_isEnemyReachable = true;
@@ -2791,6 +2804,9 @@ bool Bot::ReactOnEnemy(void)
 			if (!IsValidWaypoint(ownIndex))
 				ownIndex = g_waypoint->FindNearest(pev->origin, 9999.0f, -1, GetEntity());
 
+			extern ConVar ebot_zombie_speed_factor;
+			float enemyDistance = (pev->origin - (IsZombieMode() ? (enemyHead + m_enemy->v.velocity * ebot_zombie_speed_factor.GetFloat()) : enemyHead)).GetLength();
+
 			if (IsZombieMode())
 			{
 				if (enemyIndex == ownIndex)
@@ -2801,7 +2817,7 @@ bool Bot::ReactOnEnemy(void)
 				else if (pev->flags & FL_DUCKING && m_enemy->v.flags & FL_DUCKING) // danger...
 				{
 					extern ConVar ebot_zp_escape_distance;
-					if (enemyDistance <= fabsf(m_enemy->v.speed) + ebot_zp_escape_distance.GetFloat())
+					if (enemyDistance <= AddFloat(fabsf(m_enemy->v.speed), ebot_zp_escape_distance.GetFloat()))
 					{
 						m_isEnemyReachable = true;
 						goto last;
@@ -2816,14 +2832,14 @@ bool Bot::ReactOnEnemy(void)
 					else
 					{
 						extern ConVar ebot_zp_escape_distance;
-						if (enemyDistance <= fabsf(m_enemy->v.speed) + ebot_zp_escape_distance.GetFloat())
+						if (enemyDistance <= AddFloat(fabsf(m_enemy->v.speed), ebot_zp_escape_distance.GetFloat()))
 						{
 							for (int j = 0; j < Const_MaxPathIndex; j++)
 							{
 								Vector origin = GetBottomOrigin(GetEntity());
 
 								TraceResult tr;
-								TraceLine(Vector(origin.x, origin.y, (origin.z + 10.0f)), enemyHead, true, false, GetEntity(), &tr);
+								TraceLine(Vector(origin.x, origin.y, AddFloat(origin.z, 10.0f)), enemyHead, true, false, GetEntity(), &tr);
 
 								auto enemyWaypoint = g_waypoint->GetPath(enemyIndex);
 								if (tr.flFraction == 1.0f && enemyWaypoint->index[j] == ownIndex && !(enemyWaypoint->connectionFlags[j] & PATHFLAG_JUMP))
@@ -2842,11 +2858,11 @@ bool Bot::ReactOnEnemy(void)
 					Vector origin = GetBottomOrigin(GetEntity());
 
 					TraceResult tr;
-					TraceLine(Vector(origin.x, origin.y, (origin.z + 10.0f)), enemyHead, true, false, GetEntity(), &tr);
+					TraceLine(Vector(origin.x, origin.y, AddFloat(origin.z, 10.0f)), enemyHead, true, false, GetEntity(), &tr);
 
 					// human improve
 					extern ConVar ebot_zp_escape_distance;
-					if (enemyDistance <= fabsf(m_enemy->v.speed) + ebot_zp_escape_distance.GetFloat() && tr.flFraction == 1.0f)
+					if (enemyDistance <= AddFloat(fabsf(m_enemy->v.speed), ebot_zp_escape_distance.GetFloat()) && tr.flFraction == 1.0f)
 						m_isEnemyReachable = true;
 					else
 						m_isEnemyReachable = false;
@@ -2862,24 +2878,23 @@ bool Bot::ReactOnEnemy(void)
 
 	last:
 		if (m_isEnemyReachable && m_isZombieBot)
-			m_enemyReachableTimer = engine->GetTime() + engine->RandomFloat(0.75f, 1.5f);
+			m_enemyReachableTimer = AddTime(engine->RandomFloat(0.15f, 0.50f));
 		else
-			m_enemyReachableTimer = engine->GetTime() + engine->RandomFloat(0.25f, 0.75f);
+			m_enemyReachableTimer = AddTime(engine->RandomFloat(0.25f, 0.75f));
 	}
 
 	if (m_isEnemyReachable)
 	{
 		m_navTimeset = engine->GetTime(); // override existing movement by attack movement
-		IgnoreCollisionShortly();
 		return true;
 	}
 
 	return false;
 }
 
+// don't allow shooting through walls when pausing or camping
 bool Bot::LastEnemyShootable(void)
 {
-	// don't allow shooting through walls when pausing or camping
 	if (!(m_aimFlags & AIM_LASTENEMY) || FNullEnt(m_lastEnemy) || GetCurrentTask()->taskID == TASK_PAUSE || GetCurrentTask()->taskID == TASK_CAMP)
 		return false;
 	return GetShootingConeDeviation(GetEntity(), &m_lastEnemyOrigin) >= 0.90;
@@ -3525,7 +3540,7 @@ void Bot::SelectLeaderEachTeam(int team)
 {
 	Bot* botLeader = nullptr;
 
-	if (GetGameMod() == MODE_BASE || GetGameMod() == MODE_TDM)
+	if (GetGameMode() == MODE_BASE || GetGameMode() == MODE_TDM)
 	{
 		if (team == TEAM_TERRORIST && !g_leaderChoosen[TEAM_TERRORIST])
 		{
@@ -3560,7 +3575,7 @@ void Bot::SelectLeaderEachTeam(int team)
 
 float Bot::GetWalkSpeed(void)
 {
-	if (GetGameMod() == MODE_ZH || GetGameMod() == MODE_ZP ||
+	if (GetGameMode() == MODE_ZH || GetGameMode() == MODE_ZP ||
 		pev->maxspeed <= 180.f || m_currentTravelFlags & PATHFLAG_JUMP ||
 		pev->button & IN_JUMP || pev->oldbuttons & IN_JUMP ||
 		pev->flags & FL_DUCKING || pev->button & IN_DUCK || pev->oldbuttons & IN_DUCK || IsInWater())
@@ -3615,6 +3630,12 @@ void Bot::ChooseAimDirection(void)
 
 	if (!IsValidWaypoint(m_currentWaypointIndex))
 		GetValidWaypoint();
+	else if (m_isZombieBot && HasNextPath() && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_ZOMBIEPUSH)
+	{
+		m_lookAt = pev->flags & FL_DUCKING ? m_waypointOrigin : m_destOrigin + m_moveAngles * m_frameInterval;
+		m_lookAt.z = EyePosition().z;
+		return;
+	}
 
 	// check if last enemy vector valid
 	if (!IsZombieMode())
@@ -3745,8 +3766,13 @@ void Bot::ChooseAimDirection(void)
 		if (!IsValidWaypoint(m_currentWaypointIndex))
 			return;
 
-		if (!FNullEnt(m_breakableEntity))
+		if (!FNullEnt(m_breakableEntity) && m_breakableEntity->v.health > 0.0f)
+		{
 			m_lookAt = m_breakable;
+			extern ConVar ebot_escape;
+			if (ebot_escape.GetBool())
+				m_breakableEntity->v.health = 0.0f;
+		}
 		else if (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_LADDER)
 		{
 			m_aimStopTime = 0.0f;
@@ -3754,7 +3780,7 @@ void Bot::ChooseAimDirection(void)
 		}
 		else if (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_USEBUTTON)
 		{
-			edict_t* button = FindNearestButton(STRING(pev->classname));
+			edict_t* button = FindButton();
 			m_aimStopTime = 0.0f;
 			if (button != nullptr)
 				m_lookAt = GetEntityOrigin(button);
@@ -3810,7 +3836,11 @@ void Bot::ChooseAimDirection(void)
 			m_lookAt = g_waypoint->GetPath(m_navNode->next->index)->origin + pev->velocity + pev->view_ofs;
 		else
 			m_lookAt = m_destOrigin + pev->velocity + pev->view_ofs;
-		m_lookAt.z = EyePosition().z;
+
+		if (!(g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_LADDER))
+			m_lookAt.z = EyePosition().z;
+		else
+			m_aimStopTime = 0.0f;
 	}
 }
 
@@ -3822,7 +3852,6 @@ void Bot::Think(void)
 	pev->button = 0;
 	m_moveSpeed = 0.0f;
 	m_strafeSpeed = 0.0f;
-	m_moveAngles = nullvec;
 
 	m_canChooseAimDirection = true;
 	
@@ -3834,7 +3863,7 @@ void Bot::Think(void)
 	if (ebot_use_radio.GetInt() != 2 || m_chatterTimer < engine->GetTime())
 		SwitchChatterIcon(false);
 
-	if (m_slowthinktimer <= engine->GetTime())
+	if (m_slowthinktimer < engine->GetTime())
 	{
 		if (!(pev->flags & FL_FAKECLIENT))
 			pev->flags |= FL_FAKECLIENT;
@@ -3852,12 +3881,17 @@ void Bot::Think(void)
 				m_stayTime = engine->GetTime() + 999999.0f;
 		}
 
+		if (m_isZombieBot && m_damageTime + 10.0f > engine->GetTime() && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_ZOMBIEPUSH)
+			m_zombiePush = true;
+		else
+			m_zombiePush = false;
+
 		m_isBlocked = false;
 		m_isSlowThink = true;
 
 		m_isZombieBot = IsZombieEntity(GetEntity());
 		m_team = GetTeam(GetEntity());
-		m_isBomber = (pev->weapons & (1 << WEAPON_C4));
+		m_isBomber = pev->weapons & (1 << WEAPON_C4);
 
 		if (!FNullEnt(m_lastEnemy) && !IsAlive(m_lastEnemy))
 			m_lastEnemy = nullptr;
@@ -3973,7 +4007,7 @@ void Bot::Think(void)
 
 	if (botMovement && m_notKilled)
 	{
-		if (GetGameMod() == MODE_BASE || IsDeathmatchMode() || GetGameMod() == MODE_NOTEAM || IsZombieMode())
+		if (GetGameMode() == MODE_BASE || IsDeathmatchMode() || GetGameMode() == MODE_NOTEAM || IsZombieMode())
 			BotAI();
 		else
 			FunBotAI();
@@ -3992,7 +4026,7 @@ void Bot::SecondThink(void)
 	m_numEnemiesLeft = GetNearbyEnemiesNearPosition(pev->origin, 99999);
 	m_numFriendsLeft = GetNearbyFriendsNearPosition(pev->origin, 99999);
 
-	if (ebot_use_flare.GetInt() == 1 && !m_isReloading && !m_isZombieBot && GetGameMod() == MODE_ZP && FNullEnt(m_enemy) && !FNullEnt(m_lastEnemy))
+	if (ebot_use_flare.GetInt() == 1 && !m_isReloading && !m_isZombieBot && GetGameMode() == MODE_ZP && FNullEnt(m_enemy) && !FNullEnt(m_lastEnemy))
 	{
 		if (pev->weapons & (1 << WEAPON_SMGRENADE) && ChanceOf(50))
 			PushTask(TASK_THROWFLARE, TASKPRI_THROWGRENADE, -1, engine->RandomFloat(0.6f, 0.9f), false);
@@ -4025,9 +4059,9 @@ void Bot::CalculatePing(void)
 	int averagePing = 0;
 	int numHumans = 0;
 
-	for (int i = 0; i < engine->GetMaxClients(); i++)
+	for (int i = 1; i <= engine->GetMaxClients(); i++)
 	{
-		edict_t* ent = INDEXENT(i + 1);
+		edict_t* ent = INDEXENT(i);
 
 		if (!IsValidPlayer(ent))
 			continue;
@@ -4037,7 +4071,7 @@ void Bot::CalculatePing(void)
 		int ping, loss;
 		PLAYER_CNX_STATS(ent, &ping, &loss);
 
-		if (ping < 0 || ping > 150)
+		if (ping <= 0 || ping > 150)
 			ping = engine->RandomInt(5, 50);
 
 		averagePing += ping;
@@ -4205,7 +4239,7 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 		if (m_knifeAttackTime < engine->GetTime())
 		{
 			KnifeAttack();
-			m_knifeAttackTime = engine->GetTime() + engine->RandomFloat(2.6f, 3.8f);
+			m_knifeAttackTime = AddTime(engine->RandomFloat(2.6f, 3.8f));
 		}
 	}
 
@@ -4236,7 +4270,7 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 			PushTask(TASK_SPRAYLOGO, TASKPRI_SPRAYLOGO, -1, engine->GetTime() + 1.0f, false);
 
 		// reached waypoint is a camp waypoint
-		if ((g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_CAMP) && GetGameMod() == MODE_BASE)
+		if ((g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_CAMP) && GetGameMode() == MODE_BASE)
 		{
 			// check if bot has got a primary weapon and hasn't camped before
 			if (HasPrimaryWeapon() && m_timeCamping + 10.0f < engine->GetTime() && !HasHostage())
@@ -4296,9 +4330,9 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 				}
 			}
 		}
-		else if (GetGameMod() == MODE_ZP && !m_isZombieBot)
+		else if (GetGameMode() == MODE_ZP && !m_isZombieBot)
 			ZmCampPointAction(1);
-		else if (GetGameMod() == MODE_BASE)
+		else if (GetGameMode() == MODE_BASE)
 		{
 			// some goal waypoints are map dependant so check it out...
 			if (g_mapType & MAP_CS)
@@ -4392,7 +4426,7 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 		if (!(pev->flags & FL_DUCKING) && m_minSpeed != pev->maxspeed)
 			m_moveSpeed = m_minSpeed;
 
-		if (GetGameMod() == MODE_ZP && !m_isZombieBot && !g_waypoint->m_zmHmPoints.IsEmpty())
+		if (GetGameMode() == MODE_ZP && !m_isZombieBot && !g_waypoint->m_zmHmPoints.IsEmpty())
 		{
 			ZmCampPointAction(1);
 			if (IsValidWaypoint(GetCurrentTask()->data) && !(g_waypoint->IsZBCampPoint(GetCurrentTask()->data)))
@@ -4416,7 +4450,7 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 	}
 
 	// bot hasn't seen anything in a long time and is asking his teammates to report in or sector clear
-	if ((GetGameMod() == MODE_BASE || GetGameMod() == MODE_TDM) && m_seeEnemyTime != 0.0f && m_seeEnemyTime + engine->RandomFloat(30.0f, 80.0f) < engine->GetTime() && engine->RandomInt(0, 100) < 70 && g_timeRoundStart + 20.0f < engine->GetTime() && m_askCheckTime + engine->RandomFloat(20.0, 30.0f) < engine->GetTime())
+	if ((GetGameMode() == MODE_BASE || GetGameMode() == MODE_TDM) && m_seeEnemyTime != 0.0f && m_seeEnemyTime + engine->RandomFloat(30.0f, 80.0f) < engine->GetTime() && engine->RandomInt(0, 100) < 70 && g_timeRoundStart + 20.0f < engine->GetTime() && m_askCheckTime + engine->RandomFloat(20.0, 30.0f) < engine->GetTime())
 	{
 		m_askCheckTime = engine->GetTime();
 		if (ChanceOf(40))
@@ -4437,57 +4471,7 @@ void Bot::RunTask(void)
 	const float timeToBlowUp = GetBombTimeleft();
 	float defuseRemainingTime = m_hasDefuser ? 7.0f : 12.0f - engine->GetTime();
 
-	auto x = GetCurrentTask()->taskID;
-	/*/if (x == TASK_PLACELASER)
-	{
-		if (m_laserminePosition == nullvec)
-		{
-			TaskComplete();
-			return;
-		}
-
-		if (m_lasermineCount >= ebot_lasermine_max.GetInt())
-		{
-			TaskComplete();
-			return;
-		}
-
-		int currentCount = m_lasermineCount;
-		bool moveTowards = false;
-		float distance = (pev->origin - m_laserminePosition).GetLength();
-
-		if (distance <= 300.0f)
-		{
-			m_aimFlags |= AIM_OVERRIDE;
-			m_camp = m_laserminePosition;
-
-			if (distance <= 80.0f)
-			{
-				moveTowards = true;
-				m_moveSpeed = GetWalkSpeed();
-				FakeClientCommand(GetEntity(), "+setlaser");
-				m_lasermineCount = GetLasermineCount();
-			}
-		}
-		else
-			m_aimFlags |= AIM_NAVPOINT;
-
-		if (!moveTowards)
-		{
-			int index = g_waypoint->FindNearest(m_laserminePosition);
-			if (IsValidWaypoint(index))
-				FindPath(m_currentWaypointIndex, index);
-			else
-				TaskComplete();
-		}
-
-		if (currentCount != m_lasermineCount)
-			TaskComplete();
-
-		return;
-	}*/
-
-	switch (x)
+	switch (GetCurrentTask()->taskID)
 	{
 		// normal task
 	case TASK_NORMAL:
@@ -4664,10 +4648,10 @@ void Bot::RunTask(void)
 		}
 		else if (!GoalIsValid()) // we didn't choose a cover waypoint yet or lost it due to an attack?
 		{
-			if (GetGameMod() != MODE_ZP)
+			if (GetGameMode() != MODE_ZP)
 				DeleteSearchNodes();
 
-			if (GetGameMod() == MODE_ZP && !m_isZombieBot)
+			if (GetGameMode() == MODE_ZP && !m_isZombieBot)
 				if (FNullEnt(m_enemy) && !g_waypoint->m_zmHmPoints.IsEmpty())
 					destIndex = FindGoal();
 				else
@@ -4705,13 +4689,14 @@ void Bot::RunTask(void)
 			CombatFight();
 		else
 		{
-			if (m_lastEnemyOrigin != nullvec)
-				m_destOrigin = m_lastEnemyOrigin;
-
-			SetEntityWaypoint(GetEntity());
-			m_currentWaypointIndex = -1;
-			DeleteSearchNodes();
-			GetValidWaypoint();
+			if (!m_isZombieBot || !(g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_ZOMBIEPUSH))
+			{
+				SetEntityWaypoint(GetEntity());
+				m_currentWaypointIndex = -1;
+				DeleteSearchNodes();
+				GetValidWaypoint();
+			}
+			
 			TaskComplete();
 		}
 
@@ -4795,9 +4780,9 @@ void Bot::RunTask(void)
 		// camping behaviour
 	case TASK_GOINGFORCAMP:
 		if ((m_isZombieBot || (IsZombieMode() && g_waypoint->m_zmHmPoints.IsEmpty()))
-			|| (GetGameMod() == MODE_BASE && (g_mapType & MAP_CS) && m_team == TEAM_COUNTER && HasHostage())
+			|| (GetGameMode() == MODE_BASE && (g_mapType & MAP_CS) && m_team == TEAM_COUNTER && HasHostage())
 			|| (!IsZombieMode() && !FNullEnt(m_enemy) && m_currentWeapon == WEAPON_KNIFE)
-			|| (m_personality == PERSONALITY_CAREFUL && GetGameMod() == MODE_BASE && !FNullEnt(m_enemy) && m_numFriendsLeft < m_numEnemiesLeft)
+			|| (m_personality == PERSONALITY_CAREFUL && GetGameMode() == MODE_BASE && !FNullEnt(m_enemy) && m_numFriendsLeft < m_numEnemiesLeft)
 			|| m_isVIP || m_isUsingGrenade || m_isBomber)
 		{
 			TaskComplete();
@@ -4819,7 +4804,7 @@ void Bot::RunTask(void)
 			return;
 		}
 
-		if (GetGameMod() == MODE_BASE && (g_mapType & MAP_DE))
+		if (GetGameMode() == MODE_BASE && (g_mapType & MAP_DE))
 		{
 			if (m_team == TEAM_COUNTER && g_bombPlanted && m_defendedBomb && !IsBombDefusing(g_waypoint->GetBombPosition()) && !OutOfBombTimer())
 			{
@@ -4869,7 +4854,7 @@ void Bot::RunTask(void)
 			return;
 		}
 
-		if (GetGameMod() == MODE_BASE && (g_mapType & MAP_DE))
+		if (GetGameMode() == MODE_BASE && (g_mapType & MAP_DE))
 		{
 			if (g_bombPlanted && OutOfBombTimer())
 			{
@@ -4916,7 +4901,7 @@ void Bot::RunTask(void)
 		}
 
 		// fix
-		if (GetGameMod() == MODE_BASE && (g_mapType & MAP_DE))
+		if (GetGameMode() == MODE_BASE && (g_mapType & MAP_DE))
 		{
 			if (m_team == TEAM_COUNTER && g_bombPlanted && m_defendedBomb && !IsBombDefusing(g_waypoint->GetBombPosition()) && !OutOfBombTimer())
 			{
@@ -5187,7 +5172,7 @@ void Bot::RunTask(void)
 
 			if (IsValidWaypoint(goal))
 				forcedestIndex = goal;
-			else
+			else if (m_position != nullvec)
 				forcedestIndex = g_waypoint->FindNearest(m_position);
 
 			if (IsValidWaypoint(forcedestIndex))
@@ -5313,6 +5298,7 @@ void Bot::RunTask(void)
 						SelectWeaponByName("weapon_knife");
 				}
 
+				m_aimStopTime = 0.0f;
 				if (m_pickupItem != nullptr)
 					MDLL_Use(m_pickupItem, GetEntity());
 				else
@@ -5917,7 +5903,7 @@ void Bot::RunTask(void)
 					pev->button |= IN_ATTACK2;
 			}
 
-			PushTask(TASK_PAUSE, TASKPRI_CAMP, -1, engine->GetTime() + 10.0f, true);
+			PushTask(TASK_PAUSE, TASKPRI_CAMP, -1, AddTime(10.0f), true);
 		}
 		else if (!GoalIsValid())
 		{
@@ -6148,6 +6134,7 @@ void Bot::RunTask(void)
 			break;
 
 		case PICKTYPE_HOSTAGE:
+			m_aimStopTime = 0.0f;
 			m_aimFlags |= AIM_ENTITY;
 			src = EyePosition();
 
@@ -6162,22 +6149,17 @@ void Bot::RunTask(void)
 
 			if (itemDistance < 60)
 			{
-				float angleToEntity = InFieldOfView(destination - src);
+				// use game dll function to make sure the hostage is correctly 'used'
+				MDLL_Use(m_pickupItem, GetEntity());
 
-				if (angleToEntity <= 10) // bot faces?
+				for (i = 0; i < Const_MaxHostages; i++)
 				{
-					// use game dll function to make sure the hostage is correctly 'used'
-					MDLL_Use(m_pickupItem, GetEntity());
-
-					for (i = 0; i < Const_MaxHostages; i++)
+					if (FNullEnt(m_hostages[i])) // store pointer to hostage so other bots don't steal from this one or bot tries to reuse it
 					{
-						if (FNullEnt(m_hostages[i])) // store pointer to hostage so other bots don't steal from this one or bot tries to reuse it
-						{
-							m_hostages[i] = m_pickupItem;
-							m_pickupItem = nullptr;
+						m_hostages[i] = m_pickupItem;
+						m_pickupItem = nullptr;
 
-							break;
-						}
+						break;
 					}
 				}
 
@@ -6419,7 +6401,7 @@ void Bot::DebugModeMsg(void)
 				sprintf(weaponName, selectTab->weaponName);
 
 			char gamemodName[80];
-			switch (GetGameMod())
+			switch (GetGameMode())
 			{
 			case MODE_BASE:
 				sprintf(gamemodName, "Normal");
@@ -6559,9 +6541,9 @@ void Bot::DebugModeMsg(void)
 			}
 		}
 
-		if (IsValidWaypoint(m_prevWptIndex[0]))
+		if (IsValidWaypoint(m_prevWptIndex))
 		{
-			src = g_waypoint->GetPath(m_prevWptIndex[0])->origin;
+			src = g_waypoint->GetPath(m_prevWptIndex)->origin;
 			engine->DrawLine(g_hostEntity, src - Vector(0.0f, 0.0f, 35.0f), src + Vector(0.0f, 0.0f, 35.0f),
 				Color(255, 0, 0, 255), 15, 0, 8, 1, LINE_SIMPLE);
 		}
@@ -6623,14 +6605,14 @@ void Bot::BotAI(void)
 
 			case WEAPON_FAMAS:
 			case WEAPON_GLOCK18:
-				if (engine->RandomInt(0, 100) < 50)
+				if (ChanceOf(50))
 					pev->button |= IN_ATTACK2;
 				break;
 			}
 		}
 
 		// select a leader bot for this team
-		if (GetGameMod() == MODE_BASE)
+		if (GetGameMode() == MODE_BASE)
 			SelectLeaderEachTeam(m_team);
 
 		m_checkWeaponSwitch = false;
@@ -6666,7 +6648,7 @@ void Bot::BotAI(void)
 	}
 
 	// if there's some radio message to respond, check it
-	if (m_radioOrder != 0 && (GetGameMod() == MODE_BASE || GetGameMod() == MODE_TDM || (IsZombieMode() && !m_isZombieBot && g_waypoint->m_zmHmPoints.IsEmpty())))
+	if (m_radioOrder != 0 && (GetGameMode() == MODE_BASE || GetGameMode() == MODE_TDM || (IsZombieMode() && !m_isZombieBot && g_waypoint->m_zmHmPoints.IsEmpty())))
 		CheckRadioCommands();
 
 	// do all sensing, calculate/filter all actions here
@@ -6704,10 +6686,12 @@ void Bot::BotAI(void)
 	Vector direction = directionNormal;
 	directionNormal.z = 0.0f;
 
-	m_moveAngles = directionOld.ToAngles();
-
-	m_moveAngles.ClampAngles();
-	m_moveAngles.x *= -1.0f; // invert for engine
+	if (m_destOrigin != nullvec)
+	{
+		m_moveAngles = directionOld.ToAngles();
+		m_moveAngles.ClampAngles();
+		m_moveAngles.x *= -1.0f; // invert for engine
+	}
 
 	if (!IsOnLadder())
 	{
@@ -6772,7 +6756,7 @@ void Bot::BotAI(void)
 		{
 			if ((pev->origin - g_waypoint->GetPath(m_currentWaypointIndex)->origin).GetLength() <= 100.0f)
 			{
-				edict_t* button = FindNearestButton(STRING(pev->classname));
+				edict_t* button = FindButton();
 				if (!m_isSlowThink)
 				{
 					if (button != nullptr)
@@ -6798,374 +6782,8 @@ void Bot::BotAI(void)
 		}
 	}
 
-	bool fixFall = false;
-	if (!m_checkFall)
-	{
-		if (!IsOnFloor() && !IsOnLadder() && !IsInWater())
-		{
-			if (m_checkFallPoint[0] != nullvec && m_checkFallPoint[1] != nullvec)
-				m_checkFall = true;
-		}
-		else if (IsOnFloor())
-		{
-			if (!FNullEnt(m_enemy))
-			{
-				m_checkFallPoint[0] = pev->origin;
-				m_checkFallPoint[1] = GetEntityOrigin(m_enemy);
-			}
-			else
-			{
-				if (IsValidWaypoint(m_prevWptIndex[0]))
-					m_checkFallPoint[0] = g_waypoint->GetPath(m_prevWptIndex[0])->origin;
-				else
-					m_checkFallPoint[0] = pev->origin;
-
-				if (IsValidWaypoint(m_currentWaypointIndex))
-					m_checkFallPoint[1] = g_waypoint->GetPath(m_currentWaypointIndex)->origin;
-				else if (&m_navNode[0] != nullptr)
-					m_checkFallPoint[1] = g_waypoint->GetPath(m_navNode->index)->origin;
-			}
-		}
-	}
-	else
-	{
-		if (IsOnLadder() || IsInWater())
-		{
-			m_checkFallPoint[0] = nullvec;
-			m_checkFallPoint[1] = nullvec;
-			m_checkFall = false;
-		}
-		else if (IsOnFloor())
-		{
-			float baseDistance = (m_checkFallPoint[0] - m_checkFallPoint[1]).GetLength();
-			float nowDistance = (pev->origin - m_checkFallPoint[1]).GetLength();
-
-			if (nowDistance > baseDistance &&
-				(nowDistance > baseDistance * 1.2 || nowDistance > baseDistance + 200.0f) &&
-				baseDistance >= 80.0f && nowDistance >= 100.0f)
-				fixFall = true;
-			else if (pev->origin.z + 128.0f < m_checkFallPoint[1].z && pev->origin.z + 128.0f < m_checkFallPoint[0].z)
-				fixFall = true;
-
-			if (IsValidWaypoint(m_currentWaypointIndex) && !fixFall)
-			{
-				float distance2D = (pev->origin - g_waypoint->GetPath(m_currentWaypointIndex)->origin).GetLength();
-				if (distance2D <= 32.0f && pev->origin.z + 16.0f < g_waypoint->GetPath(m_currentWaypointIndex)->origin.z)
-					fixFall = true;
-			}
-
-			m_checkFallPoint[0] = nullvec;
-			m_checkFallPoint[1] = nullvec;
-			m_checkFall = false;
-		}
-	}
-
-	if (fixFall)
-	{
-		SetEntityWaypoint(GetEntity(), -2);
-		m_currentWaypointIndex = -1;
-		GetValidWaypoint();
-
-		if (!FNullEnt(m_enemy) || !FNullEnt(m_moveTargetEntity))
-			m_enemyUpdateTime = engine->GetTime();
-	}
-
-	if (m_moveAIAPI)
-		m_checkTerrain = false;
-
-	if (m_checkTerrain)
-	{
-		if (m_isZombieBot && m_damageTime + 5.0f > engine->GetTime() && IsValidWaypoint(m_currentWaypointIndex) && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_ZOMBIEPUSH)
-		{
-			m_isBlocked = false;
-			m_lastCollTime = m_damageTime + 1.0f;
-		}
-		else
-			m_isBlocked = CheckCloseAvoidance(directionNormal);
-
-		m_isStuck = false;
-
-		if ((m_moveSpeed >= 10 || m_strafeSpeed >= 10) && m_lastCollTime < engine->GetTime())
-		{
-			if (m_damageTime >= engine->GetTime())
-			{
-				m_lastCollTime = m_damageTime + 1.0f;
-				m_firstCollideTime = 0.0f;
-				m_isStuck = false;
-			}
-			else
-			{
-				if (movedDistance < 2.0f && m_prevSpeed >= 20.0f)
-				{
-					m_prevTime = engine->GetTime();
-					m_isStuck = true;
-
-					if (m_firstCollideTime == 0.0f)
-						m_firstCollideTime = engine->GetTime() + 0.2f;
-				}
-				else
-				{
-					// test if there's something ahead blocking the way
-					if (!IsOnLadder() && CantMoveForward(directionNormal, &tr))
-					{
-						if (m_firstCollideTime == 0.0f)
-							m_firstCollideTime = engine->GetTime() + 0.5f;
-
-						else if (m_firstCollideTime <= engine->GetTime())
-							m_isStuck = true;
-					}
-					else
-						m_firstCollideTime = 0.0f;
-				}
-			}
-		}
-
-		if (!m_isStuck) // not stuck?
-		{
-			// boosting improve
-			if (m_isZombieBot && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_DJUMP && IsOnFloor() && ((pev->origin - g_waypoint->GetPath(m_currentWaypointIndex)->origin).GetLength() <= 50.0f))
-				pev->button |= IN_DUCK;
-			else
-			{
-				if (m_probeTime + 0.5f < engine->GetTime())
-					ResetCollideState(); // reset collision memory if not being stuck for 0.5 secs
-				else
-				{
-					// remember to keep pressing duck if it was necessary ago
-					if (m_collideMoves[m_collStateIndex] == COSTATE_DUCK && IsOnFloor() || IsInWater())
-						pev->button |= IN_DUCK;
-				}
-			}
-		}
-		else
-		{
-			if (!IsValidWaypoint(m_currentWaypointIndex))
-			{
-				DeleteSearchNodes();
-				m_currentWaypointIndex = FindWaypoint(false);
-			}
-			else if (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_JUMP && g_waypoint->GetPath(m_currentWaypointIndex)->origin.z - pev->origin.z >= 54.0f)
-				DeleteSearchNodes();
-			else if (!IsVisible(g_waypoint->GetPath(m_currentWaypointIndex)->origin, GetEntity()))
-				DeleteSearchNodes();
-
-			// not yet decided what to do?
-			if (m_collisionState == COSTATE_UNDECIDED)
-			{
-				int bits = 0;
-
-				if (IsOnLadder())
-					bits |= COPROBE_STRAFE;
-				else if (IsInWater())
-					bits |= (COPROBE_JUMP | COPROBE_STRAFE);
-				else
-					bits |= (COPROBE_STRAFE | (ChanceOf(35) ? COPROBE_JUMP : 0));
-
-				// collision check allowed if not flying through the air
-				if (IsOnFloor() || IsOnLadder() || IsInWater())
-				{
-					int state[8];
-					int i = 0;
-
-					// first 4 entries hold the possible collision states
-					state[i++] = COSTATE_STRAFELEFT;
-					state[i++] = COSTATE_STRAFERIGHT;
-					state[i++] = COSTATE_JUMP;
-					state[i++] = COSTATE_DUCK;
-
-					if (bits & COPROBE_STRAFE)
-					{
-						state[i] = 0;
-						state[i + 1] = 0;
-
-						// to start strafing, we have to first figure out if the target is on the left side or right side
-						MakeVectors(m_moveAngles);
-
-						Vector dirToPoint = (pev->origin - m_destOrigin).Normalize2D();
-						Vector rightSide = g_pGlobals->v_right.Normalize2D();
-
-						bool dirRight = false;
-						bool dirLeft = false;
-						bool blockedLeft = false;
-						bool blockedRight = false;
-
-						if ((dirToPoint | rightSide) > 0.0f)
-							dirRight = true;
-						else
-							dirLeft = true;
-
-						const Vector& testDir = m_moveSpeed > 0.0f ? g_pGlobals->v_forward : -g_pGlobals->v_forward;
-
-						// now check which side is blocked
-						src = pev->origin + g_pGlobals->v_right * 32.0f;
-						dest = src + testDir * 32.0f;
-
-						TraceHull(src, dest, true, head_hull, GetEntity(), &tr);
-
-						if (tr.flFraction != 1.0f)
-							blockedRight = true;
-
-						src = pev->origin - g_pGlobals->v_right * 32.0f;
-						dest = src + testDir * 32.0f;
-
-						TraceHull(src, dest, true, head_hull, GetEntity(), &tr);
-
-						if (tr.flFraction != 1.0f)
-							blockedLeft = true;
-
-						if (dirLeft)
-							state[i] += 5;
-						else
-							state[i] -= 5;
-
-						if (blockedLeft)
-							state[i] -= 5;
-
-						i++;
-
-						if (dirRight)
-							state[i] += 5;
-						else
-							state[i] -= 5;
-
-						if (blockedRight)
-							state[i] -= 5;
-					}
-
-					// now weight all possible states
-					if (bits & COPROBE_JUMP)
-					{
-						state[i] = 0;
-
-						if (CanJumpUp(directionNormal))
-							state[i] += 10;
-
-						if (m_destOrigin.z >= pev->origin.z + 18.0f)
-							state[i] += 5;
-
-						if (EntityIsVisible(m_destOrigin))
-						{
-							MakeVectors(m_moveAngles);
-
-							src = EyePosition();
-							src = src + g_pGlobals->v_right * 30.0f;
-
-							TraceLine(src, m_destOrigin, true, true, GetEntity(), &tr);
-
-							if (tr.flFraction >= 1.0f)
-							{
-								src = EyePosition();
-								src = src - g_pGlobals->v_right * 30.0f;
-
-								TraceLine(src, m_destOrigin, true, true, GetEntity(), &tr);
-
-								if (tr.flFraction >= 1.0f)
-									state[i] += 5;
-							}
-						}
-
-						if (pev->flags & FL_DUCKING)
-							src = pev->origin;
-						else
-							src = pev->origin + Vector(0.0f, 0.0f, -17.0f);
-
-						dest = src + directionNormal * 60.0f;
-						TraceLine(src, dest, true, true, GetEntity(), &tr);
-
-						if (tr.flFraction != 1.0f)
-							state[i] += 10;
-					}
-					else
-						state[i] = 0;
-					i++;
-					state[i] = 0;
-					i++;
-
-					// weighted all possible moves, now sort them to start with most probable
-					bool isSorting = false;
-
-					do
-					{
-						isSorting = false;
-						for (i = 0; i < 3; i++)
-						{
-							if (state[i + 3] < state[i + 3 + 1])
-							{
-								int temp = state[i];
-
-								state[i] = state[i + 1];
-								state[i + 1] = temp;
-
-								temp = state[i + 3];
-
-								state[i + 3] = state[i + 4];
-								state[i + 4] = temp;
-
-								isSorting = true;
-							}
-						}
-					} while (isSorting);
-
-					for (i = 0; i < 3; i++)
-						m_collideMoves[i] = state[i];
-
-					m_collideTime = engine->GetTime();
-					m_probeTime = engine->GetTime() + 0.5f;
-					m_collisionProbeBits = bits;
-					m_collisionState = COSTATE_PROBING;
-					m_collStateIndex = 0;
-				}
-			}
-
-			if (m_collisionState == COSTATE_PROBING)
-			{
-				if (m_probeTime < engine->GetTime())
-				{
-					m_collStateIndex++;
-					m_probeTime = engine->GetTime() + 0.5f;
-
-					if (m_collStateIndex > 3)
-					{
-						m_navTimeset = engine->GetTime() - 5.0f;
-						ResetCollideState();
-					}
-				}
-
-				if (m_collStateIndex < 3)
-				{
-					switch (m_collideMoves[m_collStateIndex])
-					{
-					case COSTATE_JUMP:
-						if (!IsOnLadder() && (IsOnFloor() || IsInWater()))
-						{
-							if (m_damageTime + 1.0f < engine->GetTime() || m_currentTravelFlags & PATHFLAG_JUMP || KnifeAttack())
-								pev->button |= IN_JUMP;
-						}
-
-						break;
-
-					case COSTATE_DUCK:
-						if (IsOnFloor() || IsInWater())
-							pev->button |= IN_DUCK;
-						break;
-
-					case COSTATE_STRAFELEFT:
-						pev->button |= IN_MOVELEFT;
-						SetStrafeSpeed(directionNormal, -pev->maxspeed);
-						break;
-
-					case COSTATE_STRAFERIGHT:
-						pev->button |= IN_MOVERIGHT;
-						SetStrafeSpeed(directionNormal, pev->maxspeed);
-						break;
-					}
-				}
-			}
-		}
-
-	}
-	else
-		m_isStuck = false;
+	CheckFall();
+	CheckTerrain(directionNormal, movedDistance);
 
 	// must avoid a grenade?
 	if (m_needAvoidEntity != 0)
@@ -7217,8 +6835,8 @@ void Bot::BotAI(void)
 		if (m_currentTravelFlags & PATHFLAG_JUMP)
 		{
 			Vector point1Origin, point2Origin;
-			if (IsValidWaypoint(m_prevWptIndex[0]))
-				point1Origin = g_waypoint->GetPath(m_prevWptIndex[0])->origin;
+			if (IsValidWaypoint(m_prevWptIndex))
+				point1Origin = g_waypoint->GetPath(m_prevWptIndex)->origin;
 			else if (IsOnFloor())
 				point1Origin = pev->origin;
 
@@ -7522,12 +7140,12 @@ Vector Bot::CheckThrow(const Vector& start, Vector end)
 	Vector apex = start + (end - start) * 0.5f;
 	apex.z += 0.5f * gravity * (time * 0.5f) * (time * 0.5f);
 
-	TraceHull(start, apex, false, head_hull, GetEntity(), &tr);
+	TraceLine(start, apex, true, false, GetEntity(), &tr);
 
 	if (tr.flFraction != 1.0f)
 		return nullvec;
 
-	TraceHull(end, apex, true, head_hull, GetEntity(), &tr);
+	TraceLine(end, apex, true, false, GetEntity(), &tr);
 
 	if (tr.flFraction != 1.0f || tr.fAllSolid)
 	{
@@ -7571,21 +7189,10 @@ Vector Bot::CheckBombAudible(void)
 	return nullvec;
 }
 
-// better move ai
 void Bot::MoveToVector(Vector to)
 {
 	if (to == nullvec)
 		return;
-
-	if (!IsValidWaypoint(m_currentWaypointIndex))
-	{
-		// we dont have a current waypoint, try find nearest
-		int index = m_isStuck ? FindWaypoint(false) : g_waypoint->FindNearest(pev->origin, 9999.0f, -1, GetEntity());
-		if (IsValidWaypoint(index))
-			FindPath(index, g_waypoint->FindNearest(to));
-
-		return;
-	}
 
 	FindPath(m_currentWaypointIndex, g_waypoint->FindNearest(to));
 }
@@ -7670,42 +7277,33 @@ float Bot::GetBombTimeleft(void)
 
 float Bot::GetEstimatedReachTime(void)
 {
-	auto task = GetCurrentTask()->taskID;
-	float estimatedTime = 0.0f;
+	if (!IsValidWaypoint(m_currentWaypointIndex) || (m_isZombieBot && !m_isStuck && m_damageTime >= engine->GetTime()))
+		return engine->GetTime();
 
-	switch (task)
-	{
-	case TASK_PAUSE:
-	case TASK_CAMP:
-	case TASK_HIDE:
-		return 0.0f;
-
-	default:
-		estimatedTime = 2.8f; // time to reach next waypoint
-	}
+	float estimatedTime = 5.0f; // time to reach next waypoint
 
 	// calculate 'real' time that we need to get from one waypoint to another
-	if (IsValidWaypoint(m_currentWaypointIndex) && IsValidWaypoint(m_prevWptIndex[0]))
+	if (m_currentWaypointIndex >= 0 && m_currentWaypointIndex < g_numWaypoints && m_prevWptIndex >= 0 && m_prevWptIndex < g_numWaypoints)
 	{
-		float distance = (g_waypoint->GetPath(m_prevWptIndex[0])->origin - g_waypoint->GetPath(m_currentWaypointIndex)->origin).GetLength();
+		const float distance = (g_waypoint->GetPath(m_prevWptIndex)->origin - g_waypoint->GetPath(m_currentWaypointIndex)->origin).GetLength();
 
 		// caclulate estimated time
-		estimatedTime = 3.0f * distance / fabsf(m_isZombieBot ? pev->speed : m_moveSpeed);
+		estimatedTime = 5.0f * distance / fabsf(pev->maxspeed);
 
-		bool longTermReachability = ((g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_CROUCH) || (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_LADDER) || (pev->button & IN_DUCK) || (pev->oldbuttons & IN_DUCK));
+		// check for special waypoints, that can slowdown our movement
+		if ((g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_CROUCH) || (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_LADDER) || (pev->button & IN_DUCK))
+			estimatedTime *= 3.0f;
 
-		// check for special nodes, that can slowdown our movement
-		if (longTermReachability)
-			estimatedTime *= 2.0f;
+		// check for too low values
+		if (estimatedTime < 3.0f)
+			estimatedTime = 3.0f;
 
-		estimatedTime = Clamp(estimatedTime, 2.0f, longTermReachability ? 10.0f : 5.0f);
+		// check for too high values
+		if (estimatedTime > 8.0f)
+			estimatedTime = 8.0f;
 	}
 
-	// taking damage is slowing us!
-	if (m_damageTime > engine->GetTime())
-		estimatedTime += (engine->GetTime() - m_damageTime);
-
-	return estimatedTime;
+	return estimatedTime + 1.0f;
 }
 
 bool Bot::OutOfBombTimer(void)
@@ -7785,6 +7383,9 @@ void Bot::ReactOnSound(void)
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.ent == GetEntity())
 			continue;
 
+		if (client.ent->v.flags & FL_DUCKING)
+			continue;
+
 		float distance = (client.soundPosition - pev->origin).GetLength();
 		float hearingDistance = client.hearingDistance;
 
@@ -7812,7 +7413,7 @@ void Bot::ReactOnSound(void)
 
 		m_lookAt = GetEntityOrigin(player);
 
-		if (m_team != GetTeam(player) || GetGameMod() == MODE_DM)
+		if (m_team != GetTeam(player) || GetGameMode() == MODE_DM)
 		{
 			// didn't bot already have an enemy ? take this one...
 			if (m_lastEnemyOrigin == nullvec || m_lastEnemy == nullptr)

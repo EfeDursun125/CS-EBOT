@@ -193,7 +193,11 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 			"+---------------------------------------------------------------------------------+\n"
 			" The E-BOT for Counter-Strike 1.6 " PRODUCT_SUPPORT_VERSION "\n"
 			" Made by " PRODUCT_AUTHOR ", Based on SyPB & YaPB\n"
-			" Website: " PRODUCT_URL "\n"
+#ifdef __SSE2__
+			" Website: " PRODUCT_URL ", SSE2 Support: Yes\n"
+#else
+			" Website: " PRODUCT_URL ", SSE2 Support: No\n"
+#endif
 			"+---------------------------------------------------------------------------------+\n";
 
 		HudMessage(ent, true, Color(engine->RandomInt(33, 255), engine->RandomInt(33, 255), engine->RandomInt(33, 255)), aboutData);
@@ -201,7 +205,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 
 	// displays version information
 	else if (stricmp(arg0, "version") == 0 || stricmp(arg0, "ver") == 0)
-		ebotVersionMSG(ent);
+		async(launch::async, ebotVersionMSG, ent);
 
 	// display some sort of help information
 	else if (stricmp(arg0, "?") == 0 || stricmp(arg0, "help") == 0)
@@ -708,19 +712,34 @@ void CheckEntityAction(void)
 	ServerPrintNoTag("Total Entity Action Num: %d", workEntityWork);
 }
 
-void AddBot(void)
+void ThreadAddBot(void)
 {
 	g_botManager->AddRandom();
 }
 
-void AddBot_TR(void)
+void AddBot(void)
+{
+	async(launch::async, ThreadAddBot);
+}
+
+void ThreadAddBotTR(void)
 {
 	g_botManager->AddBotAPI("", -1, 1);
 }
 
-void AddBot_CT(void)
+void AddBot_TR(void)
+{
+	async(launch::async, ThreadAddBotTR);
+}
+
+void ThreadAddBotCT(void)
 {
 	g_botManager->AddBotAPI("", -1, 2);
+}
+
+void AddBot_CT(void)
+{
+	async(launch::async, ThreadAddBotCT);
 }
 
 void InitConfig(void)
@@ -1159,6 +1178,8 @@ int Spawn(edict_t* ent)
 		g_mapType |= MAP_AWP;
 	else if (strncmp(GetMapName(), "he_", 4) == 0) // grenade wars
 		g_mapType |= MAP_HE;
+	else if (strncmp(GetMapName(), "ze_", 4) == 0) // zombie escape
+		g_mapType |= MAP_ZE;
 
 	if (g_isMetamod)
 		RETURN_META_VALUE(MRES_IGNORED, 0);
@@ -1231,6 +1252,17 @@ int ClientConnect(edict_t* ent, const char* name, const char* addr, char rejectR
 	return (*g_functionTable.pfnClientConnect) (ent, name, addr, rejectReason);
 }
 
+void ThreadedDisconnect(edict_t* ent)
+{
+	int i = ENTINDEX(ent) - 1;
+
+	InternalAssert(i >= 0 && i < 32);
+
+	// check if its a bot
+	if (g_botManager->GetBot(i) != nullptr && g_botManager->GetBot(i)->pev == &ent->v)
+		g_botManager->Free(i);
+}
+
 void ClientDisconnect(edict_t* ent)
 {
 	// this function is called whenever a client is VOLUNTARILY disconnected from the server,
@@ -1245,13 +1277,7 @@ void ClientDisconnect(edict_t* ent)
 	// listen server client disconnects, and we don't want to send him any sort of message then.
 
 	//callbacks->OnClientDisconnect (ent);
-	int i = ENTINDEX(ent) - 1;
-
-	InternalAssert(i >= 0 && i < 32);
-
-	// check if its a bot
-	if (g_botManager->GetBot(i) != nullptr && g_botManager->GetBot(i)->pev == &ent->v)
-		g_botManager->Free(i);
+	async(launch::async, ThreadedDisconnect, ent);
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -1408,11 +1434,11 @@ void ClientCommand(edict_t* ent)
 					break;
 
 				case 7:
-					g_waypoint->ToggleFlags(WAYPOINT_CROUCH);
+					g_waypoint->DeleteFlags();
 					break;
 
 				case 8:
-					g_waypoint->DeleteFlags();
+					DisplayMenuToClient(ent, &g_menus[27]);
 					break;
 
 				case 9:
@@ -1464,6 +1490,45 @@ void ClientCommand(edict_t* ent)
 
 				case 7:
 					g_waypoint->ToggleFlags(WAYPOINT_SPECIFICGRAVITY);
+					break;
+
+				case 8:
+					DisplayMenuToClient(ent, &g_menus[13]);
+					break;
+
+				case 9:
+					DisplayMenuToClient(ent, &g_menus[27]);
+					break;
+
+				case 10:
+					DisplayMenuToClient(ent, nullptr);
+					break;
+				}
+
+				if (g_isMetamod)
+					RETURN_META(MRES_SUPERCEDE);
+
+				return;
+			}
+			else if (client->menu == &g_menus[27]) // set waypoint flag 3
+			{
+				if (g_sgdWaypoint)
+					DisplayMenuToClient(ent, &g_menus[27]);
+				else
+					DisplayMenuToClient(ent, nullptr);
+
+				switch (selection)
+				{
+				case 1:
+					g_waypoint->ToggleFlags(WAYPOINT_CROUCH);
+					break;
+
+				case 2:
+					g_waypoint->ToggleFlags(WAYPOINT_ONLYONE);
+					break;
+
+				case 8:
+					DisplayMenuToClient(ent, &g_menus[26]);
 					break;
 
 				case 9:
@@ -2475,7 +2540,6 @@ void ClientCommand(edict_t* ent)
 	(*g_functionTable.pfnClientCommand) (ent);
 }
 
-
 void ServerActivate(edict_t* pentEdictList, int edictCount, int clientMax)
 {
 	// this function is called when the server has fully loaded and is about to manifest itself
@@ -2485,7 +2549,7 @@ void ServerActivate(edict_t* pentEdictList, int edictCount, int clientMax)
 	// loading the bot profiles, and drawing the world map (ie, filling the navigation hashtable).
 	// Once this function has been called, the server can be considered as "running".
 
-	InitConfig(); // initialize all config files
+	async(launch::async, InitConfig); // initialize all config files
 
 	// do level initialization stuff here...
 	g_waypoint->Initialize();
@@ -2569,9 +2633,9 @@ void LoadEntityData(void)
 			SetEntityWaypoint(entity);
 	}
 
-	for (i = 0; i < engine->GetMaxClients(); i++)
+	for (i = 1; i <= engine->GetMaxClients(); i++)
 	{
-		entity = INDEXENT(i + 1);
+		entity = INDEXENT(i);
 
 		if (FNullEnt(entity) || !(entity->v.flags & FL_CLIENT))
 		{
@@ -2604,7 +2668,6 @@ void LoadEntityData(void)
 			if (g_clients[i].getWPTime + 1.2f < engine->GetTime() || (g_clients[i].wpIndex == -1 && g_clients[i].wpIndex2 == -1))
 				SetEntityWaypoint(entity);
 
-			SoundSimulateUpdate(i);
 			continue;
 		}
 
@@ -2684,7 +2747,7 @@ void UpdateClientData(const struct edict_s* ent, int sendweapons, struct clientd
 {
 	extern ConVar ebot_ping;
 	if (ebot_ping.GetBool())
-		SetPing(const_cast <edict_t*> (ent));
+		async(launch::async, SetPing, const_cast <edict_t*> (ent));
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -2692,17 +2755,83 @@ void UpdateClientData(const struct edict_s* ent, int sendweapons, struct clientd
 	(*g_functionTable.pfnUpdateClientData) (ent, sendweapons, cd);
 }
 
-static float secondTimer = 0.0;
-void StartFrame(void)
+void JustAStuff(void)
 {
-	// this function starts a video frame. It is called once per video frame by the engine. If
-	// you run Half-Life at 90 fps, this function will then be called 90 times per second. By
-	// placing a hook on it, we have a good place to do things that should be done continuously
-	// during the game, for example making the bots think (yes, because no Think() function exists
-	// for the bots by the MOD side, remember). Also here we have control on the bot population,
-	// for example if a new player joins the server, we should disconnect a bot, and if the
-	// player population decreases, we should fill the server with other bots.
+	int i;
+	if (IsDedicatedServer())
+	{
+		for (i = 1; i <= engine->GetMaxClients(); i++)
+		{
+			edict_t* player = INDEXENT(i);
 
+			// code below is executed only on dedicated server
+			if (!FNullEnt(player) && (player->v.flags & FL_CLIENT) && !(player->v.flags & FL_FAKECLIENT))
+			{
+				const char* password = ebot_password.GetString();
+				const char* key = ebot_password_key.GetString();
+
+				if (g_clients[i].flags & CFLAG_OWNER)
+				{
+					if (IsNullString(key) && IsNullString(password))
+						g_clients[i].flags &= ~CFLAG_OWNER;
+					else if (strcmp(password, INFOKEY_VALUE(GET_INFOKEYBUFFER(g_clients[i].ent), (char*)key)) == 0)
+					{
+						g_clients[i].flags &= ~CFLAG_OWNER;
+						ServerPrint("Player %s had lost remote access to ebot.", GetEntityName(player));
+					}
+				}
+				else if (IsNullString(key) && IsNullString(password))
+				{
+					if (strcmp(password, INFOKEY_VALUE(GET_INFOKEYBUFFER(g_clients[i].ent), (char*)key)) == 0)
+					{
+						g_clients[i].flags |= CFLAG_OWNER;
+						ServerPrint("Player %s had gained full remote access to ebot.", GetEntityName(player));
+					}
+				}
+			}
+		}
+	}
+	else if (!FNullEnt(g_hostEntity))
+	{
+		if (g_waypointOn)
+		{
+			bool hasBot = false;
+			for (i = 0; i < engine->GetMaxClients(); i++)
+			{
+				if (g_botManager->GetBot(i))
+				{
+					hasBot = true;
+					g_botManager->RemoveAll();
+					break;
+				}
+			}
+
+			if (!hasBot)
+				g_waypoint->Think();
+
+			if (ebot_showwp.GetBool() == true)
+				ebot_showwp.SetInt(0);
+		}
+		else if (ebot_showwp.GetBool() == true)
+			g_waypoint->ShowWaypointMsg();
+
+		CheckWelcomeMessage();
+	}
+}
+
+void ThreadedMaintain(void)
+{
+	g_botManager->MaintainBotQuota();
+}
+
+void ThreadedBombposition(void)
+{
+	g_waypoint->SetBombPosition();
+}
+
+static float secondTimer = 0.0;
+void FrameThread(void)
+{
 	if (g_analyzewaypoints)
 		g_waypoint->Analyze();
 
@@ -2720,86 +2849,44 @@ void StartFrame(void)
 
 	if (secondTimer < engine->GetTime())
 	{
-		LoadEntityData();
-
-		int i;
-		if (IsDedicatedServer())
-		{
-			for (i = 0; i < engine->GetMaxClients(); i++)
-			{
-				edict_t* player = INDEXENT(i + 1);
-
-				// code below is executed only on dedicated server
-				if (!FNullEnt(player) && (player->v.flags & FL_CLIENT) && !(player->v.flags & FL_FAKECLIENT))
-				{
-					const char* password = ebot_password.GetString();
-					const char* key = ebot_password_key.GetString();
-
-					if (g_clients[i].flags & CFLAG_OWNER)
-					{
-						if (IsNullString(key) && IsNullString(password))
-							g_clients[i].flags &= ~CFLAG_OWNER;
-						else if (strcmp(password, INFOKEY_VALUE(GET_INFOKEYBUFFER(g_clients[i].ent), (char*)key)) == 0)
-						{
-							g_clients[i].flags &= ~CFLAG_OWNER;
-							ServerPrint("Player %s had lost remote access to ebot.", GetEntityName(player));
-						}
-					}
-					else if (IsNullString(key) && IsNullString(password))
-					{
-						if (strcmp(password, INFOKEY_VALUE(GET_INFOKEYBUFFER(g_clients[i].ent), (char*)key)) == 0)
-						{
-							g_clients[i].flags |= CFLAG_OWNER;
-							ServerPrint("Player %s had gained full remote access to ebot.", GetEntityName(player));
-						}
-					}
-				}
-			}
-		}
-		else if (!FNullEnt(g_hostEntity))
-		{
-			if (g_waypointOn)
-			{
-				bool hasBot = false;
-				for (i = 0; i < engine->GetMaxClients(); i++)
-				{
-					if (g_botManager->GetBot(i))
-					{
-						hasBot = true;
-						g_botManager->RemoveAll();
-						break;
-					}
-				}
-
-				if (!hasBot)
-					g_waypoint->Think();
-
-				if (ebot_showwp.GetBool() == true)
-					ebot_showwp.SetInt(0);
-			}
-			else if (ebot_showwp.GetBool() == true)
-				g_waypoint->ShowWaypointMsg();
-
-			CheckWelcomeMessage();
-		}
+		async(launch::async, LoadEntityData);
+		async(launch::async, JustAStuff);
 
 		float time = 2.0f;
 		if (g_waypointOn)
 			time = 1.0f;
 
-		secondTimer = engine->GetTime() + time;
+		secondTimer = AddTime(time);
 	}
 
 	if (g_bombPlanted)
-		g_waypoint->SetBombPosition();
+		async(launch::async, ThreadedBombposition);
 
 	// keep bot number up to date
-	g_botManager->MaintainBotQuota();
+	async(launch::async, ThreadedMaintain);
+}
+
+void StartFrame(void)
+{
+	// this function starts a video frame. It is called once per video frame by the engine. If
+	// you run Half-Life at 90 fps, this function will then be called 90 times per second. By
+	// placing a hook on it, we have a good place to do things that should be done continuously
+	// during the game, for example making the bots think (yes, because no Think() function exists
+	// for the bots by the MOD side, remember). Also here we have control on the bot population,
+	// for example if a new player joins the server, we should disconnect a bot, and if the
+	// player population decreases, we should fill the server with other bots.
+
+	async(launch::async, FrameThread);
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
 
 	(*g_functionTable.pfnStartFrame) ();
+}
+
+void ThreadedThink(void)
+{
+	g_botManager->Think();
 }
 
 void StartFrame_Post(void)
@@ -2811,7 +2898,7 @@ void StartFrame_Post(void)
 	// for the bots by the MOD side, remember).  Post version called only by metamod.
 
 	// **** AI EXECUTION STARTS ****
-	g_botManager->Think();
+	async(launch::async, ThreadedThink);
 	// **** AI EXECUTION FINISH ****
 
 	RETURN_META(MRES_IGNORED);
@@ -2832,6 +2919,11 @@ int Spawn_Post(edict_t* ent)
 	RETURN_META_VALUE(MRES_IGNORED, 0);
 }
 
+void ThreadedVis(void)
+{
+	g_waypoint->InitializeVisibility();
+}
+
 void ServerActivate_Post(edict_t* /*pentEdictList*/, int /*edictCount*/, int /*clientMax*/)
 {
 	// this function is called when the server has fully loaded and is about to manifest itself
@@ -2842,7 +2934,7 @@ void ServerActivate_Post(edict_t* /*pentEdictList*/, int /*edictCount*/, int /*c
 	// Once this function has been called, the server can be considered as "running". Post version
 	// called only by metamod.
 
-	g_waypoint->InitializeVisibility();
+	async(launch::async, ThreadedVis);
 
 	RETURN_META(MRES_IGNORED);
 }
@@ -2858,7 +2950,7 @@ void GameDLLInit_Post(void)
 	// to register by the engine side the server commands we need to administrate our bots. Post
 	// version, called only by metamod.
 
-	DetectCSVersion(); // determine version of currently running cs
+	async(launch::async, DetectCSVersion); // determine version of currently running cs
 	RETURN_META(MRES_IGNORED);
 }
 
@@ -2886,7 +2978,7 @@ edict_t* pfnFindEntityByString(edict_t* edictStartSearchAfter, const char* field
 {
 	// round starts in counter-strike 1.5
 	if (strcmp(value, "info_map_parameters") == 0)
-		RoundInit();
+		async(launch::async, RoundInit);
 
 	if (g_isMetamod)
 		RETURN_META_VALUE(MRES_IGNORED, 0);
@@ -2906,7 +2998,7 @@ void pfnEmitSound(edict_t* entity, int channel, const char* sample, float volume
 	// SoundAttachToThreat() to bring the sound to the ears of the bots. Since bots have no client DLL
 	// to handle this for them, such a job has to be done manually.
 
-	SoundAttachToThreat(entity, sample, volume);
+	async(launch::async, SoundAttachToThreat, entity, sample, volume);
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -3254,12 +3346,15 @@ void pfnSetClientMaxspeed(const edict_t* ent, float newMaxspeed)
 
 	// check wether it's not a bot
 	if (bot != nullptr)
-		bot->pev->maxspeed = newMaxspeed;
+		bot->pev->maxspeed = newMaxspeed * 1.2f;
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
 
-	(*g_engfuncs.pfnSetClientMaxspeed) (ent, newMaxspeed);
+	if (bot != nullptr)
+		(*g_engfuncs.pfnSetClientMaxspeed) (ent, newMaxspeed * 1.2f);
+	else
+		(*g_engfuncs.pfnSetClientMaxspeed) (ent, newMaxspeed);
 }
 
 int pfnRegUserMsg_Post(const char* name, int size)
@@ -3540,6 +3635,7 @@ export int Meta_Query(char* ifvers, plugin_info_t** pPlugInfo, mutil_funcs_t* pM
 			return false;
 		}
 	}
+
 	return true; // tell metamod this plugin looks safe
 }
 
@@ -3618,7 +3714,7 @@ export int Amxx_Isebot(int index) // 1.30
 {
 	index -= 1;
 	API_TestMSG("Amxx_Isebot Checking - Done");
-	return (g_botManager->GetBot(index) != nullptr);
+	return g_botManager->GetBot(index) != nullptr;
 }
 
 export int Amxx_CheckEnemy(int index) // 1.30
@@ -3629,7 +3725,7 @@ export int Amxx_CheckEnemy(int index) // 1.30
 		return -2;
 
 	API_TestMSG("Amxx_CheckEnemy Checking - Done");
-	return (bot->m_enemy == nullptr) ? -1 : (ENTINDEX(bot->m_enemy));
+	return bot->m_enemy == nullptr ? -1 : ENTINDEX(bot->m_enemy);
 }
 
 export int Amxx_CheckMoveTarget(int index) // 1.30
@@ -3640,7 +3736,7 @@ export int Amxx_CheckMoveTarget(int index) // 1.30
 		return -2;
 
 	API_TestMSG("Amxx_CheckMoveTarget Checking - Done");
-	return (bot->m_moveTargetEntity == nullptr) ? -1 : (ENTINDEX(bot->m_moveTargetEntity));
+	return bot->m_moveTargetEntity == nullptr ? -1 : ENTINDEX(bot->m_moveTargetEntity);
 }
 
 export int Amxx_SetEnemy(int index, int target, float blockCheckTime) // 1.30
