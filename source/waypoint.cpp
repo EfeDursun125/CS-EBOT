@@ -2396,6 +2396,16 @@ void Waypoint::ShowWaypointMsg(void)
                     engine->DrawLine(g_hostEntity, m_paths[i]->origin - Vector(0.0f, 0.0f, nodeHalfHeight - nodeHeight * 0.75f), m_paths[i]->origin + Vector(0.0f, 0.0f, nodeHalfHeight), nodeFlagColor, 7, 0, 0, 10); // draw additional path
                 }
 
+                if (m_paths[i]->flags & WAYPOINT_FALLCHECK)
+                {
+                    TraceResult tr;
+                    TraceLine(m_paths[i]->origin, m_paths[i]->origin - Vector(0.0f, 0.0f, 60.0f), false, false, g_hostEntity, &tr);
+                    if (tr.flFraction == 1.0f)
+                        engine->DrawLine(g_hostEntity, m_paths[i]->origin, m_paths[i]->origin - Vector(0.0f, 0.0f, 60.0f), Color(255, 0, 0, 255), 6, 0, 0, 10);
+                    else
+                        engine->DrawLine(g_hostEntity, m_paths[i]->origin, m_paths[i]->origin - Vector(0.0f, 0.0f, 60.0f), Color(0, 0, 255, 255), 6, 0, 0, 10);
+                }
+
                 m_waypointDisplayTime[i] = engine->GetTime();
             }
             else if (m_waypointDisplayTime[i] + 2.0f > engine->GetTime()) // what???

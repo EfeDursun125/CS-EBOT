@@ -841,6 +841,15 @@ float GF_AllInOne(int index, int parent, int team, float gravity, bool isZombie)
 			return 65355.0f;
 	}
 
+	Path* parentPath = g_waypoint->GetPath(parent);
+	if (parentPath->flags & WAYPOINT_FALLCHECK)
+	{
+		TraceResult tr;
+		TraceLine(parentPath->origin, parentPath->origin - Vector(0.0f, 0.0f, 60.0f), false, false, g_hostEntity, &tr);
+		if (tr.flFraction != 1.0f)
+			return 65355.0f;
+	}
+
 	float cost = 0.0f;
 	if (path->flags & WAYPOINT_ONLYONE)
 	{
@@ -872,7 +881,7 @@ inline const float GF_CostHuman(int index, int parent, int team, float gravity, 
 	Path* path = g_waypoint->GetPath(index);
 
 	float baseCost = GF_AllInOne(index, parent, team, gravity, isZombie);
-	if (baseCost != 0.0f)
+	if (baseCost > 0.0f)
 		return baseCost;
 
 	baseCost = g_exp.GetAStarValue(index, team, false);
@@ -892,13 +901,11 @@ inline const float GF_CostHuman(int index, int parent, int team, float gravity, 
 		totalDistance += distance;
 	}
 
-	baseCost *= baseCost;
-
 	if (count > 0)
 		baseCost *= count;
 
 	if (totalDistance > 0.0f)
-		baseCost /= totalDistance;
+		baseCost += totalDistance;
 
 	return baseCost;
 }
@@ -1049,7 +1056,24 @@ inline const float GF_CostNoHostage(int index, int parent, int team, float gravi
 	return baseCost;
 }
 
+inline const float HF_Mannhattan(int start, int goal)
+{
+	auto sPath = g_waypoint->GetPath(start)->origin;
+	auto gPath = g_waypoint->GetPath(goal)->origin;
+	float x = fabsf(sPath.x - gPath.x);
+	float y = fabsf(sPath.y - gPath.y);
+	float xy = fabsf(x + y);
+	return xy;
+}
+
 inline const float HF_Distance(int start, int goal)
+{
+	auto sPath = g_waypoint->GetPath(start)->origin;
+	auto gPath = g_waypoint->GetPath(goal)->origin;
+	return (sPath - gPath).GetLengthSquared2D();
+}
+
+inline const float HF_Cheby(int start, int goal)
 {
 	auto sPath = g_waypoint->GetPath(start)->origin;
 	auto gPath = g_waypoint->GetPath(goal)->origin;
@@ -1105,7 +1129,12 @@ void Bot::FindPath(int srcIndex, int destIndex)
 	const float (*gcalc) (int, int, int, float, bool) = nullptr;
 	const float (*hcalc) (int, int) = nullptr;
 
-	hcalc = HF_Distance;
+	if (m_personality == PERSONALITY_CAREFUL)
+		hcalc = HF_Cheby;
+	else if (m_personality == PERSONALITY_RUSHER)
+		hcalc = HF_Mannhattan;
+	else
+		hcalc = HF_Distance;
 
 	if (IsZombieMode() && ebot_zombies_as_path_cost.GetBool() && !m_isZombieBot)
 		gcalc = GF_CostHuman;
@@ -2805,15 +2834,18 @@ void Bot::CheckTerrain(Vector directionNormal, float movedDistance)
 	}
 	else
 	{
-		if (!IsValidWaypoint(m_currentWaypointIndex))
+		if (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_JUMP && g_waypoint->GetPath(m_currentWaypointIndex)->origin.z - pev->origin.z >= 54.0f)
+			DeleteSearchNodes();
+		else if (!m_isZombieBot)
 		{
-			DeleteSearchNodes();
-			m_currentWaypointIndex = FindWaypoint(false);
+			if (!IsValidWaypoint(m_currentWaypointIndex))
+			{
+				DeleteSearchNodes();
+				m_currentWaypointIndex = FindWaypoint(false);
+			}
+			else if (!IsVisible(g_waypoint->GetPath(m_currentWaypointIndex)->origin, GetEntity()))
+				DeleteSearchNodes();
 		}
-		else if (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_JUMP && g_waypoint->GetPath(m_currentWaypointIndex)->origin.z - pev->origin.z >= 54.0f)
-			DeleteSearchNodes();
-		else if (!IsVisible(g_waypoint->GetPath(m_currentWaypointIndex)->origin, GetEntity()))
-			DeleteSearchNodes();
 
 		// not yet decided what to do?
 		if (m_collisionState == COSTATE_UNDECIDED)
