@@ -2517,7 +2517,7 @@ void Waypoint::ShowWaypointMsg(void)
         {
             length = sprintf(tempMessage, "\n\n\n\n\n\n\n    Waypoint Information:\n\n"
                 "      Waypoint %d of %d, Radius: %.1f\n"
-                "      Flags: %s\n\n      %s %f\n      Waypoint Gravity: %f", nearestIndex, g_numWaypoints, path->radius, GetWaypointInfo(nearestIndex), "Your Gravity:", g_hostEntity->v.gravity, path->campStartY);
+                "      Flags: %s\n\n      %s %f\n      Waypoint Gravity: %f", nearestIndex, g_numWaypoints, path->radius, GetWaypointInfo(nearestIndex), "Your Gravity:", MultiplyFloat(g_hostEntity->v.gravity, 800.0f), path->campStartY);
         }
         else if (path->flags & WAYPOINT_ZMHMCAMP || path->flags & WAYPOINT_HMCAMPMESH)
         {

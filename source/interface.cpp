@@ -289,7 +289,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 	else if (stricmp(arg0, "setmesh") == 0)
 	{
 		if (IsNullString(arg1))
-			ClientPrint(ent, print_withtag, "Please set mesh");
+			ClientPrint(ent, print_withtag, "Please set mesh <number>");
 		else if (FNullEnt(g_hostEntity))
 			ClientPrint(ent, print_withtag, "Please try this in lan game");
 		else
@@ -309,7 +309,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 	else if (stricmp(arg0, "setgravity") == 0)
 	{
 		if (IsNullString(arg1))
-			ClientPrint(ent, print_withtag, "Please set gravity");
+			ClientPrint(ent, print_withtag, "Please set gravity <number>");
 		else if (FNullEnt(g_hostEntity))
 			ClientPrint(ent, print_withtag, "Please try this in lan game");
 		else

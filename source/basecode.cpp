@@ -3743,6 +3743,7 @@ void Bot::ChooseAimDirection(void)
 	}
 	else if (flags & AIM_CAMP)
 	{
+		m_aimFlags &= ~AIM_NAVPOINT;
 		if (m_damageTime + float((m_skill + 55) / 20) > engine->GetTime())
 			m_lookAt = m_lastDamageOrigin;
 		else if (m_seeEnemyTime + float((m_skill + 55) / 20) > engine->GetTime())

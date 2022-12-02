@@ -824,7 +824,7 @@ void PriorityQueue::HeapSiftUp(void)
 float GF_AllInOne(int index, int parent, int team, float gravity, bool isZombie)
 {
 	Path* path = g_waypoint->GetPath(index);
-	if (path->flags & WAYPOINT_SPECIFICGRAVITY && gravity < path->campStartY)
+	if (path->flags & WAYPOINT_SPECIFICGRAVITY && (gravity * (1600 - 800)) < path->campStartY)
 		return 65355.0f;
 
 	if (isZombie)
@@ -1018,7 +1018,7 @@ inline const float GF_CostNoHostage(int index, int parent, int team, float gravi
 {
 	Path* path = g_waypoint->GetPath(index);
 
-	if (path->flags & WAYPOINT_SPECIFICGRAVITY && gravity < path->campStartY)
+	if (path->flags & WAYPOINT_SPECIFICGRAVITY)
 		return 65355.0f;
 
 	if (path->flags & WAYPOINT_CROUCH)
@@ -1115,7 +1115,7 @@ void Bot::FindPath(int srcIndex, int destIndex)
 		return;
 	}
 
-	m_chosenGoalIndex = srcIndex;
+	m_chosenGoalIndex = destIndex;
 	m_goalValue = 0.0f;
 
 	for (int i = 0; i < g_numWaypoints; i++)
@@ -1231,6 +1231,9 @@ void Bot::FindPath(int srcIndex, int destIndex)
 			}
 		}
 	}
+
+	// no path? go to random waypoint...
+	FindPath(srcIndex, g_waypoint->m_otherPoints.GetRandomElement());
 }
 
 void Bot::DeleteSearchNodes(bool skip)
