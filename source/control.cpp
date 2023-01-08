@@ -978,7 +978,7 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	}
 
 	MDLL_ClientPutInServer(bot);
-	bot->v.flags |= FL_FAKECLIENT; // set this player as fakeclient
+	bot->v.flags |= FL_CLIENT;
 
 	// initialize all the variables for this bot...
 	m_notStarted = true;  // hasn't joined game yet

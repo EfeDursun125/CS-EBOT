@@ -659,7 +659,10 @@ edict_t* Bot::FindBreakable(void)
 
 	// already destroying one of them...
 	if (GetCurrentTask()->taskID == TASK_DESTROYBREAKABLE)
+	{
+		SelectBestWeapon();
 		return m_breakableEntity;
+	}
 
 	TraceResult tr{};
 	TraceLine(pev->origin, pev->origin + (m_destOrigin - pev->origin).Normalize() * 72.0f, false, false, GetEntity(), &tr);
@@ -3630,11 +3633,24 @@ void Bot::ChooseAimDirection(void)
 
 	if (!IsValidWaypoint(m_currentWaypointIndex))
 		GetValidWaypoint();
-	else if (m_isZombieBot && HasNextPath() && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_ZOMBIEPUSH)
+	else
 	{
-		m_lookAt = pev->flags & FL_DUCKING ? m_waypointOrigin : m_destOrigin + m_moveAngles * m_frameInterval;
-		m_lookAt.z = EyePosition().z;
-		return;
+		if (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_USEBUTTON)
+		{
+			edict_t* button = FindButton();
+			m_aimStopTime = 0.0f;
+			if (button != nullptr)
+				m_lookAt = GetEntityOrigin(button);
+			else
+				m_lookAt = m_destOrigin + pev->view_ofs;
+			return;
+		}
+		else if (m_isZombieBot && HasNextPath() && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_ZOMBIEPUSH)
+		{
+			m_lookAt = pev->flags & FL_DUCKING ? m_waypointOrigin : m_destOrigin + m_moveAngles * m_frameInterval;
+			m_lookAt.z = EyePosition().z;
+			return;
+		}
 	}
 
 	// check if last enemy vector valid
@@ -3779,15 +3795,6 @@ void Bot::ChooseAimDirection(void)
 			m_aimStopTime = 0.0f;
 			m_lookAt = m_destOrigin + pev->view_ofs;
 		}
-		else if (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_USEBUTTON)
-		{
-			edict_t* button = FindButton();
-			m_aimStopTime = 0.0f;
-			if (button != nullptr)
-				m_lookAt = GetEntityOrigin(button);
-			else
-				m_lookAt = m_destOrigin + pev->view_ofs;
-		}
 		else if (m_isZombieBot || m_currentWeapon == WEAPON_KNIFE)
 		{
 			if (HasNextPath())
@@ -3866,9 +3873,6 @@ void Bot::Think(void)
 
 	if (m_slowthinktimer < engine->GetTime())
 	{
-		if (!(pev->flags & FL_FAKECLIENT))
-			pev->flags |= FL_FAKECLIENT;
-
 		if (m_stayTime <= 0.0f)
 		{
 			extern ConVar ebot_random_join_quit;
@@ -5944,6 +5948,11 @@ void Bot::RunTask(void)
 	case TASK_DESTROYBREAKABLE:
 		m_aimFlags |= AIM_OVERRIDE;
 
+		if (!m_isZombieBot)
+			SelectBestWeapon();
+		else
+			KnifeAttack();
+
 		// breakable destroyed?
 		if (FNullEnt(m_breakableEntity) || !IsShootableBreakable(m_breakableEntity))
 		{
@@ -5963,12 +5972,6 @@ void Bot::RunTask(void)
 		{
 			m_moveSpeed = 0.0f;
 			m_strafeSpeed = 0.0f;
-
-			if (!m_isZombieBot)
-				SelectBestWeapon();
-			else
-				KnifeAttack();
-
 			m_wantsToFire = true;
 			m_shootTime = engine->GetTime();
 		}
@@ -5976,7 +5979,6 @@ void Bot::RunTask(void)
 		{
 			m_checkTerrain = true;
 			m_moveToGoal = true;
-
 			TaskComplete();
 		}
 
@@ -6698,9 +6700,6 @@ void Bot::BotAI(void)
 	{
 		if (IsZombieMode())
 		{
-			if (m_currentWeapon == WEAPON_KNIFE)
-				SelectBestWeapon();
-
 			if (!FNullEnt(m_enemy) && m_isEnemyReachable)
 			{
 				m_moveToGoal = false; // don't move to goal
@@ -6709,11 +6708,13 @@ void Bot::BotAI(void)
 			}
 
 			extern ConVar ebot_escape;
-			if (ebot_escape.GetBool())
+			if (ebot_escape.GetBool() && GetCurrentTask()->taskID != TASK_CAMP && GetCurrentTask()->taskID != TASK_DESTROYBREAKABLE)
 			{
-				if (FNullEnt(m_enemy) && m_seeEnemyTime + 2.0f < engine->GetTime())
+				if (FNullEnt(m_enemy) && FNullEnt(m_breakableEntity) && m_currentWeapon != WEAPON_KNIFE && m_seeEnemyTime + 2.0f < engine->GetTime())
 					SelectWeaponByName("weapon_knife");
 			}
+			else if (m_currentWeapon == WEAPON_KNIFE)
+				SelectBestWeapon();
 		}
 		else if (!FNullEnt(m_enemy) && GetCurrentTask()->taskID != TASK_CAMP)
 		{
@@ -6722,6 +6723,9 @@ void Bot::BotAI(void)
 			CombatFight();
 		}
 	}
+
+	if (GetCurrentTask()->taskID == TASK_CAMP || GetCurrentTask()->taskID == TASK_DESTROYBREAKABLE)
+		SelectBestWeapon();
 
 	if ((g_mapType & MAP_DE) && g_bombPlanted && m_notKilled && OutOfBombTimer())
 	{
@@ -6755,7 +6759,7 @@ void Bot::BotAI(void)
 		// use button waypoints
 		if (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_USEBUTTON)
 		{
-			if ((pev->origin - g_waypoint->GetPath(m_currentWaypointIndex)->origin).GetLength() <= 100.0f)
+			if ((pev->origin - g_waypoint->GetPath(m_currentWaypointIndex)->origin).GetLengthSquared() <= SquaredF(100.0f))
 			{
 				edict_t* button = FindButton();
 				if (!m_isSlowThink)
@@ -6864,6 +6868,18 @@ void Bot::BotAI(void)
 	// save the previous speed (for checking if stuck)
 	m_prevSpeed = fabsf(m_moveSpeed);
 	m_lastDamageType = -1; // reset damage
+
+	if (IsValidWaypoint(m_currentWaypointIndex) && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_WAITUNTIL)
+	{
+		TraceResult tr;
+		TraceLine(g_waypoint->GetPath(m_currentWaypointIndex)->origin, g_waypoint->GetPath(m_currentWaypointIndex)->origin - Vector(0.0f, 0.0f, 60.0f), false, false, GetEntity(), &tr);
+		if (tr.flFraction == 1.0f)
+		{
+			m_moveSpeed = 0.0f;
+			m_strafeSpeed = 0.0f;
+			IgnoreCollisionShortly();
+		}
+	}
 }
 
 void Bot::ChatMessage(int type, bool isTeamSay)

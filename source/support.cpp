@@ -1403,7 +1403,7 @@ bool IsValidBot(edict_t* ent)
 	if (FNullEnt(ent))
 		return false;
 
-	if (ent->v.flags & FL_FAKECLIENT || g_botManager->GetBot(ent) != nullptr)
+	if (g_botManager->GetBot(ent) != nullptr)
 		return true;
 
 	return false;

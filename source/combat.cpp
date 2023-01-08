@@ -28,6 +28,7 @@ ConVar ebot_escape("ebot_zombie_escape_mode", "0");
 ConVar ebot_zp_use_grenade_percent("ebot_zm_use_grenade_percent", "10");
 ConVar ebot_zp_escape_distance("ebot_zm_escape_distance", "200");
 ConVar ebot_zombie_speed_factor("ebot_zombie_speed_factor", "1.0");
+ConVar ebot_sb_mode("ebot_sb_mode", "0");
 
 int Bot::GetNearbyFriendsNearPosition(Vector origin, int radius)
 {
@@ -1592,6 +1593,21 @@ void Bot::SelectBestWeapon(void)
 	if (!m_isSlowThink)
 		return;
 
+	if (ebot_sb_mode.GetBool())
+	{
+		if (m_currentWeapon != WEAPON_HEGRENADE && m_currentWeapon != WEAPON_FBGRENADE && m_currentWeapon != WEAPON_SMGRENADE)
+		{
+			if (pev->weapons & (1 << WEAPON_HEGRENADE))
+				SelectWeaponByName("weapon_hegrenade");
+			else if (pev->weapons & (1 << WEAPON_FBGRENADE))
+				SelectWeaponByName("weapon_flashbang");
+			else if (pev->weapons & (1 << WEAPON_SMGRENADE))
+				SelectWeaponByName("weapon_smokegrenade");
+		}
+
+		return;
+	}
+
 	// never change weapon while reloading if theres no enemy
 	if (FNullEnt(m_enemy) && m_isReloading)
 		return;
@@ -1655,8 +1671,8 @@ void Bot::SelectBestWeapon(void)
 	if (weaponID == m_currentWeapon)
 		return;
 
-	//if (m_currentWeapon != weaponID)
-	SelectWeaponByName(selectTab[selectIndex].weaponName);
+	if (m_currentWeapon != weaponID)
+		SelectWeaponByName(selectTab[selectIndex].weaponName);
 
 	m_isReloading = false;
 	m_reloadState = RSTATE_NONE;

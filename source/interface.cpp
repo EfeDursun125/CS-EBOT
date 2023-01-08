@@ -1205,7 +1205,7 @@ void Touch(edict_t* pentTouched, edict_t* pentOther)
 	// the two entities both have velocities, for example two players colliding, this function
 	// is called twice, once for each entity moving.
 
-	if (!FNullEnt(pentTouched) && !FNullEnt(pentOther) && (pentOther->v.flags & FL_FAKECLIENT))
+	if (!FNullEnt(pentTouched) && !FNullEnt(pentOther))
 	{
 		Bot* bot = g_botManager->GetBot(const_cast <edict_t*> (pentOther));
 		if (bot != nullptr)
@@ -1525,6 +1525,10 @@ void ClientCommand(edict_t* ent)
 
 				case 2:
 					g_waypoint->ToggleFlags(WAYPOINT_ONLYONE);
+					break;
+
+				case 3:
+					g_waypoint->ToggleFlags(WAYPOINT_WAITUNTIL);
 					break;
 
 				case 8:

@@ -591,7 +591,7 @@ MenuText g_menus[28] =
 		"\\yToggle Waypoint Flags (Page 3/3)\\w\v\v"
 		"1. Crouch\v"
 		"2. Only One Bot\v"
-		"\v"
+		"3. Wait Until Ground\v"
 		"\v"
 		"\v"
 		"\v"

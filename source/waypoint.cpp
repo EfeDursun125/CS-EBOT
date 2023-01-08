@@ -1497,7 +1497,7 @@ void Waypoint::InitTypes(int mode)
             else if (m_paths[i]->flags & WAYPOINT_HMCAMPMESH)
                 m_hmMeshPoints.Push(i);
 
-            if (!(m_paths[i]->flags & WAYPOINT_AVOID) && !(m_paths[i]->flags & WAYPOINT_ONLYONE) && !(m_paths[i]->flags & WAYPOINT_CROUCH) && !(m_paths[i]->flags & WAYPOINT_FALLCHECK) && !(m_paths[i]->flags & WAYPOINT_LADDER))
+            if (!(m_paths[i]->flags & WAYPOINT_AVOID) && !(m_paths[i]->flags & WAYPOINT_ONLYONE) && !(m_paths[i]->flags & WAYPOINT_CROUCH) && !(m_paths[i]->flags & WAYPOINT_WAITUNTIL) && !(m_paths[i]->flags & WAYPOINT_FALLCHECK) && !(m_paths[i]->flags & WAYPOINT_LADDER))
                 m_otherPoints.Push(i);
         }
     }
@@ -2085,6 +2085,7 @@ char* Waypoint::GetWaypointInfo(int id)
         path->flags & WAYPOINT_ZOMBIEPUSH ? "ZOMBIE PUSH " : "",
         path->flags & WAYPOINT_FALLRISK ? "FALL RISK " : "",
         path->flags & WAYPOINT_SPECIFICGRAVITY ? "SPECIFIC GRAVITY " : "",
+        path->flags & WAYPOINT_WAITUNTIL ? "WAIT UNTIL GROUND " : "",
         path->flags & WAYPOINT_ONLYONE ? "ONLY ONE BOT " : "");
 
     // return the message buffer
@@ -2358,6 +2359,8 @@ void Waypoint::ShowWaypointMsg(void)
                     nodeColor = Color(128, 128, 128, 255);
                 else if (m_paths[i]->flags & WAYPOINT_ONLYONE)
                     nodeColor = Color(255, 255, 0, 255);
+                else if (m_paths[i]->flags & WAYPOINT_WAITUNTIL)
+                    nodeColor = Color(0, 0, 255, 255);
 
                 // colorize additional flags
                 Color nodeFlagColor = Color(-1, -1, -1, 0);
@@ -2383,6 +2386,8 @@ void Waypoint::ShowWaypointMsg(void)
                     nodeFlagColor = Color(250, 75, 150, 255);
                 else if (m_paths[i]->flags & WAYPOINT_SPECIFICGRAVITY)
                     nodeFlagColor = Color(128, 0, 255, 255);
+                else if (m_paths[i]->flags & WAYPOINT_WAITUNTIL)
+                    nodeFlagColor = Color(250, 75, 150, 255);
 
                 nodeColor.alpha = 255;
                 nodeFlagColor.alpha = 255;
@@ -2396,7 +2401,7 @@ void Waypoint::ShowWaypointMsg(void)
                     engine->DrawLine(g_hostEntity, m_paths[i]->origin - Vector(0.0f, 0.0f, nodeHalfHeight - nodeHeight * 0.75f), m_paths[i]->origin + Vector(0.0f, 0.0f, nodeHalfHeight), nodeFlagColor, 7, 0, 0, 10); // draw additional path
                 }
 
-                if (m_paths[i]->flags & WAYPOINT_FALLCHECK)
+                if (m_paths[i]->flags & WAYPOINT_FALLCHECK || m_paths[i]->flags & WAYPOINT_WAITUNTIL)
                 {
                     TraceResult tr;
                     TraceLine(m_paths[i]->origin, m_paths[i]->origin - Vector(0.0f, 0.0f, 60.0f), false, false, g_hostEntity, &tr);

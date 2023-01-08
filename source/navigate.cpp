@@ -846,7 +846,7 @@ float GF_AllInOne(int index, int parent, int team, float gravity, bool isZombie)
 	{
 		TraceResult tr;
 		TraceLine(parentPath->origin, parentPath->origin - Vector(0.0f, 0.0f, 60.0f), false, false, g_hostEntity, &tr);
-		if (tr.flFraction != 1.0f)
+		if (tr.flFraction == 1.0f)
 			return 65355.0f;
 	}
 
@@ -915,7 +915,7 @@ inline const float GF_CostCareful(int index, int parent, int team, float gravity
 	Path* path = g_waypoint->GetPath(index);
 
 	float baseCost = GF_AllInOne(index, parent, team, gravity, isZombie);
-	if (baseCost != 0.0f)
+	if (baseCost > 0.0f)
 		return baseCost;
 
 	baseCost = g_exp.GetAStarValue(index, team, false);
@@ -959,7 +959,7 @@ inline const float GF_CostNormal(int index, int parent, int team, float gravity,
 	Path* path = g_waypoint->GetPath(index);
 
 	float baseCost = GF_AllInOne(index, parent, team, gravity, isZombie);
-	if (baseCost != 0.0f)
+	if (baseCost > 0.0f)
 		return baseCost;
 
 	baseCost = g_exp.GetAStarValue(index, team, false);
@@ -999,7 +999,7 @@ inline const float GF_CostRusher(int index, int parent, int team, float gravity,
 	Path* path = g_waypoint->GetPath(index);
 
 	float baseCost = GF_AllInOne(index, parent, team, gravity, isZombie);
-	if (baseCost != 0.0f)
+	if (baseCost > 0.0f)
 		return baseCost;
 
 	baseCost = g_exp.GetAStarValue(index, team, false);
@@ -1031,6 +1031,9 @@ inline const float GF_CostNoHostage(int index, int parent, int team, float gravi
 		return 65355.0f;
 
 	if (path->flags & WAYPOINT_FALLCHECK)
+		return 65355.0f;
+
+	if (path->flags & WAYPOINT_WAITUNTIL)
 		return 65355.0f;
 
 	if (path->flags & WAYPOINT_JUMP)
