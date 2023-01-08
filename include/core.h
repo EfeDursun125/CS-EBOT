@@ -408,6 +408,7 @@ enum WaypointFlag
 	WAYPOINT_FALLRISK = (1 << 17), // bots never do strafing while on this waypoint
 	WAYPOINT_SPECIFICGRAVITY = (1 << 18), // specific jump gravity check for bot
 	WAYPOINT_ONLYONE = (1 << 19), // to avoid multiple bots stuck on same waypoint
+	WAYPOINT_WAITUNTIL = (1 << 20), // inverse fall check
 	WAYPOINT_FALLCHECK = (1 << 26), // bots will check ground
 	WAYPOINT_JUMP = (1 << 27), // for jump points
 	WAYPOINT_SNIPER = (1 << 28), // it's a specific sniper point
