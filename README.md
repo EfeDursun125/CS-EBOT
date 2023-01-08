@@ -1,4 +1,4 @@
-# CS 1.6 E-BOT https://img.shields.io/github/downloads/EfeDursun125/CS-EBOT/total?style=for-the-badge
+# CS 1.6 E-BOT
 AI Bot for Counter-Strike based on SyPB
 
 This bot can be used for default gamemodes, deathmatch and zombie.
