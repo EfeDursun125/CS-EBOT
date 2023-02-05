@@ -44,6 +44,9 @@ ConVar ebot_random_join_quit("ebot_random_join_quit", "0");
 ConVar ebot_stay_min("ebot_stay_min", "120"); // 2 minutes
 ConVar ebot_stay_max("ebot_stay_max", "3600"); // 1 hours
 
+ConVar ebot_think_fps("ebot_think_fps", "24.0");
+ConVar ebot_sleep_fps("ebot_sleep_fps", "8.0");
+
 // this is a bot manager class constructor
 BotControl::BotControl(void)
 {
@@ -301,24 +304,9 @@ void BotControl::DoJoinQuitStuff(void)
 	m_randomJoinTime = AddTime(RANDOM_FLOAT(min, max));
 }
 
-void ThreadedThink(int i)
-{
-	g_botManager->GetBot(i)->Think();
-}
-
-void ThreadedFacePosition(int i)
-{
-	g_botManager->GetBot(i)->FacePosition();
-}
-
-void ThreadedJoinQuit(void)
-{
-	g_botManager->DoJoinQuitStuff();
-}
-
 void BotControl::Think(void)
 {
-	async(launch::async, ThreadedJoinQuit);
+	g_botManager->DoJoinQuitStuff();
 
 	extern ConVar ebot_stopbots;
 	for (int i = 0; i < engine->GetMaxClients(); i++)
@@ -336,11 +324,11 @@ void BotControl::Think(void)
 
 		if (runThink)
 		{
-			m_bots[i]->m_thinkTimer = AddTime(engine->RandomFloat(0.9f, 1.1f) / 20.0f);
-			async(launch::async, ThreadedThink, i);
+			m_bots[i]->m_thinkTimer = AddTime(1.0f / (m_bots[i]->m_moveSpeed != 0.0f ? ebot_think_fps.GetFloat() : ebot_sleep_fps.GetFloat()));
+			g_botManager->GetBot(i)->Think();
 		}
 		else if (!ebot_stopbots.GetBool() && m_bots[i]->m_notKilled)
-			async(launch::async, ThreadedFacePosition, i);
+			g_botManager->GetBot(i)->FacePosition();
 
 		m_bots[i]->m_moveAnglesForRunMove = m_bots[i]->m_moveAngles;
 		m_bots[i]->m_moveSpeedForRunMove = m_bots[i]->m_moveSpeed;
@@ -1275,7 +1263,7 @@ void Bot::Kill(void)
 
 	hurtEntity->v.classname = MAKE_STRING(g_weaponDefs[m_currentWeapon].className);
 	hurtEntity->v.dmg_inflictor = GetEntity();
-	hurtEntity->v.dmg = 9999.0f;
+	hurtEntity->v.dmg = 999999.0f;
 	hurtEntity->v.dmg_take = 1.0f;
 	hurtEntity->v.dmgtime = 2.0f;
 	hurtEntity->v.effects |= EF_NODRAW;

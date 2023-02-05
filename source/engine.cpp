@@ -23,6 +23,7 @@
 //
 
 #include <core.h>
+#include <random>
 
 ConVar::ConVar(const char* name, const char* initval, VarType type)
 {
@@ -31,17 +32,11 @@ ConVar::ConVar(const char* name, const char* initval, VarType type)
 
 float Engine::RandomFloat(float low, float high)
 {
-    if (low >= high)
-        return low;
-
     return RANDOM_FLOAT(low, high);
 }
 
 int Engine::RandomInt(int low, int high)
 {
-    if (low >= high)
-        return low;
-
     return RANDOM_LONG(low, high);
 }
 

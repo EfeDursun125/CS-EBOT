@@ -31,6 +31,7 @@
 //
 
 ConVar ebot_apitestmsg("ebot_apitestmsg", "0");
+ConVar ebot_ignore_enemies("ebot_ignore_enemies", "0");
 
 void TraceLine(const Vector& start, const Vector& end, bool ignoreMonsters, bool ignoreGlass, edict_t* ignoreEntity, TraceResult* ptr)
 {
@@ -201,7 +202,7 @@ Vector GetNearestWalkablePosition(const Vector& origin, edict_t* ent, bool retur
 		BestOrigin = FirstOrigin;
 	else
 	{
-		if ((origin - FirstOrigin).GetLength() < (origin - SecondOrigin).GetLength())
+		if ((origin - FirstOrigin).GetLengthSquared() < (origin - SecondOrigin).GetLengthSquared())
 			BestOrigin = FirstOrigin;
 		else
 			BestOrigin = SecondOrigin;
@@ -1026,9 +1027,7 @@ bool ChanceOf(int number)
 
 bool IsValidWaypoint(int index)
 {
-	if (index < 0 || index >= g_numWaypoints)
-		return false;
-	return true;
+	return index >= 0;
 }
 
 int GetGameMode(void)
@@ -1065,16 +1064,7 @@ float Clamp(float a, float b, float c)
 
 float SquaredF(float a)
 {
-	return MultiplyFloat(a, a);
-}
-
-float MultiplyFloat(float a, float b)
-{
-#ifdef __SSE2__
-	return _mm_cvtss_f32(_mm_mul_ss(_mm_load_ss(&a), _mm_load_ss(&b)));
-#else
-	return a * b;
-#endif
+	return a * a;
 }
 
 float AddTime(float a)
@@ -1083,59 +1073,6 @@ float AddTime(float a)
 	return _mm_cvtss_f32(_mm_add_ss(_mm_load_ss(&g_pGlobals->time), _mm_load_ss(&a)));
 #else
 	return g_pGlobals->time + a;
-#endif
-}
-
-Vector AddVector(Vector a, Vector b)
-{
-#ifdef __SSE2__
-	Vector newVec;
-	newVec.x = _mm_cvtss_f32(_mm_add_ss(_mm_load_ss(&a.x), _mm_load_ss(&b.x)));
-	newVec.y = _mm_cvtss_f32(_mm_add_ss(_mm_load_ss(&a.y), _mm_load_ss(&b.y)));
-	newVec.z = _mm_cvtss_f32(_mm_add_ss(_mm_load_ss(&a.z), _mm_load_ss(&b.z)));
-	return newVec;
-#else
-	return a + b;
-#endif
-}
-
-Vector MultiplyVector(Vector a, Vector b)
-{
-#ifdef __SSE2__
-	Vector newVec;
-	newVec.x = _mm_cvtss_f32(_mm_mul_ss(_mm_load_ss(&a.x), _mm_load_ss(&b.x)));
-	newVec.y = _mm_cvtss_f32(_mm_mul_ss(_mm_load_ss(&a.y), _mm_load_ss(&b.y)));
-	newVec.z = _mm_cvtss_f32(_mm_mul_ss(_mm_load_ss(&a.z), _mm_load_ss(&b.z)));
-	return newVec;
-#else
-	return a * b;
-#endif
-}
-
-int AddInt(int a, int b)
-{
-#ifdef __SSE2__
-	return _mm_cvtsi128_si32(_mm_add_epi32(_mm_loadu_si32(&a), _mm_loadu_si32(&b)));
-#else
-	return a + b;
-#endif
-}
-
-float AddFloat(float a, float b)
-{
-#ifdef __SSE2__
-	return _mm_cvtss_f32(_mm_add_ss(_mm_load_ss(&a), _mm_load_ss(&b)));
-#else
-	return a + b;
-#endif
-}
-
-float DivideFloat(float a, float b)
-{
-#ifdef __SSE2__
-	return _mm_cvtss_f32(_mm_div_ss(_mm_load_ss(&a), _mm_load_ss(&b)));
-#else
-	return a / b;
 #endif
 }
 
@@ -1166,24 +1103,6 @@ float MinFloat(float a, float b)
 #endif
 }
 
-/*float VectorAngle(float x, float y)
-{
-	if (x == 0) // special cases
-		return (y > 0) ? 90 : (y == 0) ? 0 : 270;
-	else if (y == 0) // special cases
-		return (x >= 0) ? 0 : 180;
-
-	int ret = radToDeg(atanf((float)y / x));
-	if (x < 0 && y < 0) // quadrant Ⅲ
-		ret = 180 + ret;
-	else if (x < 0) // quadrant Ⅱ
-		ret = 180 + ret; // it actually substracts
-	else if (y < 0) // quadrant Ⅳ
-		ret = 270 + (90 + ret); // it actually substracts
-
-	return ret;
-}*/
-
 // new get team off set, return player true team
 int GetTeam(edict_t* ent)
 {
@@ -1205,18 +1124,20 @@ int GetTeam(edict_t* ent)
 
 		return player_team;
 	}
-
-	if (GetGameMode() == MODE_DM)
-		player_team = client * client;
+	
+	if (ebot_ignore_enemies.GetBool())
+		player_team = TEAM_COUNTER;
 	else if (GetGameMode() == MODE_ZP)
 	{
-		if (g_DelayTimer > engine->GetTime())
+		if (g_DelayTimer >= engine->GetTime())
 			player_team = TEAM_COUNTER;
 		else if (g_roundEnded)
 			player_team = TEAM_TERRORIST;
 		else
 			player_team = *((int*)ent->pvPrivateData + OFFSET_TEAM) - 1;
 	}
+	else if (GetGameMode() == MODE_DM)
+		player_team = client * client;
 	else if (GetGameMode() == MODE_NOTEAM)
 		player_team = 2;
 	else
@@ -1283,15 +1204,15 @@ int SetEntityWaypoint(edict_t* ent, int mode)
 
 		if (getWpOrigin != nullvec && wpIndex >= 0 && wpIndex < g_numWaypoints)
 		{
-			float distance = (getWpOrigin - origin).GetLength();
-			if (distance >= 300.0f)
+			float distance = (getWpOrigin - origin).GetLengthSquared();
+			if (distance >= SquaredF(300.0f))
 				needCheckNewWaypoint = true;
-			else if (distance >= 32.0f)
+			else if (distance >= SquaredF(32.0f))
 			{
 				Vector wpOrigin = g_waypoint->GetPath(wpIndex)->origin;
-				distance = (wpOrigin - origin).GetLength();
+				distance = (wpOrigin - origin).GetLengthSquared();
 
-				if (distance > g_waypoint->GetPath(wpIndex)->radius + 32.0f)
+				if (distance > SquaredF(g_waypoint->GetPath(wpIndex)->radius + 32.0f))
 					needCheckNewWaypoint = true;
 				else
 				{
@@ -1321,9 +1242,9 @@ int SetEntityWaypoint(edict_t* ent, int mode)
 	int wpIndex2 = -1;
 
 	if (mode == -1 || g_botManager->GetBot(ent) == nullptr)
-		wpIndex = g_waypoint->FindNearest(origin, 9999.0f, -1, ent);
+		wpIndex = g_waypoint->FindNearest(origin, 999999.0f, -1, ent);
 	else
-		wpIndex = g_waypoint->FindNearest(origin, 9999.0f, -1, ent, &wpIndex2, mode);
+		wpIndex = g_waypoint->FindNearest(origin, 999999.0f, -1, ent, &wpIndex2, mode);
 
 	if (!isPlayer)
 	{
@@ -1363,7 +1284,7 @@ int GetEntityWaypoint(edict_t* ent)
 			return SetEntityWaypoint(ent);
 		}
 
-		return g_waypoint->FindNearest(GetEntityOrigin(ent), 99999.0f, -1, ent);
+		return g_waypoint->FindNearest(GetEntityOrigin(ent), 999999.0f, -1, ent);
 	}
 
 	int client = ENTINDEX(ent) - 1;
@@ -1828,7 +1749,7 @@ void MOD_AddLogEntry(int mod, char* format)
 bool FindNearestPlayer(void** pvHolder, edict_t* to, float searchDistance, bool sameTeam, bool needBot, bool isAlive, bool needDrawn)
 {
 	edict_t* ent = nullptr, * survive = nullptr; // pointer to temporaly & survive entity
-	float nearestPlayer = 4096.0f; // nearest player
+	float nearestPlayer = FLT_MAX; // nearest player
 
 	while (!FNullEnt(ent = FIND_ENTITY_IN_SPHERE(ent, GetEntityOrigin(to), searchDistance)))
 	{
@@ -1838,7 +1759,7 @@ bool FindNearestPlayer(void** pvHolder, edict_t* to, float searchDistance, bool 
 		if ((sameTeam && GetTeam(ent) != GetTeam(to)) || (isAlive && !IsAlive(ent)) || (needBot && !IsValidBot(ent)) || (needDrawn && (ent->v.effects & EF_NODRAW)))
 			continue; // filter players with parameters
 
-		float distance = (GetEntityOrigin(ent) - GetEntityOrigin(to)).GetLength();
+		float distance = (GetEntityOrigin(ent) - GetEntityOrigin(to)).GetLengthSquared();
 
 		if (distance < nearestPlayer)
 		{
@@ -1879,7 +1800,7 @@ void SoundAttachToThreat(edict_t* ent, const char* sample, float volume)
 			if (!(g_clients[i].flags & CFLAG_USED) || !(g_clients[i].flags & CFLAG_ALIVE))
 				continue;
 
-			float distance = (GetEntityOrigin(g_clients[i].ent) - origin).GetLength();
+			float distance = (GetEntityOrigin(g_clients[i].ent) - origin).GetLengthSquared();
 
 			// now find nearest player
 			if (distance < nearestDistance)

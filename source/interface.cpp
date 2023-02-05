@@ -1192,6 +1192,13 @@ int Spawn(edict_t* ent)
 	return result;
 }
 
+void ThreadedTouch(edict_t* pentTouched, edict_t* pentOther)
+{
+	Bot* bot = g_botManager->GetBot(const_cast <edict_t*> (pentOther));
+	if (bot != nullptr)
+		bot->CheckTouchEntity(pentTouched);
+}
+
 void Touch(edict_t* pentTouched, edict_t* pentOther)
 {
 	// this function is called when two entities' bounding boxes enter in collision. For example,
@@ -1206,11 +1213,7 @@ void Touch(edict_t* pentTouched, edict_t* pentOther)
 	// is called twice, once for each entity moving.
 
 	if (!FNullEnt(pentTouched) && !FNullEnt(pentOther))
-	{
-		Bot* bot = g_botManager->GetBot(const_cast <edict_t*> (pentOther));
-		if (bot != nullptr)
-			bot->CheckTouchEntity(pentTouched);
-	}
+		async(launch::async, ThreadedTouch, pentTouched, pentOther);
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -1276,7 +1279,6 @@ void ClientDisconnect(edict_t* ent)
 	// to reset his entity pointer for safety. There are still a few server frames to go once a
 	// listen server client disconnects, and we don't want to send him any sort of message then.
 
-	//callbacks->OnClientDisconnect (ent);
 	async(launch::async, ThreadedDisconnect, ent);
 
 	if (g_isMetamod)
@@ -2504,6 +2506,7 @@ void ClientCommand(edict_t* ent)
 			}
 		}
 	}
+
 	int clientIndex = ENTINDEX(ent) - 1;
 
 	// check if this player alive, and issue something
@@ -2823,16 +2826,6 @@ void JustAStuff(void)
 	}
 }
 
-void ThreadedMaintain(void)
-{
-	g_botManager->MaintainBotQuota();
-}
-
-void ThreadedBombposition(void)
-{
-	g_waypoint->SetBombPosition();
-}
-
 static float secondTimer = 0.0;
 void FrameThread(void)
 {
@@ -2853,8 +2846,8 @@ void FrameThread(void)
 
 	if (secondTimer < engine->GetTime())
 	{
-		async(launch::async, LoadEntityData);
-		async(launch::async, JustAStuff);
+		LoadEntityData();
+		JustAStuff();
 
 		float time = 2.0f;
 		if (g_waypointOn)
@@ -2864,10 +2857,10 @@ void FrameThread(void)
 	}
 
 	if (g_bombPlanted)
-		async(launch::async, ThreadedBombposition);
+		g_waypoint->SetBombPosition();
 
 	// keep bot number up to date
-	async(launch::async, ThreadedMaintain);
+	g_botManager->MaintainBotQuota();
 }
 
 void StartFrame(void)
@@ -3049,10 +3042,9 @@ void pfnClientCommand(edict_t* ent, char* format, ...)
 	CLIENT_COMMAND(ent, buffer);
 }
 
+// this function called each time a message is about to sent
 void pfnMessageBegin(int msgDest, int msgType, const float* origin, edict_t* ed)
 {
-	// this function called each time a message is about to sent.
-
 	// store the message type in our own variables, since the GET_USER_MSG_ID () will just do a lot of strcmp()'s...
 	if (g_isMetamod && g_netMsg->GetId(NETMSG_MONEY) == -1)
 	{
@@ -3350,13 +3342,13 @@ void pfnSetClientMaxspeed(const edict_t* ent, float newMaxspeed)
 
 	// check wether it's not a bot
 	if (bot != nullptr)
-		bot->pev->maxspeed = newMaxspeed * 1.2f;
+		bot->pev->maxspeed = newMaxspeed;
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
 
 	if (bot != nullptr)
-		(*g_engfuncs.pfnSetClientMaxspeed) (ent, newMaxspeed * 1.2f);
+		(*g_engfuncs.pfnSetClientMaxspeed) (ent, newMaxspeed);
 	else
 		(*g_engfuncs.pfnSetClientMaxspeed) (ent, newMaxspeed);
 }
