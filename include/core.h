@@ -745,11 +745,14 @@ private:
 	PathNode* m_navNodeStart; // pointer to start of path finding nodes
 	uint8_t m_visibility; // visibility flags
 
+	int m_cachedWaypointIndex; // for zombies
 	int m_currentWaypointIndex; // current waypoint index
 	int m_travelStartIndex; // travel start index to double jump action
 	int m_prevWptIndex; // previous waypoint indices from waypoint find
 	int m_waypointFlags; // current waypoint flags
 	int m_loosedBombWptIndex; // nearest to loosed bomb waypoint
+
+	Array <int> m_riskyWaypoints; // used for flanking
 
 	unsigned short m_currentTravelFlags; // connection flags like jumping
 	bool m_jumpFinished; // has bot finished jumping
@@ -781,7 +784,6 @@ private:
 	Vector m_lastWallOrigin; // for better zombie avoiding
 
 	bool m_isStuck; // bot is stuck
-	bool m_isBlocked; // bot is blocked by players
 	bool m_isReloading; // bot is reloading a gun
 	int m_reloadState; // current reload state
 	int m_voicePitch; // bot voice pitch
@@ -991,14 +993,12 @@ private:
 	float GetEstimatedReachTime(void);
 
 	int GetCampAimingWaypoint(void);
-	int GetAimingWaypoint(Vector targetOriginPos);
 	void FindPath(int srcIndex, int destIndex);
 	void SecondThink(void);
 	void CalculatePing(void);
 
 public:
 	entvars_t* pev;
-	AStar_t waypoints[Const_MaxWaypoints];
 
 	edict_t* m_enemyAPI;
 	bool m_moveAIAPI = false;
@@ -1340,7 +1340,6 @@ private:
 	char m_infoBuffer[256];
 
 	int* m_distMatrix;
-	int* m_pathMatrix;
 
 	Array <int> m_terrorPoints;
 	Array <int> m_ctPoints;
@@ -1411,11 +1410,6 @@ public:
 	void CreateBasic(void);
 	void EraseFromHardDisk(void);
 
-	void InitPathMatrix(void);
-	void SavePathMatrix(void);
-	bool LoadPathMatrix(void);
-
-	int GetPathDistance(int srcIndex, int destIndex);
 	float GetPathDistanceFloat(int srcIndex, int destIndex);
 
 	Path* GetPath(int id);
@@ -1433,9 +1427,6 @@ public:
 	Vector GetBombPosition(void) { return m_foundBombOrigin; }
 	void SetBombPosition(bool shouldReset = false);
 	String CheckSubfolderFile(void);
-
-	int* GetWaypointPath() { return m_pathMatrix; }
-	int* GetWaypointDist() { return m_distMatrix; }
 };
 
 #define g_netMsg NetworkMsg::GetObjectPtr ()
@@ -1457,13 +1448,7 @@ extern bool ChanceOf(int number);
 extern float Q_rsqrt(float number);
 extern float Clamp(float a, float b, float c);
 extern float SquaredF(float a);
-extern float MultiplyFloat(float a, float b);
 extern float AddTime(float time);
-extern Vector AddVector(Vector a, Vector b);
-extern Vector MultiplyVector(Vector a, Vector b);
-extern int AddInt(float a, float b);
-extern float AddFloat(float a, float b);
-extern float DivideFloat(float a, float b);
 extern float MaxFloat(float a, float b);
 extern float MinFloat(float a, float b);
 extern ChatterMessage GetEqualChatter(int message);
