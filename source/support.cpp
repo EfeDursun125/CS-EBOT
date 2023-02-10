@@ -1027,7 +1027,10 @@ bool ChanceOf(int number)
 
 bool IsValidWaypoint(int index)
 {
-	return index >= 0;
+	if (index < 0 || index >= g_numWaypoints)
+		return false;
+
+	return true;
 }
 
 int GetGameMode(void)
@@ -1296,9 +1299,6 @@ int GetEntityWaypoint(edict_t* ent)
 
 bool IsZombieEntity(edict_t* ent)
 {
-	if (FNullEnt(ent))
-		return false;
-
 	if (!IsValidPlayer(ent))
 		return false;
 

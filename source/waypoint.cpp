@@ -226,7 +226,11 @@ void Waypoint::Analyze(void)
     if (g_numWaypoints <= 0)
         return;
 
+#ifdef WORK_ASYNC
     async(launch::async, AnalyzeThread);
+#else
+    AnalyzeThread();
+#endif
 }
 
 void Waypoint::AnalyzeDeleteUselessWaypoints(void)
@@ -1636,8 +1640,17 @@ void Waypoint::Save(void)
     char waypointAuthor[32];
     sprintf(waypointAuthor, "%s", GetEntityName(g_hostEntity));
 
-    strcpy(header.header, FH_WAYPOINT);
     strcpy(header.author, waypointAuthor);
+
+    // remember the original waypoint author
+    File rf(CheckSubfolderFile(), "rb");
+    if (rf.IsValid())
+    {
+        rf.Read(&header, sizeof(header));
+        rf.Close();
+    }
+
+    strcpy(header.header, FH_WAYPOINT);
     strncpy(header.mapName, GetMapName(), 31);
 
     header.mapName[31] = 0;

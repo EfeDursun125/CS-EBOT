@@ -53,7 +53,7 @@ int Bot::GetNearbyEnemiesNearPosition(Vector origin, int radius)
 	int count = 0;
 	for (const auto& client : g_clients)
 	{
-		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team == m_team)
+		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || GetTeam(client.ent) == m_team)
 			continue;
 
 		if ((client.origin - origin).GetLengthSquared() <= radius * radius)
@@ -917,6 +917,7 @@ WeaponSelectEnd:
 					delayTime += (delayTime == 0.0f) ? 0.15f : 0.10f;
 			}
 		}
+
 		m_shootTime = engine->GetTime() + delayTime;
 	}
 }
@@ -1140,7 +1141,8 @@ void Bot::CombatFight(void)
 				pev->button |= IN_DUCK;
 		}
 
-		pev->button |= IN_ATTACK;
+		if (m_isSlowThink)
+			pev->button |= IN_ATTACK;
 
 		m_destOrigin = m_enemyOrigin + m_enemy->v.velocity * ebot_zombie_speed_factor.GetFloat();
 		if (!(pev->flags & FL_DUCKING))
@@ -1588,13 +1590,13 @@ void Bot::SelectBestWeapon(void)
 		return;
 
 	if (GetCurrentTask()->taskID == TASK_THROWHEGRENADE)
-		return;
+		return SelectWeaponByName("weapon_hegrenade");
 
 	if (GetCurrentTask()->taskID == TASK_THROWFBGRENADE)
-		return;
+		return SelectWeaponByName("weapon_flashbang");
 
 	if (GetCurrentTask()->taskID == TASK_THROWSMGRENADE)
-		return;
+		return SelectWeaponByName("weapon_smokegrenade");
 
 	if (ebot_sb_mode.GetBool())
 	{

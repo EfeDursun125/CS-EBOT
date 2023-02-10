@@ -44,8 +44,7 @@ ConVar ebot_random_join_quit("ebot_random_join_quit", "0");
 ConVar ebot_stay_min("ebot_stay_min", "120"); // 2 minutes
 ConVar ebot_stay_max("ebot_stay_max", "3600"); // 1 hours
 
-ConVar ebot_think_fps("ebot_think_fps", "24.0");
-ConVar ebot_sleep_fps("ebot_sleep_fps", "8.0");
+ConVar ebot_think_fps("ebot_think_fps", "20.0");
 
 // this is a bot manager class constructor
 BotControl::BotControl(void)
@@ -324,7 +323,7 @@ void BotControl::Think(void)
 
 		if (runThink)
 		{
-			m_bots[i]->m_thinkTimer = AddTime(1.0f / (m_bots[i]->m_moveSpeed != 0.0f ? ebot_think_fps.GetFloat() : ebot_sleep_fps.GetFloat()));
+			m_bots[i]->m_thinkTimer = AddTime(1.0f / (ebot_think_fps.GetFloat()));
 			g_botManager->GetBot(i)->Think();
 		}
 		else if (!ebot_stopbots.GetBool() && m_bots[i]->m_notKilled)
@@ -1059,18 +1058,21 @@ Bot::~Bot(void)
 void Bot::NewRound(void)
 {
 	if (ebot_random_join_quit.GetBool() && m_stayTime > 0.0f && m_stayTime < engine->GetTime())
+	{
+		return;
 		Kick();
+	}
 
 	int i = 0;
 
 	// delete all allocated path nodes
 	DeleteSearchNodes();
-
 	m_itaimstart = engine->GetTime();
 	m_aimStopTime = engine->GetTime();
 	m_currentWaypointIndex = -1;
 	m_currentTravelFlags = 0;
 	m_desiredVelocity = nullvec;
+	m_destOrigin = nullvec;
 	m_prevGoalIndex = -1;
 	m_chosenGoalIndex = -1;
 	m_myMeshWaypoint = -1;
@@ -1228,7 +1230,6 @@ void Bot::NewRound(void)
 
 	m_weaponClipAPI = 0;
 	m_weaponReloadAPI = false;
-	m_lookAtAPI = nullvec;
 	m_moveAIAPI = false;
 	m_enemyAPI = nullptr;
 	m_blockCheckEnemyTime = engine->GetTime();

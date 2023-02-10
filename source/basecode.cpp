@@ -639,6 +639,7 @@ bool Bot::RateGroundWeapon(edict_t* ent)
 			groundIndex = i;
 			break;
 		}
+
 		ptr++;
 	}
 
@@ -651,59 +652,6 @@ bool Bot::RateGroundWeapon(edict_t* ent)
 		hasWeapon = GetBestWeaponCarried();
 
 	return groundIndex > hasWeapon;
-}
-
-// this function checks if bot is blocked by a shoot able breakable in his moving direction
-edict_t* Bot::FindBreakable(void)
-{
-	if (!m_isSlowThink)
-		return m_breakableEntity;
-
-	TraceResult tr{};
-	TraceLine(pev->origin, m_destOrigin, false, false, GetEntity(), &tr);
-
-	if (tr.flFraction != 1.0f)
-	{
-		auto ent = tr.pHit;
-
-		// check if this isn't a triggered (bomb) breakable and if it takes damage. if true, shoot the crap!
-		if (IsShootableBreakable(ent))
-		{
-			m_breakable = GetEntityOrigin(ent);
-			return ent;
-		}
-	}
-
-	TraceLine(EyePosition(), EyePosition() + (m_destOrigin - EyePosition()).Normalize() * 72.0f, false, false, GetEntity(), &tr);
-
-	if (tr.flFraction != 1.0f)
-	{
-		auto ent = tr.pHit;
-		if (IsShootableBreakable(ent))
-		{
-			m_breakable = GetEntityOrigin(ent);
-			return ent;
-		}
-	}
-
-	m_breakableEntity = nullptr;
-	m_breakable = nullvec;
-
-	edict_t* ent = nullptr;
-	while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "func_breakable")))
-	{
-		if ((pev->origin - GetEntityOrigin(ent)).GetLengthSquared() <= SquaredF(72.0f))
-			continue;
-
-		m_breakable = GetEntityOrigin(GetEntity());
-		m_breakableEntity = ent;
-		m_campButtons = pev->button & IN_DUCK;
-
-		PushTask(TASK_DESTROYBREAKABLE, TASKPRI_SHOOTBREAKABLE, -1, 1.0f, false);
-		break;
-	}
-
-	return m_breakableEntity;
 }
 
 // this function checks buttons for use button waypoint
@@ -2247,11 +2195,13 @@ void Bot::CheckTasksPriorities(void)
 // this function builds task
 void Bot::PushTask(BotTask taskID, float desire, int data, float time, bool canContinue)
 {
-	float realTime = -1.0f;
+	float realTime;
 
 	// auto game time
 	if (time != -1.0f && time < engine->GetTime())
 		realTime = AddTime(time);
+	else
+		realTime = time;
 
 	Task task = { nullptr, nullptr, taskID, desire, data, realTime, canContinue };
 	PushTask(&task); // use standard function to start task
@@ -2682,7 +2632,7 @@ void Bot::CheckGrenadeThrow(void)
 			m_states &= ~STATE_THROWFLASH;
 	}
 
-	const float randTime = AddTime(engine->RandomFloat(2.0f, 4.0f));
+	const float randTime = engine->RandomFloat(2.0f, 4.0f);
 
 	if (m_states & STATE_THROWEXPLODE)
 		PushTask(TASK_THROWHEGRENADE, TASKPRI_THROWGRENADE, -1, randTime, false);
@@ -2731,9 +2681,9 @@ bool Bot::ReactOnEnemy(void)
 	if (m_enemyReachableTimer < engine->GetTime())
 	{
 		Vector enemyHead = GetPlayerHeadOrigin(m_enemy);
-		int ownIndex = m_currentWaypointIndex;
-		int enemyIndex = g_waypoint->FindNearest(GetEntityOrigin(m_enemy), 999999.0f, -1, GetEntity());
-		auto currentWaypoint = g_waypoint->GetPath(m_currentWaypointIndex);
+		int ownIndex = IsValidWaypoint(m_currentWaypointIndex) ? m_currentWaypointIndex : g_waypoint->FindNearest(pev->origin, 999999.0f, -1, GetEntity());
+		int enemyIndex = g_waypoint->FindNearest(GetEntityOrigin(m_enemy), 999999.0f, -1, m_enemy);
+		auto currentWaypoint = g_waypoint->GetPath(ownIndex);
 
 		if (m_isZombieBot)
 		{
@@ -2770,7 +2720,7 @@ bool Bot::ReactOnEnemy(void)
 			else if (IsVisibleForKnifeAttack(enemyHead, GetEntity()))
 			{
 				float radius = pev->maxspeed;
-				if (!(currentWaypoint->flags & WAYPOINT_FALLCHECK))
+				if (!(currentWaypoint->flags & WAYPOINT_FALLCHECK) && !(currentWaypoint->flags & WAYPOINT_FALLRISK))
 					radius += currentWaypoint->radius * 2.0f;
 
 				if (enemyDistance <= radius)
@@ -3848,8 +3798,6 @@ void Bot::Think(void)
 	m_strafeSpeed = 0.0f;
 
 	m_canChooseAimDirection = true;
-	
-	m_notKilled = IsAlive(GetEntity());
 
 	m_frameInterval = engine->GetTime() - m_lastThinkTime;
 	m_lastThinkTime = engine->GetTime();
@@ -3859,6 +3807,8 @@ void Bot::Think(void)
 
 	if (m_slowthinktimer < engine->GetTime())
 	{
+		m_isSlowThink = true;
+
 		if (m_stayTime <= 0.0f)
 		{
 			extern ConVar ebot_random_join_quit;
@@ -3872,10 +3822,15 @@ void Bot::Think(void)
 				m_stayTime = engine->GetTime() + 999999.0f;
 		}
 
-		m_isSlowThink = true;
+		if (!FNullEnt(m_breakableEntity) && !IsShootableBreakable(m_breakableEntity))
+		{
+			m_breakableEntity = nullptr;
+			m_breakable = nullvec;
+		}
 
 		m_isZombieBot = IsZombieEntity(GetEntity());
 		m_team = GetTeam(GetEntity());
+		m_notKilled = IsAlive(GetEntity());
 		m_isBomber = pev->weapons & (1 << WEAPON_C4);
 
 		if (m_isZombieBot)
@@ -4021,8 +3976,8 @@ void Bot::Think(void)
 // this function is called from main think function every 2 second (second not frame)
 void Bot::SecondThink(void)
 {
-	m_numEnemiesLeft = GetNearbyEnemiesNearPosition(pev->origin, 99999);
-	m_numFriendsLeft = GetNearbyFriendsNearPosition(pev->origin, 99999);
+	m_numEnemiesLeft = GetNearbyEnemiesNearPosition(pev->origin, 999999);
+	m_numFriendsLeft = GetNearbyFriendsNearPosition(pev->origin, 999999);
 
 	if (ebot_use_flare.GetInt() == 1 && !m_isReloading && !m_isZombieBot && GetGameMode() == MODE_ZP && FNullEnt(m_enemy) && !FNullEnt(m_lastEnemy))
 	{
@@ -4399,8 +4354,6 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 	else if (!GoalIsValid()) // no more nodes to follow - search new ones (or we have a momb)
 	{
 		m_moveSpeed = pev->maxspeed;
-
-		DeleteSearchNodes();
 
 		// did we already decide about a goal before?
 		if (IsValidWaypoint(GetCurrentTask()->data) && !m_isBomber)
@@ -5562,6 +5515,8 @@ void Bot::RunTask(void)
 				{
 					if (pev->weapons & (1 << WEAPON_HEGRENADE))
 						SelectWeaponByName("weapon_hegrenade");
+					else // no grenade???
+						TaskComplete();
 				}
 				else if (!(pev->oldbuttons & IN_ATTACK))
 					pev->button |= IN_ATTACK;
@@ -5655,6 +5610,8 @@ void Bot::RunTask(void)
 				{
 					if (pev->weapons & (1 << WEAPON_FBGRENADE))
 						SelectWeaponByName("weapon_flashbang");
+					else // no grenade???
+						TaskComplete();
 				}
 				else if (!(pev->oldbuttons & IN_ATTACK))
 					pev->button |= IN_ATTACK;
@@ -5668,13 +5625,6 @@ void Bot::RunTask(void)
 		// smoke grenade throw behavior
 		// a bit different to the others because it mostly tries to throw the sg on the ground
 	case TASK_THROWSMGRENADE:
-		if (m_isZombieBot)
-		{
-			RemoveCertainTask(TASK_THROWSMGRENADE);
-			PushTask(TASK_THROWFLARE, TASKPRI_THROWGRENADE, -1, engine->RandomFloat(0.6f, 0.9f), false);
-			return;
-		}
-
 		m_aimFlags |= AIM_GRENADE;
 		RemoveCertainTask(TASK_FIGHTENEMY);
 
@@ -5714,7 +5664,7 @@ void Bot::RunTask(void)
 				m_tasks->time = engine->GetTime() + Const_GrenadeTimer;
 			}
 			else
-				m_tasks->time = engine->GetTime() + 0.1f;
+				TaskComplete();
 		}
 		else if (!(pev->oldbuttons & IN_ATTACK))
 			pev->button |= IN_ATTACK;
@@ -5788,6 +5738,8 @@ void Bot::RunTask(void)
 				{
 					if (pev->weapons & (1 << WEAPON_SMGRENADE))
 						SelectWeaponByName("weapon_smokegrenade");
+					else // no grenade???
+						TaskComplete();
 				}
 				else if (!(pev->oldbuttons & IN_ATTACK))
 					pev->button |= IN_ATTACK;

@@ -205,7 +205,11 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 
 	// displays version information
 	else if (stricmp(arg0, "version") == 0 || stricmp(arg0, "ver") == 0)
+#ifdef WORK_ASYNC
 		async(launch::async, ebotVersionMSG, ent);
+#else
+		ebotVersionMSG(ent);
+#endif
 
 	// display some sort of help information
 	else if (stricmp(arg0, "?") == 0 || stricmp(arg0, "help") == 0)
@@ -263,7 +267,6 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 				ServerPrintNoTag("ebot path create_in    - creating incoming path connection");
 				ServerPrintNoTag("ebot path create_out   - creating outgoing path connection");
 				ServerPrintNoTag("ebot path create_both  - creating both-ways path connection");
-				ServerPrintNoTag("ebot exp save          - save the experience data");
 			}
 		}
 	}
@@ -629,22 +632,6 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 			return 2;
 		g_waypoint->SgdWp_Set(arg1);
 	}
-
-	// experience system handling (supported only on listen server)
-	else if (stricmp(arg0, "experience") == 0 || stricmp(arg0, "exp") == 0)
-	{
-		if (IsDedicatedServer() || FNullEnt(g_hostEntity))
-			return 2;
-
-		// write experience table (and visibility table) to hard disk
-		if (stricmp(arg1, "save") == 0)
-		{
-			g_exp.Unload();
-
-			ServerPrint("Experience tab saved");
-		}
-	}
-	else
 		return 0; // command is not handled by bot
 
 	return 1; // command was handled by bot
@@ -654,7 +641,6 @@ int BotCommandHandler(edict_t* ent, const char* arg0, const char* arg1, const ch
 {
 	return BotCommandHandler_O(ent, arg0, arg1, arg2, arg3, arg4, arg5);
 }
-
 
 void CommandHandler(void)
 {
@@ -666,8 +652,7 @@ void CommandHandler(void)
 	// the stdio command-line parsing in C when you write "long main (long argc, char **argv)".
 
 	// check status for dedicated server command
-	if (BotCommandHandler(g_hostEntity, IsNullString(CMD_ARGV(1)) ? "help" : CMD_ARGV(1), CMD_ARGV(2), CMD_ARGV(3), CMD_ARGV(4), CMD_ARGV(5), CMD_ARGV(6)) == 0)
-		ServerPrint("Unknown command: %s", CMD_ARGV(1));
+	BotCommandHandler(g_hostEntity, IsNullString(CMD_ARGV(1)) ? "help" : CMD_ARGV(1), CMD_ARGV(2), CMD_ARGV(3), CMD_ARGV(4), CMD_ARGV(5), CMD_ARGV(6));
 }
 
 void ebot_Version_Command(void)
@@ -712,34 +697,52 @@ void CheckEntityAction(void)
 	ServerPrintNoTag("Total Entity Action Num: %d", workEntityWork);
 }
 
+#ifdef WORK_ASYNC
 void ThreadAddBot(void)
 {
 	g_botManager->AddRandom();
 }
+#endif
 
 void AddBot(void)
 {
+#ifdef WORK_ASYNC
 	async(launch::async, ThreadAddBot);
+#else
+	g_botManager->AddRandom();
+#endif
 }
 
+#ifdef WORK_ASYNC
 void ThreadAddBotTR(void)
 {
 	g_botManager->AddBotAPI("", -1, 1);
 }
+#endif
 
 void AddBot_TR(void)
 {
+#ifdef WORK_ASYNC
 	async(launch::async, ThreadAddBotTR);
+#else
+	g_botManager->AddBotAPI("", -1, 1);
+#endif
 }
 
+#ifdef WORK_ASYNC
 void ThreadAddBotCT(void)
 {
 	g_botManager->AddBotAPI("", -1, 2);
 }
+#endif
 
 void AddBot_CT(void)
 {
+#ifdef WORK_ASYNC
 	async(launch::async, ThreadAddBotCT);
+#else
+	g_botManager->AddBotAPI("", -1, 2);
+#endif
 }
 
 void InitConfig(void)
@@ -1213,7 +1216,11 @@ void Touch(edict_t* pentTouched, edict_t* pentOther)
 	// is called twice, once for each entity moving.
 
 	if (!FNullEnt(pentTouched) && !FNullEnt(pentOther))
+#ifdef WORK_ASYNC
 		async(launch::async, ThreadedTouch, pentTouched, pentOther);
+#else
+		ThreadedTouch(pentTouched, pentOther);
+#endif
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -1278,8 +1285,12 @@ void ClientDisconnect(edict_t* ent)
 	// brain(s) up to disk. We also try to notice when a listenserver client disconnects, so as
 	// to reset his entity pointer for safety. There are still a few server frames to go once a
 	// listen server client disconnects, and we don't want to send him any sort of message then.
-
+	
+#ifdef WORK_ASYNC
 	async(launch::async, ThreadedDisconnect, ent);
+#else
+	ThreadedDisconnect(ent);
+#endif
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -1531,6 +1542,10 @@ void ClientCommand(edict_t* ent)
 
 				case 3:
 					g_waypoint->ToggleFlags(WAYPOINT_WAITUNTIL);
+					break;
+
+				case 4:
+					g_waypoint->ToggleFlags(WAYPOINT_AVOID);
 					break;
 
 				case 8:
@@ -2555,12 +2570,16 @@ void ServerActivate(edict_t* pentEdictList, int edictCount, int clientMax)
 	// perfect place for doing initialization stuff for our bots, such as reading the BSP data,
 	// loading the bot profiles, and drawing the world map (ie, filling the navigation hashtable).
 	// Once this function has been called, the server can be considered as "running".
-
-	async(launch::async, InitConfig); // initialize all config files
+	
+	// initialize all config files
+#ifdef WORK_ASYNC
+	async(launch::async, InitConfig); 
+#else
+	InitConfig();
+#endif
 
 	// do level initialization stuff here...
 	g_waypoint->Initialize();
-	g_exp.Unload();
 	g_waypoint->Load();
 
 	// execute main config
@@ -2594,8 +2613,6 @@ void ServerDeactivate(void)
 	// any case, when the new map will be booting, ServerActivate() will be called, so we'll do
 	// the loading of new bots and the new BSP data parsing there.
 
-	// save collected experience on shutdown
-	g_exp.Unload();
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -2652,8 +2669,6 @@ void LoadEntityData(void)
 			g_clients[i].wpIndex2 = -1;
 			g_clients[i].getWpOrigin = nullvec;
 			g_clients[i].getWPTime = 0.0f;
-
-			g_clients[i].isZombiePlayerAPI = -1;
 			continue;
 		}
 
@@ -2682,8 +2697,6 @@ void LoadEntityData(void)
 		g_clients[i].wpIndex2 = -1;
 		g_clients[i].getWpOrigin = nullvec;
 		g_clients[i].getWPTime = 0.0f;
-
-		g_clients[i].isZombiePlayerAPI = -1;
 	}
 }
 
@@ -2754,7 +2767,11 @@ void UpdateClientData(const struct edict_s* ent, int sendweapons, struct clientd
 {
 	extern ConVar ebot_ping;
 	if (ebot_ping.GetBool())
+#ifdef WORK_ASYNC
 		async(launch::async, SetPing, const_cast <edict_t*> (ent));
+#else
+		SetPing(const_cast <edict_t*> (ent));
+#endif
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -2849,7 +2866,7 @@ void FrameThread(void)
 		LoadEntityData();
 		JustAStuff();
 
-		float time = 2.0f;
+		float time = 0.64f;
 		if (g_waypointOn)
 			time = 1.0f;
 
@@ -2873,7 +2890,11 @@ void StartFrame(void)
 	// for example if a new player joins the server, we should disconnect a bot, and if the
 	// player population decreases, we should fill the server with other bots.
 
+#ifdef WORK_ASYNC
 	async(launch::async, FrameThread);
+#else
+	FrameThread();
+#endif
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -2881,10 +2902,12 @@ void StartFrame(void)
 	(*g_functionTable.pfnStartFrame) ();
 }
 
+#ifdef WORK_ASYNC
 void ThreadedThink(void)
 {
 	g_botManager->Think();
 }
+#endif
 
 void StartFrame_Post(void)
 {
@@ -2895,7 +2918,11 @@ void StartFrame_Post(void)
 	// for the bots by the MOD side, remember).  Post version called only by metamod.
 
 	// **** AI EXECUTION STARTS ****
+#ifdef WORK_ASYNC
 	async(launch::async, ThreadedThink);
+#else
+	g_botManager->Think();
+#endif
 	// **** AI EXECUTION FINISH ****
 
 	RETURN_META(MRES_IGNORED);
@@ -2913,13 +2940,19 @@ int Spawn_Post(edict_t* ent)
 	if (ent->v.rendermode == kRenderTransTexture)
 		ent->v.flags &= ~FL_WORLDBRUSH; // clear the FL_WORLDBRUSH flag out of transparent ents
 
+	// reset bot
+	if (g_botManager->GetBot(ent) != nullptr)
+		g_botManager->GetBot(ent)->NewRound();
+
 	RETURN_META_VALUE(MRES_IGNORED, 0);
 }
 
+#ifdef WORK_ASYNC
 void ThreadedVis(void)
 {
 	g_waypoint->InitializeVisibility();
 }
+#endif
 
 void ServerActivate_Post(edict_t* /*pentEdictList*/, int /*edictCount*/, int /*clientMax*/)
 {
@@ -2931,7 +2964,11 @@ void ServerActivate_Post(edict_t* /*pentEdictList*/, int /*edictCount*/, int /*c
 	// Once this function has been called, the server can be considered as "running". Post version
 	// called only by metamod.
 
+#ifdef WORK_ASYNC
 	async(launch::async, ThreadedVis);
+#else
+	g_waypoint->InitializeVisibility();
+#endif
 
 	RETURN_META(MRES_IGNORED);
 }
@@ -2947,7 +2984,13 @@ void GameDLLInit_Post(void)
 	// to register by the engine side the server commands we need to administrate our bots. Post
 	// version, called only by metamod.
 
-	async(launch::async, DetectCSVersion); // determine version of currently running cs
+	// determine version of currently running cs
+#ifdef WORK_ASYNC
+	async(launch::async, DetectCSVersion); 
+#else
+	DetectCSVersion();
+#endif
+
 	RETURN_META(MRES_IGNORED);
 }
 
@@ -2962,9 +3005,6 @@ void pfnChangeLevel(char* s1, char* s2)
 	// the player has reached the trigger point "tr_1a" and has to spawn in the next level on the
 	// spawn point named "tr_2lm".
 
-	// save collected experience on map change
-	g_exp.Unload();
-
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
 
@@ -2975,7 +3015,11 @@ edict_t* pfnFindEntityByString(edict_t* edictStartSearchAfter, const char* field
 {
 	// round starts in counter-strike 1.5
 	if (strcmp(value, "info_map_parameters") == 0)
+#ifdef WORK_ASYNC
 		async(launch::async, RoundInit);
+#else
+		RoundInit();
+#endif
 
 	if (g_isMetamod)
 		RETURN_META_VALUE(MRES_IGNORED, 0);
@@ -2995,7 +3039,11 @@ void pfnEmitSound(edict_t* entity, int channel, const char* sample, float volume
 	// SoundAttachToThreat() to bring the sound to the ears of the bots. Since bots have no client DLL
 	// to handle this for them, such a job has to be done manually.
 
+#ifdef WORK_ASYNC
 	async(launch::async, SoundAttachToThreat, entity, sample, volume);
+#else
+	SoundAttachToThreat(entity, sample, volume);
+#endif
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -3046,35 +3094,35 @@ void pfnClientCommand(edict_t* ent, char* format, ...)
 void pfnMessageBegin(int msgDest, int msgType, const float* origin, edict_t* ed)
 {
 	// store the message type in our own variables, since the GET_USER_MSG_ID () will just do a lot of strcmp()'s...
-	if (g_isMetamod && g_netMsg->GetId(NETMSG_MONEY) == -1)
+	if (g_isMetamod && NetworkMsg::GetObjectPtr()->GetId(NETMSG_MONEY) == -1)
 	{
-		g_netMsg->SetId(NETMSG_VGUI, GET_USER_MSG_ID(PLID, "VGUIMenu", nullptr));
-		g_netMsg->SetId(NETMSG_SHOWMENU, GET_USER_MSG_ID(PLID, "ShowMenu", nullptr));
-		g_netMsg->SetId(NETMSG_WLIST, GET_USER_MSG_ID(PLID, "WeaponList", nullptr));
-		g_netMsg->SetId(NETMSG_CURWEAPON, GET_USER_MSG_ID(PLID, "CurWeapon", nullptr));
-		g_netMsg->SetId(NETMSG_AMMOX, GET_USER_MSG_ID(PLID, "AmmoX", nullptr));
-		g_netMsg->SetId(NETMSG_AMMOPICK, GET_USER_MSG_ID(PLID, "AmmoPickup", nullptr));
-		g_netMsg->SetId(NETMSG_DAMAGE, GET_USER_MSG_ID(PLID, "Damage", nullptr));
-		g_netMsg->SetId(NETMSG_MONEY, GET_USER_MSG_ID(PLID, "Money", nullptr));
-		g_netMsg->SetId(NETMSG_STATUSICON, GET_USER_MSG_ID(PLID, "StatusIcon", nullptr));
-		g_netMsg->SetId(NETMSG_DEATH, GET_USER_MSG_ID(PLID, "DeathMsg", nullptr));
-		g_netMsg->SetId(NETMSG_SCREENFADE, GET_USER_MSG_ID(PLID, "ScreenFade", nullptr));
-		g_netMsg->SetId(NETMSG_HLTV, GET_USER_MSG_ID(PLID, "HLTV", nullptr));
-		g_netMsg->SetId(NETMSG_TEXTMSG, GET_USER_MSG_ID(PLID, "TextMsg", nullptr));
-		g_netMsg->SetId(NETMSG_SCOREINFO, GET_USER_MSG_ID(PLID, "ScoreInfo", nullptr));
-		g_netMsg->SetId(NETMSG_BARTIME, GET_USER_MSG_ID(PLID, "BarTime", nullptr));
-		g_netMsg->SetId(NETMSG_SENDAUDIO, GET_USER_MSG_ID(PLID, "SendAudio", nullptr));
-		g_netMsg->SetId(NETMSG_SAYTEXT, GET_USER_MSG_ID(PLID, "SayText", nullptr));
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_VGUI, GET_USER_MSG_ID(PLID, "VGUIMenu", nullptr));
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SHOWMENU, GET_USER_MSG_ID(PLID, "ShowMenu", nullptr));
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_WLIST, GET_USER_MSG_ID(PLID, "WeaponList", nullptr));
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_CURWEAPON, GET_USER_MSG_ID(PLID, "CurWeapon", nullptr));
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_AMMOX, GET_USER_MSG_ID(PLID, "AmmoX", nullptr));
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_AMMOPICK, GET_USER_MSG_ID(PLID, "AmmoPickup", nullptr));
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_DAMAGE, GET_USER_MSG_ID(PLID, "Damage", nullptr));
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_MONEY, GET_USER_MSG_ID(PLID, "Money", nullptr));
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_STATUSICON, GET_USER_MSG_ID(PLID, "StatusIcon", nullptr));
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_DEATH, GET_USER_MSG_ID(PLID, "DeathMsg", nullptr));
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SCREENFADE, GET_USER_MSG_ID(PLID, "ScreenFade", nullptr));
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_HLTV, GET_USER_MSG_ID(PLID, "HLTV", nullptr));
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_TEXTMSG, GET_USER_MSG_ID(PLID, "TextMsg", nullptr));
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SCOREINFO, GET_USER_MSG_ID(PLID, "ScoreInfo", nullptr));
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_BARTIME, GET_USER_MSG_ID(PLID, "BarTime", nullptr));
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SENDAUDIO, GET_USER_MSG_ID(PLID, "SendAudio", nullptr));
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SAYTEXT, GET_USER_MSG_ID(PLID, "SayText", nullptr));
 
 		if (g_gameVersion != CSVER_VERYOLD)
-			g_netMsg->SetId(NETMSG_BOTVOICE, GET_USER_MSG_ID(PLID, "BotVoice", nullptr));
+			NetworkMsg::GetObjectPtr()->SetId(NETMSG_BOTVOICE, GET_USER_MSG_ID(PLID, "BotVoice", nullptr));
 	}
-	g_netMsg->Reset();
+	NetworkMsg::GetObjectPtr()->Reset();
 
-	if (msgDest == MSG_SPEC && msgType == g_netMsg->GetId(NETMSG_HLTV) && g_gameVersion != CSVER_VERYOLD)
-		g_netMsg->SetMessage(NETMSG_HLTV);
+	if (msgDest == MSG_SPEC && msgType == NetworkMsg::GetObjectPtr()->GetId(NETMSG_HLTV) && g_gameVersion != CSVER_VERYOLD)
+		NetworkMsg::GetObjectPtr()->SetMessage(NETMSG_HLTV);
 
-	g_netMsg->HandleMessageIfRequired(msgType, NETMSG_WLIST);
+	NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_WLIST);
 
 	if (!FNullEnt(ed))
 	{
@@ -3083,31 +3131,31 @@ void pfnMessageBegin(int msgDest, int msgType, const float* origin, edict_t* ed)
 		// is this message for a bot?
 		if (index != -1 && !(ed->v.flags & FL_DORMANT) && g_botManager->GetBot(index)->GetEntity() == ed)
 		{
-			g_netMsg->Reset();
+			NetworkMsg::GetObjectPtr()->Reset();
 
-			g_netMsg->SetBot(g_botManager->GetBot(index));
+			NetworkMsg::GetObjectPtr()->SetBot(g_botManager->GetBot(index));
 
 			// message handling is done in usermsg.cpp
-			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_VGUI);
-			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_CURWEAPON);
-			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_AMMOX);
-			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_AMMOPICK);
-			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_DAMAGE);
-			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_MONEY);
-			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_STATUSICON);
-			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_SCREENFADE);
-			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_BARTIME);
-			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_TEXTMSG);
-			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_SHOWMENU);
+			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_VGUI);
+			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_CURWEAPON);
+			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_AMMOX);
+			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_AMMOPICK);
+			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_DAMAGE);
+			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_MONEY);
+			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_STATUSICON);
+			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_SCREENFADE);
+			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_BARTIME);
+			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_TEXTMSG);
+			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_SHOWMENU);
 		}
 	}
 	else if (msgDest == MSG_ALL)
 	{
-		g_netMsg->Reset();
+		NetworkMsg::GetObjectPtr()->Reset();
 
-		//g_netMsg->HandleMessageIfRequired (msgType, NETMSG_SCOREINFO);
-		g_netMsg->HandleMessageIfRequired(msgType, NETMSG_DEATH);
-		g_netMsg->HandleMessageIfRequired(msgType, NETMSG_TEXTMSG);
+		//NetworkMsg::GetObjectPtr()->HandleMessageIfRequired (msgType, NETMSG_SCOREINFO);
+		NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_DEATH);
+		NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_TEXTMSG);
 
 		if (msgType == SVC_INTERMISSION)
 		{
@@ -3129,7 +3177,7 @@ void pfnMessageBegin(int msgDest, int msgType, const float* origin, edict_t* ed)
 
 void pfnMessageEnd(void)
 {
-	g_netMsg->Reset();
+	NetworkMsg::GetObjectPtr()->Reset();
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -3140,7 +3188,7 @@ void pfnMessageEnd(void)
 void pfnWriteByte(int value)
 {
 	// if this message is for a bot, call the client message function...
-	g_netMsg->Execute((void*)&value);
+	NetworkMsg::GetObjectPtr()->Execute((void*)&value);
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -3151,7 +3199,7 @@ void pfnWriteByte(int value)
 void pfnWriteChar(int value)
 {
 	// if this message is for a bot, call the client message function...
-	g_netMsg->Execute((void*)&value);
+	NetworkMsg::GetObjectPtr()->Execute((void*)&value);
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -3162,7 +3210,7 @@ void pfnWriteChar(int value)
 void pfnWriteShort(int value)
 {
 	// if this message is for a bot, call the client message function...
-	g_netMsg->Execute((void*)&value);
+	NetworkMsg::GetObjectPtr()->Execute((void*)&value);
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -3173,7 +3221,7 @@ void pfnWriteShort(int value)
 void pfnWriteLong(int value)
 {
 	// if this message is for a bot, call the client message function...
-	g_netMsg->Execute((void*)&value);
+	NetworkMsg::GetObjectPtr()->Execute((void*)&value);
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -3184,7 +3232,7 @@ void pfnWriteLong(int value)
 void pfnWriteAngle(float value)
 {
 	// if this message is for a bot, call the client message function...
-	g_netMsg->Execute((void*)&value);
+	NetworkMsg::GetObjectPtr()->Execute((void*)&value);
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -3195,7 +3243,7 @@ void pfnWriteAngle(float value)
 void pfnWriteCoord(float value)
 {
 	// if this message is for a bot, call the client message function...
-	g_netMsg->Execute((void*)&value);
+	NetworkMsg::GetObjectPtr()->Execute((void*)&value);
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -3208,7 +3256,7 @@ void pfnWriteString(const char* sz)
 	//Bot *bot = g_botManager->FindOneValidAliveBot ();
 
 	// if this message is for a bot, call the client message function...
-	g_netMsg->Execute((void*)sz);
+	NetworkMsg::GetObjectPtr()->Execute((void*)sz);
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -3219,7 +3267,7 @@ void pfnWriteString(const char* sz)
 void pfnWriteEntity(int value)
 {
 	// if this message is for a bot, call the client message function...
-	g_netMsg->Execute((void*)&value);
+	NetworkMsg::GetObjectPtr()->Execute((void*)&value);
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -3379,43 +3427,43 @@ int pfnRegUserMsg(const char* name, int size)
 	int message = REG_USER_MSG(name, size);
 
 	if (strcmp(name, "VGUIMenu") == 0)
-		g_netMsg->SetId(NETMSG_VGUI, message);
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_VGUI, message);
 	else if (strcmp(name, "ShowMenu") == 0)
-		g_netMsg->SetId(NETMSG_SHOWMENU, message);
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SHOWMENU, message);
 	else if (strcmp(name, "WeaponList") == 0)
-		g_netMsg->SetId(NETMSG_WLIST, message);
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_WLIST, message);
 	else if (strcmp(name, "CurWeapon") == 0)
-		g_netMsg->SetId(NETMSG_CURWEAPON, message);
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_CURWEAPON, message);
 	else if (strcmp(name, "AmmoX") == 0)
-		g_netMsg->SetId(NETMSG_AMMOX, message);
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_AMMOX, message);
 	else if (strcmp(name, "AmmoPickup") == 0)
-		g_netMsg->SetId(NETMSG_AMMOPICK, message);
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_AMMOPICK, message);
 	else if (strcmp(name, "Damage") == 0)
-		g_netMsg->SetId(NETMSG_DAMAGE, message);
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_DAMAGE, message);
 	else if (strcmp(name, "Money") == 0)
-		g_netMsg->SetId(NETMSG_MONEY, message);
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_MONEY, message);
 	else if (strcmp(name, "StatusIcon") == 0)
-		g_netMsg->SetId(NETMSG_STATUSICON, message);
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_STATUSICON, message);
 	else if (strcmp(name, "DeathMsg") == 0)
-		g_netMsg->SetId(NETMSG_DEATH, message);
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_DEATH, message);
 	else if (strcmp(name, "ScreenFade") == 0)
-		g_netMsg->SetId(NETMSG_SCREENFADE, message);
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SCREENFADE, message);
 	else if (strcmp(name, "HLTV") == 0)
-		g_netMsg->SetId(NETMSG_HLTV, message);
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_HLTV, message);
 	else if (strcmp(name, "TextMsg") == 0)
-		g_netMsg->SetId(NETMSG_TEXTMSG, message);
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_TEXTMSG, message);
 	//else if (strcmp (name, "ScoreInfo") == 0)
-	   //g_netMsg->SetId (NETMSG_SCOREINFO, message);
+	   //NetworkMsg::GetObjectPtr()->SetId (NETMSG_SCOREINFO, message);
 	else if (strcmp(name, "BarTime") == 0)
-		g_netMsg->SetId(NETMSG_BARTIME, message);
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_BARTIME, message);
 	else if (strcmp(name, "SendAudio") == 0)
-		g_netMsg->SetId(NETMSG_SENDAUDIO, message);
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SENDAUDIO, message);
 	else if (strcmp(name, "SayText") == 0)
-		g_netMsg->SetId(NETMSG_SAYTEXT, message);
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SAYTEXT, message);
 	else if (strcmp(name, "BotVoice") == 0)
-		g_netMsg->SetId(NETMSG_BOTVOICE, message);
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_BOTVOICE, message);
 	else if (strcmp(name, "ResetHUD") == 0)
-		g_netMsg->SetId(NETMSG_BOTVOICE, message);
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_BOTVOICE, message);
 
 	return message;
 }
@@ -3780,7 +3828,6 @@ export int Amxx_SetBotLookAt(int index, Vector lookAt) // 1.30
 	if (bot == nullptr)
 		return -2;
 
-	bot->m_lookAtAPI = lookAt;
 	API_TestMSG("Amxx_SetBotLookAt Checking - %.2f | %.2f | %.2f - Done", lookAt[0], lookAt[1], lookAt[2]);
 	return 1;
 }
@@ -3870,17 +3917,6 @@ export int Amxx_SetZombieBot(int index, int zombieBot)
 	index -= 1;
 	if (FNullEnt(g_clients[index].ent))
 		return -2;
-
-	if (zombieBot > 0)
-		g_clients[index].isZombiePlayerAPI = 1;
-	else if (zombieBot == 0)
-		g_clients[index].isZombiePlayerAPI = 0;
-	else
-		g_clients[index].isZombiePlayerAPI = -1;
-
-	API_TestMSG("Amxx_SetZombieBot Checking - ZombieBot:%s - Done - %s -",
-		g_clients[index].isZombiePlayerAPI == 1 ? "True" : (g_clients[index].isZombiePlayerAPI == -1 ? "Not Set" : "False"),
-		GetEntityName(g_clients[index].ent));
 
 	return 1;
 }

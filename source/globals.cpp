@@ -592,7 +592,7 @@ MenuText g_menus[28] =
 		"1. Crouch\v"
 		"2. Only One Bot\v"
 		"3. Wait Until Ground\v"
-		"\v"
+		"4. Avoid\v"
 		"\v"
 		"\v"
 		"\v\v"
