@@ -56,7 +56,11 @@ using namespace Math;
 
 #include <runtime.h>
 
+#define WORK_ASYNC
+
+#ifdef WORK_ASYNC
 #include <future>
+#endif
 
 using namespace std;
 
@@ -605,8 +609,6 @@ struct Clients
 	int wpIndex2;
 	float getWPTime;
 	Vector getWpOrigin;
-
-	int isZombiePlayerAPI = -1;
 };
 
 // bot creation tab
@@ -895,7 +897,6 @@ private:
 	void ThrowFrostNade(void);
 
 	edict_t* FindNearestButton(const char* className);
-	edict_t* FindBreakable(void);
 	edict_t* FindButton(void);
 	int FindCoverWaypoint(float maxDistance);
 	int FindDefendWaypoint(Vector origin);
@@ -1002,7 +1003,6 @@ public:
 
 	edict_t* m_enemyAPI;
 	bool m_moveAIAPI = false;
-	Vector m_lookAtAPI;
 	int m_weaponClipAPI;
 	bool m_weaponReloadAPI;
 	int m_knifeDistance1API, m_knifeDistance2API;
@@ -1102,7 +1102,6 @@ public:
 	float m_enemySurpriseTime; // time of surprise
 	float m_idealReactionTime; // time of base reaction
 	float m_actualReactionTime; // time of current reaction time
-	float m_pathtimer; // a timer for pathfinding
 	float m_radiotimer; // a timer for radio call
 	float m_randomattacktimer; // a timer for make bots random attack with knife like humans
 	float m_itaimstart; // aim start time
@@ -1168,7 +1167,7 @@ public:
 	void SetMoveTarget(edict_t* entity);
 	void SetLastEnemy(edict_t* entity);
 
-	void DeleteSearchNodes(bool skip = false);
+	void DeleteSearchNodes(void);
 	Task* GetCurrentTask(void);
 
 	//void MoveTargetSrc(void);

@@ -42,12 +42,8 @@
 #endif
 
 // AMXX API Version
-#define SUPPORT_API_VERSION "1.48"
-#define SUPPORT_API_VERSION_F 1.48
-
-// SwNPC Version (Removed)
-#define SUPPORT_SWNPC_VERSION "1.48"
-#define SUPPORT_SWNPC_VERSION_F 1.48
+#define SUPPORT_API_VERSION "1.06"
+#define SUPPORT_API_VERSION_F 1.06
 
 // E-BOT Version
 #define PRODUCT_VERSION_DWORD 1,06,20220928,7 // yyyy/mm/dd
