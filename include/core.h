@@ -56,7 +56,7 @@ using namespace Math;
 
 #include <runtime.h>
 
-#define WORK_ASYNC
+//#define WORK_ASYNC
 
 #ifdef WORK_ASYNC
 #include <future>
@@ -701,9 +701,7 @@ private:
 	bool m_isLeader; // bot is leader of his team
 	bool m_checkTerrain; // check for terrain
 	bool m_moveToC4; // ct is moving to bomb
-	
-	bool m_checkFall; // check bot fall
-	Vector m_checkFallPoint[2]; // idk why...
+
 	float m_prevTime; // time previously checked movement speed
 	float m_prevSpeed; // speed some frames before
 	Vector m_prevOrigin; // origin some frames before
@@ -753,8 +751,6 @@ private:
 	int m_prevWptIndex; // previous waypoint indices from waypoint find
 	int m_waypointFlags; // current waypoint flags
 	int m_loosedBombWptIndex; // nearest to loosed bomb waypoint
-
-	Array <int> m_riskyWaypoints; // used for flanking
 
 	unsigned short m_currentTravelFlags; // connection flags like jumping
 	bool m_jumpFinished; // has bot finished jumping
@@ -849,7 +845,6 @@ private:
 
 	void SwitchChatterIcon(bool show);
 	void BotAI(void);
-	void FunBotAI(void);
 	void DebugModeMsg(void);
 	void MoveAction(void);
 	bool IsMorePowerfulWeaponCanBeBought(void);
@@ -866,7 +861,6 @@ private:
 
 	int CheckMaxClip(int weaponId, int* weaponIndex);
 	void CheckTerrain(Vector directionNormal, float movedDistance);
-	void CheckFall(void);
 
 	void AvoidEntity(void);
 
@@ -881,15 +875,13 @@ private:
 	int ChooseBombWaypoint(void);
 
 	bool DoWaypointNav(void);
-	bool EnemyIsThreat(void);
 	bool IsRestricted(int weaponIndex);
-	bool IsRestrictedAMX(int weaponIndex);
 
 	bool IsOnAttackDistance(edict_t* targetEntity, float distance);
 
 	bool IsInViewCone(Vector origin);
 	void ReactOnSound(void);
-	bool CheckVisibility(entvars_t* targetOrigin, Vector* origin, uint8_t* bodyPart);
+	bool CheckVisibility(entvars_t* targetEntity, Vector* origin, uint8_t* bodyPart);
 	bool IsEnemyViewable(edict_t* player, bool setEnemy = false, bool checkOnly = false);
 
 	void CheckGrenadeThrow(void);
@@ -907,7 +899,6 @@ private:
 
 	void GetCampDirection(Vector* dest);
 	int GetMessageQueue(void);
-	void FilterGoals(const Array <int>& goals, int* result);
 	bool GoalIsValid(void);
 	bool HeadTowardWaypoint(void);
 	bool HasNextPath(void);
@@ -925,7 +916,7 @@ private:
 
 	float GetWalkSpeed(void);
 
-	bool ItemIsVisible(Vector dest, char* itemName);// , bool bomb = false);
+	bool ItemIsVisible(Vector dest, char* itemName);
 	bool LastEnemyShootable(void);
 	bool IsBehindSmokeClouds(edict_t* ent);
 	void TaskNormal(int i, int destIndex, Vector src);
@@ -961,10 +952,9 @@ private:
 
 	int CheckGrenades(void);
 	void CommandTeam(void);
-	//void AttachToUser (void);
 	void CombatFight(void);
 	bool IsWeaponBadInDistance(int weaponIndex, float distance);
-	bool DoFirePause(float distance);//, FireDelay *fireDelay);
+	bool DoFirePause(float distance);
 	bool LookupEnemy(void);
 	void FireWeapon(void);
 	void FocusEnemy(void);
@@ -984,8 +974,6 @@ private:
 
 	void ResetCheckEnemy(void);
 
-	float GetEntityDistance(edict_t* entity);
-
 	bool IsEnemyProtectedByShield(edict_t* enemy);
 	bool ParseChat(char* reply);
 	bool RepliesToPlayer(void);
@@ -995,20 +983,12 @@ private:
 
 	int GetCampAimingWaypoint(void);
 	void FindPath(int srcIndex, int destIndex);
+	void FindShortestPath(int srcIndex, int destIndex);
 	void SecondThink(void);
 	void CalculatePing(void);
 
 public:
 	entvars_t* pev;
-
-	edict_t* m_enemyAPI;
-	bool m_moveAIAPI = false;
-	int m_weaponClipAPI;
-	bool m_weaponReloadAPI;
-	int m_knifeDistance1API, m_knifeDistance2API;
-	int m_gunMinDistanceAPI, m_gunMaxDistanceAPI;
-	int m_waypointGoalAPI;
-	bool m_blockWeaponPickAPI;
 
 	int m_wantedTeam; // player team bot wants select
 	int m_wantedClass; // player model bot wants to select
@@ -1096,7 +1076,6 @@ public:
 	bool m_isEnemyReachable; // direct line to enemy
 
 	edict_t* m_moveTargetEntity; // target entity for move
-	float m_blockCheckEnemyTime; // block time for entity check (useless)
 
 	float m_seeEnemyTime; // time bot sees enemy
 	float m_enemySurpriseTime; // time of surprise
@@ -1108,7 +1087,6 @@ public:
 	float m_slowthinktimer; // slow think timer
 	float m_maxhearrange; // maximum range for hearing enemy
 	float m_aimStopTime; // feel like playing on a phone
-	float m_backCheckEnemyTime; // for amxx support
 	float m_stayTime; // stay time (for simulate server)
 	float m_connectTime; // for fake query
 
@@ -1170,7 +1148,6 @@ public:
 	void DeleteSearchNodes(void);
 	Task* GetCurrentTask(void);
 
-	//void MoveTargetSrc(void);
 	void CheckTouchEntity(edict_t* entity);
 
 	void RemoveCertainTask(BotTask taskID);
@@ -1206,7 +1183,6 @@ public:
 	bool IsSniper(void);
 	bool IsShieldDrawn(void);
 
-	int CheckBotPointAPI(int mod);
 	int GetNavData(int data);
 };
 
@@ -1409,7 +1385,7 @@ public:
 	void CreateBasic(void);
 	void EraseFromHardDisk(void);
 
-	float GetPathDistanceFloat(int srcIndex, int destIndex);
+	float GetPathDistance(int srcIndex, int destIndex);
 
 	Path* GetPath(int id);
 	char* GetWaypointInfo(int id);
@@ -1480,8 +1456,8 @@ extern const char* GetWaypointDir(void);
 extern const char* GetModName(void);
 extern const char* GetField(const char* string, int fieldId, bool endLine = false);
 
-//extern uint16 GenerateBuildNumber (void);
 extern Vector GetEntityOrigin(edict_t* ent);
+extern Vector GetBoxOrigin(edict_t* ent);
 
 extern Vector GetTopOrigin(edict_t* ent);
 extern Vector GetBottomOrigin(edict_t* ent);
@@ -1507,7 +1483,6 @@ extern void HudMessage(edict_t* ent, bool toCenter, const Color& rgb, char* form
 extern void AutoLoadGameMode(void);
 
 extern void SetEntityActionData(int i, int index = -1, int team = -1, int action = -1);
-extern void API_TestMSG(const char* format, ...);
 
 extern void AddLogEntry(int logLevel, const char* format, ...);
 
@@ -1537,7 +1512,5 @@ extern ConVar ebot_gamemod;
 #include <globals.h>
 #include <compress.h>
 #include <resource.h>
-
-#include <Experience.h>
 
 #endif // EBOT_INCLUDED

@@ -904,10 +904,14 @@ public:
     //
     void Destory(void)
     {
-        delete[] m_elements;
-        m_elements = nullptr;
         m_itemSize = 0;
         m_itemCount = 0;
+        m_resizeStep = 0;
+        if (m_elements != nullptr)
+        {
+            delete[] m_elements;
+            m_elements = nullptr;
+        }
     }
 
     //

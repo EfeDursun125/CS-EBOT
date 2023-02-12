@@ -41,10 +41,6 @@
 #define PRODUCT_DEV_VERSION_FORTEST ""
 #endif
 
-// AMXX API Version
-#define SUPPORT_API_VERSION "1.06"
-#define SUPPORT_API_VERSION_F 1.06
-
 // E-BOT Version
 #define PRODUCT_VERSION_DWORD 1,06,20220928,7 // yyyy/mm/dd
 #define PRODUCT_VERSION "1.06"
