@@ -323,7 +323,7 @@ void BotControl::Think(void)
 
 		if (runThink)
 		{
-			m_bots[i]->m_thinkTimer = AddTime(1.0f / (ebot_think_fps.GetFloat()));
+			m_bots[i]->m_thinkTimer = AddTime(1.0f / ebot_think_fps.GetFloat());
 			g_botManager->GetBot(i)->Think();
 		}
 		else if (!ebot_stopbots.GetBool() && m_bots[i]->m_notKilled)
@@ -1116,10 +1116,6 @@ void Bot::NewRound(void)
 	ResetCollideState();
 	ResetDoubleJumpState();
 
-	m_checkFallPoint[0] = nullvec;
-	m_checkFallPoint[1] = nullvec;
-	m_checkFall = false;
-
 	SetEnemy(nullptr);
 	SetLastEnemy(nullptr);
 	SetMoveTarget(nullptr);
@@ -1130,8 +1126,6 @@ void Bot::NewRound(void)
 	m_enemyUpdateTime = 0.0f;
 	m_seeEnemyTime = 0.0f;
 	m_oldCombatDesire = 0.0f;
-
-	m_backCheckEnemyTime = 0.0f;
 
 	m_avoidEntity = nullptr;
 	m_needAvoidEntity = 0;
@@ -1227,18 +1221,6 @@ void Bot::NewRound(void)
 
 	m_actMessageIndex = 0;
 	m_pushMessageIndex = 0;
-
-	m_weaponClipAPI = 0;
-	m_weaponReloadAPI = false;
-	m_moveAIAPI = false;
-	m_enemyAPI = nullptr;
-	m_blockCheckEnemyTime = engine->GetTime();
-	m_knifeDistance1API = 0;
-	m_knifeDistance2API = 0;
-	m_gunMinDistanceAPI = 0;
-	m_gunMaxDistanceAPI = 0;
-	m_waypointGoalAPI = -1;
-	m_blockWeaponPickAPI = false;
 	
 	SetEntityWaypoint(GetEntity(), -2);
 

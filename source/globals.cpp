@@ -26,10 +26,6 @@
 
 float m_randomJoinTime = 0.0f; // for simulating server
 
-float API_Version;
-float amxxDLL_Version = -1.0;
-uint16 amxxDLL_bV16[4];
-
 bool g_isMetamod = false;
 bool g_roundEnded = true;
 bool g_botsCanPause = false;

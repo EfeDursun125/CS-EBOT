@@ -30,7 +30,6 @@
 // create classes: Tracer, PrintManager, GameManager
 //
 
-ConVar ebot_apitestmsg("ebot_apitestmsg", "0");
 ConVar ebot_ignore_enemies("ebot_ignore_enemies", "0");
 
 void TraceLine(const Vector& start, const Vector& end, bool ignoreMonsters, bool ignoreGlass, edict_t* ignoreEntity, TraceResult* ptr)
@@ -112,6 +111,9 @@ bool IsAlive(edict_t* ent)
 
 float GetShootingConeDeviation(edict_t* ent, Vector* position)
 {
+	if (FNullEnt(ent))
+		return 0.0f;
+
 	const Vector& dir = (*position - (GetEntityOrigin(ent) + ent->v.view_ofs)).Normalize();
 	MakeVectors(ent->v.v_angle);
 
@@ -228,6 +230,14 @@ Vector GetEntityOrigin(edict_t* ent)
 	return entityOrigin;
 }
 
+Vector GetBoxOrigin(edict_t* ent)
+{
+	if (FNullEnt(ent))
+		return nullvec;
+
+	return ent->v.absmin + (ent->v.size * 0.5);
+}
+
 // Get Entity Top/Bottom Origin
 Vector GetTopOrigin(edict_t* ent)
 {
@@ -340,9 +350,11 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 	CLIENT_COMMAND(ent, "speak \"player/geiger1\"\n"); // Stops others from hearing menu sounds..
 }
 
+// this function draw spraypaint depending on the tracing results
 void DecalTrace(entvars_t* pev, TraceResult* trace, int logotypeIndex)
 {
-	// this function draw spraypaint depending on the tracing results.
+	if (FNullEnt(pev))
+		return;
 
 	static Array <String> logotypes;
 
@@ -980,14 +992,11 @@ void AutoLoadGameMode(void)
 lastly:
 	if (GetGameMode() != MODE_BASE)
 		g_mapType |= MAP_DE;
-	else
-		g_exp.UpdateGlobalKnowledge(); // update experience data on round start
 }
 
+// returns if weapon can pierce through a wall
 bool IsWeaponShootingThroughWall(int id)
 {
-	// returns if weapon can pierce through a wall
-
 	int i = 0;
 
 	while (g_weaponSelect[i].id)
@@ -1027,7 +1036,7 @@ bool ChanceOf(int number)
 
 bool IsValidWaypoint(int index)
 {
-	if (index < 0 || index >= g_numWaypoints)
+	if (index < 0 || index > g_numWaypoints)
 		return false;
 
 	return true;
@@ -1058,11 +1067,7 @@ float Q_rsqrt(float number)
 
 float Clamp(float a, float b, float c)
 {
-#ifdef __SSE2__
-	return _mm_cvtss_f32(_mm_min_ss(_mm_max_ss(_mm_load_ss(&a), _mm_load_ss(&b)), _mm_load_ss(&c)));
-#else
 	return engine->DoClamp(a, b, c);
-#endif
 }
 
 float SquaredF(float a)
@@ -1072,43 +1077,34 @@ float SquaredF(float a)
 
 float AddTime(float a)
 {
-#ifdef __SSE2__
-	return _mm_cvtss_f32(_mm_add_ss(_mm_load_ss(&g_pGlobals->time), _mm_load_ss(&a)));
-#else
 	return g_pGlobals->time + a;
-#endif
 }
 
 float MaxFloat(float a, float b)
 {
-#ifdef __SSE2__
-		return _mm_cvtss_f32(_mm_max_ss(_mm_load_ss(&a), _mm_load_ss(&b)));
-#else
 	if (a > b)
 		return a;
 	else if (b > a)
 		return b;
 
 	return b;
-#endif
 }
 
 float MinFloat(float a, float b)
 {
-#ifdef __SSE2__
-		return _mm_cvtss_f32(_mm_min_ss(_mm_load_ss(&a), _mm_load_ss(&b)));
-#else
 	if (a < b)
 		return a;
 	else if (b < a)
 		return b;
 	return b;
-#endif
 }
 
 // new get team off set, return player true team
 int GetTeam(edict_t* ent)
 {
+	if (FNullEnt(ent))
+		return TEAM_COUNT;
+
 	int client = ENTINDEX(ent) - 1, player_team = TEAM_COUNT;
 	if (!IsValidPlayer(ent))
 	{
@@ -1407,21 +1403,6 @@ void ServerPrintNoTag(const char* format, ...)
 	SERVER_PRINT(FormatBuffer("%s\n", string));
 }
 
-void API_TestMSG(const char* format, ...)
-{
-	if (ebot_apitestmsg.GetBool() == false)
-		return;
-
-	va_list ap;
-	char string[3072];
-
-	va_start(ap, format);
-	vsprintf(string, format, ap);
-	va_end(ap);
-
-	SERVER_PRINT(FormatBuffer("[%s-API Test] %s\n", PRODUCT_LOGTAG, string));
-}
-
 void CenterPrint(const char* format, ...)
 {
 	va_list ap;
@@ -1468,6 +1449,9 @@ void ChartPrint(const char* format, ...)
 
 void ClientPrint(edict_t* ent, int dest, const char* format, ...)
 {
+	if (!IsValidPlayer(ent))
+		return;
+
 	va_list ap;
 	char string[2048];
 
@@ -1575,13 +1559,7 @@ void CheckWelcomeMessage(void)
 	static float receiveTime = -1.0f;
 
 	if (receiveTime == -1.0f && IsAlive(g_hostEntity))
-	{
 		receiveTime = engine->GetTime() + 10.0f;
-
-#if defined(PRODUCT_DEV_VERSION)	
-		receiveTime = engine->GetTime() + 10.0f;
-#endif
-	}
 
 	if (receiveTime > 0.0f && receiveTime < engine->GetTime())
 	{
@@ -1590,17 +1568,6 @@ void CheckWelcomeMessage(void)
 
 		ChartPrint("----- [%s %s] by %s -----", PRODUCT_NAME, PRODUCT_VERSION, PRODUCT_AUTHOR);
 		ChartPrint("***** Build: (%u.%u.%u.%u) *****", bV16[0], bV16[1], bV16[2], bV16[3]);
-
-		// the api
-
-		/*
-		if (amxxDLL_Version != -1.0 && amxxDLL_Version == float(SUPPORT_API_VERSION_F))
-		{
-			ChartPrint("***** E-BOT API: Running - Version:%.2f (%u.%u.%u.%u)",
-				amxxDLL_Version, amxxDLL_bV16[0], amxxDLL_bV16[1], amxxDLL_bV16[2], amxxDLL_bV16[3]);
-		}
-		else
-			ChartPrint("***** E-BOT API: FAIL *****");*/
 
 		receiveTime = 0.0f;
 	}
@@ -1650,6 +1617,9 @@ void DetectCSVersion(void)
 
 void PlaySound(edict_t* ent, const char* name)
 {
+	if (FNullEnt(ent))
+		return;
+
 	// TODO: make this obsolete
 	EMIT_SOUND_DYN2(ent, CHAN_WEAPON, name, 1.0, ATTN_NORM, 0, 100);
 }
@@ -1698,12 +1668,6 @@ void MOD_AddLogEntry(int mod, char* format)
 		int buildVersion[4] = { PRODUCT_VERSION_DWORD };
 		for (int i = 0; i < 4; i++)
 			mod_bV16[i] = (uint16)buildVersion[i];
-	}
-	else if (mod == 0)
-	{
-		sprintf(modName, "EBOT_API");
-		for (int i = 0; i < 4; i++)
-			mod_bV16[i] = amxxDLL_bV16[i];
 	}
 
 	ServerPrintNoTag("[%s Log] %s", modName, format);

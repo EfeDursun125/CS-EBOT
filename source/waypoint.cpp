@@ -372,6 +372,9 @@ int Waypoint::FindFarest(const Vector& origin, float maxDistance)
 
 void Waypoint::ChangeZBCampPoint(Vector origin)
 {
+    if (origin == nullvec)
+        return;
+
     int point[2] = { -1, -1 };
     if (!m_zmHmPoints.IsEmpty())
     {
@@ -483,7 +486,7 @@ int Waypoint::FindNearest(Vector origin, float minDistance, int flags, edict_t* 
     }
 
     // move target improve
-    if (mode >= 0 && mode < g_numWaypoints)
+    if (IsValidWaypoint(mode))
     {
         int cdWPIndex[checkPoint];
         float cdWPDistance[checkPoint];
@@ -498,7 +501,7 @@ int Waypoint::FindNearest(Vector origin, float minDistance, int flags, edict_t* 
             if (wpIndex[i] < 0 || wpIndex[i] >= g_numWaypoints)
                 continue;
 
-            float distance = g_waypoint->GetPathDistanceFloat(wpIndex[i], mode);
+            float distance = g_waypoint->GetPathDistance(wpIndex[i], mode);
             for (int y = 0; y < checkPoint; y++)
             {
                 if (distance >= cdWPDistance[y])
@@ -595,8 +598,8 @@ void Waypoint::SgdWp_Set(const char* modset)
         {
             Initialize();
             Load(1);
-            ChartPrint("[SgdWP] I find the bad waypoint data ***");
-            ChartPrint("[SgdWP] And I will load your bad waypoint data now ***");
+            ChartPrint("[SgdWP] I found the bad waypoint data ***");
+            ChartPrint("[SgdWP] And I will load your bad waypoint data right now ***");
             ChartPrint("[SgdWP] If this is bad waypoint, you need delete this ***");
         }
 
@@ -780,7 +783,7 @@ void Waypoint::Add(int flags, Vector waypointOrigin)
         m_lastJumpWaypoint = index;
     else if (flags == 10)
     {
-        distance = (m_paths[m_lastJumpWaypoint]->origin - GetEntityOrigin(g_hostEntity)).GetLength();
+        distance = (m_paths[m_lastJumpWaypoint]->origin - GetEntityOrigin(g_hostEntity)).GetLength2D();
         AddPath(m_lastJumpWaypoint, index, distance);
 
         for (i = 0; i < Const_MaxPathIndex; i++)
@@ -862,7 +865,7 @@ void Waypoint::Add(int flags, Vector waypointOrigin)
         m_lastFallWaypoint = index;
     else if (flags == 103 && m_lastFallWaypoint != -1)
     {
-        distance = (m_paths[m_lastFallWaypoint]->origin - GetEntityOrigin(g_hostEntity)).GetLength();
+        distance = (m_paths[m_lastFallWaypoint]->origin - GetEntityOrigin(g_hostEntity)).GetLength2D();
         AddPath(m_lastFallWaypoint, index, distance);
         m_lastFallWaypoint = -1;
     }
@@ -894,14 +897,14 @@ void Waypoint::Add(int flags, Vector waypointOrigin)
 
                 if (tr.flFraction == 1.0f && fabs(newOrigin.x - m_paths[i]->origin.x) < 64 && fabs(newOrigin.y - m_paths[i]->origin.y) < 64 && fabs(newOrigin.z - m_paths[i]->origin.z) < g_autoPathDistance)
                 {
-                    float pathD = (m_paths[i]->origin - newOrigin).GetLength();
+                    float pathD = (m_paths[i]->origin - newOrigin).GetLength2D();
                     AddPath(index, i, pathD);
                     AddPath(i, index, pathD);
                 }
             }
             else
             {
-                distance = (m_paths[i]->origin - newOrigin).GetLengthSquared();
+                distance = (m_paths[i]->origin - newOrigin).GetLengthSquared2D();
 
                 if (distance < minDistance)
                 {
@@ -916,7 +919,7 @@ void Waypoint::Add(int flags, Vector waypointOrigin)
 
         if (IsValidWaypoint(destIndex))
         {
-            float pathD = (m_paths[destIndex]->origin - newOrigin).GetLength();
+            float pathD = (m_paths[destIndex]->origin - newOrigin).GetLength2D();
 
             if (g_analyzewaypoints == true)
             {
@@ -947,7 +950,7 @@ void Waypoint::Add(int flags, Vector waypointOrigin)
 
             if (g_analyzewaypoints == true) // if we're analyzing, be careful (we dont want path errors)
             {
-                float pathDist = (m_paths[i]->origin - newOrigin).GetLength();
+                float pathDist = (m_paths[i]->origin - newOrigin).GetLength2D();
 
                 if (g_waypoint->GetPath(i)->flags & WAYPOINT_LADDER && (IsNodeReachable(newOrigin, m_paths[i]->origin) || IsNodeReachableWithJump(newOrigin, m_paths[i]->origin, 0)) && pathDist <= addDist)
                 {
@@ -977,7 +980,7 @@ void Waypoint::Add(int flags, Vector waypointOrigin)
             }
             else
             {
-                float pathDist = (m_paths[i]->origin - newOrigin).GetLength();
+                float pathDist = (m_paths[i]->origin - newOrigin).GetLength2D();
 
                 // check if the waypoint is reachable from the new one (one-way)
                 if (IsNodeReachable(newOrigin, m_paths[i]->origin))
@@ -1254,7 +1257,7 @@ void Waypoint::CreatePath(char dir)
         return;
     }
 
-    float distance = (m_paths[nodeTo]->origin - m_paths[nodeFrom]->origin).GetLength();
+    float distance = (m_paths[nodeTo]->origin - m_paths[nodeFrom]->origin).GetLength2D();
 
     if (dir == PATHCON_OUTGOING)
         AddPath(nodeFrom, nodeTo, distance);
@@ -1619,8 +1622,6 @@ bool Waypoint::Load(int mode)
     m_pathDisplayTime = 0.0f;
     m_arrowDisplayTime = 0.0f;
 
-    g_exp.Load();
-
     g_botManager->InitQuota();
 
     extern ConVar ebot_debuggoal;
@@ -1750,11 +1751,18 @@ void Waypoint::SaveXML(void)
 // this function returns 2D traveltime to a position
 float Waypoint::GetTravelTime(float maxSpeed, Vector src, Vector origin)
 {
+    // give 10 sec...
+    if (src == nullvec || origin == nullvec)
+        return 10.0f;
+
     return (origin - src).GetLength2D() / fabsf(maxSpeed);
 }
 
 bool Waypoint::Reachable(edict_t* entity, int index)
 {
+    if (FNullEnt(entity))
+        return false;
+
     if (!IsValidWaypoint(index))
         return false;
 
@@ -2531,8 +2539,6 @@ void Waypoint::ShowWaypointMsg(void)
             engine->DrawLine(g_hostEntity, origin + Vector(-root, -root, 0), origin + Vector(root, root, 0), def, 5, 0, 0, 10);
         }
 
-        g_exp.DrawLines(nearestIndex, path);
-
         // display some information
         char tempMessage[4096];
         int length;
@@ -2556,8 +2562,6 @@ void Waypoint::ShowWaypointMsg(void)
                 "      Waypoint %d of %d, Radius: %.1f\n"
                 "      Flags: %s\n\n", nearestIndex, g_numWaypoints, path->radius, GetWaypointInfo(nearestIndex));
         }
-
-        g_exp.DrawText(nearestIndex, tempMessage, length);
 
         // check if we need to show the cached point index
         if (m_cacheWaypointIndex != -1)
@@ -2774,7 +2778,7 @@ bool Waypoint::NodesValid(void)
     return haveError ? false : true;
 }
 
-float Waypoint::GetPathDistanceFloat(int srcIndex, int destIndex)
+float Waypoint::GetPathDistance(int srcIndex, int destIndex)
 {
     if (srcIndex == -1 || destIndex == -1)
         return FLT_MAX;
@@ -2782,7 +2786,13 @@ float Waypoint::GetPathDistanceFloat(int srcIndex, int destIndex)
     if (srcIndex == destIndex)
         return 1.0f;
 
-    return (g_waypoint->GetPath(srcIndex)->origin - g_waypoint->GetPath(destIndex)->origin).GetLengthSquared();
+    for (int i = 0; i < Const_MaxPathIndex; i++)
+    {
+        if (m_paths[srcIndex]->index[i] == destIndex)
+            return m_paths[srcIndex]->distances[i];
+    }
+
+    return (m_paths[srcIndex]->origin - m_paths[destIndex]->origin).GetLength2D();
 }
 
 void Waypoint::SetGoalVisited(int index)
