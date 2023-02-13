@@ -953,17 +953,6 @@ void AutoLoadGameMode(void)
 		}
 	}
 
-	// Anti-Block
-	Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/plugins-tsc.ini", GetModName());
-	if (TryFileOpen(Plugin_INI))
-	{
-		extern ConVar ebot_anti_block;
-
-		ebot_anti_block.SetInt(1);
-
-		ServerPrint("*** E-BOT Anti-Block Enabled ***");
-	}
-
 	static auto dmActive = g_engfuncs.pfnCVarGetPointer("csdm_active");
 	static auto freeForAll = g_engfuncs.pfnCVarGetPointer("mp_freeforall");
 

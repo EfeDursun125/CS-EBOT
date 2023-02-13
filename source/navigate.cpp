@@ -27,9 +27,7 @@
 ConVar ebot_aimbot("ebot_aimbot", "0");
 ConVar ebot_aim_boost_in_zm("ebot_zm_aim_boost", "1");
 ConVar ebot_zombies_as_path_cost("ebot_zombie_count_as_path_cost", "1");
-ConVar ebot_ping_affects_aim("ebot_ping_affects_aim", "1");
-
-extern ConVar ebot_anti_block;
+ConVar ebot_ping_affects_aim("ebot_ping_affects_aim", "0");
 
 int Bot::FindGoal(void)
 {
@@ -1450,12 +1448,12 @@ void Bot::CheckTouchEntity(edict_t* entity)
 		Vector forward, right;
 		m_moveAngles.BuildVectors(&forward, &right, nullptr);
 
-		if ((dir | right.GetLength2D()) > 0.0f)
+		if ((dir | right.GetLengthSquared2D()) > 0.0f)
 			m_strafeSpeed = pev->maxspeed;
 		else
 			m_strafeSpeed = -pev->maxspeed;
 
-		if ((dir | forward.GetLength2D()) < 0.0f)
+		if ((dir | forward.GetLengthSquared2D()) < 0.0f)
 			m_moveSpeed = -pev->maxspeed;
 	}
 
@@ -1463,37 +1461,18 @@ void Bot::CheckTouchEntity(edict_t* entity)
 	if (IsShootableBreakable(entity))
 	{
 		bool breakIt = false;
-		bool fallRisk = false;
 
-		TraceResult ch;
-		TraceLine(pev->origin, pev->origin - Vector(0.0f, 0.0f, 60.0f), false, false, g_hostEntity, &ch);
+		TraceResult tr;
+		TraceLine(pev->origin, m_destOrigin, false, false, GetEntity(), &tr);
 
-		if (ch.pHit == entity)
-			fallRisk = true;
+		TraceResult tr2;
+		TraceHull(pev->origin, m_destOrigin, false, head_hull, GetEntity(), &tr);
 
-		if (!fallRisk && (m_isStuck || &m_navNode[0] == nullptr))
-			breakIt = true;
-		else
-		{
-			TraceResult tr;
-			TraceLine(pev->origin, m_destOrigin, false, false, GetEntity(), &tr);
-
-			if (tr.pHit == entity)
-				breakIt = true;
-			else
-			{
-				TraceLine(pev->origin, GetBoxOrigin(entity), false, false, GetEntity(), &ch);
-
-				if (ch.flFraction == 1.0f || ch.pHit == entity)
-					breakIt = true;
-			}
-		}
-
-		// it's breakable - try to shoot it
-		if (breakIt)
+		// double check
+		if (tr.pHit == entity || tr2.pHit == entity)
 		{
 			m_breakableEntity = entity;
-			m_breakable = ch.flFraction == 1.0f ? GetBoxOrigin(entity) : GetEntityOrigin(entity);
+			m_breakable = GetEntityOrigin(entity);
 			m_destOrigin = m_breakable;
 
 			if (pev->origin.z > m_breakable.z)
@@ -1542,32 +1521,10 @@ void Bot::CheckTouchEntity(edict_t* entity)
 
 						bot->PushTask(TASK_DESTROYBREAKABLE, TASKPRI_SHOOTBREAKABLE, -1, 1.0f, false);
 					}
-					else
-					{
-						breakableOrigin = GetBoxOrigin(m_breakableEntity);
-						TraceResult tr2;
-						TraceLine(bot->pev->origin, breakableOrigin, true, true, bot->GetEntity(), &tr2);
-
-						if (tr2.pHit == entity || tr2.flFraction == 1.0f)
-						{
-							bot->m_breakableEntity = entity;
-							bot->m_breakable = breakableOrigin;
-
-							if (bot->m_currentWeapon == WEAPON_KNIFE)
-								bot->m_destOrigin = bot->m_breakable;
-
-							if (bot->pev->origin.z > bot->m_breakable.z)
-								bot->m_campButtons = IN_DUCK;
-							else
-								bot->m_campButtons = bot->pev->button & IN_DUCK;
-
-							bot->PushTask(TASK_DESTROYBREAKABLE, TASKPRI_SHOOTBREAKABLE, -1, 1.0f, false);
-						}
-					}
 				}
 			}
 		}
-		else if (fallRisk) // make bots smarter
+		else if (pev->origin.z > m_breakable.z) // make bots smarter
 		{
 			// tell my enemies to destroy it, so i will fall
 			for (int i = 0; i < engine->GetMaxClients(); i++)
@@ -2742,14 +2699,14 @@ bool Bot::CheckCloseAvoidance(const Vector& dirNormal)
 		auto dir = (pev->origin - hindrance->v.origin).Normalize2D();
 
 		// to start strafing, we have to first figure out if the target is on the left side or right side
-		if ((dir | right.GetLength2D()) > 0.0f)
+		if ((dir | right.GetLengthSquared2D()) > 0.0f)
 			SetStrafeSpeed(dirNormal, pev->maxspeed);
 		else
 			SetStrafeSpeed(dirNormal, -pev->maxspeed);
 
 		if (distance <= SquaredF(56.0f))
 		{
-			if ((dir | forward.GetLength2D()) < 0.0f)
+			if ((dir | forward.GetLengthSquared2D()) < 0.0f)
 				m_moveSpeed = -pev->maxspeed;
 		}
 
@@ -3138,7 +3095,7 @@ void Bot::FacePosition(void)
 	if (m_aimFlags & AIM_ENEMY && !FNullEnt(m_enemy))
 	{
 		extern ConVar ebot_ping;
-		if (ebot_ping.GetBool() && ebot_ping_affects_aim.GetBool() && !IsZombieMode())
+		if (ebot_ping.GetBool() && ebot_ping_affects_aim.GetBool())
 		{
 			if (m_trackTime < engine->GetTime())
 			{

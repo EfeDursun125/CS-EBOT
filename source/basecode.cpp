@@ -40,12 +40,12 @@ ConVar ebot_restrictweapons("ebot_restrict_weapons", "");
 ConVar ebot_camp_min("ebot_camp_time_min", "16");
 ConVar ebot_camp_max("ebot_camp_time_max", "48");
 ConVar ebot_use_radio("ebot_use_radio", "1");
-ConVar ebot_anti_block("ebot_anti_block", "0");
 ConVar ebot_force_flashlight("ebot_force_flashlight", "0");
 ConVar ebot_use_flare("ebot_zm_use_flares", "1");
 ConVar ebot_chat_percent("ebot_chat_percent", "20");
 ConVar ebot_eco_rounds("ebot_eco_rounds", "1");
 ConVar ebot_avoid_grenades("ebot_avoid_grenades", "1");
+ConVar ebot_breakable_health_limit("ebot_breakable_health_limit", "3000.0");
 
 ConVar ebot_chatter_path("ebot_chatter_path", "radio/bot");
 
@@ -730,7 +730,7 @@ void Bot::FindItem(void)
 				if (g_entityId[i] == -1 || g_entityAction[i] != 3)
 					continue;
 
-				if (m_team != g_entityTeam[i] && g_entityTeam[i] != 2)
+				if (g_entityTeam[i] != 2 && m_team != g_entityTeam[i])
 					continue;
 
 				if (ent != INDEXENT(g_entityId[i]))
@@ -5795,7 +5795,11 @@ void Bot::RunTask(void)
 		// is bot facing the breakable?
 		if (GetShootingConeDeviation(GetEntity(), &m_breakable) >= 0.90f)
 		{
-			m_moveSpeed = 0.0f;
+			if (m_isZombieBot || m_currentWeapon == WEAPON_KNIFE)
+				m_moveSpeed = pev->maxspeed;
+			else
+				m_moveSpeed = 0.0f;
+
 			m_strafeSpeed = 0.0f;
 			m_wantsToFire = true;
 			m_shootTime = engine->GetTime();
@@ -7302,7 +7306,7 @@ bool Bot::IsShootableBreakable(edict_t* ent)
 	if (FNullEnt(ent))
 		return false;
 
-	if (FClassnameIs(ent, "func_breakable") || (FClassnameIs(ent, "func_pushable") && (ent->v.spawnflags & SF_PUSH_BREAKABLE)) || (FClassnameIs(ent, "func_wall") && ent->v.health <= 500))
+	if ((FClassnameIs(ent, "func_breakable") || (FClassnameIs(ent, "func_pushable") && (ent->v.spawnflags & SF_PUSH_BREAKABLE)) || FClassnameIs(ent, "func_wall")) && ent->v.health <= ebot_breakable_health_limit.GetFloat())
 	{
 		if (ent->v.takedamage != DAMAGE_NO && ent->v.impulse <= 0 && !(ent->v.flags & FL_WORLDBRUSH) && !(ent->v.spawnflags & SF_BREAK_TRIGGER_ONLY))
 			return (ent->v.movetype == MOVETYPE_PUSH || ent->v.movetype == MOVETYPE_PUSHSTEP);
@@ -7314,7 +7318,7 @@ bool Bot::IsShootableBreakable(edict_t* ent)
 // this function is gets called when bot enters a buyzone, to allow bot to buy some stuff
 void Bot::EquipInBuyzone(int iBuyCount)
 {
-	static float lastEquipTime = 0.0f;
+	static float lastEquipTime = 0.0f; 
 
 	// if bot is in buy zone, try to buy ammo for this weapon...
 	if (lastEquipTime + 15.0f < engine->GetTime() && m_inBuyZone && g_timeRoundStart + engine->RandomFloat(10.0f, 20.0f) + engine->GetBuyTime() < engine->GetTime() && !g_bombPlanted && m_moneyAmount > 700)

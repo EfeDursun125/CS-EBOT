@@ -27,7 +27,7 @@
 ConVar ebot_escape("ebot_zombie_escape_mode", "0");
 ConVar ebot_zp_use_grenade_percent("ebot_zm_use_grenade_percent", "10");
 ConVar ebot_zp_escape_distance("ebot_zm_escape_distance", "300");
-ConVar ebot_zombie_speed_factor("ebot_zombie_speed_factor", "0.5");
+ConVar ebot_zombie_speed_factor("ebot_zombie_speed_factor", "0.54");
 ConVar ebot_sb_mode("ebot_sb_mode", "0");
 
 int Bot::GetNearbyFriendsNearPosition(Vector origin, int radius)
@@ -896,9 +896,9 @@ bool Bot::KnifeAttack(float attackDistance)
 
 	if (kaMode > 0)
 	{
-		float distanceSkipZ = (pev->origin - GetEntityOrigin(entity)).GetLength2D();
+		float distanceSkipZ = (pev->origin - GetEntityOrigin(entity)).GetLengthSquared2D();
 
-		if (pev->origin.z > GetEntityOrigin(entity).z && distanceSkipZ < 64.0f)
+		if (pev->origin.z > GetEntityOrigin(entity).z && distanceSkipZ < SquaredF(64.0f))
 		{
 			pev->button |= IN_DUCK;
 			m_campButtons |= IN_DUCK;
@@ -909,7 +909,7 @@ bool Bot::KnifeAttack(float attackDistance)
 			pev->button &= ~IN_DUCK;
 			m_campButtons &= ~IN_DUCK;
 
-			if (pev->origin.z + 150.0f < GetEntityOrigin(entity).z && distanceSkipZ < 300.0f)
+			if (pev->origin.z + 150.0f < GetEntityOrigin(entity).z && distanceSkipZ < SquaredF(300.0f))
 				pev->button |= IN_JUMP;
 		}
 
@@ -970,9 +970,9 @@ void Bot::FocusEnemy(void)
 	if (m_enemySurpriseTime > engine->GetTime())
 		return;
 
-	float distance = (m_lookAt - EyePosition()).GetLength2D();  // how far away is the enemy scum?
+	float distance = (m_lookAt - EyePosition()).GetLengthSquared2D();  // how far away is the enemy scum?
 
-	if (distance < 128)
+	if (distance < SquaredF(128.0f))
 	{
 		if (m_currentWeapon == WEAPON_KNIFE)
 		{
@@ -1270,7 +1270,7 @@ void Bot::CombatFight(void)
 				}
 			}
 
-			if (m_jumpTime + 10.0f < engine->GetTime() && !IsOnLadder() && ChanceOf(m_isReloading ? 5 : 2) && pev->velocity.GetLength2D() > float(m_skill + 50.0f) && !UsesSniper())
+			if (m_jumpTime + 10.0f < engine->GetTime() && !IsOnLadder() && ChanceOf(m_isReloading ? 5 : 2) && pev->velocity.GetLength2D() > float(m_skill + 50) && !UsesSniper())
 				pev->button |= IN_JUMP;
 
 			if (m_moveSpeed > 0.0f && distance > SquaredF(512.0f) && m_currentWeapon != WEAPON_KNIFE)

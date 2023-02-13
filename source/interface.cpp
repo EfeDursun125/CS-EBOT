@@ -105,6 +105,79 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 	else if (stricmp(arg0, "fillserver") == 0 || stricmp(arg0, "fill") == 0)
 		g_botManager->FillServer(atoi(arg1), IsNullString(arg2) ? -1 : atoi(arg2), IsNullString(arg3) ? -1 : atoi(arg3), IsNullString(arg4) ? -1 : atoi(arg4));
 
+	// set entity action with command
+	else if (stricmp(arg0, "setentityaction") == 0)
+	{
+		int index = atoi(arg1);
+		int team = atoi(arg2);
+		int action = atoi(arg3);
+
+		int i;
+		if (index == -1)
+		{
+			for (i = 0; i < entityNum; i++)
+				SetEntityActionData(i);
+
+			ServerPrintNoTag("[E-Bot] Set Entity Action - Delete All - Done");
+			return 1;
+		}
+
+		edict_t* entity = INDEXENT(index);
+		if (FNullEnt(entity) || !IsAlive(entity))
+		{
+			ServerPrintNoTag("[E-Bot] Set Entity Action - Entity is NULL or not alive - Done");
+			return -1;
+		}
+
+		if (IsValidPlayer(entity))
+		{
+			ServerPrintNoTag("[E-Bot] Set Entity Action - Cannot set the player - Done");
+			return -1;
+		}
+
+		for (i = 0; i < entityNum; i++)
+		{
+			if (g_entityId[i] == index)
+			{
+				if (action != -1)
+				{
+					if (team != g_entityTeam[i] || action != g_entityAction[i])
+					{
+						SetEntityActionData(i, index, team, action);
+						ServerPrintNoTag("[E-Bot] Set Entity Action - Change ID: %d Team: %d Action: %d - Done", index, team, action);
+					}
+					else
+						ServerPrintNoTag("[E-Bot] Set Entity Action - Don't Need Change ID: %d - Not Change - Done", index);
+				}
+				else
+				{
+					SetEntityActionData(i);
+					ServerPrintNoTag("[E-Bot] Set Entity Action - Delete ID: %d - Done", index);
+				}
+
+				return 1;
+			}
+		}
+
+		if (action == -1)
+		{
+			ServerPrintNoTag("[E-Bot] Set Entity Action - Cannot Delete ID: %d - Not Find - Done", index);
+			return -1;
+		}
+
+		for (i = 0; i < entityNum; i++)
+		{
+			if (g_entityId[i] == -1)
+			{
+				SetEntityActionData(i, index, team, action);
+				return 1;
+			}
+		}
+
+		ServerPrintNoTag("[E-Bot] Cannot Add Entity Action - Unknow Error - Done");
+		return -1;
+	}
+
 	// swap counter-terrorist and terrorist teams
 	else if (stricmp(arg0, "swaptteams") == 0 || stricmp(arg0, "swap") == 0)
 	{
@@ -288,46 +361,6 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		}
 	}
 
-	// sets mesh for waypoint
-	else if (stricmp(arg0, "setmesh") == 0)
-	{
-		if (IsNullString(arg1))
-			ClientPrint(ent, print_withtag, "Please set mesh <number>");
-		else if (FNullEnt(g_hostEntity))
-			ClientPrint(ent, print_withtag, "Please try this in lan game");
-		else
-		{
-			int index = g_waypoint->FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
-			if (IsValidWaypoint(index))
-			{
-				g_waypoint->GetPath(index)->campStartX = fabsf(static_cast <float> (atof(arg1)));
-				ClientPrint(ent, print_withtag, "Waypoint mesh set to %d", static_cast <int> (g_waypoint->GetPath(index)->campStartX));
-			}
-			else
-				ClientPrint(ent, print_withtag, "Waypoint is not valid");
-		}
-	}
-
-	// sets gravity for waypoint
-	else if (stricmp(arg0, "setgravity") == 0)
-	{
-		if (IsNullString(arg1))
-			ClientPrint(ent, print_withtag, "Please set gravity <number>");
-		else if (FNullEnt(g_hostEntity))
-			ClientPrint(ent, print_withtag, "Please try this in lan game");
-		else
-		{
-			int index = g_waypoint->FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
-			if (IsValidWaypoint(index))
-			{
-				g_waypoint->GetPath(index)->campStartY = fabsf(static_cast <float> (atof(arg1)));
-				ClientPrint(ent, print_withtag, "Waypoint gravity set to %f", g_waypoint->GetPath(index)->campStartY);
-			}
-			else
-				ClientPrint(ent, print_withtag, "Waypoint is not valid");
-		}
-	}
-
 	// displays main bot menu
 	else if (stricmp(arg0, "botmenu") == 0 || stricmp(arg0, "menu") == 0)
 		DisplayMenuToClient(ent, &g_menus[0]);
@@ -476,6 +509,42 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		{
 			g_waypointOn = true;  // turn waypoints on
 			DisplayMenuToClient(g_hostEntity, &g_menus[12]);
+		}
+
+		// sets mesh for waypoint
+		else if (stricmp(arg1, "setmesh") == 0)
+		{
+			if (IsNullString(arg2))
+				ClientPrint(ent, print_withtag, "Please set mesh <number>");
+			else
+			{
+				int index = g_waypoint->FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
+				if (IsValidWaypoint(index))
+				{
+					g_waypoint->GetPath(index)->campStartX = fabsf(static_cast <float> (atof(arg2)));
+					ClientPrint(ent, print_withtag, "Waypoint mesh set to %d", static_cast <int> (g_waypoint->GetPath(index)->campStartX));
+				}
+				else
+					ClientPrint(ent, print_withtag, "Waypoint is not valid");
+			}
+		}
+
+		// sets gravity for waypoint
+		else if (stricmp(arg1, "setgravity") == 0)
+		{
+			if (IsNullString(arg2))
+				ClientPrint(ent, print_withtag, "Please set gravity <number>");
+			else
+			{
+				int index = g_waypoint->FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
+				if (IsValidWaypoint(index))
+				{
+					g_waypoint->GetPath(index)->campStartY = fabsf(static_cast <float> (atof(arg2)));
+					ClientPrint(ent, print_withtag, "Waypoint gravity set to %f", g_waypoint->GetPath(index)->campStartY);
+				}
+				else
+					ClientPrint(ent, print_withtag, "Waypoint is not valid");
+			}
 		}
 
 		// creates basic waypoints on the map (ladder/spawn points/goals)
@@ -2789,7 +2858,7 @@ void JustAStuff(void)
 			edict_t* player = INDEXENT(i);
 
 			// code below is executed only on dedicated server
-			if (!FNullEnt(player) && (player->v.flags & FL_CLIENT) && !(player->v.flags & FL_FAKECLIENT))
+			if (!FNullEnt(player) && (player->v.flags & FL_CLIENT))
 			{
 				const char* password = ebot_password.GetString();
 				const char* key = ebot_password_key.GetString();
@@ -2846,38 +2915,36 @@ void JustAStuff(void)
 static float secondTimer = 0.0;
 void FrameThread(void)
 {
-	if (g_analyzewaypoints)
-		g_waypoint->Analyze();
-
-	if (ebot_lockzbot.GetBool())
-	{
-		if (CVAR_GET_FLOAT("bot_quota") > 0)
-		{
-			CVAR_SET_FLOAT("ebot_quota", CVAR_GET_FLOAT("bot_quota"));
-			ServerPrint("ebot_lockzbot is 1, you cannot add Z-Bot");
-			ServerPrint("You can input ebot_lockzbot unlock add Z-Bot");
-			ServerPrint("But, If you have use AMXX plug-in or Zombie Mod, I think this is not good choice");
-			CVAR_SET_FLOAT("bot_quota", 0);
-		}
-	}
-
 	if (secondTimer < engine->GetTime())
 	{
 		LoadEntityData();
 		JustAStuff();
 
-		float time = 0.64f;
-		if (g_waypointOn)
-			time = 1.0f;
+		if (g_bombPlanted)
+			g_waypoint->SetBombPosition();
 
-		secondTimer = AddTime(time);
+		if (ebot_lockzbot.GetBool())
+		{
+			if (CVAR_GET_FLOAT("bot_quota") > 0)
+			{
+				CVAR_SET_FLOAT("ebot_quota", CVAR_GET_FLOAT("bot_quota"));
+				ServerPrint("ebot_lockzbot is 1, you cannot add Z-Bot");
+				ServerPrint("You can input ebot_lockzbot unlock add Z-Bot");
+				ServerPrint("But, If you have use AMXX plug-in or Zombie Mod, I think this is not good choice");
+				CVAR_SET_FLOAT("bot_quota", 0);
+			}
+		}
+
+		secondTimer = AddTime(1.0f);
 	}
+	else
+	{
+		// keep bot number up to date
+		g_botManager->MaintainBotQuota();
 
-	if (g_bombPlanted)
-		g_waypoint->SetBombPosition();
-
-	// keep bot number up to date
-	g_botManager->MaintainBotQuota();
+		if (g_analyzewaypoints)
+			g_waypoint->Analyze();
+	}
 }
 
 void StartFrame(void)

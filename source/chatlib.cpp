@@ -463,7 +463,7 @@ void Bot::ChatSay(bool teamSay, const char* text, ...)
         if (FNullEnt(client.ent))
             continue;
 
-        if (!(client.flags & CFLAG_USED) || client.ent == GetEntity() || client.flags & FL_FAKECLIENT)
+        if (!(client.flags & CFLAG_USED) || client.ent == GetEntity())
             continue;
 
         if (teamSay && client.team != m_team)
