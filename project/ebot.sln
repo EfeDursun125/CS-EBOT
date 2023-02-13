@@ -8,17 +8,11 @@ EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x86 = Debug|x86
-		Intel|x86 = Intel|x86
-		NP|x86 = NP|x86
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{C232645A-3B99-48F4-A1F3-F20CF0A9568B}.Debug|x86.ActiveCfg = EBOT_Debug|Win32
 		{C232645A-3B99-48F4-A1F3-F20CF0A9568B}.Debug|x86.Build.0 = EBOT_Debug|Win32
-		{C232645A-3B99-48F4-A1F3-F20CF0A9568B}.Intel|x86.ActiveCfg = Intel|Win32
-		{C232645A-3B99-48F4-A1F3-F20CF0A9568B}.Intel|x86.Build.0 = Intel|Win32
-		{C232645A-3B99-48F4-A1F3-F20CF0A9568B}.NP|x86.ActiveCfg = NP|Win32
-		{C232645A-3B99-48F4-A1F3-F20CF0A9568B}.NP|x86.Build.0 = NP|Win32
 		{C232645A-3B99-48F4-A1F3-F20CF0A9568B}.Release|x86.ActiveCfg = EBOT_Release|Win32
 		{C232645A-3B99-48F4-A1F3-F20CF0A9568B}.Release|x86.Build.0 = EBOT_Release|Win32
 	EndGlobalSection
