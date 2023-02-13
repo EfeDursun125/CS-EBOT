@@ -42,7 +42,7 @@
 #endif
 
 // E-BOT Version
-#define PRODUCT_VERSION_DWORD 1,06,20220928,7 // yyyy/mm/dd
+#define PRODUCT_VERSION_DWORD 1,06,20230213,7 // yyyy/mm/dd
 #define PRODUCT_VERSION "1.06"
 #define PRODUCT_VERSION_F 1.06
 

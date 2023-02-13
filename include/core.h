@@ -56,7 +56,7 @@ using namespace Math;
 
 #include <runtime.h>
 
-//#define WORK_ASYNC
+#define WORK_ASYNC
 
 #ifdef WORK_ASYNC
 #include <future>
@@ -1374,7 +1374,6 @@ public:
 
 	bool Load(int mode = 0);
 	void Save(void);
-	void SaveXML(void);
 
 	bool Reachable(edict_t* entity, int index);
 	bool IsNodeReachable(Vector src, Vector destination);
