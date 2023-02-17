@@ -56,7 +56,7 @@ using namespace Math;
 
 #include <runtime.h>
 
-#define WORK_ASYNC
+//#define WORK_ASYNC
 
 #ifdef WORK_ASYNC
 #include <future>
@@ -787,7 +787,6 @@ private:
 	int m_voicePitch; // bot voice pitch
 	bool m_isZombieBot; // checks bot if zombie
 	bool m_zombiePush; // we must push???
-	bool m_isBomber; // checks bot has C4
 	int m_team; // bot's team
 
 	bool m_duckDefuse; // should or not bot duck to defuse bomb
@@ -860,7 +859,6 @@ private:
 	void CheckBurstMode(float distance);
 
 	int CheckMaxClip(int weaponId, int* weaponIndex);
-	void CheckTerrain(Vector directionNormal, float movedDistance);
 
 	void AvoidEntity(void);
 
@@ -894,8 +892,7 @@ private:
 	int FindDefendWaypoint(Vector origin);
 	int FindGoal(void);
 	void FindItem(void);
-
-	bool CheckCloseAvoidance(const Vector& dirNormal);
+	void CheckCloseAvoidance(const Vector& dirNormal);
 
 	void GetCampDirection(Vector* dest);
 	int GetMessageQueue(void);
@@ -908,7 +905,6 @@ private:
 	bool IsWaypointOccupied(int index);
 
 	bool IsNotAttackLab(edict_t* entity);
-	bool IsAntiBlock(edict_t* entity);
 
 	inline bool IsOnLadder(void) { return pev->movetype == MOVETYPE_FLY; }
 	inline bool IsOnFloor(void) { return (pev->flags & (FL_ONGROUND | FL_PARTIALGROUND)) != 0; }
@@ -1003,7 +999,10 @@ public:
 	float m_timeTeamOrder; // time of last radio command
 
 	bool m_isVIP; // bot is vip?
+	bool m_isBomber; // bot is bomber?
 	bool m_bIsDefendingTeam; // bot in defending team on this map
+
+	edict_t* m_avoid; // higher priority player we need to make way for
 
 	int m_startAction; // team/class selection state
 	bool m_notKilled; // has the player been killed or has he just respawned
@@ -1105,6 +1104,7 @@ public:
 	float m_firePause; // time to pause firing
 	float m_shootTime; // time to shoot
 	float m_timeLastFired; // time to last firing
+	float m_weaponSelectDelay; // delay for reload
 
 	int m_lastDamageType; // stores last damage
 	int m_currentWeapon; // one current weapon for each bot
@@ -1374,6 +1374,7 @@ public:
 
 	bool Load(int mode = 0);
 	void Save(void);
+	void SaveOLD(void);
 
 	bool Reachable(edict_t* entity, int index);
 	bool IsNodeReachable(Vector src, Vector destination);
@@ -1401,6 +1402,7 @@ public:
 	Vector GetBombPosition(void) { return m_foundBombOrigin; }
 	void SetBombPosition(bool shouldReset = false);
 	String CheckSubfolderFile(void);
+	String CheckSubfolderFileOLD(void);
 };
 
 #define g_netMsg NetworkMsg::GetObjectPtr ()
@@ -1425,6 +1427,7 @@ extern float SquaredF(float a);
 extern float AddTime(float time);
 extern float MaxFloat(float a, float b);
 extern float MinFloat(float a, float b);
+extern unsigned int GetPlayerPriority(edict_t* player);
 extern ChatterMessage GetEqualChatter(int message);
 extern void GetVoiceAndDur(ChatterMessage message, char* *voice, float *dur);
 

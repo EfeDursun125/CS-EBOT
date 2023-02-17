@@ -1119,6 +1119,9 @@ inline Vector CrossProduct(const Vector& a, const Vector& b)
 #define TE_BOUNCE_SHELL      1
 #define TE_BOUNCE_SHOTSHELL  2
 
+// Weapon Flags
+#define ITEM_FLAG_NOFIREUNDERWATER (1 << 5)
+
 // Rendering constants
 enum
 {
