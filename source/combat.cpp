@@ -41,9 +41,6 @@ int Bot::GetNearbyFriendsNearPosition(Vector origin, int radius)
 	int count = 0;
 	for (const auto& client : g_clients)
 	{
-		if (FNullEnt(client.ent))
-			continue;
-
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != m_team || client.ent == GetEntity())
 			continue;
 
@@ -62,9 +59,6 @@ int Bot::GetNearbyEnemiesNearPosition(Vector origin, int radius)
 	int count = 0;
 	for (const auto& client : g_clients)
 	{
-		if (FNullEnt(client.ent))
-			continue;
-
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || GetTeam(client.ent) == m_team)
 			continue;
 
@@ -1112,9 +1106,7 @@ void Bot::CombatFight(void)
 					tempMoveSpeed = -pev->maxspeed;
 				}
 				else if (!ebot_escape.GetBool())
-				{
 					tempMoveSpeed = 0.0f;
-				}
 			}
 
 			if (tempDestOrigin != nullvec)
@@ -1129,6 +1121,15 @@ void Bot::CombatFight(void)
 
 				m_moveAngles.ClampAngles();
 				m_moveAngles.x *= -1.0f; // invert for engine
+
+				pev->button &= ~IN_DUCK;
+			}
+			else if (m_moveSpeed == 0.0f && pev->velocity == nullvec)
+			{
+				if (pev->origin.z > speedFactor.z)
+					pev->button = IN_DUCK;
+				else
+					pev->button &= ~IN_DUCK;
 			}
 
 			if (tempMoveSpeed != -1.0f)
@@ -1506,10 +1507,13 @@ void Bot::SelectBestWeapon(void)
 		}
 	}
 
+	if (m_weaponSelectDelay >= engine->GetTime())
+		return;
+
 	WeaponSelect* selectTab = &g_weaponSelect[0];
 
 	int selectIndex = 0;
-	int chosenWeaponIndex = 0;
+	int chosenWeaponIndex = -1;
 
 	while (selectTab[selectIndex].id)
 	{
@@ -1520,14 +1524,22 @@ void Bot::SelectBestWeapon(void)
 		}
 
 		int id = selectTab[selectIndex].id;
+
+		// cannot be used in water...
+		if (pev->waterlevel == 3 && g_weaponDefs[id].flags & ITEM_FLAG_NOFIREUNDERWATER)
+			continue;
+
 		bool ammoLeft = false;
 
-		// is the bot already holding this weapon and there is still ammo in clip?
-		if (selectTab[selectIndex].id == m_currentWeapon && (GetAmmoInClip() < 0 || GetAmmoInClip() >= selectTab[selectIndex].minPrimaryAmmo))
-			ammoLeft = true;
-
-		// is no ammo required for this weapon OR enough ammo available to fire
-		if (g_weaponDefs[id].ammo1 < 0 || (g_weaponDefs[id].ammo1 < Const_MaxWeapons && m_ammo[g_weaponDefs[id].ammo1] >= selectTab[selectIndex].minPrimaryAmmo))
+		if (id == m_currentWeapon)
+		{
+			// dont be fool
+			if (m_isReloading)
+				ammoLeft = false;
+			else if (GetAmmoInClip() > 0)
+				ammoLeft = true;
+		}
+		else if (m_ammo[g_weaponDefs[id].ammo1] > 0)
 			ammoLeft = true;
 
 		if (ammoLeft)
@@ -1536,14 +1548,19 @@ void Bot::SelectBestWeapon(void)
 		selectIndex++;
 	}
 
+	if (chosenWeaponIndex == -1)
+		chosenWeaponIndex = GetHighestWeapon();
+
 	chosenWeaponIndex %= Const_NumWeapons + 1;
 	selectIndex = chosenWeaponIndex;
 
 	if (m_currentWeapon != selectTab[selectIndex].id)
+	{
 		SelectWeaponByName(selectTab[selectIndex].weaponName);
-
-	m_isReloading = false;
-	m_reloadState = RSTATE_NONE;
+		m_isReloading = false;
+		m_reloadState = RSTATE_NONE;
+		m_weaponSelectDelay = engine->GetTime() + 6.0f;
+	}
 }
 
 void Bot::SelectPistol(void)
@@ -1609,9 +1626,6 @@ void Bot::CommandTeam(void)
 	// search teammates seen by this bot
 	for (const auto& client : g_clients)
 	{
-		if (FNullEnt(client.ent))
-			continue;
-
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != m_team || client.ent == GetEntity())
 			continue;
 
@@ -1656,9 +1670,6 @@ bool Bot::IsGroupOfEnemies(Vector location, int numEnemies, int radius)
 	// search the world for enemy players...
 	for (const auto& client : g_clients)
 	{
-		if (FNullEnt(client.ent))
-			continue;
-
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.ent == GetEntity())
 			continue;
 

@@ -1529,36 +1529,7 @@ bool Waypoint::Load(int mode)
     {
         fp.Read(&header, sizeof(header));
 
-        if (strncmp(header.header, FH_WAYPOINT_NEW, strlen(FH_WAYPOINT_NEW)) == 0)
-        {
-            if (stricmp(header.mapName, GetMapName()) && mode == 0)
-            {
-                m_badMapName = true;
-
-                sprintf(m_infoBuffer, "%s - hacked waypoint file, fileName doesn't match waypoint header information (mapname: '%s', header: '%s')", GetMapName(), GetMapName(), header.mapName);
-                AddLogEntry(LOG_ERROR, m_infoBuffer);
-
-                fp.Close();
-                return false;
-            }
-            else
-            {
-                Initialize();
-                g_numWaypoints = header.pointNumber;
-
-                for (int i = 0; i < g_numWaypoints; i++)
-                {
-                    m_paths[i] = new Path;
-                    if (m_paths[i] == nullptr)
-                        return false;
-
-                    fp.Read(m_paths[i], sizeof(Path));
-                }
-
-                m_waypointPaths = true;
-            }
-        }
-        else if (strncmp(header.header, FH_WAYPOINT, strlen(FH_WAYPOINT)) == 0)
+        if (strncmp(header.header, FH_WAYPOINT_NEW, strlen(FH_WAYPOINT_NEW)) == 0 || strncmp(header.header, FH_WAYPOINT, strlen(FH_WAYPOINT)) == 0)
         {
             if (stricmp(header.mapName, GetMapName()) && mode == 0)
             {
@@ -1676,6 +1647,67 @@ void Waypoint::Save(void)
         AddLogEntry(LOG_ERROR, "Error writing '%s' waypoint file", GetMapName());
 }
 
+void Waypoint::SaveOLD(void)
+{
+    WaypointHeader header;
+
+    memset(header.header, 0, sizeof(header.header));
+    memset(header.mapName, 0, sizeof(header.mapName));
+    memset(header.author, 0, sizeof(header.author));
+
+    char waypointAuthor[32];
+    sprintf(waypointAuthor, "%s", GetEntityName(g_hostEntity));
+
+    strcpy(header.author, waypointAuthor);
+
+    // remember the original waypoint author
+    File rf(CheckSubfolderFileOLD(), "rb");
+    if (rf.IsValid())
+    {
+        rf.Read(&header, sizeof(header));
+        rf.Close();
+    }
+
+    strcpy(header.header, FH_WAYPOINT);
+    strncpy(header.mapName, GetMapName(), 31);
+
+    header.mapName[31] = 0;
+    header.fileVersion = FV_WAYPOINT;
+    header.pointNumber = g_numWaypoints;
+
+    File fp(CheckSubfolderFileOLD(), "wb");
+
+    // file was opened
+    if (fp.IsValid())
+    {
+        for (int i = 0; i < header.pointNumber; ++i)
+        {
+            // iterate through connections and find, if it's a jump path
+            for (int x = 0; x < Const_MaxPathIndex; x++)
+            {
+                // check if we got a valid connection
+                if (m_paths[i]->index[x] != -1 && (m_paths[i]->connectionFlags[x] & PATHFLAG_JUMP))
+                {
+                    m_paths[i]->connectionVelocity[x].x = (m_paths[m_paths[i]->index[x]]->origin.x - m_paths[i]->origin.x) * 2.0f;
+                    m_paths[i]->connectionVelocity[x].y = (m_paths[m_paths[i]->index[x]]->origin.y - m_paths[i]->origin.y) * 2.0f;
+                    m_paths[i]->connectionVelocity[x].z = (m_paths[m_paths[i]->index[x]]->origin.z - m_paths[i]->origin.z) * 2.0f;
+                }
+            }
+        }
+
+        // write the waypoint header to the file...
+        fp.Write(&header, sizeof(header), 1);
+
+        // save the waypoint paths...
+        for (int i = 0; i < g_numWaypoints; i++)
+            fp.Write(m_paths[i], sizeof(Path));
+
+        fp.Close();
+    }
+    else
+        AddLogEntry(LOG_ERROR, "Error writing '%s' waypoint file", GetMapName());
+}
+
 String Waypoint::CheckSubfolderFile(void)
 {
     String returnFile = "";
@@ -1691,6 +1723,17 @@ String Waypoint::CheckSubfolderFile(void)
     }
 
     return FormatBuffer("%s%s.ewp", GetWaypointDir(), GetMapName());
+}
+
+String Waypoint::CheckSubfolderFileOLD(void)
+{
+    String returnFile = "";
+    returnFile = FormatBuffer("%s/%s.pwf", GetWaypointDir(), GetMapName());
+
+    if (TryFileOpen(returnFile))
+        return returnFile;
+
+    return FormatBuffer("%s%s.pwf", GetWaypointDir(), GetMapName());
 }
 
 // this function returns 2D traveltime to a position

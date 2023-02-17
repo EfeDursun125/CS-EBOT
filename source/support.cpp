@@ -154,7 +154,7 @@ bool IsVisibleForKnifeAttack(const Vector& origin, edict_t* ent)
 		return false;
 
 	TraceResult tr;
-	TraceHull(GetEntityOrigin(ent), origin, true, human_hull, ent, &tr);
+	TraceHull(GetEntityOrigin(ent), origin, false, human_hull, ent, &tr);
 
 	if (tr.flFraction != 1.0f)
 		return false; // line of sight is not established
@@ -166,7 +166,7 @@ bool IsVisibleForKnifeAttack(const Vector& origin, edict_t* ent)
 Vector GetWalkablePosition(const Vector& origin, edict_t* ent, bool returnNullVec)
 {
 	TraceResult tr;
-	TraceLine(origin, Vector(origin.x, origin.y, -9999.0f), true, false, ent, &tr);
+	TraceLine(origin, Vector(origin.x, origin.y, -999999.0f), true, false, ent, &tr);
 
 	if (tr.flFraction != 1.0f)
 		return tr.vecEndPos; // walkable ground
@@ -181,7 +181,7 @@ Vector GetWalkablePosition(const Vector& origin, edict_t* ent, bool returnNullVe
 Vector GetNearestWalkablePosition(const Vector& origin, edict_t* ent, bool returnNullVec)
 {
 	TraceResult tr;
-	TraceLine(origin, Vector(origin.x, origin.y, -9999.0f), true, false, ent, &tr);
+	TraceLine(origin, Vector(origin.x, origin.y, -999999.0f), true, false, ent, &tr);
 
 	Vector BestOrigin = origin;
 
@@ -1883,6 +1883,47 @@ int GetWeaponReturn(bool needString, const char* weaponAlias, int weaponID)
 	}
 
 	return -1; // no weapon was found return -1
+}
+
+// return priority of player (0 = max pri)
+unsigned int GetPlayerPriority(edict_t* player)
+{
+	const unsigned int lowestPriority = 0xFFFFFFFF;
+
+	if (!FNullEnt(player))
+		return lowestPriority;
+
+	// human players have highest priority
+	auto bot = g_botManager->GetBot(player);
+	if (bot == nullptr)
+		return 0;
+
+	// bots doing something important for the current scenario have high priority
+	if (GetGameMode() == MODE_BASE)
+	{
+		if (bot->m_isBomber)
+			return 1;
+
+		if (bot->m_isVIP)
+			return 1;
+
+		if (bot->HasHostage())
+			return 1;
+	}
+
+	// everyone else is ranked by their unique ID (which cannot be zero)
+	return 2 + bot->GetIndex();
+}
+
+inline float NormalizeAnglePositive(float angle)
+{
+	while (angle < 0.0f)
+		angle += 360.0f;
+
+	while (angle >= 360.0f)
+		angle -= 360.0f;
+
+	return angle;
 }
 
 ChatterMessage GetEqualChatter(int message)

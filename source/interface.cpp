@@ -564,7 +564,13 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		// save waypoint data into file on hard disk
 		else if (stricmp(arg1, "save") == 0)
 		{
-			if (FStrEq(arg2, "nocheck"))
+			if (FStrEq(arg2, "pwf"))
+			{
+				g_waypoint->SaveOLD();
+				ServerPrint("Waypoints Saved As PWF");
+				CenterPrint("Waypoints are saved as pwf");
+			}
+			else if (FStrEq(arg2, "nocheck"))
 			{
 				g_waypoint->Save();
 				ServerPrint("Waypoints Saved");

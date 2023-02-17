@@ -1069,6 +1069,7 @@ void Bot::NewRound(void)
 	DeleteSearchNodes();
 	m_itaimstart = engine->GetTime();
 	m_aimStopTime = engine->GetTime();
+	m_weaponSelectDelay = engine->GetTime();
 	m_currentWaypointIndex = -1;
 	m_currentTravelFlags = 0;
 	m_desiredVelocity = nullvec;

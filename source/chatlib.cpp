@@ -161,9 +161,6 @@ void Bot::PrepareChatMessage(char* text)
 
                 for (const auto& client : g_clients)
                 {
-                    if (FNullEnt(client.ent))
-                        continue;
-
                     if (!(client.flags & CFLAG_USED) || client.ent == GetEntity())
                         continue;
 
@@ -205,9 +202,6 @@ void Bot::PrepareChatMessage(char* text)
 
                 for (const auto& client : g_clients)
                 {
-                    if (FNullEnt(client.ent))
-                        continue;
-
                     if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || (client.team != m_team) || (client.ent == GetEntity()))
                         continue;
 
@@ -230,9 +224,6 @@ void Bot::PrepareChatMessage(char* text)
                 {
                     for (const auto& client : g_clients)
                     {
-                        if (FNullEnt(client.ent))
-                            continue;
-
                         if (!(client.flags & CFLAG_USED) || (client.team != m_team) || (client.ent == GetEntity()))
                             continue;
 
@@ -256,9 +247,6 @@ void Bot::PrepareChatMessage(char* text)
 
                 for (const auto& client : g_clients)
                 {
-                    if (FNullEnt(client.ent))
-                        continue;
-
                     if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || (client.team == m_team) || (client.ent == GetEntity()))
                         continue;
 
@@ -278,14 +266,10 @@ void Bot::PrepareChatMessage(char* text)
                 {
                     for (const auto& client : g_clients)
                     {
-                        if (FNullEnt(client.ent))
-                            continue;
-
                         if (!(client.flags & CFLAG_USED) || (client.team == m_team) || (client.ent == GetEntity()))
                             continue;
 
                         entity = client.ent;
-
                         break;
                     }
 
@@ -412,7 +396,7 @@ bool Bot::RepliesToPlayer(void)
         // check is time to chat is good
         if (m_sayTextBuffer.timeNextChat < engine->GetTime())
         {
-            if (engine->RandomInt(1, 100) <= m_sayTextBuffer.chatProbability + engine->RandomInt(20, 60) && ParseChat(text))
+            if (ParseChat(text))
             {
                 PrepareChatMessage(text);
                 PushMessageQueue(CMENU_SAY);
