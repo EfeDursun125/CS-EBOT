@@ -393,24 +393,20 @@ bool Bot::RepliesToPlayer(void)
     {
         char text[256];
 
-        // check is time to chat is good
-        if (m_sayTextBuffer.timeNextChat < engine->GetTime())
+        if (ParseChat(text))
         {
-            if (ParseChat(text))
-            {
-                PrepareChatMessage(text);
-                PushMessageQueue(CMENU_SAY);
-
-                m_sayTextBuffer.entityIndex = -1;
-                m_sayTextBuffer.sayText[0] = 0x0;
-                m_sayTextBuffer.timeNextChat = engine->GetTime() + m_sayTextBuffer.chatDelay;
-
-                return true;
-            }
+            PrepareChatMessage(text);
+            PushMessageQueue(CMENU_SAY);
 
             m_sayTextBuffer.entityIndex = -1;
             m_sayTextBuffer.sayText[0] = 0x0;
+            m_sayTextBuffer.timeNextChat = engine->GetTime() + m_sayTextBuffer.chatDelay;
+
+            return true;
         }
+
+        m_sayTextBuffer.entityIndex = -1;
+        m_sayTextBuffer.sayText[0] = 0x0;
     }
 
     return false;

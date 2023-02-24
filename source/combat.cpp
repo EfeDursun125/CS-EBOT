@@ -1459,19 +1459,65 @@ int Bot::CheckGrenades(void)
 	return -1;
 }
 
+void Bot::SelectKnife(void)
+{
+	// already have
+	if (m_currentWeapon == WEAPON_KNIFE)
+		return;
+
+	auto task = GetCurrentTask()->taskID;
+
+	if (task == TASK_THROWFBGRENADE)
+		return;
+
+	if (task == TASK_THROWFLARE)
+		return;
+
+	if (task == TASK_THROWHEGRENADE)
+		return;
+
+	if (task == TASK_THROWSMGRENADE)
+		return;
+
+	if (m_isZombieBot)
+	{
+		SelectWeaponByName("weapon_knife");
+		return;
+	}
+
+	if (task == TASK_BLINDED)
+		return;
+
+	if (task == TASK_CAMP)
+		return;
+
+	if (task == TASK_DESTROYBREAKABLE)
+		return;
+
+	if (task == TASK_PAUSE)
+		return;
+
+	if (task == TASK_FOLLOWUSER)
+		return;
+
+	if (task == TASK_HUNTENEMY)
+		return;
+
+	if (task == TASK_GOINGFORCAMP)
+	{
+		if (m_personality == PERSONALITY_CAREFUL)
+			return;
+		else if (m_personality == PERSONALITY_NORMAL && m_skill > 50)
+			return;
+	}
+
+	SelectWeaponByName("weapon_knife");
+}
+
 void Bot::SelectBestWeapon(void)
 {
 	if (!m_isSlowThink)
 		return;
-
-	if (GetCurrentTask()->taskID == TASK_THROWHEGRENADE)
-		return SelectWeaponByName("weapon_hegrenade");
-
-	if (GetCurrentTask()->taskID == TASK_THROWFBGRENADE)
-		return SelectWeaponByName("weapon_flashbang");
-
-	if (GetCurrentTask()->taskID == TASK_THROWSMGRENADE)
-		return SelectWeaponByName("weapon_smokegrenade");
 
 	if (ebot_sb_mode.GetBool())
 	{
@@ -1494,20 +1540,20 @@ void Bot::SelectBestWeapon(void)
 
 	if (!IsZombieMode())
 	{
-		if (m_numEnemiesLeft == 0)
+		if (m_numEnemiesLeft <= 0)
 		{
-			SelectWeaponByName("weapon_knife");
+			SelectKnife();
 			return;
 		}
 
 		if (!FNullEnt(m_enemy) && GetCurrentTask()->taskID == TASK_FIGHTENEMY && (pev->origin - GetEntityOrigin(m_enemy)).GetLengthSquared() <= SquaredF(128.0f))
 		{
-			SelectWeaponByName("weapon_knife");
+			SelectKnife();
 			return;
 		}
 	}
 
-	if (m_weaponSelectDelay >= engine->GetTime())
+	if (m_weaponSelectDelay >= engine->GetTime() && m_currentWeapon != WEAPON_KNIFE)
 		return;
 
 	WeaponSelect* selectTab = &g_weaponSelect[0];

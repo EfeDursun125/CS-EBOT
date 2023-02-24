@@ -38,7 +38,7 @@ ConVar ebot_ping("ebot_fake_ping", "1");
 ConVar ebot_display_avatar("ebot_display_avatar", "1");
 
 ConVar ebot_autovacate("ebot_auto_vacate", "1");
-ConVar ebot_save_bot_names("ebot_save_bot_names", "1");
+ConVar ebot_save_bot_names("ebot_save_bot_names", "0");
 
 ConVar ebot_random_join_quit("ebot_random_join_quit", "0");
 ConVar ebot_stay_min("ebot_stay_min", "120"); // 2 minutes

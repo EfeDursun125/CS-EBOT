@@ -1890,29 +1890,34 @@ unsigned int GetPlayerPriority(edict_t* player)
 {
 	const unsigned int lowestPriority = 0xFFFFFFFF;
 
-	if (!FNullEnt(player))
+	if (FNullEnt(player))
 		return lowestPriority;
 
 	// human players have highest priority
 	auto bot = g_botManager->GetBot(player);
-	if (bot == nullptr)
-		return 0;
-
-	// bots doing something important for the current scenario have high priority
-	if (GetGameMode() == MODE_BASE)
+	if (bot != nullptr)
 	{
-		if (bot->m_isBomber)
-			return 1;
+		// bots doing something important for the current scenario have high priority
+		if (GetGameMode() == MODE_BASE)
+		{
+			if (bot->m_isBomber)
+				return 2;
 
-		if (bot->m_isVIP)
-			return 1;
+			if (bot->m_isVIP)
+				return 2;
 
-		if (bot->HasHostage())
-			return 1;
+			if (bot->HasHostage())
+				return 2;
+		}
+
+		// get my index
+		int index = bot->GetIndex() + 3;
+
+		// everyone else is ranked by their unique ID (which cannot be zero)
+		return index;
 	}
 
-	// everyone else is ranked by their unique ID (which cannot be zero)
-	return 2 + bot->GetIndex();
+	return 1;
 }
 
 inline float NormalizeAnglePositive(float angle)

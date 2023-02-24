@@ -1743,7 +1743,7 @@ float Waypoint::GetTravelTime(float maxSpeed, Vector src, Vector origin)
     if (src == nullvec || origin == nullvec)
         return 10.0f;
 
-    return (origin - src).GetLength2D() / fabsf(maxSpeed);
+    return (origin - src).GetLengthSquared2D() / SquaredF(fabsf(maxSpeed));
 }
 
 bool Waypoint::Reachable(edict_t* entity, int index)

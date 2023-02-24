@@ -520,6 +520,10 @@ bool Bot::DoWaypointNav(void)
 			pev->button |= IN_JUMP;
 			pev->velocity.x = (m_waypointOrigin.x - (pev->origin.x + pev->velocity.x * (m_frameInterval * 2.0f))) * (2.0f + fabsf((pev->maxspeed * 0.004) - pev->gravity));
 			pev->velocity.y = (m_waypointOrigin.y - (pev->origin.y + pev->velocity.y * (m_frameInterval * 2.0f))) * (2.0f + fabsf((pev->maxspeed * 0.004) - pev->gravity));
+
+			// poor bots can't jump :(
+			if (pev->gravity >= 0.88f)
+				pev->velocity.z *= (0.1f + pev->gravity + m_frameInterval);
 		}
 		else
 		{
@@ -2615,7 +2619,12 @@ void Bot::CheckCloseAvoidance(const Vector& dirNormal)
 	if (pev->solid == SOLID_NOT)
 		return;
 
-	float distance = SquaredF(300.0f);
+	float distance = SquaredF(512.0f);
+	float maxSpeed = SquaredF(pev->maxspeed);
+	m_avoid = nullptr;
+
+	// get our priority
+	unsigned int myPri = GetPlayerPriority(GetEntity());
 
 	// find nearest player to bot
 	for (const auto& client : g_clients)
@@ -2635,23 +2644,20 @@ void Bot::CheckCloseAvoidance(const Vector& dirNormal)
 		// get priority of other player
 		unsigned int otherPri = GetPlayerPriority(client.ent);
 
-		// get our priority
-		unsigned int myPri = GetPlayerPriority(GetEntity());
-
 		// if our priority is better, don't budge
 		if (myPri < otherPri)
 			continue;
 
 		// they are higher priority - make way, unless we're already making way for someone more important
-		if (!FNullEnt(m_avoid))
+		if (!FNullEnt(m_avoid) && m_avoid != client.ent)
 		{
 			unsigned int avoidPri = GetPlayerPriority(m_avoid);
-			if (avoidPri < otherPri) // ignore 'pOther' because we're already avoiding someone better
+			if (avoidPri < otherPri) // ignore because we're already avoiding someone better
 				continue;
 		}
 
 		float nearest = (pev->origin - client.ent->v.origin).GetLengthSquared();
-		if (nearest < (pev->maxspeed * pev->maxspeed) && nearest < distance)
+		if (nearest < maxSpeed && nearest < distance)
 		{
 			m_avoid = client.ent;
 			distance = nearest;
@@ -2686,7 +2692,7 @@ void Bot::CheckCloseAvoidance(const Vector& dirNormal)
 		}
 	}
 
-	const float interval = m_frameInterval * 6.0f;
+	const float interval = m_frameInterval * 8.0f;
 
 	// use our movement angles, try to predict where we should be next frame
 	Vector right, forward;
@@ -2701,27 +2707,26 @@ void Bot::CheckCloseAvoidance(const Vector& dirNormal)
 	float nextFrameDistance = (pev->origin - (m_avoid->v.origin + m_avoid->v.velocity * interval)).GetLengthSquared();
 
 	// is player that near now or in future that we need to steer away?
-	if (movedDistance <= SquaredF(56.0f) || (distance <= SquaredF(64.0f) && nextFrameDistance < distance))
+	if (movedDistance <= SquaredF(64.0f) || (distance <= SquaredF(72.0f) && nextFrameDistance < distance))
 	{
 		auto dir = (pev->origin - m_avoid->v.origin).Normalize2D();
 
 		// to start strafing, we have to first figure out if the target is on the left side or right side
-		if ((dir | right.GetLength2D()) > 0.0f)
+		if ((dir | right.Normalize2D()) > 0.0f)
 			SetStrafeSpeed(dirNormal, pev->maxspeed);
 		else
 			SetStrafeSpeed(dirNormal, -pev->maxspeed);
 
-		if (distance < SquaredF(64.0f))
+		if (distance <= SquaredF(72.0f))
 		{
-			if ((dir | forward.GetLength2D()) < 0.0f)
+			if ((dir | forward.Normalize2D()) < 0.0f)
 				m_moveSpeed = -pev->maxspeed;
+			else
+				m_moveSpeed = pev->maxspeed;
 		}
 
 		return;
 	}
-
-	m_avoid = nullptr;
-	return;
 }
 
 int Bot::GetCampAimingWaypoint(void)
@@ -2960,7 +2965,7 @@ int Bot::FindHostage(void)
 
 int Bot::FindLoosedBomb(void)
 {
-	if (m_team != TEAM_TERRORIST || !(g_mapType & MAP_DE) || m_isZombieBot)
+	if (GetGameMode() != MODE_BASE || m_team != TEAM_TERRORIST || !(g_mapType & MAP_DE))
 		return -1; // don't search for bomb if the player is CT, or it's not defusing bomb
 
 	edict_t* bombEntity = nullptr; // temporaly pointer to bomb
