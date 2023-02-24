@@ -56,7 +56,7 @@ using namespace Math;
 
 #include <runtime.h>
 
-//#define WORK_ASYNC
+#define WORK_ASYNC
 
 #ifdef WORK_ASYNC
 #include <future>
@@ -936,6 +936,7 @@ private:
 	void GetValidWaypoint(void);
 	void ChangeWptIndex(int waypointIndex);
 	bool IsDeadlyDrop(Vector targetOriginPos);
+	bool CampingAllowed(void);
 	bool OutOfBombTimer(void);
 	void SelectLeaderEachTeam(int team);
 	void IgnoreCollisionShortly(void);
@@ -959,6 +960,7 @@ private:
 
 	void SelectBestWeapon(void);
 	void SelectPistol(void);
+	void SelectKnife(void);
 	bool IsFriendInLineOfFire(float distance);
 	bool IsGroupOfEnemies(Vector location, int numEnemies = 2, int radius = 600);
 	bool IsShootableThruObstacle(edict_t* entity);
@@ -1154,7 +1156,7 @@ public:
 	void ResetTasks(void);
 	void TakeDamage(edict_t* inflictor, int damage, int armor, int bits);
 	void TakeBlinded(Vector fade, int alpha);
-	void PushTask(BotTask taskID, float desire, int data, float time, bool canContinue);
+	void PushTask(BotTask taskID, float desire, int data, float time, bool canContinue, bool force = false);
 	void DiscardWeaponForUser(edict_t* user, bool discardC4);
 
 	void ChatSay(bool teamSay, const char* text, ...);
