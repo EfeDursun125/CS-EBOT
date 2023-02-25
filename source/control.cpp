@@ -153,10 +153,14 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 	}
 
 	char outputName[33];
+	bool addTag = true;
 
 	// restore the bot name
 	if (ebot_save_bot_names.GetBool() && !m_savedBotNames.IsEmpty())
+	{
 		sprintf(outputName, "%s", (char*)m_savedBotNames.Pop());
+		addTag = false;
+	}
 	else if (name.GetLength() <= 0)
 	{
 		bool getName = false;
@@ -194,9 +198,9 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 		sprintf(outputName, "%s", (char*)name);
 
 	char botName[64];
-	if (ebot_nametag.GetInt() == 2)
+	if (addTag && ebot_nametag.GetInt() == 2)
 		snprintf(botName, sizeof(botName), "[E-BOT] %s (%d)", outputName, skill);
-	else if (ebot_nametag.GetInt() == 1)
+	else if (addTag && ebot_nametag.GetInt() == 1)
 		snprintf(botName, sizeof(botName), "[E-BOT] %s", outputName);
 	else
 		strncpy(botName, outputName, sizeof(botName));
@@ -279,7 +283,7 @@ void BotControl::DoJoinQuitStuff(void)
 		return;
 
 	// we have reconnecting bots...
-	if (!m_savedBotNames.IsEmpty())
+	if (ebot_save_bot_names.GetBool() && !m_savedBotNames.IsEmpty())
 		AddBot((char*)m_savedBotNames.Pop(), -1, -1, -1, -1);
 
 	if (m_randomJoinTime > engine->GetTime())
@@ -294,8 +298,8 @@ void BotControl::DoJoinQuitStuff(void)
 	if (ebot_stay_min.GetFloat() > ebot_stay_max.GetFloat())
 		ebot_stay_min.SetFloat(ebot_stay_max.GetFloat());
 
-	float min = ebot_stay_min.GetFloat() * 2;
-	float max = ebot_stay_max.GetFloat() / 2;
+	float min = ebot_stay_min.GetFloat() * 2.0f;
+	float max = ebot_stay_max.GetFloat() * 0.5f;
 
 	if (min > max)
 		max = min * 1.5f;
@@ -306,8 +310,10 @@ void BotControl::DoJoinQuitStuff(void)
 void BotControl::Think(void)
 {
 	g_botManager->DoJoinQuitStuff();
-
 	extern ConVar ebot_stopbots;
+
+	float botDelta = 1.0f / ebot_think_fps.GetFloat();
+
 	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
 		if (m_bots[i] == nullptr)
@@ -315,23 +321,24 @@ void BotControl::Think(void)
 
 		bool runThink = false;
 
-		if (m_bots[i]->m_thinkTimer <= engine->GetTime())
+		if (m_bots[i]->m_thinkTimer < engine->GetTime())
 		{
-			if (m_bots[i]->m_lastThinkTime <= engine->GetTime())
+			if (m_bots[i]->m_lastThinkTime < engine->GetTime())
 				runThink = true;
 		}
 
 		if (runThink)
 		{
-			m_bots[i]->m_thinkTimer = AddTime(1.0f / ebot_think_fps.GetFloat());
+			m_bots[i]->m_thinkTimer = AddTime(botDelta);
 			g_botManager->GetBot(i)->Think();
 		}
 		else if (!ebot_stopbots.GetBool() && m_bots[i]->m_notKilled)
+		{
 			g_botManager->GetBot(i)->FacePosition();
-
-		m_bots[i]->m_moveAnglesForRunMove = m_bots[i]->m_moveAngles;
-		m_bots[i]->m_moveSpeedForRunMove = m_bots[i]->m_moveSpeed;
-		m_bots[i]->m_strafeSpeedForRunMove = m_bots[i]->m_strafeSpeed;
+			m_bots[i]->m_moveAnglesForRunMove = m_bots[i]->m_moveAngles;
+			m_bots[i]->m_moveSpeedForRunMove = m_bots[i]->m_moveSpeed;
+			m_bots[i]->m_strafeSpeedForRunMove = m_bots[i]->m_strafeSpeed;
+		}
 
 		m_bots[i]->RunPlayerMovement(); // run the player movement 
 	}
@@ -1280,9 +1287,8 @@ void Bot::Kick(void)
 	if (g_botManager->GetBotsNum() - 1 < ebot_quota.GetInt())
 		ebot_quota.SetInt(g_botManager->GetBotsNum() - 1);
 
-	// crash...
-	/*if (!g_botManager->m_savedBotNames.IsEmpty())
-		g_botManager->m_savedBotNames.PopNoReturn();*/
+	if (ebot_save_bot_names.GetBool() && !g_botManager->m_savedBotNames.IsEmpty())
+		g_botManager->m_savedBotNames.PopNoReturn();
 }
 
 // this function handles the selection of teams & class

@@ -533,7 +533,7 @@ bool Bot::DoWaypointNav(void)
 
 		m_jumpFinished = true;
 		m_checkTerrain = false;
-		PushTask(TASK_PAUSE, TASKPRI_PAUSE, -1, engine->GetTime() + engine->RandomFloat(0.3f, 0.5f), false);
+		PushTask(TASK_PAUSE, TASKPRI_PAUSE, -1, engine->GetTime() + engine->RandomFloat(0.4f, 0.6f), false);
 	}
 	else if (currentWaypoint->flags & WAYPOINT_CROUCH && !(currentWaypoint->flags & WAYPOINT_CAMP))
 		pev->button |= IN_DUCK;

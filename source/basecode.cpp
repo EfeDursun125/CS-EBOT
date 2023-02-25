@@ -524,7 +524,7 @@ bool Bot::IsBehindSmokeClouds(edict_t* ent)
 			continue;
 
 		// check if visible to the bot
-		if (InFieldOfView(GetEntityOrigin(ent) - EyePosition()) > pev->fov / 3 && !EntityIsVisible(GetEntityOrigin(ent)))
+		if (InFieldOfView(GetEntityOrigin(ent) - EyePosition()) > pev->fov * 0.33333333333f && !EntityIsVisible(GetEntityOrigin(ent)))
 			continue;
 
 		Vector betweenNade = (GetEntityOrigin(pentGrenade) - pev->origin).Normalize();
@@ -844,7 +844,7 @@ void Bot::FindItem(void)
 					m_defendedBomb = true;
 
 					int index = FindDefendWaypoint(entityOrigin);
-					float timeMidBlowup = g_timeBombPlanted + ((engine->GetC4TimerTime() / 2) + engine->GetC4TimerTime() / 4) - g_waypoint->GetTravelTime(m_moveSpeed, pev->origin, g_waypoint->GetPath(index)->origin);
+					float timeMidBlowup = g_timeBombPlanted + ((engine->GetC4TimerTime() * 0.5f) + engine->GetC4TimerTime() * 0.25f) - g_waypoint->GetTravelTime(m_moveSpeed, pev->origin, g_waypoint->GetPath(index)->origin);
 
 					if (timeMidBlowup > engine->GetTime())
 					{
@@ -1139,7 +1139,7 @@ void Bot::PlayChatterMessage(ChatterMessage message)
 
 	m_lastChatterMessage = message;
 
-	m_radiotimer = engine->GetTime() + engine->RandomFloat(m_numFriendsLeft / 2.0f, m_numFriendsLeft * 1.5f);
+	m_radiotimer = engine->GetTime() + engine->RandomFloat(m_numFriendsLeft * 0.5f, m_numFriendsLeft * 1.5f);
 	PushMessageQueue(CMENU_RADIO);
 }
 
@@ -1923,13 +1923,13 @@ void Bot::SetConditions(void)
 		else
 		{
 			if (!FNullEnt(m_enemy) && IsZombieEntity(m_enemy))
-				ratio *= 10;
+				ratio *= 10.0f;
 			else if (!FNullEnt(m_lastEnemy) && IsZombieEntity(m_lastEnemy))
-				ratio *= 6;
+				ratio *= 6.0f;
 			else if (g_bombPlanted || m_isStuck)
-				ratio /= 3;
+				ratio *= 0.33333333333f;
 			else if (m_isVIP || m_isReloading)
-				ratio *= 2;
+				ratio *= 2.0f;
 		}
 
 		if (!m_isZombieBot && ((!FNullEnt(m_enemy) && IsZombieEntity(m_enemy)) || (!FNullEnt(m_lastEnemy) && IsZombieEntity(m_lastEnemy))))
@@ -2426,6 +2426,9 @@ void Bot::TaskComplete(void)
 void Bot::CheckGrenadeThrow(void)
 {
 	if (IsZombieMode() && !m_isZombieBot)
+		return;
+
+	if (!m_isZombieBot && m_seeEnemyTime + 5.0f < engine->GetTime())
 		return;
 
 	if (ebot_knifemode.GetBool() || m_grenadeCheckTime > engine->GetTime() || m_isUsingGrenade || GetCurrentTask()->taskID == TASK_PLANTBOMB || GetCurrentTask()->taskID == TASK_DEFUSEBOMB || m_isReloading)
@@ -3422,12 +3425,16 @@ void Bot::SelectLeaderEachTeam(int team)
 
 float Bot::GetWalkSpeed(void)
 {
-	if (GetGameMode() == MODE_ZH || GetGameMode() == MODE_ZP ||
+	if (!ebot_walkallow.GetBool())
+		return pev->maxspeed;
+
+	if (IsZombieMode() || IsOnLadder() || 
 		pev->maxspeed <= 180.f || m_currentTravelFlags & PATHFLAG_JUMP ||
 		pev->button & IN_JUMP || pev->oldbuttons & IN_JUMP ||
 		pev->flags & FL_DUCKING || pev->button & IN_DUCK || pev->oldbuttons & IN_DUCK || IsInWater())
 		return pev->maxspeed;
-	return static_cast <float> ((static_cast <int> (pev->maxspeed) * 0.5f) + (static_cast <int> (pev->maxspeed) / 50)) - 18;
+
+	return (pev->maxspeed * 0.5f) + (pev->maxspeed * 0.02f) - 18.0f;
 }
 
 bool Bot::IsNotAttackLab(edict_t* entity)
@@ -3598,9 +3605,9 @@ void Bot::ChooseAimDirection(void)
 	else if (flags & AIM_CAMP)
 	{
 		m_aimFlags &= ~AIM_NAVPOINT;
-		if (m_lastDamageOrigin != nullvec && m_damageTime + float((m_skill + 55) / 20.0f) > engine->GetTime() && IsVisible(m_lastDamageOrigin, GetEntity()))
+		if (m_lastDamageOrigin != nullvec && m_damageTime + float(m_skill + 55) * 0.05f > engine->GetTime() && IsVisible(m_lastDamageOrigin, GetEntity()))
 			m_lookAt = m_lastDamageOrigin;
-		else if (m_lastEnemyOrigin != nullvec && m_seeEnemyTime + float((m_skill + 55) / 20.0f) > engine->GetTime() && IsVisible(m_lastEnemyOrigin, GetEntity()))
+		else if (m_lastEnemyOrigin != nullvec && m_seeEnemyTime + float(m_skill + 55) * 0.05f > engine->GetTime() && IsVisible(m_lastEnemyOrigin, GetEntity()))
 			m_lookAt = m_lastEnemyOrigin;
 		else
 		{
@@ -3652,11 +3659,11 @@ void Bot::ChooseAimDirection(void)
 			m_lookAt = GetTopOrigin(m_moveTargetEntity);
 		else if (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_CAMP)
 			m_lookAt = m_camp;
-		else if (m_damageTime + float((m_skill + 50) / 25.0f) > engine->GetTime())
+		else if (m_damageTime + float(m_skill + 50) * 0.04f > engine->GetTime())
 			m_lookAt = m_lastDamageOrigin;
-	    else if (m_seeEnemyTime + float((m_skill + 50) / 25.0f) > engine->GetTime())
+	    else if (m_seeEnemyTime + float(m_skill + 50) * 0.04f > engine->GetTime())
 		{
-			if (!FNullEnt(m_lastEnemy) && IsAlive(m_lastEnemy) && m_seeEnemyTime + float(m_skill / 27) > engine->GetTime())
+			if (!FNullEnt(m_lastEnemy) && IsAlive(m_lastEnemy) && m_seeEnemyTime + float(m_skill) * 0.03703703703f > engine->GetTime())
 				m_lookAt = m_lastEnemyOrigin;
 			else
 			{
@@ -3934,7 +3941,7 @@ void Bot::CalculatePing(void)
 		{
 			if ((botPing - m_pingOffset[j]) % 4 == 0)
 			{
-				m_ping[j] = (botPing - m_pingOffset[j]) / 4;
+				m_ping[j] = (botPing - m_pingOffset[j]) * 0.25f;
 				break;
 			}
 		}
@@ -4538,7 +4545,7 @@ void Bot::RunTask(void)
 		if (m_viewDistance < 500.0f && m_skill > 50)
 		{
 			// go mad!
-			m_moveSpeed = -fabsf((m_viewDistance - 500.0f) / 2.0f);
+			m_moveSpeed = -fabsf((m_viewDistance - 500.0f) * 0.5f);
 
 			if (m_moveSpeed < -pev->maxspeed)
 				m_moveSpeed = -pev->maxspeed;
@@ -4559,6 +4566,12 @@ void Bot::RunTask(void)
 
 		// blinded (flashbanged) behaviour
 	case TASK_BLINDED:
+		if (IsZombieMode() && !m_isZombieBot) // humans don't get flashed in biohazard
+		{
+			TaskComplete();
+			return;
+		}
+
 		m_moveToGoal = false;
 		m_checkTerrain = false;
 		m_navTimeset = engine->GetTime();
@@ -4768,7 +4781,7 @@ void Bot::RunTask(void)
 		if (IsZombieMode())
 			m_idealReactionTime = 0.0f;
 		else
-			m_idealReactionTime = (engine->RandomFloat(g_skillTab[m_skill / 20].minSurpriseTime, g_skillTab[m_skill / 20].maxSurpriseTime)) / 2;
+			m_idealReactionTime = (engine->RandomFloat(g_skillTab[m_skill / 20].minSurpriseTime, g_skillTab[m_skill / 20].maxSurpriseTime)) * 0.5f;
 
 		if (m_nextCampDirTime < engine->GetTime())
 		{
@@ -4886,7 +4899,7 @@ void Bot::RunTask(void)
 		m_moveToGoal = false;
 
 		// half the reaction time if camping
-		m_idealReactionTime = (engine->RandomFloat(g_skillTab[m_skill / 20].minSurpriseTime, g_skillTab[m_skill / 20].maxSurpriseTime)) / 2;
+		m_idealReactionTime = (engine->RandomFloat(g_skillTab[m_skill / 20].minSurpriseTime, g_skillTab[m_skill / 20].maxSurpriseTime)) * 0.5f;
 
 		m_navTimeset = engine->GetTime();
 		m_moveSpeed = 0;
@@ -5023,7 +5036,7 @@ void Bot::RunTask(void)
 			DeleteSearchNodes();
 
 			int index = FindDefendWaypoint(pev->origin);
-			float halfTimer = engine->GetTime() + ((engine->GetC4TimerTime() / 2) + (engine->GetC4TimerTime() / 4));
+			float halfTimer = engine->GetTime() + ((engine->GetC4TimerTime() * 0.5f) + (engine->GetC4TimerTime() * 0.25f));
 
 			// push camp task on to stack
 			m_campposition = g_waypoint->GetPath(index)->origin; // required for this task
@@ -7077,7 +7090,7 @@ void Bot::TakeBlinded(Vector fade, int alpha)
 	SetEnemy(nullptr);
 
 	m_maxViewDistance = engine->RandomFloat(10.0f, 20.0f);
-	m_blindTime = engine->GetTime() + static_cast <float> (alpha - 200) / 16.0f;
+	m_blindTime = (engine->GetTime() + static_cast <float> (alpha - 200)) * 0.0625f;
 
 	m_blindCampPoint = FindDefendWaypoint(GetEntityOrigin(GetEntity()));
 	if ((g_waypoint->GetPath(m_blindCampPoint)->origin - GetEntityOrigin(GetEntity())).GetLengthSquared() >= SquaredF(512.0f))

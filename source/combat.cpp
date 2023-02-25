@@ -354,8 +354,8 @@ bool Bot::LookupEnemy(void)
 
 		m_targetEntity = nullptr;
 
-		if (engine->RandomInt(0, 100) < m_skill)
-			m_enemySurpriseTime = engine->GetTime() + (m_actualReactionTime / 3);
+		if (ChanceOf(m_skill))
+			m_enemySurpriseTime = engine->GetTime() + (m_actualReactionTime * 0.33333333333f);
 		else
 			m_enemySurpriseTime = engine->GetTime() + m_actualReactionTime;
 
@@ -587,10 +587,10 @@ bool Bot::DoFirePause(float distance)//, FireDelay *fireDelay)
 	float angle = (fabsf(pev->punchangle.y) + fabsf(pev->punchangle.x)) * Math::MATH_PI / 360.0f;
 
 	// check if we need to compensate recoil
-	if (tanf(angle) * (distance + (distance / 4)) > g_skillTab[m_skill / 20].recoilAmount)
+	if (tanf(angle) * (distance + (distance * 0.25f)) > g_skillTab[m_skill / 20].recoilAmount)
 	{
 		if (m_firePause < (engine->GetTime() - 0.4))
-			m_firePause = engine->GetTime() + engine->RandomFloat(0.4f, 0.4f + 1.2f * ((100 - m_skill) / 100.0f));
+			m_firePause = engine->GetTime() + engine->RandomFloat(0.4f, (0.4f + 1.2f * ((100 - m_skill)) * 0.01f));
 
 		return true;
 	}
@@ -794,8 +794,8 @@ WeaponSelectEnd:
 	else
 	{
 		const float baseDelay = delay[chosenWeaponIndex].primaryBaseDelay;
-		const float minDelay = delay[chosenWeaponIndex].primaryMinDelay[abs((m_skill / 20) - 5)];
-		const float maxDelay = delay[chosenWeaponIndex].primaryMaxDelay[abs((m_skill / 20) - 5)];
+		const float minDelay = delay[chosenWeaponIndex].primaryMinDelay[abs((m_skill / engine->RandomInt(15, 20)) - 5)];
+		const float maxDelay = delay[chosenWeaponIndex].primaryMaxDelay[abs((m_skill / engine->RandomInt(20, 25)) - 5)];
 
 		if (DoFirePause(distance))//, &delay[chosenWeaponIndex]))
 			return;

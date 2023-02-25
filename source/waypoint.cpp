@@ -729,7 +729,7 @@ void Waypoint::Add(int flags, Vector waypointOrigin)
                     accumFlags += path->connectionFlags[i];
 
                 if (accumFlags == 0)
-                    path->origin = (path->origin + GetEntityOrigin(g_hostEntity)) / 2;
+                    path->origin = (path->origin + GetEntityOrigin(g_hostEntity)) * 0.5f;
             }
         }
         break;
