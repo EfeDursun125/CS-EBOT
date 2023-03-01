@@ -392,63 +392,99 @@ bool Bot::LookupEnemy(void)
 
 Vector Bot::GetAimPosition(void)
 {
-	bool isPlayer = IsValidPlayer(m_enemy);
+	// npc/entity
+	if (!IsValidPlayer(m_enemy))
+		return m_enemyOrigin;
 
-	if (IsZombieMode() && !m_isZombieBot && m_isEnemyReachable && isPlayer)
-	{
-		const Vector enemyHead = GetPlayerHeadOrigin(m_enemy);
-		if (enemyHead != nullvec)
-		{
-			TraceResult tr;
-			TraceLine(EyePosition(), enemyHead, true, true, GetEntity(), &tr);
-			if (tr.flFraction == 1.0f)
-				return m_enemyOrigin = enemyHead;
-		}
+	float distance = (m_enemyOrigin - pev->origin).GetLengthSquared();
 
-		const Vector enemyOrigin = GetEntityOrigin(m_enemy);
-		if (enemyOrigin == nullvec)
-			return m_enemyOrigin = m_lastEnemyOrigin;
-	}
+	// get enemy position initially
+	Vector targetOrigin = m_enemyOrigin;
 
-	Vector enemyOrigin = GetEntityOrigin(m_enemy);
-	if (enemyOrigin == nullvec)
-		return m_enemyOrigin = m_lastEnemyOrigin;
+	// do not aim at head, at long distance (only if not using sniper weapon)
+	if ((m_visibility & VISIBILITY_BODY) && !UsesSniper() && !UsesPistol() && (distance > (m_difficulty == 4 ? SquaredF(2400.0f) : SquaredF(1200.0f))))
+		m_visibility &= ~VISIBILITY_HEAD;
 
-	if (!(m_states & STATE_SEEINGENEMY))
-	{
-		if (!isPlayer)
-			return m_enemyOrigin = enemyOrigin;
-
-		enemyOrigin.x += engine->RandomFloat(m_enemy->v.mins.x, m_enemy->v.maxs.x);
-		enemyOrigin.y += engine->RandomFloat(m_enemy->v.mins.y, m_enemy->v.maxs.y);
-		enemyOrigin.z += engine->RandomFloat(m_enemy->v.mins.z, m_enemy->v.maxs.z);
-
-		return m_enemyOrigin = enemyOrigin;
-	}
-
-	if (!isPlayer)
-		return m_enemyOrigin = m_lastEnemyOrigin = enemyOrigin;
-
-	if ((m_visibility & (VISIBILITY_HEAD | VISIBILITY_BODY)))
-	{
-		if ((m_skill >= 80 || !ChanceOf(m_skill)) && (m_currentWeapon != WEAPON_AWP || m_enemy->v.health >= 100))
-			enemyOrigin = GetPlayerHeadOrigin(m_enemy);
-	}
-	else if (m_visibility & VISIBILITY_HEAD)
-		enemyOrigin = GetPlayerHeadOrigin(m_enemy);
-	else if (m_visibility & VISIBILITY_OTHER)
-		enemyOrigin = m_enemyOrigin;
+	// if we only suspect an enemy behind a wall take the worst skill
+	if ((m_states & STATE_HEARENEMY) && !(m_states & STATE_SEEINGENEMY))
+		targetOrigin += Vector(engine->RandomFloat(m_enemy->v.mins.x * 0.5f, m_enemy->v.maxs.x * 0.5f), engine->RandomFloat(m_enemy->v.mins.y * 0.5f, m_enemy->v.maxs.y * 0.5f), engine->RandomFloat(m_enemy->v.mins.z * 0.5f, m_enemy->v.maxs.z * 0.5f));
 	else
-		enemyOrigin = m_lastEnemyOrigin;
-
-	if (!IsZombieMode() && m_skill <= engine->RandomInt(30, 60))
 	{
-		enemyOrigin.x += engine->RandomFloat(m_enemy->v.mins.x, m_enemy->v.maxs.x);
-		enemyOrigin.y += engine->RandomFloat(m_enemy->v.mins.y, m_enemy->v.maxs.y);
-		enemyOrigin.z += engine->RandomFloat(m_enemy->v.mins.z, m_enemy->v.maxs.z);
+		// now take in account different parts of enemy body
+		if (m_visibility & (VISIBILITY_HEAD | VISIBILITY_BODY)) // visible head & body
+		{
+			// now check is our skill match to aim at head, else aim at enemy body
+			if (ChanceOf(m_skill) || UsesPistol())
+				targetOrigin = targetOrigin + m_enemy->v.view_ofs + Vector(0.0f, 0.0f, GetZOffset(distance));
+			else
+				targetOrigin = targetOrigin + Vector(0.0f, 0.0f, GetZOffset(distance));
+		}
+		else if (m_visibility & VISIBILITY_BODY) // visible only body
+			targetOrigin = targetOrigin + Vector(0.0f, 0.0f, GetZOffset(distance));
+		else if (m_visibility & VISIBILITY_OTHER) // random part of body is visible
+			targetOrigin = m_enemyOrigin;
+		else if (m_visibility & VISIBILITY_HEAD) // visible only head
+			targetOrigin = targetOrigin + m_enemy->v.view_ofs + Vector(0.0f, 0.0f, GetZOffset(distance));
+		else // something goes wrong, use last enemy origin
+			targetOrigin = m_lastEnemyOrigin;
+
+		m_lastEnemyOrigin = targetOrigin;
 	}
 
-	return m_enemyOrigin = m_lastEnemyOrigin = enemyOrigin;
+	return m_enemyOrigin = m_lastEnemyOrigin = targetOrigin;
+}
+
+float Bot::GetZOffset(float distance)
+{
+	if (m_difficulty < 2)
+		return -6.0f;
+
+	bool sniper = UsesSniper();
+	bool pistol = UsesPistol();
+	bool rifle = UsesRifle();
+
+	bool zoomableRifle = UsesZoomableRifle();
+	bool submachine = UsesSubmachineGun();
+	bool shotgun = (m_currentWeapon == WEAPON_XM1014 || m_currentWeapon == WEAPON_M3);
+	bool m249 = m_currentWeapon == WEAPON_M249;
+
+	const float BurstDistance = SquaredF(300.0f);
+	const float DoubleBurstDistance = BurstDistance * 2.0f;
+
+	float result = 6.0f;
+
+	if (distance < SquaredF(2800.0f) && distance > DoubleBurstDistance)
+	{
+		if (sniper) result = 3.5f;
+		else if (zoomableRifle) result = 4.5f;
+		else if (pistol) result = 6.5f;
+		else if (submachine) result = 5.5f;
+		else if (rifle) result = 5.5f;
+		else if (m249) result = 2.5f;
+		else if (shotgun) result = 10.5f;
+	}
+	else if (distance > BurstDistance && distance <= DoubleBurstDistance)
+	{
+		if (sniper) result = 3.5f;
+		else if (zoomableRifle) result = 3.5f;
+		else if (pistol) result = 6.5f;
+		else if (submachine) result = 3.5f;
+		else if (rifle) result = 1.6f;
+		else if (m249) result = -1.0f;
+		else if (shotgun) result = 10.0f;
+	}
+	else if (distance < BurstDistance)
+	{
+		if (sniper) result = 4.5f;
+		else if (zoomableRifle) result = -5.0f;
+		else if (pistol) result = 4.5f;
+		else if (submachine) result = -4.5f;
+		else if (rifle) result = -4.5f;
+		else if (m249) result = -6.0f;
+		else if (shotgun) result = -5.0f;
+	}
+
+	return -result;
 }
 
 // bot can't hurt teammates, if friendly fire is not enabled...
@@ -1129,22 +1165,6 @@ void Bot::CombatFight(void)
 
 				if (pev->button & IN_DUCK)
 					pev->button &= ~IN_DUCK;
-			}
-			else if (m_personality != PERSONALITY_RUSHER && pev->velocity.GetLengthSquared() <= SquaredF(24.0f))
-			{
-				if ((UsesRifle() || UsesBadPrimary() || UsesSubmachineGun() || (UsesPistol() && m_personality != PERSONALITY_CAREFUL)) && (m_personality == PERSONALITY_CAREFUL || pev->origin.z > speedFactor.z))
-				{
-					const Vector& src = pev->origin - Vector(0, 0, 18.0f);
-					if ((m_visibility & (VISIBILITY_HEAD | VISIBILITY_BODY)) && !FNullEnt(m_enemy) && IsVisible(src, m_enemy))
-						m_duckTime = engine->GetTime() + m_frameInterval;
-				}
-				else
-				{
-					m_duckTime = 0.0f;
-
-					if (pev->button & IN_DUCK)
-						pev->button &= ~IN_DUCK;
-				}
 			}
 
 			if (tempMoveSpeed != -1.0f)

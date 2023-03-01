@@ -893,7 +893,7 @@ void BotControl::CheckTeamEconomics(int team)
 		return;
 
 	// if 80 percent of team have no enough money to purchase primary weapon
-	if ((numTeamPlayers * 80) / 100 <= numPoorPlayers)
+	if ((numTeamPlayers * 80) * 0.01 <= numPoorPlayers)
 		m_economicsGood[team] = false;
 
 	// winner must buy something!

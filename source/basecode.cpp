@@ -1061,7 +1061,7 @@ void Bot::RadioMessage(int message)
 	if (m_radiotimer > engine->GetTime())
 		return;
 
-	if (m_numFriendsLeft == 0)
+	if (m_numFriendsLeft <= 0)
 		return;
 
 	if (m_numEnemiesLeft == 0)
@@ -1074,7 +1074,7 @@ void Bot::RadioMessage(int message)
 		return;
 
 	// poor bots spamming this :(
-	if (IsZombieMode() && message == Radio_NeedBackup && !g_waypoint->m_zmHmPoints.IsEmpty())
+	if (IsZombieMode() && message == Radio_NeedBackup && GetCurrentTask()->taskID == TASK_CAMP)
 		return;
 
 	m_radioSelect = message;
@@ -3589,7 +3589,7 @@ void Bot::ChooseAimDirection(void)
 				m_lookAt = g_waypoint->GetPath(GetCampAimingWaypoint())->origin;
 				m_camp = m_lookAt;
 
-				m_timeNextTracking = engine->GetTime() + 0.5f;
+				m_timeNextTracking = engine->GetTime() + 0.54f;
 				m_trackingEdict = m_lastEnemy;
 
 				// feel free to fire if shoot able
@@ -3605,9 +3605,9 @@ void Bot::ChooseAimDirection(void)
 	else if (flags & AIM_CAMP)
 	{
 		m_aimFlags &= ~AIM_NAVPOINT;
-		if (m_lastDamageOrigin != nullvec && m_damageTime + float((m_skill + 55) * 0.05f) > engine->GetTime() && IsVisible(m_lastDamageOrigin, GetEntity()))
+		if (m_lastDamageOrigin != nullvec && m_damageTime + (float(m_skill + 55) * 0.05f) > engine->GetTime() && IsVisible(m_lastDamageOrigin, GetEntity()))
 			m_lookAt = m_lastDamageOrigin;
-		else if (m_lastEnemyOrigin != nullvec && m_seeEnemyTime + float((m_skill + 55) * 0.05f) > engine->GetTime() && IsVisible(m_lastEnemyOrigin, GetEntity()))
+		else if (m_lastEnemyOrigin != nullvec && m_seeEnemyTime + (float(m_skill + 55) * 0.05f) > engine->GetTime() && IsVisible(m_lastEnemyOrigin, GetEntity()))
 			m_lookAt = m_lastEnemyOrigin;
 		else
 		{

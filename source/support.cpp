@@ -281,7 +281,7 @@ Vector GetPlayerHeadOrigin(edict_t* ent)
 	{
 		Vector origin = GetEntityOrigin(ent);
 		float hbDistance = headOrigin.z - origin.z;
-		hbDistance /= 2.5f;
+		hbDistance *= 0.4f;
 		headOrigin.z -= hbDistance;
 	}
 	else
@@ -547,7 +547,7 @@ const char* GetField(const char* string, int fieldId, bool endLine)
 		while (index < length && (string[index] == ' ' || string[index] == '\t'))
 			index++; // ignore spaces or tabs
 
-		 // is this field multi-word between quotes or single word ?
+		// is this field multi-word between quotes or single word ?
 		if (string[index] == '"')
 		{
 			index++; // move one step further to bypass the quote
@@ -659,7 +659,7 @@ const char* GetModName(void)
 	if (modName[start] == '\\' || modName[start] == '/')
 		start++; // if we reached a separator, step over it
 
-	 // now copy the formatted string back onto itself character per character
+	// now copy the formatted string back onto itself character per character
 	for (length = start; length <= stop; length++)
 		modName[length - start] = modName[length];
 
@@ -1112,7 +1112,7 @@ int GetTeam(edict_t* ent)
 
 		return player_team;
 	}
-	
+
 	if (ebot_ignore_enemies.GetBool())
 		player_team = TEAM_COUNTER;
 	else if (GetGameMode() == MODE_ZP)
@@ -1445,7 +1445,7 @@ void ClientPrint(edict_t* ent, int dest, const char* format, ...)
 	char string[2048];
 
 	va_start(ap, format);
-	vsprintf(string,format, ap);
+	vsprintf(string, format, ap);
 	va_end(ap);
 
 	if (FNullEnt(ent) || ent == g_hostEntity)
@@ -1724,7 +1724,7 @@ bool FindNearestPlayer(void** pvHolder, edict_t* to, float searchDistance, bool 
 	if (FNullEnt(survive))
 		return false; // nothing found
 
-	 // fill the holder
+	// fill the holder
 	if (needBot)
 		*pvHolder = reinterpret_cast <void*> (g_botManager->GetBot(survive));
 	else
@@ -1953,7 +1953,7 @@ ChatterMessage GetEqualChatter(int message)
 	return mine;
 }
 
-void GetVoiceAndDur(ChatterMessage message, char* *voice, float *dur)
+void GetVoiceAndDur(ChatterMessage message, char** voice, float* dur)
 {
 	if (message == ChatterMessage::Yes)
 	{

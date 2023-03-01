@@ -2767,9 +2767,6 @@ int Bot::GetCampAimingWaypoint(void)
 
 void Bot::FacePosition(void)
 {
-	if (m_lookAt == nullvec && !FNullEnt(m_enemy))
-		m_lookAt = m_enemyOrigin;
-
 	if (FNullEnt(m_enemy) && FNullEnt(m_breakableEntity))
 	{
 		if (IsOnLadder() || g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_LADDER || (HasNextPath() && g_waypoint->GetPath(m_navNode->next->index)->flags & WAYPOINT_LADDER))
@@ -2812,7 +2809,7 @@ void Bot::FacePosition(void)
 			{
 				m_tempAim = m_lookAt;
 				m_tempVel = m_enemy->v.velocity;
-				m_trackTime = AddTime(float(m_ping[2] * 0.0025));
+				m_trackTime = AddTime(float(m_ping[2]) * 0.0025f);
 			}
 			else
 			{
