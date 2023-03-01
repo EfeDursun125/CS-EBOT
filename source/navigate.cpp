@@ -153,7 +153,7 @@ int Bot::FindGoal(void)
 	if (!g_bombPlanted && (g_mapType & MAP_DE) && m_team == TEAM_COUNTER && !m_isReloading && !m_inBombZone) // ct bots must kill t bots.
 	{
 		if (!FNullEnt(m_lastEnemy) && IsAlive(m_lastEnemy))
-			return m_chosenGoalIndex = g_waypoint->FindNearest(GetEntityOrigin(m_lastEnemy));
+			return m_chosenGoalIndex = g_waypoint->FindNearest(m_lastEnemyOrigin);
 	}
 
 	// path finding behavior depending on map type
@@ -533,7 +533,7 @@ bool Bot::DoWaypointNav(void)
 
 		m_jumpFinished = true;
 		m_checkTerrain = false;
-		PushTask(TASK_PAUSE, TASKPRI_PAUSE, -1, engine->GetTime() + engine->RandomFloat(0.4f, 0.6f), false);
+		PushTask(TASK_PAUSE, TASKPRI_PAUSE, -1, engine->GetTime() + engine->RandomFloat(0.48f, 0.64f), false);
 	}
 	else if (currentWaypoint->flags & WAYPOINT_CROUCH && !(currentWaypoint->flags & WAYPOINT_CAMP))
 		pev->button |= IN_DUCK;
@@ -2768,7 +2768,7 @@ int Bot::GetCampAimingWaypoint(void)
 void Bot::FacePosition(void)
 {
 	if (m_lookAt == nullvec && !FNullEnt(m_enemy))
-		m_lookAt = GetEntityOrigin(m_enemy);
+		m_lookAt = m_enemyOrigin;
 
 	if (FNullEnt(m_enemy) && FNullEnt(m_breakableEntity))
 	{

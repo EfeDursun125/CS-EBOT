@@ -198,9 +198,9 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 		sprintf(outputName, "%s", (char*)name);
 
 	char botName[64];
-	if (addTag && ebot_nametag.GetInt() == 2)
+	if (ebot_nametag.GetInt() == 2 && addTag)
 		snprintf(botName, sizeof(botName), "[E-BOT] %s (%d)", outputName, skill);
-	else if (addTag && ebot_nametag.GetInt() == 1)
+	else if (ebot_nametag.GetInt() == 1 && addTag)
 		snprintf(botName, sizeof(botName), "[E-BOT] %s", outputName);
 	else
 		strncpy(botName, outputName, sizeof(botName));
@@ -310,10 +310,8 @@ void BotControl::DoJoinQuitStuff(void)
 void BotControl::Think(void)
 {
 	g_botManager->DoJoinQuitStuff();
+
 	extern ConVar ebot_stopbots;
-
-	float botDelta = 1.0f / ebot_think_fps.GetFloat();
-
 	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
 		if (m_bots[i] == nullptr)
@@ -329,8 +327,8 @@ void BotControl::Think(void)
 
 		if (runThink)
 		{
-			m_bots[i]->m_thinkTimer = AddTime(botDelta);
 			g_botManager->GetBot(i)->Think();
+			m_bots[i]->m_thinkTimer = AddTime(1.0f / ebot_think_fps.GetFloat());
 		}
 		else if (!ebot_stopbots.GetBool() && m_bots[i]->m_notKilled)
 		{

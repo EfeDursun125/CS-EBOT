@@ -2602,7 +2602,7 @@ bool Bot::ReactOnEnemy(void)
 	{
 		Vector enemyHead = GetPlayerHeadOrigin(m_enemy);
 		int ownIndex = IsValidWaypoint(m_currentWaypointIndex) ? m_currentWaypointIndex : g_waypoint->FindNearest(pev->origin, 999999.0f, -1, GetEntity());
-		int enemyIndex = g_waypoint->FindNearest(GetEntityOrigin(m_enemy), 999999.0f, -1, GetEntity());
+		int enemyIndex = g_waypoint->FindNearest(m_enemyOrigin, 999999.0f, -1, GetEntity());
 		auto currentWaypoint = g_waypoint->GetPath(ownIndex);
 
 		if (m_isZombieBot)
@@ -3428,7 +3428,7 @@ float Bot::GetWalkSpeed(void)
 	if (!ebot_walkallow.GetBool())
 		return pev->maxspeed;
 
-	if (IsZombieMode() || IsOnLadder() || 
+	if (IsZombieMode() || IsOnLadder() ||
 		pev->maxspeed <= 180.f || m_currentTravelFlags & PATHFLAG_JUMP ||
 		pev->button & IN_JUMP || pev->oldbuttons & IN_JUMP ||
 		pev->flags & FL_DUCKING || pev->button & IN_DUCK || pev->oldbuttons & IN_DUCK || IsInWater())
@@ -3540,7 +3540,7 @@ void Bot::ChooseAimDirection(void)
 	else if (flags & AIM_ENEMY)
 	{
 		if (m_isZombieBot)
-			m_lookAt = GetEntityOrigin(m_enemy);
+			m_lookAt = m_enemyOrigin;
 		else
 			FocusEnemy();
 
@@ -3605,9 +3605,9 @@ void Bot::ChooseAimDirection(void)
 	else if (flags & AIM_CAMP)
 	{
 		m_aimFlags &= ~AIM_NAVPOINT;
-		if (m_lastDamageOrigin != nullvec && m_damageTime + float(m_skill + 55) * 0.05f > engine->GetTime() && IsVisible(m_lastDamageOrigin, GetEntity()))
+		if (m_lastDamageOrigin != nullvec && m_damageTime + float((m_skill + 55) * 0.05f) > engine->GetTime() && IsVisible(m_lastDamageOrigin, GetEntity()))
 			m_lookAt = m_lastDamageOrigin;
-		else if (m_lastEnemyOrigin != nullvec && m_seeEnemyTime + float(m_skill + 55) * 0.05f > engine->GetTime() && IsVisible(m_lastEnemyOrigin, GetEntity()))
+		else if (m_lastEnemyOrigin != nullvec && m_seeEnemyTime + float((m_skill + 55) * 0.05f) > engine->GetTime() && IsVisible(m_lastEnemyOrigin, GetEntity()))
 			m_lookAt = m_lastEnemyOrigin;
 		else
 		{
@@ -4062,7 +4062,7 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 		}
 	}
 
-	if (m_currentWeapon == WEAPON_KNIFE && !FNullEnt(m_enemy) && IsAlive(m_enemy) && !HasShield() && (GetEntityOrigin(GetEntity()) - GetEntityOrigin(m_enemy)).GetLengthSquared() <= SquaredF(198.0f))
+	if (m_currentWeapon == WEAPON_KNIFE && !FNullEnt(m_enemy) && IsAlive(m_enemy) && !HasShield() && (GetEntityOrigin(GetEntity()) - m_enemyOrigin).GetLengthSquared() <= SquaredF(198.0f))
 	{
 		if (m_knifeAttackTime < engine->GetTime())
 		{
@@ -4511,7 +4511,7 @@ void Bot::RunTask(void)
 		m_moveToGoal = true;
 		m_checkTerrain = true;
 
-		if (!FNullEnt(m_enemy))
+		if (!FNullEnt(m_enemy) || m_seeEnemyTime + (m_personality == PERSONALITY_CAREFUL ? 1.08f : 0.54f) > engine->GetTime())
 			CombatFight();
 		else
 		{
@@ -4694,7 +4694,7 @@ void Bot::RunTask(void)
 					m_currentWeapon != WEAPON_SG550)
 					crouch = false;
 
-				if (m_personality == PERSONALITY_NORMAL && (pev->origin - GetEntityOrigin(m_enemy)).GetLengthSquared() < SquaredF(m_maxhearrange))
+				if (m_personality == PERSONALITY_NORMAL && (pev->origin - m_enemyOrigin).GetLengthSquared() < SquaredF(m_maxhearrange))
 					crouch = false;
 
 				if (crouch)
@@ -5294,21 +5294,21 @@ void Bot::RunTask(void)
 		{
 			if (m_isZombieBot)
 			{
-				destination = GetEntityOrigin(m_enemy);
+				destination = m_enemyOrigin;
 				m_destOrigin = destination;
 				m_moveSpeed = pev->maxspeed;
 				m_moveToGoal = false;
 			}
-			else if (((pev->origin + pev->velocity * m_frameInterval) - GetEntityOrigin(m_enemy)).GetLengthSquared() <= SquaredF(fabsf(m_enemy->v.speed) + ebot_zp_escape_distance.GetFloat()))
+			else if (((pev->origin + pev->velocity * m_frameInterval) - m_enemyOrigin).GetLengthSquared() <= SquaredF(fabsf(m_enemy->v.speed) + ebot_zp_escape_distance.GetFloat()))
 			{
-				destination = GetEntityOrigin(m_enemy);
+				destination = m_enemyOrigin;
 				m_destOrigin = destination;
 				m_moveSpeed = -pev->maxspeed;
 				m_moveToGoal = false;
 			}
 			else
 			{
-				destination = GetEntityOrigin(m_enemy);
+				destination = m_enemyOrigin;
 				m_moveSpeed = 0.0f;
 				m_moveToGoal = false;
 			}
@@ -5320,8 +5320,8 @@ void Bot::RunTask(void)
 
 			m_moveToGoal = false;
 		}
-		else if (!FNullEnt(m_enemy))
-			destination = GetEntityOrigin(m_enemy) + (m_enemy->v.velocity.SkipZ() * 0.5f);
+		else if (!FNullEnt(m_enemy) || m_enemyOrigin != nullvec)
+			destination = m_enemyOrigin + (m_enemy->v.velocity.SkipZ() * 0.5f);
 		else
 			m_enemy = m_lastEnemy;
 
@@ -5403,21 +5403,21 @@ void Bot::RunTask(void)
 		{
 			if (m_isZombieBot)
 			{
-				destination = GetEntityOrigin(m_enemy);
+				destination = m_enemyOrigin;
 				m_destOrigin = destination;
 				m_moveSpeed = pev->maxspeed;
 				m_moveToGoal = false;
 			}
-			else if (((pev->origin + pev->velocity * m_frameInterval) - GetEntityOrigin(m_enemy)).GetLengthSquared() <= SquaredF(fabsf(m_enemy->v.speed) + ebot_zp_escape_distance.GetFloat()))
+			else if (((pev->origin + pev->velocity * m_frameInterval) - m_enemyOrigin).GetLengthSquared() <= SquaredF(fabsf(m_enemy->v.speed) + ebot_zp_escape_distance.GetFloat()))
 			{
-				destination = GetEntityOrigin(m_enemy);
+				destination = m_enemyOrigin;
 				m_destOrigin = destination;
 				m_moveSpeed = -pev->maxspeed;
 				m_moveToGoal = false;
 			}
 			else
 			{
-				destination = GetEntityOrigin(m_enemy);
+				destination = m_enemyOrigin;
 				m_moveSpeed = pev->maxspeed;
 				m_moveToGoal = true;
 			}
@@ -5429,8 +5429,8 @@ void Bot::RunTask(void)
 
 			m_moveToGoal = false;
 		}
-		else if (!FNullEnt(m_enemy))
-			destination = GetEntityOrigin(m_enemy) + (m_enemy->v.velocity.SkipZ() * 0.5);
+		else if (!FNullEnt(m_enemy) || m_enemyOrigin != nullvec)
+			destination = m_enemyOrigin + (m_enemy->v.velocity.SkipZ() * 0.5f);
 		else
 			m_enemy = m_lastEnemy;
 
@@ -5558,8 +5558,8 @@ void Bot::RunTask(void)
 
 			m_moveToGoal = false;
 		}
-		else if (!FNullEnt(m_enemy))
-			destination = GetEntityOrigin(m_enemy) + (m_enemy->v.velocity.SkipZ() * 0.5f);
+		else if (!FNullEnt(m_enemy) || m_enemyOrigin != nullvec)
+			destination = m_enemyOrigin + (m_enemy->v.velocity.SkipZ() * 0.5f);
 
 		m_isUsingGrenade = true;
 		m_checkTerrain = false;

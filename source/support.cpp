@@ -733,8 +733,8 @@ void RoundInit(void)
 
 	// calculate the round mid/end in world time
 	g_timeRoundStart = engine->GetTime() + engine->GetFreezeTime() + g_pGlobals->frametime;
-	g_timeRoundEnd = g_timeRoundStart + (engine->GetRoundTime() * 60.0f);
-	g_timeRoundMid = g_timeRoundStart + (engine->GetRoundTime() * 30.0f);
+	g_timeRoundMid = g_timeRoundStart + engine->GetRoundTime() * 30.0f;
+	g_timeRoundEnd = g_timeRoundStart + engine->GetRoundTime() * 60.0f;
 }
 
 void AutoLoadGameMode(void)
