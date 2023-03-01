@@ -946,6 +946,7 @@ private:
 	Vector CheckThrow(const Vector& start, Vector end);
 	Vector GetAimPosition(void);
 	Vector CheckBombAudible(void);
+	float GetZOffset(float distance);
 
 	int CheckGrenades(void);
 	void CommandTeam(void);
