@@ -1074,7 +1074,7 @@ void Bot::RadioMessage(int message)
 		return;
 
 	// poor bots spamming this :(
-	if (IsZombieMode() && message == Radio_NeedBackup && GetCurrentTask()->taskID == TASK_CAMP)
+	if (IsZombieMode() && message == Radio_NeedBackup && !g_waypoint->m_zmHmPoints.IsEmpty())
 		return;
 
 	m_radioSelect = message;
