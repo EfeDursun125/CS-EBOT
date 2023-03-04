@@ -483,7 +483,7 @@ const int Const_MaxDamageValue = 2040;
 const int Const_MaxGoalValue = 2040;
 const int Const_MaxKillHistory = 16;
 const int Const_MaxRegMessages = 256;
-const int Const_MaxWaypoints = 2048;
+const int Const_MaxWaypoints = 4096;
 const int Const_MaxWeapons = 32;
 const int Const_NumWeapons = 26;
 

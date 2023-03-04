@@ -40,6 +40,7 @@ extern bool g_isFakeCommand;
 extern bool g_leaderChoosen[2];
 extern bool g_analyzewaypoints;
 extern bool g_analyzeputrequirescrouch;
+extern bool g_expanded[Const_MaxWaypoints];
 
 extern bool g_sgdWaypoint;
 extern bool g_sautoWaypoint;
