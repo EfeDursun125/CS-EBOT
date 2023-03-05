@@ -148,20 +148,6 @@ bool IsVisible(const Vector& origin, edict_t* ent)
 	return true; // line of sight is valid.
 }
 
-bool IsVisibleForKnifeAttack(const Vector& origin, edict_t* ent)
-{
-	if (FNullEnt(ent))
-		return false;
-
-	TraceResult tr;
-	TraceHull(GetEntityOrigin(ent), origin, false, human_hull, ent, &tr);
-
-	if (tr.flFraction != 1.0f)
-		return false; // line of sight is not established
-
-	return true; // line of sight is valid.
-}
-
 // return walkable position on ground
 Vector GetWalkablePosition(const Vector& origin, edict_t* ent, bool returnNullVec)
 {

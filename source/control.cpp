@@ -643,7 +643,6 @@ void BotControl::RemoveFromTeam(Team team, bool removeAll)
 	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
 		Bot* bot = g_botManager->GetBot(i);
-
 		if (bot != nullptr && team == bot->m_team)
 		{
 			bot->Kick();

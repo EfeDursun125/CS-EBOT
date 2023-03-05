@@ -2720,7 +2720,7 @@ void LoadEntityData(void)
 			SetEntityWaypoint(entity);
 	}
 
-	for (i = 1; i <= engine->GetMaxClients(); i++)
+	for (i = 0; i < engine->GetMaxClients(); i++)
 	{
 		entity = INDEXENT(i);
 
@@ -2847,7 +2847,7 @@ void JustAStuff(void)
 	int i;
 	if (IsDedicatedServer())
 	{
-		for (i = 1; i <= engine->GetMaxClients(); i++)
+		for (i = 0; i < engine->GetMaxClients(); i++)
 		{
 			edict_t* player = INDEXENT(i);
 

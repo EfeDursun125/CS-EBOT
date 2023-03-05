@@ -91,7 +91,7 @@ int Bot::FindGoal(void)
 				int index;
 				g_waypoint->m_zmHmPoints.GetAt(i, index);
 
-				if (GetNearbyEnemiesNearPosition(g_waypoint->GetPath(index)->origin, 600) > GetNearbyFriendsNearPosition(g_waypoint->GetPath(index)->origin, 600))
+				if (m_numEnemiesLeft > 0 && m_numFriendsLeft > 0 && GetNearbyEnemiesNearPosition(g_waypoint->GetPath(index)->origin, 600.0f) > GetNearbyFriendsNearPosition(g_waypoint->GetPath(index)->origin, 600.0f))
 					continue;
 
 				ZombieWaypoints.Push(index);
@@ -111,7 +111,7 @@ int Bot::FindGoal(void)
 					g_waypoint->m_zmHmPoints.GetAt(i, wpIndex);
 					if (IsValidWaypoint(wpIndex))
 					{
-						if (GetNearbyEnemiesNearPosition(g_waypoint->GetPath(wpIndex)->origin, 600) > GetNearbyFriendsNearPosition(g_waypoint->GetPath(wpIndex)->origin, 600))
+						if (m_numEnemiesLeft > 0 && m_numFriendsLeft > 0 && GetNearbyEnemiesNearPosition(g_waypoint->GetPath(wpIndex)->origin, 600.0f) > GetNearbyFriendsNearPosition(g_waypoint->GetPath(wpIndex)->origin, 600.0f))
 							continue;
 
 						float theDistance = (pev->origin - g_waypoint->GetPath(wpIndex)->origin).GetLengthSquared2D();
@@ -205,7 +205,7 @@ int Bot::FindGoal(void)
 				int maxEnemyNum = 0;
 				for (int i = 0; i < 3; i++)
 				{
-					int enemyNum = GetNearbyEnemiesNearPosition(g_waypoint->GetPath(checkPoint[i])->origin, 300);
+					int enemyNum = m_numEnemiesLeft > 0 ? GetNearbyEnemiesNearPosition(g_waypoint->GetPath(checkPoint[i])->origin, 300.0f) : 0;
 					if (enemyNum > maxEnemyNum)
 					{
 						maxEnemyNum = enemyNum;
@@ -2908,13 +2908,13 @@ bool Bot::IsWaypointOccupied(int index)
 	if (!IsValidWaypoint(index))
 		return true;
 
-	for (int i = 1; i <= engine->GetMaxClients(); i++)
+	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
 		edict_t* player = INDEXENT(i);
 		if (!IsAlive(player) || player == GetEntity())
 			continue;
 
-		if ((g_waypoint->GetPath(index)->origin - GetEntityOrigin(player)).GetLengthSquared() < SquaredF(48.0f))
+		if ((g_waypoint->GetPath(index)->origin - GetEntityOrigin(player)).GetLengthSquared() <= SquaredF(48.0f))
 			return true;
 
 		Bot* bot = g_botManager->GetBot(i);

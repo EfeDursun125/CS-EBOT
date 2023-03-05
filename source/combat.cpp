@@ -30,7 +30,7 @@ ConVar ebot_zp_escape_distance("ebot_zm_escape_distance", "300");
 ConVar ebot_zombie_speed_factor("ebot_zombie_speed_factor", "0.54");
 ConVar ebot_sb_mode("ebot_sb_mode", "0");
 
-int Bot::GetNearbyFriendsNearPosition(Vector origin, int radius)
+int Bot::GetNearbyFriendsNearPosition(Vector origin, float radius)
 {
 	if (GetGameMode() == MODE_DM)
 		return 0;
@@ -39,30 +39,30 @@ int Bot::GetNearbyFriendsNearPosition(Vector origin, int radius)
 		return 0;
 
 	int count = 0;
-	for (const auto& client : g_clients)
+	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
-		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != m_team || client.ent == GetEntity())
+		if (!(g_clients[i].flags & CFLAG_USED) || !(g_clients[i].flags & CFLAG_ALIVE) || g_clients[i].team != m_team || g_clients[i].ent == GetEntity())
 			continue;
 
-		if ((client.origin - origin).GetLengthSquared() <= radius * radius)
+		if ((g_clients[i].origin - origin).GetLengthSquared() <= SquaredF(radius))
 			count++;
 	}
 
 	return count;
 }
 
-int Bot::GetNearbyEnemiesNearPosition(Vector origin, int radius)
+int Bot::GetNearbyEnemiesNearPosition(Vector origin, float radius)
 {
 	if (origin == nullvec)
 		return 0;
 
 	int count = 0;
-	for (const auto& client : g_clients)
+	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
-		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || GetTeam(client.ent) == m_team)
+		if (!(g_clients[i].flags & CFLAG_USED) || !(g_clients[i].flags & CFLAG_ALIVE) || g_clients[i].team == m_team)
 			continue;
 
-		if ((client.origin - origin).GetLengthSquared() <= radius * radius)
+		if ((g_clients[i].origin - origin).GetLengthSquared() <= SquaredF(radius))
 			count++;
 	}
 
@@ -83,7 +83,7 @@ void Bot::ResetCheckEnemy()
 		m_checkEnemyDistance[i] = FLT_MAX;
 	}
 
-	for (i = 1; i <= engine->GetMaxClients(); i++)
+	for (i = 0; i < engine->GetMaxClients(); i++)
 	{
 		entity = INDEXENT(i);
 		if (!IsAlive(entity) || GetTeam(entity) == m_team || GetEntity() == entity)
@@ -519,7 +519,7 @@ bool Bot::IsFriendInLineOfFire(float distance)
 	}
 
 	edict_t* entity = nullptr;
-	for (i = 1; i <= engine->GetMaxClients(); i++)
+	for (i = 0; i < engine->GetMaxClients(); i++)
 	{
 		entity = INDEXENT(i);
 
@@ -1071,15 +1071,15 @@ void Bot::CombatFight(void)
 		DeleteSearchNodes();
 		m_moveSpeed = pev->maxspeed;
 
-		if (!(pev->flags & FL_DUCKING) && !m_isSlowThink && engine->RandomInt(1, 2) == 1 && !IsOnLadder() && pev->speed >= pev->maxspeed)
+		if (m_isSlowThink && !(pev->flags & FL_DUCKING) && engine->RandomInt(1, 2) == 1 && !IsOnLadder() && pev->speed >= pev->maxspeed)
 		{
-			if (engine->RandomInt(1, 2) == 1)
+			int random = engine->RandomInt(1, 3);
+			if (random == 1)
 				pev->button |= IN_JUMP;
-			else
+			else if (random == 2)
 				pev->button |= IN_DUCK;
 		}
-
-		if (!m_isSlowThink)
+		else if (!m_isSlowThink)
 			pev->button |= IN_ATTACK;
 
 		if (FNullEnt(m_enemy))
@@ -1385,7 +1385,7 @@ bool Bot::IsEnemyProtectedByShield(edict_t* enemy)
 	if (FNullEnt(enemy))
 		return false;
 
-	if (HasShield() && IsShieldDrawn())
+	if (IsShieldDrawn())
 		return false;
 
 	// check if enemy has shield and this shield is drawn
