@@ -4244,7 +4244,7 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 		m_tasks->data = destIndex;
 
 		// do pathfinding if it's not the current waypoint
-		if (destIndex != m_currentWaypointIndex && IsValidWaypoint(destIndex))
+		if (IsValidWaypoint(destIndex) || !IsValidWaypoint(m_currentWaypointIndex))
 			FindPath(m_currentWaypointIndex, destIndex);
 	}
 	else
@@ -6531,7 +6531,7 @@ void Bot::BotAI(void)
 	if (GetCurrentTask()->taskID == TASK_CAMP || GetCurrentTask()->taskID == TASK_DESTROYBREAKABLE)
 		SelectBestWeapon();
 
-	if ((g_mapType & MAP_DE) && m_notKilled && OutOfBombTimer())
+	if (g_mapType & MAP_DE && m_notKilled && OutOfBombTimer())
 	{
 		if (GetCurrentTask()->taskID != TASK_ESCAPEFROMBOMB && GetCurrentTask()->taskID != TASK_CAMP)
 		{
@@ -6544,7 +6544,7 @@ void Bot::BotAI(void)
 	}
 
 	// if we're careful bot we can camp when reaching goal waypoint
-	if ((g_mapType & MAP_DE) && m_personality == PERSONALITY_CAREFUL && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_GOAL && ChanceOf(10))
+	if (g_mapType & MAP_DE && m_personality == PERSONALITY_CAREFUL && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_GOAL && ChanceOf(10))
 	{
 		int index = FindDefendWaypoint(pev->origin);
 		m_campposition = g_waypoint->GetPath(index)->origin;

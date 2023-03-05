@@ -401,6 +401,10 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 			ServerCommand("ebot wp on");
 			if (ebot_analyze_create_goal_waypoints.GetInt() == 1)
 				g_waypoint->CreateBasic();
+
+			// no expand
+			for (int i = 0; i < (Const_MaxWaypoints - 1); i++)
+				g_expanded[i] = false;
 		}
 
 		else if (stricmp(arg1, "analyzeoff") == 0)
@@ -413,23 +417,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 			g_analyzeputrequirescrouch = false;
 		}
 
-		else if (stricmp(arg1, "analyze off") == 0)
-		{
-			g_waypoint->AnalyzeDeleteUselessWaypoints();
-			g_analyzewaypoints = false;
-			ServerPrint("Waypoint Analyzing Off");
-			g_waypoint->Save();
-			ServerCommand("ebot wp off");
-			g_analyzeputrequirescrouch = false;
-		}
-
 		else if (stricmp(arg1, "analyzefix") == 0)
-		{
-			g_waypoint->AnalyzeDeleteUselessWaypoints();
-			ServerCommand("ebot wp on");
-		}
-
-		else if (stricmp(arg1, "analyze fix") == 0)
 		{
 			g_waypoint->AnalyzeDeleteUselessWaypoints();
 			ServerCommand("ebot wp on");

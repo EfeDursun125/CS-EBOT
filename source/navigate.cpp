@@ -499,6 +499,8 @@ bool Bot::DoWaypointNav(void)
 		}
 
 		m_navTimeset = engine->GetTime();
+
+		return false;
 	}
 	else if (m_waypointOrigin != nullvec)
 	{
@@ -507,8 +509,6 @@ bool Bot::DoWaypointNav(void)
 	}
 
 	auto currentWaypoint = g_waypoint->GetPath(m_currentWaypointIndex);
-	if (currentWaypoint == nullptr)
-		return false;
 
 	// this waypoint has additional travel flags - care about them
 	if (IsOnFloor() && m_currentTravelFlags & PATHFLAG_JUMP && !m_jumpFinished)
@@ -544,27 +544,15 @@ bool Bot::DoWaypointNav(void)
 		if (tr.flFraction == 1.0f)
 			DeleteSearchNodes();
 	}
-	
-	float waypointDistance = 0.0f;
-
-	Vector origin = pev->origin + pev->velocity * m_frameInterval;
-	if (!IsOnFloor() && !IsInWater() && !IsOnLadder())
-		waypointDistance = ((pev->origin + pev->velocity * -m_frameInterval) - m_waypointOrigin).GetLengthSquared();
-	else if (currentWaypoint->flags & WAYPOINT_FALLRISK || currentWaypoint->flags & WAYPOINT_JUMP || m_currentTravelFlags & PATHFLAG_JUMP)
-		waypointDistance = ((pev->origin + pev->velocity * g_pGlobals->frametime) - m_waypointOrigin).GetLengthSquared();
-	else
-		waypointDistance = (origin - m_waypointOrigin).GetLengthSquared();
-
-	float fixedWaypointDistance = Q_rsqrt(waypointDistance);
-
-	if (currentWaypoint->flags & WAYPOINT_LADDER)
+	else if (currentWaypoint->flags & WAYPOINT_LADDER)
 	{
 		m_aimStopTime = 0.0f;
 		if (m_waypointOrigin.z >= (pev->origin.z + 16.0f))
 			m_waypointOrigin = currentWaypoint->origin + Vector(0, 0, 16);
 		else if (m_waypointOrigin.z < pev->origin.z + 16.0f && !IsOnLadder() && IsOnFloor())
 		{
-			m_moveSpeed = fixedWaypointDistance;
+			m_moveSpeed = (pev->origin - m_waypointOrigin).GetLength();
+
 			if (m_moveSpeed < 150.0f)
 				m_moveSpeed = 150.0f;
 			else if (m_moveSpeed > pev->maxspeed)
@@ -572,116 +560,38 @@ bool Bot::DoWaypointNav(void)
 		}
 	}
 
-	bool haveDoorEntity = false;
-	edict_t* door_entity = nullptr;
-	while (!FNullEnt(door_entity = FIND_ENTITY_IN_SPHERE(door_entity, pev->origin, fixedWaypointDistance)))
-	{
-		if (strncmp(STRING(door_entity->v.classname), "func_door", 9) == 0)
-		{
-			haveDoorEntity = true;
-			break;
-		}
-	}
+	float waypointDistance = 0.0f;
 
-	if (!haveDoorEntity)
-		m_doorOpenAttempt = 0;
+	if (!IsOnFloor() && !IsInWater() && !IsOnLadder())
+		waypointDistance = ((pev->origin + pev->velocity * -m_frameInterval) - m_waypointOrigin).GetLengthSquared();
+	else if (currentWaypoint->flags & WAYPOINT_FALLRISK || currentWaypoint->flags & WAYPOINT_JUMP || m_currentTravelFlags & PATHFLAG_JUMP)
+		waypointDistance = ((pev->origin + pev->velocity * g_pGlobals->frametime) - m_waypointOrigin).GetLengthSquared();
 	else
-	{
-		TraceResult tr;
-		TraceLine(pev->origin, m_waypointOrigin, true, true, GetEntity(), &tr);
-
-		m_aimFlags &= ~(AIM_LASTENEMY | AIM_PREDICTENEMY);
-
-		if (!FNullEnt(tr.pHit) && strncmp(STRING(tr.pHit->v.classname), "func_door", 9) == 0)
-		{
-			if (FNullEnt(m_pickupItem) && m_pickupType != PICKTYPE_BUTTON)
-			{
-				edict_t* button = FindNearestButton(STRING(tr.pHit->v.classname));
-				if (!FNullEnt(button))
-				{
-					m_pickupItem = button;
-					m_pickupType = PICKTYPE_BUTTON;
-					m_navTimeset = engine->GetTime();
-				}
-			}
-
-			// if bot hits the door, then it opens, so wait a bit to let it open safely
-			if (pev->velocity.GetLengthSquared2D() <= 2.0f && m_timeDoorOpen < engine->GetTime())
-			{
-				PushTask(TASK_PAUSE, TASKPRI_PAUSE, -1, engine->GetTime() + 1.25f, false);
-
-				m_doorOpenAttempt++;
-				m_timeDoorOpen = engine->GetTime() + 1.25f; // retry in 1.25 sec until door is open
-
-				edict_t* ent = nullptr;
-
-				if (m_doorOpenAttempt > 2 && !FNullEnt(ent = FIND_ENTITY_IN_SPHERE(ent, pev->origin, 512.0f)))
-				{
-					if (IsValidPlayer(ent) && IsAlive(ent))
-					{
-						if (m_team != GetTeam(ent))
-						{
-							if (IsShootableThruObstacle(ent))
-							{
-								m_seeEnemyTime = engine->GetTime() - 0.5f;
-
-								m_states |= STATE_SEEINGENEMY;
-								m_aimFlags |= AIM_ENEMY;
-
-								SetEnemy(ent);
-								SetLastEnemy(ent);
-							}
-						}
-						else
-						{
-							DeleteSearchNodes();
-							ResetTasks();
-						}
-					}
-					else if (!IsAlive(ent))
-						m_doorOpenAttempt = 0;
-				}
-			}
-		}
-	}
-
-	float desiredDistance = 8.0f;
+		waypointDistance = (pev->origin - m_waypointOrigin).GetLengthSquared2D();
+	
+	float desiredDistance = 8.0f + (m_frameInterval * 512.0f);
 
 	// initialize the radius for a special waypoint type, where the wpt is considered to be reached
 	if (currentWaypoint->flags & WAYPOINT_JUMP || m_currentTravelFlags & PATHFLAG_JUMP)
-		desiredDistance = 8.0f;
+		desiredDistance = 12.0f;
 	else if (currentWaypoint->flags & WAYPOINT_LIFT)
 		desiredDistance = 48.0f;
 	else if (pev->flags & FL_DUCKING)
 	{
 		if (currentWaypoint->radius > 12.0f)
-			desiredDistance = currentWaypoint->radius;
+			desiredDistance += currentWaypoint->radius;
 		else
 			desiredDistance = 12.0f;
 	}
 	else if (currentWaypoint->flags & WAYPOINT_LADDER)
 		desiredDistance = 24.0f;
-	else
-		desiredDistance = currentWaypoint->radius;
+	else if (currentWaypoint->radius > 12.0f)
+		desiredDistance += currentWaypoint->radius;
 
-	// check if waypoint has a special travelflag, so they need to be reached more precisely
-	for (int i = 0; i < Const_MaxPathIndex; i++)
-	{
-		if (currentWaypoint->connectionFlags[i] != 0)
-		{
-			desiredDistance = 8.0f;
-			break;
-		}
-		else if (desiredDistance <= 24.0f && fixedWaypointDistance <= 32.0f && (origin - m_waypointOrigin).GetLengthSquared() >= waypointDistance)
-			desiredDistance = fixedWaypointDistance + 2.0f;
-		else if (!(m_currentTravelFlags & PATHFLAG_JUMP) && (m_waypointOrigin - origin).GetLengthSquared() <= (32.0f * 32.0f) && m_waypointOrigin.z <= pev->origin.z + 32.0f)
-		{
-			if (m_navNode == nullptr || (m_navNode->next != nullptr && g_waypoint->Reachable(GetEntity(), m_navNode->next->index)))
-				desiredDistance = fixedWaypointDistance + 2.0f;
-		}
-	}
+	if (!(currentWaypoint->flags & WAYPOINT_LADDER) && !FNullEnt(m_avoid))
+		desiredDistance *= 2.0f;
 
-	if (waypointDistance <= (desiredDistance * desiredDistance) || (currentWaypoint->flags & WAYPOINT_ZOMBIEPUSH && pev->flags & FL_DUCKING && IsWaypointOccupied(m_currentWaypointIndex)) || (!(currentWaypoint->flags & WAYPOINT_LADDER) && !(currentWaypoint->flags & WAYPOINT_JUMP) && !(m_currentTravelFlags & PATHFLAG_JUMP) && !IsOnLadder() && (origin - m_waypointOrigin).GetLengthSquared2D() <= (desiredDistance * desiredDistance)))
+	if (waypointDistance <= SquaredF(desiredDistance))
 	{
 		// did we reach a destination waypoint?
 		if (GetCurrentTask()->data == m_currentWaypointIndex)
@@ -689,7 +599,7 @@ bool Bot::DoWaypointNav(void)
 		else if (m_navNode == nullptr)
 			return false;
 
-		if ((g_mapType & MAP_DE) && g_bombPlanted && m_team == TEAM_COUNTER && GetCurrentTask()->taskID != TASK_ESCAPEFROMBOMB && GetCurrentTask()->data != -1)
+		if (GetGameMode() == MODE_BASE && (g_mapType & MAP_DE) && g_bombPlanted && m_team == TEAM_COUNTER && GetCurrentTask()->taskID != TASK_ESCAPEFROMBOMB && GetCurrentTask()->data != -1)
 		{
 			Vector bombOrigin = CheckBombAudible();
 
@@ -1647,7 +1557,6 @@ void Bot::SetMoveTarget(edict_t* entity)
 			RemoveCertainTask(TASK_MOVETOTARGET);
 			m_prevGoalIndex = -1;
 			GetCurrentTask()->data = -1;
-			DeleteSearchNodes();
 		}
 
 		return;

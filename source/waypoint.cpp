@@ -25,12 +25,13 @@
 #include <core.h>
 #include <compress.h>
 
-ConVar ebot_analyze_distance("ebot_analyze_distance", "75");
+ConVar ebot_analyze_distance("ebot_analyze_distance", "40");
 ConVar ebot_analyze_disable_fall_connections("ebot_analyze_disable_fall_connections", "0");
 ConVar ebot_analyze_wall_check_distance("ebot_analyze_wall_check_distance", "24");
 ConVar ebot_analyze_max_jump_height("ebot_analyze_max_jump_height", "44");
 ConVar ebot_analyze_goal_check_distance("ebot_analyze_goal_check_distance", "200");
 ConVar ebot_analyze_create_camp_waypoints("ebot_analyze_create_camp_waypoints", "1");
+ConVar ebot_use_old_analyzer("ebot_use_old_analyzer", "0");
 
 // this function initialize the waypoint structures..
 void Waypoint::Initialize(void)
@@ -49,43 +50,53 @@ void Waypoint::Initialize(void)
     m_lastWaypoint = nullvec;
 }
 
-void AnalyzeThread(void)
+void CreateWaypoint(Vector WayVec, Vector Next, float range, float goalDist)
 {
-    float goalDist = SquaredF(ebot_analyze_goal_check_distance.GetFloat());
+    TraceResult tr;
+    TraceHull(WayVec, Next, ignore_monsters, point_hull, g_hostEntity, &tr);
 
-    for (int i = 0; i < g_numWaypoints; i++)
+    if (tr.flFraction == 1.0f)
     {
-        if (IsValidWaypoint(i))
+        int startindex = g_waypoint->FindNearest(tr.vecEndPos, range);
+
+        if (!IsValidWaypoint(startindex))
         {
-            Vector WayVec = g_waypoint->GetPath(i)->origin;
-            float ran = ebot_analyze_distance.GetFloat();
-
-            Vector Start;
-            Start.x = WayVec.x + engine->RandomFloat(((-ran) - 5.0f), (ran + 5.0f));
-            Start.y = WayVec.y + engine->RandomFloat(((-ran) - 5.0f), (ran + 5.0f));
-            Start.z = WayVec.z + engine->RandomFloat(1, ran);
-
-            TraceResult tr;
             TraceResult tr2;
+            TraceHull(Vector(tr.vecEndPos.x, tr.vecEndPos.y, (tr.vecEndPos.z + 18.0f)), Vector(tr.vecEndPos.x, tr.vecEndPos.y, (tr.vecEndPos.z - 800.0f)), ignore_monsters, point_hull, g_hostEntity, &tr2);
 
-            TraceHull(WayVec, Start, true, human_hull, g_hostEntity, &tr);
-            TraceLine(tr.vecEndPos, Vector(tr.vecEndPos.x, tr.vecEndPos.y, -9999.0f), true, false, g_hostEntity, &tr2);
-
-            float lastwaypointaddtime = 0.0f;
-
-            if (tr.flFraction == 1.0f)
+            if (tr2.flFraction != 1.0f)
             {
-                int startindex = g_waypoint->FindNearest(tr.vecEndPos, ran);
+                Vector TargetPosition = tr2.vecEndPos;
+                TargetPosition.z = TargetPosition.z + 36.0f;
+                int endindex = g_waypoint->FindNearest(TargetPosition, range);
 
-                if (!IsValidWaypoint(startindex))
+                if (!IsValidWaypoint(endindex))
                 {
-                    if (tr2.flFraction != 1.0f)
+                    if (!IsZombieMode())
                     {
-                        Vector TargetPosition = tr2.vecEndPos;
-                        TargetPosition.z = TargetPosition.z + 36.0f;
-                        int endindex = g_waypoint->FindNearest(TargetPosition, ran);
+                        if (g_mapType & MAP_DE)
+                        {
+                            edict_t* ent = nullptr;
 
-                        if (!IsValidWaypoint(endindex))
+                            while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "func_bomb_target")))
+                            {
+                                TraceResult vis;
+                                TraceLine(TargetPosition, GetEntityOrigin(ent), true, false, g_hostEntity, &vis);
+
+                                if (g_waypoint->IsNodeReachable(g_waypoint->GetPath(g_waypoint->FindNearest(TargetPosition, 250.0f))->origin, TargetPosition) && g_waypoint->IsNodeReachable(TargetPosition, g_waypoint->GetPath(g_waypoint->FindNearest(TargetPosition, 250.0f))->origin) && vis.flFraction == 1.0f && (TargetPosition - GetEntityOrigin(ent)).GetLengthSquared() < goalDist)
+                                    g_waypoint->Add(100, TargetPosition);
+                            }
+
+                            while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "info_bomb_target")))
+                            {
+                                TraceResult vis;
+                                TraceLine(TargetPosition, GetEntityOrigin(ent), true, false, g_hostEntity, &vis);
+
+                                if (g_waypoint->IsNodeReachable(g_waypoint->GetPath(g_waypoint->FindNearest(TargetPosition, 250.0f))->origin, TargetPosition) && g_waypoint->IsNodeReachable(TargetPosition, g_waypoint->GetPath(g_waypoint->FindNearest(TargetPosition, 250.0f))->origin) && vis.flFraction == 1.0f && (TargetPosition - GetEntityOrigin(ent)).GetLength() < goalDist)
+                                    g_waypoint->Add(100, TargetPosition);
+                            }
+                        }
+                        else if (g_mapType & MAP_CS)
                         {
                             edict_t* ent = nullptr;
 
@@ -99,124 +110,290 @@ void AnalyzeThread(void)
                                 TraceLine(TargetPosition, GetEntityOrigin(ent), true, false, g_hostEntity, &vis);
 
                                 if (g_waypoint->IsNodeReachable(g_waypoint->GetPath(g_waypoint->FindNearest(TargetPosition, 250.0f))->origin, TargetPosition) && g_waypoint->IsNodeReachable(TargetPosition, g_waypoint->GetPath(g_waypoint->FindNearest(TargetPosition, 250.0f))->origin) && vis.flFraction == 1.0f && (TargetPosition - GetEntityOrigin(ent)).GetLengthSquared() < goalDist)
-                                {
-                                    lastwaypointaddtime = engine->GetTime();
                                     g_waypoint->Add(100, TargetPosition);
-                                }
-                            }
-
-                            while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "func_bomb_target")))
-                            {
-                                TraceResult vis;
-                                TraceLine(TargetPosition, GetEntityOrigin(ent), true, false, g_hostEntity, &vis);
-
-                                if (g_waypoint->IsNodeReachable(g_waypoint->GetPath(g_waypoint->FindNearest(TargetPosition, 250.0f))->origin, TargetPosition) && g_waypoint->IsNodeReachable(TargetPosition, g_waypoint->GetPath(g_waypoint->FindNearest(TargetPosition, 250.0f))->origin) && vis.flFraction == 1.0f && (TargetPosition - GetEntityOrigin(ent)).GetLengthSquared() < goalDist)
-                                {
-                                    lastwaypointaddtime = engine->GetTime();
-                                    g_waypoint->Add(100, TargetPosition);
-                                }
-                            }
-
-                            while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "info_bomb_target")))
-                            {
-                                TraceResult vis;
-                                TraceLine(TargetPosition, GetEntityOrigin(ent), true, false, g_hostEntity, &vis);
-
-                                if (g_waypoint->IsNodeReachable(g_waypoint->GetPath(g_waypoint->FindNearest(TargetPosition, 250.0f))->origin, TargetPosition) && g_waypoint->IsNodeReachable(TargetPosition, g_waypoint->GetPath(g_waypoint->FindNearest(TargetPosition, 250.0f))->origin) && vis.flFraction == 1.0f && (TargetPosition - GetEntityOrigin(ent)).GetLength() < goalDist)
-                                {
-                                    lastwaypointaddtime = engine->GetTime();
-                                    g_waypoint->Add(100, TargetPosition);
-                                }
-                            }
-
-                            int doublecheckindex = g_waypoint->FindNearest(TargetPosition, ran);
-                            if (!IsValidWaypoint(doublecheckindex))
-                            {
-                                g_analyzeputrequirescrouch = false;
-
-                                TraceResult upcheck;
-                                Vector TargetPosition2 = Vector(TargetPosition.x, TargetPosition.y, (TargetPosition.z + 33.0f));
-                                TraceLine(TargetPosition, TargetPosition2, true, false, g_hostEntity, &upcheck);
-
-                                if (upcheck.flFraction != 1.0f)
-                                    g_analyzeputrequirescrouch = true;
-
-                                lastwaypointaddtime = engine->GetTime();
-
-                                if ((g_waypoint->IsNodeReachable(g_waypoint->GetPath(g_waypoint->FindNearest(TargetPosition, 250.0f))->origin, g_analyzeputrequirescrouch ? Vector(TargetPosition.x, TargetPosition.y, (TargetPosition.z - 18.0f)) : TargetPosition) &&
-                                    g_waypoint->IsNodeReachable(g_analyzeputrequirescrouch ? Vector(TargetPosition.x, TargetPosition.y, (TargetPosition.z - 18.0f)) : TargetPosition, g_waypoint->GetPath(g_waypoint->FindNearest(TargetPosition, 250.0f))->origin))
-                                    || (g_waypoint->IsNodeReachableWithJump(g_waypoint->GetPath(g_waypoint->FindNearest(TargetPosition, 250.0f))->origin, g_analyzeputrequirescrouch ? Vector(TargetPosition.x, TargetPosition.y, (TargetPosition.z - 18.0f)) : TargetPosition, -1) && g_waypoint->IsNodeReachableWithJump(g_waypoint->GetPath(g_waypoint->FindNearest(TargetPosition, 250.0f))->origin, g_analyzeputrequirescrouch ? Vector(TargetPosition.x, TargetPosition.y, (TargetPosition.z - 18.0f)) : TargetPosition, -1)))
-                                    g_waypoint->Add(-1, g_analyzeputrequirescrouch ? Vector(TargetPosition.x, TargetPosition.y, (TargetPosition.z - 18.0f)) : TargetPosition);
                             }
                         }
                     }
-                }
-            }
 
-            if (tr2.flFraction != 1.0f)
-            {
-                if (ebot_analyze_create_camp_waypoints.GetInt() == 1 && lastwaypointaddtime + 0.1f < engine->GetTime()) // delay it for save performance
-                {
-                    int campindex = g_waypoint->FindNearest(tr2.vecEndPos, ran);
-
-                    if (!IsValidWaypoint(campindex) || !(g_waypoint->GetPath(campindex)->flags & WAYPOINT_CAMP))
+                    int doublecheckindex = g_waypoint->FindNearest(TargetPosition, range);
+                    if (!IsValidWaypoint(doublecheckindex))
                     {
-                        TraceResult tr12;
-                        TraceResult tr13;
-                        TraceResult tr14;
-                        TraceResult tr15;
+                        g_analyzeputrequirescrouch = false;
 
-                        Vector TargetPositionCamp = Vector(tr2.vecEndPos.x, tr2.vecEndPos.y, (tr2.vecEndPos.z + 72.0f));
+                        TraceResult upcheck;
+                        Vector TargetPosition2 = Vector(TargetPosition.x, TargetPosition.y, (TargetPosition.z + 36.0f));
+                        TraceLine(TargetPosition, TargetPosition2, true, false, g_hostEntity, &upcheck);
 
-                        TraceLine(TargetPositionCamp, (TargetPositionCamp + (g_pGlobals->v_forward * ebot_analyze_wall_check_distance.GetFloat())), true, false, g_hostEntity, &tr12); // forward
-                        TraceLine(TargetPositionCamp, (TargetPositionCamp - (g_pGlobals->v_forward * ebot_analyze_wall_check_distance.GetFloat())), true, false, g_hostEntity, &tr13); // backward
-                        TraceLine(TargetPositionCamp, (TargetPositionCamp + (g_pGlobals->v_right * ebot_analyze_wall_check_distance.GetFloat())), true, false, g_hostEntity, &tr14); // right
-                        TraceLine(TargetPositionCamp, (TargetPositionCamp - (g_pGlobals->v_right * ebot_analyze_wall_check_distance.GetFloat())), true, false, g_hostEntity, &tr15); // left
+                        if (upcheck.flFraction != 1.0f)
+                            g_analyzeputrequirescrouch = true;
 
-                        int hit1 = 0;
-                        int hit2 = 0;
-                        int hit3 = 0;
-                        int hit4 = 0;
-
-                        if (tr12.flFraction != 1.0f)
-                            hit1 = 1;
-
-                        if (tr13.flFraction != 1.0f)
-                            hit2 = 1;
-
-                        if (tr14.flFraction != 1.0f)
-                            hit3 = 1;
-
-                        if (tr15.flFraction != 1.0f)
-                            hit4 = 1;
-
-                        int hitcount = hit1 + hit2 + hit3 + hit4;
-
-                        // its a corner?
-                        if (hitcount >= 3)
-                        {
-                            TraceResult tr8;
-                            TraceResult tr9;
-                            TraceResult tr10;
-                            TraceResult tr11;
-
-                            Vector TargetPosition = Vector(tr2.vecEndPos.x, tr2.vecEndPos.y, (tr2.vecEndPos.z + 36.0f));
-
-                            TraceLine(TargetPosition, (TargetPosition + (g_pGlobals->v_forward * (ebot_analyze_wall_check_distance.GetFloat() / 1.25f))), true, false, g_hostEntity, &tr8); // forward
-                            TraceLine(TargetPosition, (TargetPosition - (g_pGlobals->v_forward * (ebot_analyze_wall_check_distance.GetFloat() / 1.25f))), true, false, g_hostEntity, &tr9); // backward
-                            TraceLine(TargetPosition, (TargetPosition + (g_pGlobals->v_right * (ebot_analyze_wall_check_distance.GetFloat() / 1.25f))), true, false, g_hostEntity, &tr10); // right
-                            TraceLine(TargetPosition, (TargetPosition - (g_pGlobals->v_right * (ebot_analyze_wall_check_distance.GetFloat() / 1.25f))), true, false, g_hostEntity, &tr11); // left
-
-                            if (tr8.flFraction == 1.0f && tr9.flFraction == 1.0f && tr10.flFraction == 1.0f && tr11.flFraction == 1.0f)
-                            {
-                                g_analyzeputrequirescrouch = true;
-                                g_waypoint->Add(5, Vector(tr2.vecEndPos.x, tr2.vecEndPos.y, (tr2.vecEndPos.z + 18.0f)));
-                                g_analyzeputrequirescrouch = false;
-                            }
-                        }
+                        if ((g_waypoint->IsNodeReachable(g_waypoint->GetPath(g_waypoint->FindNearest(TargetPosition, 250.0f))->origin, g_analyzeputrequirescrouch ? Vector(TargetPosition.x, TargetPosition.y, (TargetPosition.z - 18.0f)) : TargetPosition) &&
+                            g_waypoint->IsNodeReachable(g_analyzeputrequirescrouch ? Vector(TargetPosition.x, TargetPosition.y, (TargetPosition.z - 18.0f)) : TargetPosition, g_waypoint->GetPath(g_waypoint->FindNearest(TargetPosition, 250.0f))->origin))
+                            || (g_waypoint->IsNodeReachableWithJump(g_waypoint->GetPath(g_waypoint->FindNearest(TargetPosition, 250.0f))->origin, g_analyzeputrequirescrouch ? Vector(TargetPosition.x, TargetPosition.y, (TargetPosition.z - 18.0f)) : TargetPosition, -1) && g_waypoint->IsNodeReachableWithJump(g_waypoint->GetPath(g_waypoint->FindNearest(TargetPosition, 250.0f))->origin, g_analyzeputrequirescrouch ? Vector(TargetPosition.x, TargetPosition.y, (TargetPosition.z - 18.0f)) : TargetPosition, -1)))
+                            g_waypoint->Add(-1, g_analyzeputrequirescrouch ? Vector(TargetPosition.x, TargetPosition.y, (TargetPosition.z - 18.0f)) : TargetPosition);
                     }
                 }
             }
+        }
+    }
+}
+
+void AnalyzeThread(void)
+{
+    float goalDist = SquaredF(ebot_analyze_goal_check_distance.GetFloat());
+
+    if (!ebot_use_old_analyzer.GetBool())
+    {
+        for (int i = 0; i < g_numWaypoints; i++)
+        {
+            if (g_expanded[i])
+                continue;
+
+            Vector WayVec = g_waypoint->GetPath(i)->origin;
+            float range = ebot_analyze_distance.GetFloat();
+
+            for (int dir = 1; dir < 24; dir++)
+            {
+                switch (dir)
+                {
+                    case 1:
+                    {
+                        Vector Next;
+                        Next.x = WayVec.x + range;
+                        Next.y = WayVec.y;
+                        Next.z = WayVec.z;
+
+                        CreateWaypoint(WayVec, Next, range, goalDist);
+                    }
+                    case 2:
+                    {
+                        Vector Next;
+                        Next.x = WayVec.x - range;
+                        Next.y = WayVec.y;
+                        Next.z = WayVec.z;
+
+                        CreateWaypoint(WayVec, Next, range, goalDist);
+                    }
+                    case 3:
+                    {
+                        Vector Next;
+                        Next.x = WayVec.x;
+                        Next.y = WayVec.y + range;
+                        Next.z = WayVec.z;
+
+                        CreateWaypoint(WayVec, Next, range, goalDist);
+                    }
+                    case 4:
+                    {
+                        Vector Next;
+                        Next.x = WayVec.x;
+                        Next.y = WayVec.y - range;
+                        Next.z = WayVec.z;
+
+                        CreateWaypoint(WayVec, Next, range, goalDist);
+                    }
+                    case 5:
+                    {
+                        Vector Next;
+                        Next.x = WayVec.x + range;
+                        Next.y = WayVec.y;
+                        Next.z = WayVec.z + 72.0f;
+
+                        CreateWaypoint(WayVec, Next, range, goalDist);
+                    }
+                    case 6:
+                    {
+                        Vector Next;
+                        Next.x = WayVec.x - range;
+                        Next.y = WayVec.y;
+                        Next.z = WayVec.z + 72.0f;
+
+                        CreateWaypoint(WayVec, Next, range, goalDist);
+                    }
+                    case 7:
+                    {
+                        Vector Next;
+                        Next.x = WayVec.x;
+                        Next.y = WayVec.y + range;
+                        Next.z = WayVec.z + 72.0f;
+
+                        CreateWaypoint(WayVec, Next, range, goalDist);
+                    }
+                    case 8:
+                    {
+                        Vector Next;
+                        Next.x = WayVec.x;
+                        Next.y = WayVec.y - range;
+                        Next.z = WayVec.z + 72.0f;
+
+                        CreateWaypoint(WayVec, Next, range, goalDist);
+                    }
+                    case 9:
+                    {
+                        Vector Next;
+                        Next.x = WayVec.x + range;
+                        Next.y = WayVec.y + range;
+                        Next.z = WayVec.z;
+
+                        CreateWaypoint(WayVec, Next, range, goalDist);
+                    }
+                    case 10:
+                    {
+                        Vector Next;
+                        Next.x = WayVec.x - range;
+                        Next.y = WayVec.y - range;
+                        Next.z = WayVec.z;
+
+                        CreateWaypoint(WayVec, Next, range, goalDist);
+                    }
+                    case 11:
+                    {
+                        Vector Next;
+                        Next.x = WayVec.x - range;
+                        Next.y = WayVec.y + range;
+                        Next.z = WayVec.z;
+
+                        CreateWaypoint(WayVec, Next, range, goalDist);
+                    }
+                    case 12:
+                    {
+                        Vector Next;
+                        Next.x = WayVec.x + range;
+                        Next.y = WayVec.y - range;
+                        Next.z = WayVec.z;
+
+                        CreateWaypoint(WayVec, Next, range, goalDist);
+                    }
+                    case 13:
+                    {
+                        Vector Next;
+                        Next.x = WayVec.x + range;
+                        Next.y = WayVec.y + range;
+                        Next.z = WayVec.z + 72.0f;
+
+                        CreateWaypoint(WayVec, Next, range, goalDist);
+                    }
+                    case 14:
+                    {
+                        Vector Next;
+                        Next.x = WayVec.x - range;
+                        Next.y = WayVec.y - range;
+                        Next.z = WayVec.z + 72.0f;
+
+                        CreateWaypoint(WayVec, Next, range, goalDist);
+                    }
+                    case 15:
+                    {
+                        Vector Next;
+                        Next.x = WayVec.x - range;
+                        Next.y = WayVec.y + range;
+                        Next.z = WayVec.z + 72.0f;
+
+                        CreateWaypoint(WayVec, Next, range, goalDist);
+                    }
+                    case 16:
+                    {
+                        Vector Next;
+                        Next.x = WayVec.x + range;
+                        Next.y = WayVec.y - range;
+                        Next.z = WayVec.z + 72.0f;
+
+                        CreateWaypoint(WayVec, Next, range, goalDist);
+                    }
+                    case 17:
+                    {
+                        Vector Next;
+                        Next.x = WayVec.x + range;
+                        Next.y = WayVec.y;
+                        Next.z = WayVec.z + 36.0f;
+
+                        CreateWaypoint(WayVec, Next, range, goalDist);
+                    }
+                    case 18:
+                    {
+                        Vector Next;
+                        Next.x = WayVec.x - range;
+                        Next.y = WayVec.y;
+                        Next.z = WayVec.z + 36.0f;
+
+                        CreateWaypoint(WayVec, Next, range, goalDist);
+                    }
+                    case 19:
+                    {
+                        Vector Next;
+                        Next.x = WayVec.x;
+                        Next.y = WayVec.y + range;
+                        Next.z = WayVec.z + 36.0f;
+
+                        CreateWaypoint(WayVec, Next, range, goalDist);
+                    }
+                    case 20:
+                    {
+                        Vector Next;
+                        Next.x = WayVec.x;
+                        Next.y = WayVec.y - range;
+                        Next.z = WayVec.z + 36.0f;
+
+                        CreateWaypoint(WayVec, Next, range, goalDist);
+                    }
+                    case 21:
+                    {
+                        Vector Next;
+                        Next.x = WayVec.x + range;
+                        Next.y = WayVec.y + range;
+                        Next.z = WayVec.z + 36.0f;
+
+                        CreateWaypoint(WayVec, Next, range, goalDist);
+                    }
+                    case 22:
+                    {
+                        Vector Next;
+                        Next.x = WayVec.x - range;
+                        Next.y = WayVec.y - range;
+                        Next.z = WayVec.z + 36.0f;
+
+                        CreateWaypoint(WayVec, Next, range, goalDist);
+                    }
+                    case 23:
+                    {
+                        Vector Next;
+                        Next.x = WayVec.x - range;
+                        Next.y = WayVec.y + range;
+                        Next.z = WayVec.z + 36.0f;
+
+                        CreateWaypoint(WayVec, Next, range, goalDist);
+                    }
+                    case 24:
+                    {
+                        Vector Next;
+                        Next.x = WayVec.x + range;
+                        Next.y = WayVec.y - range;
+                        Next.z = WayVec.z + 36.0f;
+
+                        CreateWaypoint(WayVec, Next, range, goalDist);
+                    }
+                }
+            }
+
+            g_expanded[i] = true;
+        }
+
+        return;
+    }
+
+    for (int i = 0; i < g_numWaypoints; i++)
+    {
+        if (IsValidWaypoint(i))
+        {
+            Vector WayVec = g_waypoint->GetPath(i)->origin;
+            float ran = ebot_analyze_distance.GetFloat();
+
+            Vector Start;
+            Start.x = WayVec.x + engine->RandomFloat(((-ran) - 5.0f), (ran + 5.0f));
+            Start.y = WayVec.y + engine->RandomFloat(((-ran) - 5.0f), (ran + 5.0f));
+            Start.z = WayVec.z + engine->RandomFloat(1, ran);
+
+            CreateWaypoint(WayVec, Start, ran, goalDist);
         }
     }
 }
@@ -1287,10 +1464,9 @@ void Waypoint::TeleportWaypoint(void)
         (*g_engfuncs.pfnSetOrigin) (g_hostEntity, g_waypoint->m_paths[m_facingAtIndex]->origin);
 }
 
+// this function allow player to manually remove a path from one waypoint to another
 void Waypoint::DeletePath(void)
 {
-    // this function allow player to manually remove a path from one waypoint to another
-
     int nodeFrom = FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
     int index = 0;
 

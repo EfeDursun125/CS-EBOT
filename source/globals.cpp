@@ -40,7 +40,7 @@ bool g_bLearnJumpWaypoint = false;
 bool g_leaderChoosen[2] = { false, false };
 bool g_analyzewaypoints = false;
 bool g_analyzeputrequirescrouch = false;
-bool g_onlyvispath = false;
+bool g_expanded[Const_MaxWaypoints];
 
 bool g_sgdWaypoint = false;
 bool g_sautoWaypoint = false;
