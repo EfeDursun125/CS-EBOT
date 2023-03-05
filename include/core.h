@@ -879,7 +879,7 @@ private:
 
 	bool IsInViewCone(Vector origin);
 	void ReactOnSound(void);
-	bool CheckVisibility(entvars_t* targetEntity, Vector* origin, uint8_t* bodyPart);
+	bool CheckVisibility(edict_t* targetEntity, Vector* origin, uint8_t* bodyPart);
 	bool IsEnemyViewable(edict_t* player, bool setEnemy = false, bool checkOnly = false);
 
 	void CheckGrenadeThrow(void);
@@ -965,8 +965,8 @@ private:
 	bool IsFriendInLineOfFire(float distance);
 	bool IsGroupOfEnemies(Vector location, int numEnemies = 2, int radius = 600);
 	bool IsShootableThruObstacle(edict_t* entity);
-	int GetNearbyEnemiesNearPosition(Vector origin, int radius);
-	int GetNearbyFriendsNearPosition(Vector origin, int radius);
+	int GetNearbyEnemiesNearPosition(Vector origin, float radius);
+	int GetNearbyFriendsNearPosition(Vector origin, float radius);
 	void SelectWeaponByName(const char* name);
 	void SelectWeaponbyNumber(int num);
 	int GetHighestWeapon(void);
@@ -1443,7 +1443,6 @@ extern bool IsLinux(void);
 extern bool TryFileOpen(char* fileName);
 extern bool IsDedicatedServer(void);
 extern bool IsVisible(const Vector& origin, edict_t* ent);
-extern bool IsVisibleForKnifeAttack(const Vector& origin, edict_t* ent);
 extern Vector GetWalkablePosition(const Vector& origin, edict_t* ent = nullptr, bool returnNullVec = false);
 extern Vector GetNearestWalkablePosition(const Vector& origin, edict_t* ent = nullptr, bool returnNullVec = false);
 extern bool IsAlive(edict_t* ent);
