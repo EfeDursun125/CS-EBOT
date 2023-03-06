@@ -56,7 +56,7 @@ using namespace Math;
 
 #include <runtime.h>
 
-//#define WORK_ASYNC
+#define WORK_ASYNC
 
 #ifdef WORK_ASYNC
 #include <future>
@@ -1010,6 +1010,7 @@ public:
 
 	int m_startAction; // team/class selection state
 	int m_team; // bot's team
+	int m_index; // bot's index
 	bool m_isAlive; // has the player been killed or has he just respawned
 	bool m_notStarted; // team/class not chosen yet
 
@@ -1426,7 +1427,7 @@ extern bool IsZombieMode(void);
 extern bool IsDeathmatchMode(void);
 extern bool IsValidWaypoint(int index);
 extern bool ChanceOf(int number);
-extern float Q_rsqrt(float number);
+extern float Q_sqrt(float number);
 extern float Clamp(float a, float b, float c);
 extern float SquaredF(float a);
 extern float AddTime(float time);
