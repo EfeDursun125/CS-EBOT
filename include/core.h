@@ -789,7 +789,6 @@ private:
 	int m_voicePitch; // bot voice pitch
 	bool m_isZombieBot; // checks bot if zombie
 	bool m_zombiePush; // we must push???
-	int m_team; // bot's team
 
 	bool m_duckDefuse; // should or not bot duck to defuse bomb
 	float m_duckDefuseCheckTime; // time to check for ducking for defuse
@@ -1010,7 +1009,8 @@ public:
 	edict_t* m_avoid; // higher priority player we need to make way for
 
 	int m_startAction; // team/class selection state
-	bool m_notKilled; // has the player been killed or has he just respawned
+	int m_team; // bot's team
+	bool m_isAlive; // has the player been killed or has he just respawned
 	bool m_notStarted; // team/class not chosen yet
 
 	int m_voteMap; // number of map to vote for
@@ -1196,7 +1196,6 @@ class BotControl : public Singleton <BotControl>
 {
 private:
 	Array <CreateItem> m_creationTab; // bot creation tab
-	Bot* m_bots[32]; // all available bots
 	float m_maintainTime; // time to maintain bot creation quota
 	int m_lastWinner; // the team who won previous round
 	int m_roundCount; // rounds passed
@@ -1206,6 +1205,7 @@ protected:
 	int CreateBot(String name, int skill, int personality, int team, int member);
 
 public:
+	Bot* m_bots[32]; // all available bots
 	Array <String> m_savedBotNames; // storing the bot names
 	Array <String> m_avatars; // storing the steam ids
 
