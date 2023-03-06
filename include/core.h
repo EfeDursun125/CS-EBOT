@@ -56,7 +56,7 @@ using namespace Math;
 
 #include <runtime.h>
 
-#define WORK_ASYNC
+//#define WORK_ASYNC
 
 #ifdef WORK_ASYNC
 #include <future>
@@ -609,6 +609,8 @@ struct Clients
 	int wpIndex2;
 	float getWPTime;
 	Vector getWpOrigin;
+
+	int index; // client index
 };
 
 // bot creation tab
@@ -963,7 +965,7 @@ private:
 	void SelectPistol(void);
 	void SelectKnife(void);
 	bool IsFriendInLineOfFire(float distance);
-	bool IsGroupOfEnemies(Vector location, int numEnemies = 2, int radius = 600);
+	bool IsGroupOfEnemies(Vector location, int numEnemies = 2, float radius = 640.0f);
 	bool IsShootableThruObstacle(edict_t* entity);
 	int GetNearbyEnemiesNearPosition(Vector origin, float radius);
 	int GetNearbyFriendsNearPosition(Vector origin, float radius);
