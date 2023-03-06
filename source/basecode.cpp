@@ -65,9 +65,9 @@ void Bot::PushMessageQueue(int message)
 		// notify other bots of the spoken text otherwise, bots won't respond to other bots (network messages aren't sent from bots)
 		int entityIndex = GetIndex();
 
-		for (int i = 0; i < engine->GetMaxClients(); i++)
+		for (const auto& client : g_clients)
 		{
-			Bot* otherBot = g_botManager->GetBot(i);
+			Bot* otherBot = g_botManager->GetBot(client.index);
 			if (otherBot != nullptr && otherBot->pev != pev)
 			{
 				if (m_notKilled == IsAlive(otherBot->GetEntity()))
@@ -248,7 +248,7 @@ void Bot::ZombieModeAi(void)
 				entity = client.ent;
 			else
 			{
-				Bot* bot = g_botManager->GetBot(client.ent);
+				Bot* bot = g_botManager->GetBot(client.index);
 
 				if (bot == nullptr || bot == this || !bot->m_notKilled)
 					continue;
@@ -866,7 +866,7 @@ void Bot::FindItem(void)
 				{
 					for (const auto& client : g_clients)
 					{
-						Bot* bot = g_botManager->GetBot(client.ent);
+						Bot* bot = g_botManager->GetBot(client.index);
 
 						if (bot != nullptr && bot->m_notKilled)
 						{
@@ -936,7 +936,7 @@ void Bot::FindItem(void)
 	{
 		for (const auto& client : g_clients)
 		{
-			Bot* bot = g_botManager->GetBot(client.ent);
+			Bot* bot = g_botManager->GetBot(client.index);
 			if (bot != nullptr && bot != this && IsAlive(bot->GetEntity()) && bot->m_pickupItem == pickupItem)
 			{
 				m_pickupItem = nullptr;
@@ -1033,14 +1033,12 @@ void Bot::SwitchChatterIcon(bool show)
 	if (g_gameVersion == CSVER_VERYOLD)
 		return;
 
-	for (int i = 0; i < engine->GetMaxClients(); i++)
+	for (const auto& client : g_clients)
 	{
-		edict_t* ent = INDEXENT(i);
-
-		if (!IsValidPlayer(ent) || IsValidBot(ent) || GetTeam(ent) != m_team)
+		if (!IsValidPlayer(client.ent) || client.team != m_team || IsValidBot(client.ent))
 			continue;
 
-		MESSAGE_BEGIN(MSG_ONE, g_netMsg->GetId(NETMSG_BOTVOICE), nullptr, ent); // begin message
+		MESSAGE_BEGIN(MSG_ONE, g_netMsg->GetId(NETMSG_BOTVOICE), nullptr, client.ent); // begin message
 		WRITE_BYTE(show); // switch on/off
 		WRITE_BYTE(GetIndex());
 		MESSAGE_END();
@@ -1115,14 +1113,12 @@ void Bot::PlayChatterMessage(ChatterMessage message)
 	SwitchChatterIcon(true);
 	g_audioTime = m_chatterTimer;
 
-	for (int i = 0; i < engine->GetMaxClients(); i++)
+	for (const auto& client : g_clients)
 	{
-		edict_t* ent = INDEXENT(i);
-
-		if (!IsValidPlayer(ent) || IsValidBot(ent) || GetTeam(ent) != m_team)
+		if (!IsValidPlayer(client.ent) || client.team != m_team || IsValidBot(client.ent))
 			continue;
 
-		MESSAGE_BEGIN(MSG_ONE, g_netMsg->GetId(NETMSG_SENDAUDIO), nullptr, ent); // begin message
+		MESSAGE_BEGIN(MSG_ONE, g_netMsg->GetId(NETMSG_SENDAUDIO), nullptr, client.ent); // begin message
 		WRITE_BYTE(GetIndex());
 
 		if (!(pev->deadflag & DEAD_DEAD))
@@ -1241,7 +1237,7 @@ void Bot::CheckMessageQueue(void)
 
 					for (const auto& client : g_clients)
 					{
-						Bot* bot = g_botManager->GetBot(client.ent);
+						Bot* bot = g_botManager->GetBot(client.index);
 						if (bot != nullptr && pev != bot->pev && bot->m_team == m_team)
 						{
 							bot->m_radioOrder = m_radioSelect;
@@ -2790,7 +2786,7 @@ void Bot::CheckRadioCommands(void)
 			// check if no more followers are allowed
 			for (const auto& client : g_clients)
 			{
-				Bot* bot = g_botManager->GetBot(client.ent);
+				Bot* bot = g_botManager->GetBot(client.index);
 
 				if (bot != nullptr && bot->m_notKilled)
 				{
@@ -3179,15 +3175,12 @@ void Bot::CheckRadioCommands(void)
 						if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team == m_team)
 							continue;
 
-						auto origin = GetEntityOrigin(client.ent);
-						float curDist = (GetEntityOrigin(m_radioEntity) - origin).GetLengthSquared2D();
-
+						float curDist = (GetEntityOrigin(m_radioEntity) - client.origin).GetLengthSquared2D();
 						if (curDist < nearestDistance)
 						{
 							nearestDistance = curDist;
-
 							m_lastEnemy = client.ent;
-							m_lastEnemyOrigin = origin + pev->view_ofs;
+							m_lastEnemyOrigin = client.origin + pev->view_ofs;
 						}
 					}
 				}
@@ -3362,14 +3355,12 @@ void Bot::CheckRadioCommands(void)
 						if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_USED) || client.team == m_team)
 							continue;
 
-						auto origin = GetEntityOrigin(client.ent);
-						float dist = (GetEntityOrigin(m_radioEntity) - origin).GetLengthSquared();
-
+						float dist = (GetEntityOrigin(m_radioEntity) - client.origin).GetLengthSquared();
 						if (dist < nearestDistance)
 						{
 							nearestDistance = dist;
 							m_lastEnemy = client.ent;
-							m_lastEnemyOrigin = origin + pev->view_ofs;
+							m_lastEnemyOrigin = client.origin + pev->view_ofs;
 						}
 					}
 				}
@@ -3912,17 +3903,15 @@ void Bot::CalculatePing(void)
 	int averagePing = 0;
 	int numHumans = 0;
 
-	for (int i = 0; i < engine->GetMaxClients(); i++)
+	for (const auto& client : g_clients)
 	{
-		edict_t* ent = INDEXENT(i);
-
-		if (!IsValidPlayer(ent))
+		if (!IsValidPlayer(client.ent))
 			continue;
 
 		numHumans++;
 
 		int ping, loss;
-		PLAYER_CNX_STATS(ent, &ping, &loss);
+		PLAYER_CNX_STATS(client.ent, &ping, &loss);
 
 		if (ping <= 0 || ping > 150)
 			ping = engine->RandomInt(5, 50);
@@ -7490,7 +7479,7 @@ bool Bot::CampingAllowed(void)
 		// check if no more followers are allowed
 		for (const auto& client : g_clients)
 		{
-			Bot* bot = g_botManager->GetBot(client.ent);
+			Bot* bot = g_botManager->GetBot(client.index);
 
 			if (bot != nullptr && bot->m_notKilled)
 			{
@@ -7539,7 +7528,7 @@ bool Bot::OutOfBombTimer(void)
 	{
 		for (const auto& client : g_clients)
 		{
-			Bot* bot = g_botManager->GetBot(client.ent); // temporaly pointer to bot
+			Bot* bot = g_botManager->GetBot(client.index); // temporaly pointer to bot
 
 			// search players with defuse kit
 			if (bot != nullptr && bot->m_team == TEAM_COUNTER && bot->m_hasDefuser && (bombOrigin - bot->pev->origin).GetLengthSquared() <= SquaredF(512.0f))
@@ -7693,17 +7682,17 @@ bool Bot::IsBombDefusing(Vector bombOrigin)
 		return false;
 
 	bool defusingInProgress = false;
-	constexpr float distanceToBomb = 75.0f * 75.0f;
+	constexpr float distanceToBomb = 140.0f * 140.0f;
 
 	for (const auto& client : g_clients)
 	{
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE))
 			continue;
 
-		Bot* bot = g_botManager->GetBot(client.ent);
+		Bot* bot = g_botManager->GetBot(client.index);
 
 		float bombDistance = (client.origin - bombOrigin).GetLengthSquared();
-		if (bot != nullptr && bot->m_notKilled)
+		if (bot != nullptr)
 		{
 			if (m_team != bot->m_team || bot->GetCurrentTask()->taskID == TASK_ESCAPEFROMBOMB || bot->GetCurrentTask()->taskID == TASK_CAMP || bot->GetCurrentTask()->taskID == TASK_SEEKCOVER)
 				continue; // skip other mess

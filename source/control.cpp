@@ -1284,8 +1284,8 @@ void Bot::Kick(void)
 	if (g_botManager->GetBotsNum() - 1 < ebot_quota.GetInt())
 		ebot_quota.SetInt(g_botManager->GetBotsNum() - 1);
 
-	if (ebot_save_bot_names.GetBool() && !g_botManager->m_savedBotNames.IsEmpty())
-		g_botManager->m_savedBotNames.PopNoReturn();
+	//if (ebot_save_bot_names.GetBool() && !g_botManager->m_savedBotNames.IsEmpty()) CRASH...
+	//	g_botManager->m_savedBotNames.PopNoReturn();
 }
 
 // this function handles the selection of teams & class

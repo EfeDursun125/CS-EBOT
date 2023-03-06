@@ -771,7 +771,7 @@ inline const float GF_CostHuman(int index, int parent, int team, float gravity, 
 	{
 		for (const auto& client : g_clients)
 		{
-			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || team != GetTeam(client.ent))
+			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || team != client.team)
 				continue;
 
 			float distance = (client.origin - path->origin).GetLengthSquared();
@@ -787,11 +787,11 @@ inline const float GF_CostHuman(int index, int parent, int team, float gravity, 
 	const Vector waypointOrigin = path->origin;
 	for (const auto& client : g_clients)
 	{
-		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || !IsZombieEntity(client.ent))
+		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || team == client.team || !IsZombieEntity(client.ent))
 			continue;
 
-		float distance = ((client.origin + client.ent->v.velocity * g_pGlobals->frametime) - waypointOrigin).GetLengthSquared2D();
-		if (distance <= path->radius + 128.0f)
+		float distance = ((client.origin + client.ent->v.velocity * g_pGlobals->frametime) - waypointOrigin).GetLengthSquared();
+		if (distance <= SquaredF(path->radius + 128.0f))
 			count++;
 
 		totalDistance += distance;
@@ -834,7 +834,7 @@ inline const float GF_CostCareful(int index, int parent, int team, float gravity
 	{
 		for (const auto& client : g_clients)
 		{
-			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || team != GetTeam(client.ent))
+			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || team != client.team)
 				continue;
 
 			float distance = (client.origin - path->origin).GetLengthSquared();
@@ -912,7 +912,7 @@ inline const float GF_CostNormal(int index, int parent, int team, float gravity,
 	{
 		for (const auto& client : g_clients)
 		{
-			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || team != GetTeam(client.ent))
+			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || team != client.team)
 				continue;
 
 			float distance = (client.origin - path->origin).GetLengthSquared();
@@ -980,7 +980,7 @@ inline const float GF_CostRusher(int index, int parent, int team, float gravity,
 	{
 		for (const auto& client : g_clients)
 		{
-			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || team != GetTeam(client.ent))
+			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || team != client.team)
 				continue;
 
 			float distance = (client.origin - path->origin).GetLengthSquared();
@@ -1435,9 +1435,9 @@ void Bot::CheckTouchEntity(edict_t* entity)
 			// tell my friends to destroy it
 			if (!m_isZombieBot)
 			{
-				for (int i = 0; i < engine->GetMaxClients(); i++)
+				for (const auto& client : g_clients)
 				{
-					auto bot = g_botManager->GetBot(i);
+					auto bot = g_botManager->GetBot(client.index);
 					if (bot == nullptr)
 						continue;
 
@@ -1477,9 +1477,9 @@ void Bot::CheckTouchEntity(edict_t* entity)
 		else if (pev->origin.z > m_breakable.z) // make bots smarter
 		{
 			// tell my enemies to destroy it, so i will fall
-			for (int i = 0; i < engine->GetMaxClients(); i++)
+			for (const auto& client : g_clients)
 			{
-				auto enemy = g_botManager->GetBot(i);
+				auto enemy = g_botManager->GetBot(client.index);
 				if (enemy == nullptr)
 					continue;
 
@@ -2840,7 +2840,7 @@ int Bot::FindHostage(void)
 
 		for (const auto& client : g_clients)
 		{
-			Bot* bot = g_botManager->GetBot(client.ent);
+			Bot* bot = g_botManager->GetBot(client.index);
 
 			if (bot != nullptr && bot->m_notKilled)
 			{
@@ -2852,7 +2852,7 @@ int Bot::FindHostage(void)
 			}
 		}
 
-		int nearestIndex = g_waypoint->FindNearest(GetEntityOrigin(ent), 9999.0f, -1, ent);
+		int nearestIndex = g_waypoint->FindNearest(GetEntityOrigin(ent), 512.0f, -1, ent);
 
 		if (IsValidWaypoint(nearestIndex) && canF)
 			return nearestIndex;
@@ -2881,7 +2881,7 @@ int Bot::FindLoosedBomb(void)
 	{
 		if (strcmp(STRING(bombEntity->v.model) + 9, "backpack.mdl") == 0)
 		{
-			int nearestIndex = g_waypoint->FindNearest(GetEntityOrigin(bombEntity), 9999.0f, -1, bombEntity);
+			int nearestIndex = g_waypoint->FindNearest(GetEntityOrigin(bombEntity), 512.0f, -1, bombEntity);
 			if (IsValidWaypoint(nearestIndex))
 				return nearestIndex;
 			else
@@ -2908,16 +2908,21 @@ bool Bot::IsWaypointOccupied(int index)
 	if (!IsValidWaypoint(index))
 		return true;
 
-	for (int i = 0; i < engine->GetMaxClients(); i++)
+	for (const auto& client : g_clients)
 	{
-		edict_t* player = INDEXENT(i);
-		if (!IsAlive(player) || player == GetEntity())
+		if (!(client.flags & CFLAG_USED))
 			continue;
 
-		if ((g_waypoint->GetPath(index)->origin - GetEntityOrigin(player)).GetLengthSquared() <= SquaredF(48.0f))
+		if (!(client.flags & CFLAG_ALIVE))
+			continue;
+
+		if (client.team != m_team || client.ent == GetEntity())
+			continue;
+
+		if ((g_waypoint->GetPath(index)->origin - client.origin).GetLengthSquared() <= SquaredF(48.0f))
 			return true;
 
-		Bot* bot = g_botManager->GetBot(i);
+		Bot* bot = g_botManager->GetBot(client.index);
 		if (bot != nullptr && bot->m_currentWaypointIndex == index)
 			return true;
 	}

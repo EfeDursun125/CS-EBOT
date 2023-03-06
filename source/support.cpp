@@ -690,13 +690,13 @@ void RoundInit(void)
 		g_botManager->CheckTeamEconomics(TEAM_TERRORIST);
 		g_botManager->CheckTeamEconomics(TEAM_COUNTER);
 	}
-
-	for (int i = 0; i < engine->GetMaxClients(); i++)
+	
+	for (const auto& client : g_clients)
 	{
-		if (g_botManager->GetBot(i))
-			g_botManager->GetBot(i)->NewRound();
+		if (g_botManager->GetBot(client.index))
+			g_botManager->GetBot(client.index)->NewRound();
 
-		g_radioSelect[i] = 0;
+		g_radioSelect[client.index] = 0;
 	}
 
 	g_waypoint->SetBombPosition(true);
@@ -1080,7 +1080,7 @@ int GetTeam(edict_t* ent)
 	if (FNullEnt(ent))
 		return TEAM_COUNT;
 
-	int client = ENTINDEX(ent) - 1, player_team = TEAM_COUNT;
+	int player_team = TEAM_COUNT;
 	if (!IsValidPlayer(ent))
 	{
 		player_team = 0;
@@ -1099,6 +1099,7 @@ int GetTeam(edict_t* ent)
 		return player_team;
 	}
 
+	int client = ENTINDEX(ent);
 	if (ebot_ignore_enemies.GetBool())
 		player_team = TEAM_COUNTER;
 	else if (GetGameMode() == MODE_ZP)
@@ -1734,17 +1735,17 @@ void SoundAttachToThreat(edict_t* ent, const char* sample, float volume)
 		float nearestDistance = FLT_MAX;
 
 		// loop through all players
-		for (int i = 0; i < engine->GetMaxClients(); i++)
+		for (const auto& client : g_clients)
 		{
-			if (!(g_clients[i].flags & CFLAG_USED) || !(g_clients[i].flags & CFLAG_ALIVE))
+			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE))
 				continue;
 
-			float distance = (GetEntityOrigin(g_clients[i].ent) - origin).GetLengthSquared();
+			float distance = (client.origin - origin).GetLengthSquared();
 
 			// now find nearest player
 			if (distance < nearestDistance)
 			{
-				index = i;
+				index = client.index;
 				nearestDistance = distance;
 			}
 		}
@@ -2185,10 +2186,10 @@ void GetVoiceAndDur(ChatterMessage message, char** voice, float* dur)
 		{
 			*voice = "where_could_they_be";
 			*dur = 0.0f;
-
-			for (int i = 0; i < engine->GetMaxClients(); i++)
+			
+			for (const auto& client : g_clients)
 			{
-				Bot* otherBot = g_botManager->GetBot(i);
+				Bot* otherBot = g_botManager->GetBot(client.index);
 				if (otherBot != nullptr)
 					otherBot->m_radioOrder = Radio_ReportTeam;
 			}
@@ -2198,9 +2199,9 @@ void GetVoiceAndDur(ChatterMessage message, char** voice, float* dur)
 			*voice = "where_is_it";
 			*dur = 0.4f;
 
-			for (int i = 0; i < engine->GetMaxClients(); i++)
+			for (const auto& client : g_clients)
 			{
-				Bot* otherBot = g_botManager->GetBot(i);
+				Bot* otherBot = g_botManager->GetBot(client.index);
 				if (otherBot != nullptr)
 					otherBot->m_radioOrder = Radio_ReportTeam;
 			}
@@ -2219,10 +2220,10 @@ void GetVoiceAndDur(ChatterMessage message, char** voice, float* dur)
 		{
 			*voice = "anyone_see_anything";
 			*dur = 1.0f;
-
-			for (int i = 0; i < engine->GetMaxClients(); i++)
+			
+			for (const auto& client : g_clients)
 			{
-				Bot* otherBot = g_botManager->GetBot(i);
+				Bot* otherBot = g_botManager->GetBot(client.index);
 				if (otherBot != nullptr)
 					otherBot->m_radioOrder = Radio_ReportTeam;
 			}
@@ -2262,9 +2263,9 @@ void GetVoiceAndDur(ChatterMessage message, char** voice, float* dur)
 			*voice = "anyone_see_them";
 			*dur = 0.0f;
 
-			for (int i = 0; i < engine->GetMaxClients(); i++)
+			for (const auto& client : g_clients)
 			{
-				Bot* otherBot = g_botManager->GetBot(i);
+				Bot* otherBot = g_botManager->GetBot(client.index);
 				if (otherBot != nullptr)
 					otherBot->m_radioOrder = Radio_ReportTeam;
 			}

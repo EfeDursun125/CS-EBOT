@@ -39,12 +39,12 @@ int Bot::GetNearbyFriendsNearPosition(Vector origin, float radius)
 		return 0;
 
 	int count = 0;
-	for (int i = 0; i < engine->GetMaxClients(); i++)
+	for (const auto& client : g_clients)
 	{
-		if (!(g_clients[i].flags & CFLAG_USED) || !(g_clients[i].flags & CFLAG_ALIVE) || g_clients[i].team != m_team || g_clients[i].ent == GetEntity())
+		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != m_team || client.ent == GetEntity())
 			continue;
 
-		if ((g_clients[i].origin - origin).GetLengthSquared() <= SquaredF(radius))
+		if ((client.origin - origin).GetLengthSquared() <= SquaredF(radius))
 			count++;
 	}
 
@@ -57,12 +57,12 @@ int Bot::GetNearbyEnemiesNearPosition(Vector origin, float radius)
 		return 0;
 
 	int count = 0;
-	for (int i = 0; i < engine->GetMaxClients(); i++)
+	for (const auto& client : g_clients)
 	{
-		if (!(g_clients[i].flags & CFLAG_USED) || !(g_clients[i].flags & CFLAG_ALIVE) || g_clients[i].team == m_team)
+		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team == m_team)
 			continue;
 
-		if ((g_clients[i].origin - origin).GetLengthSquared() <= SquaredF(radius))
+		if ((client.origin - origin).GetLengthSquared() <= SquaredF(radius))
 			count++;
 	}
 
@@ -83,14 +83,15 @@ void Bot::ResetCheckEnemy()
 		m_checkEnemyDistance[i] = FLT_MAX;
 	}
 
-	for (i = 0; i < engine->GetMaxClients(); i++)
+	for (const auto& client : g_clients)
 	{
-		entity = INDEXENT(i);
-		if (!IsAlive(entity) || GetTeam(entity) == m_team || GetEntity() == entity)
+		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team == m_team)
 			continue;
 
+		entity = client.ent;
+
 		m_allEnemy[m_checkEnemyNum] = entity;
-		m_allEnemyDistance[m_checkEnemyNum] = (pev->origin - GetEntityOrigin(entity)).GetLengthSquared();
+		m_allEnemyDistance[m_checkEnemyNum] = (pev->origin - client.origin).GetLengthSquared();
 		m_checkEnemyNum++;
 	}
 
@@ -490,7 +491,7 @@ float Bot::GetZOffset(float distance)
 // bot can't hurt teammates, if friendly fire is not enabled...
 bool Bot::IsFriendInLineOfFire(float distance)
 {
-	if (!engine->IsFriendlyFireOn() || GetGameMode() == MODE_DM)
+	if (!engine->IsFriendlyFireOn() || GetGameMode() == MODE_DM || GetGameMode() == MODE_NOTEAM)
 		return false;
 
 	MakeVectors(pev->v_angle);
@@ -515,26 +516,6 @@ bool Bot::IsFriendInLineOfFire(float distance)
 				if (g_entityId[i] == entityIndex)
 					return true;
 			}
-		}
-	}
-
-	edict_t* entity = nullptr;
-	for (i = 0; i < engine->GetMaxClients(); i++)
-	{
-		entity = INDEXENT(i);
-
-		if (FNullEnt(entity) || !IsAlive(entity) || GetTeam(entity) != m_team || GetEntity() == entity)
-			continue;
-
-		float friendDistance = (GetEntityOrigin(entity) - pev->origin).GetLength();
-		float squareDistance = Q_rsqrt(1089.0f + (friendDistance * friendDistance));
-
-		if (friendDistance <= distance)
-		{
-			Vector entOrigin = GetEntityOrigin(entity);
-			if (GetShootingConeDeviation(GetEntity(), &entOrigin) >
-				((friendDistance * friendDistance) / (squareDistance * squareDistance)))
-				return true;
 		}
 	}
 
@@ -1744,8 +1725,11 @@ void Bot::CommandTeam(void)
 	m_timeTeamOrder = engine->GetTime() + engine->RandomFloat(10.0f, 30.0f);
 }
 
-bool Bot::IsGroupOfEnemies(Vector location, int numEnemies, int radius)
+bool Bot::IsGroupOfEnemies(Vector location, int numEnemies, float radius)
 {
+	if (m_numEnemiesLeft <= 0)
+		return false;
+
 	if (location == nullvec)
 		return false;
 
@@ -1754,15 +1738,11 @@ bool Bot::IsGroupOfEnemies(Vector location, int numEnemies, int radius)
 	// search the world for enemy players...
 	for (const auto& client : g_clients)
 	{
-		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.ent == GetEntity())
+		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team == m_team)
 			continue;
 
-		if ((GetEntityOrigin(client.ent) - location).GetLengthSquared() < (radius * radius))
+		if ((client.origin - location).GetLengthSquared() <= SquaredF(radius))
 		{
-			// don't target our teammates...
-			if (client.team == m_team)
-				return false;
-
 			if (numPlayers++ > numEnemies)
 				return true;
 		}
