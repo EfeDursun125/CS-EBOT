@@ -63,15 +63,13 @@ void Bot::PushMessageQueue(int message)
 	if (message == CMENU_SAY)
 	{
 		// notify other bots of the spoken text otherwise, bots won't respond to other bots (network messages aren't sent from bots)
-		int entityIndex = GetIndex();
-
 		for (const auto& bot : g_botManager->m_bots)
 		{
 			if (bot != nullptr && bot != this)
 			{
 				if (m_isAlive == bot->m_isAlive)
 				{
-					bot->m_sayTextBuffer.entityIndex = entityIndex;
+					bot->m_sayTextBuffer.entityIndex = m_index;
 					strcpy(bot->m_sayTextBuffer.sayText, m_tempStrings);
 				}
 			}
@@ -1038,7 +1036,7 @@ void Bot::SwitchChatterIcon(bool show)
 
 		MESSAGE_BEGIN(MSG_ONE, g_netMsg->GetId(NETMSG_BOTVOICE), nullptr, client.ent); // begin message
 		WRITE_BYTE(show); // switch on/off
-		WRITE_BYTE(GetIndex());
+		WRITE_BYTE(m_index);
 		MESSAGE_END();
 	}
 }
@@ -1117,7 +1115,7 @@ void Bot::PlayChatterMessage(ChatterMessage message)
 			continue;
 
 		MESSAGE_BEGIN(MSG_ONE, g_netMsg->GetId(NETMSG_SENDAUDIO), nullptr, client.ent); // begin message
-		WRITE_BYTE(GetIndex());
+		WRITE_BYTE(m_index);
 
 		if (!(pev->deadflag & DEAD_DEAD))
 			WRITE_STRING(FormatBuffer("%s/%s.wav", ebot_chatter_path.GetString(), voice));
@@ -1927,7 +1925,7 @@ void Bot::SetConditions(void)
 		// FIXME: it probably should be also team/map dependant
 		if (FNullEnt(m_enemy) && (g_timeRoundMid < engine->GetTime()) && !m_isUsingGrenade && m_personality != PERSONALITY_CAREFUL && m_currentWaypointIndex != g_waypoint->FindNearest(m_lastEnemyOrigin))
 		{
-			desireLevel = 4096.0f - ((1.0f - tempAgression) * Q_rsqrt(distance));
+			desireLevel = 4096.0f - ((1.0f - tempAgression) * Q_sqrt(distance));
 			desireLevel = (100 * desireLevel) / 4096.0f;
 			desireLevel -= retreatLevel;
 
@@ -3738,6 +3736,7 @@ void Bot::Think(void)
 		m_isZombieBot = IsZombieEntity(GetEntity());
 		m_team = GetTeam(GetEntity());
 		m_isAlive = IsAlive(GetEntity());
+		m_index = GetIndex();
 		m_isBomber = pev->weapons & (1 << WEAPON_C4);
 
 		if (m_isZombieBot)
@@ -4771,13 +4770,13 @@ void Bot::RunTask(void)
 						m_myMeshWaypoint = myCampPoint;
 						MeshWaypoints.RemoveAll();
 
-						float max = 10.0f;
+						float max = 12.0f;
 						if (!FNullEnt(m_enemy))
 						{
 							if (m_personality == PERSONALITY_RUSHER)
-								max = 20.0f;
+								max = 16.0f;
 							else if (m_personality != PERSONALITY_CAREFUL)
-								max = 15.0f;
+								max = 8.0f;
 						}
 
 						GetCurrentTask()->time = engine->GetTime() + engine->RandomFloat(4.0f, max);
@@ -5064,7 +5063,7 @@ void Bot::RunTask(void)
 
 			RadioMessage(Radio_SectorClear);
 		}
-		else if (!FNullEnt(m_enemy) && m_numEnemiesLeft > 0)
+		else if (m_numEnemiesLeft > 0 && !FNullEnt(m_enemy))
 		{
 			const int friends = m_numFriendsLeft > 0 ? GetNearbyFriendsNearPosition(pev->origin, 768.0f) : 0;
 			if (friends < 2 && defuseRemainingTime < timeToBlowUp)
@@ -5331,7 +5330,7 @@ void Bot::RunTask(void)
 			m_moveToGoal = false;
 		}
 		else if (!FNullEnt(m_enemy) || m_enemyOrigin != nullvec)
-			destination = m_enemyOrigin + (m_enemy->v.velocity.SkipZ() * 0.5f);
+			destination = m_enemyOrigin + (m_enemy->v.velocity.SkipZ() * 0.54f);
 		else
 			m_enemy = m_lastEnemy;
 
@@ -5440,7 +5439,7 @@ void Bot::RunTask(void)
 			m_moveToGoal = false;
 		}
 		else if (!FNullEnt(m_enemy) || m_enemyOrigin != nullvec)
-			destination = m_enemyOrigin + (m_enemy->v.velocity.SkipZ() * 0.5f);
+			destination = m_enemyOrigin + (m_enemy->v.velocity.SkipZ() * 0.54f);
 		else
 			m_enemy = m_lastEnemy;
 
@@ -5517,9 +5516,9 @@ void Bot::RunTask(void)
 
 		src = m_lastEnemyOrigin - pev->velocity;
 
-		// predict where the enemy is in 0.5 secs
+		// predict where the enemy is in 0.54 secs
 		if (!FNullEnt(m_enemy))
-			src = src + m_enemy->v.velocity * 0.5f;
+			src += m_enemy->v.velocity * 0.54f;
 
 		m_grenade = (src - EyePosition()).Normalize();
 
@@ -5569,7 +5568,7 @@ void Bot::RunTask(void)
 			m_moveToGoal = false;
 		}
 		else if (!FNullEnt(m_enemy) || m_enemyOrigin != nullvec)
-			destination = m_enemyOrigin + (m_enemy->v.velocity.SkipZ() * 0.5f);
+			destination = m_enemyOrigin + (m_enemy->v.velocity.SkipZ() * 0.54f);
 
 		m_isUsingGrenade = true;
 		m_checkTerrain = false;
@@ -6423,7 +6422,7 @@ void Bot::BotAI(void)
 
 		if (!IsOnLadder())
 		{
-			if (!FNullEnt(m_enemy) && m_isEnemyReachable)
+			if (m_isEnemyReachable && !FNullEnt(m_enemy))
 			{
 				m_moveToGoal = false; // don't move to goal
 				m_navTimeset = engine->GetTime();
@@ -7212,8 +7211,8 @@ Vector Bot::CheckToss(const Vector& start, Vector end)
 	if ((midPoint.z < start.z) || (midPoint.z < end.z))
 		return nullvec;
 
-	float timeOne = Q_rsqrt((midPoint.z - start.z) / (0.5f * gravity));
-	float timeTwo = Q_rsqrt((midPoint.z - end.z) / (0.5f * gravity));
+	float timeOne = Q_sqrt((midPoint.z - start.z) / (0.54f * gravity));
+	float timeTwo = Q_sqrt((midPoint.z - end.z) / (0.54f * gravity));
 
 	if (timeOne < 0.1)
 		return nullvec;
@@ -7560,7 +7559,7 @@ void Bot::ReactOnSound(void)
 	if (!FNullEnt(m_enemy))
 		return;
 
-	if (g_clients[GetIndex()].timeSoundLasting <= engine->GetTime())
+	if (g_clients[m_index].timeSoundLasting <= engine->GetTime())
 		return;
 
 	edict_t* player = nullptr;

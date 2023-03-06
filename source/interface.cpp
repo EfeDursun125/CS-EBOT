@@ -2800,21 +2800,21 @@ void SetPing(edict_t* to)
 		{
 			// start a new message
 			MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_PINGS, nullptr, to);
-			WRITE_BYTE((bot->m_pingOffset[sending] * 64) + (1 + 2 * bot->GetIndex()));
+			WRITE_BYTE((bot->m_pingOffset[sending] * 64) + (1 + 2 * bot->m_index));
 			WRITE_SHORT(bot->m_ping[sending]);
 			sending++;
 		}
 		case 1:
 		{
 			// append additional data
-			WRITE_BYTE((bot->m_pingOffset[sending] * 128) + (2 + 4 * bot->GetIndex()));
+			WRITE_BYTE((bot->m_pingOffset[sending] * 128) + (2 + 4 * bot->m_index));
 			WRITE_SHORT(bot->m_ping[sending]);
 			sending++;
 		}
 		case 2:
 		{
 			// append additional data and end message
-			WRITE_BYTE(4 + 8 * bot->GetIndex());
+			WRITE_BYTE(4 + 8 * bot->m_index);
 			WRITE_SHORT(bot->m_ping[sending]);
 			WRITE_BYTE(0);
 			MESSAGE_END();

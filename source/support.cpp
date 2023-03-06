@@ -1022,7 +1022,7 @@ int GetGameMode(void)
 	return ebot_gamemod.GetInt();
 }
 
-float Q_rsqrt(float number)
+float Q_sqrt(float number)
 {
 #ifdef __SSE2__
 	return _mm_cvtss_f32(_mm_sqrt_ss(_mm_load_ss(&number)));
@@ -1901,7 +1901,7 @@ unsigned int GetPlayerPriority(edict_t* player)
 		}
 
 		// get my index
-		int index = bot->GetIndex() + 3;
+		int index = bot->m_index + 3;
 
 		// everyone else is ranked by their unique ID (which cannot be zero)
 		return index;

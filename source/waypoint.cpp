@@ -1090,7 +1090,7 @@ void Waypoint::Add(int flags, Vector waypointOrigin)
                 }
 
                 if (IsNodeReachable(newOrigin, m_paths[destIndex]->origin))
-                    AddPath(index, destIndex, Q_rsqrt(distance));
+                    AddPath(index, destIndex, Q_sqrt(distance));
             }
         }
 

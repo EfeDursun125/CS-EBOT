@@ -478,7 +478,7 @@ void Bot::ChatSay(bool teamSay, const char* text, ...)
         m_lastChatEnt = GetEntity();
 
         MESSAGE_BEGIN(MSG_ONE, g_netMsg->GetId(NETMSG_SAYTEXT), nullptr, client.ent);
-        WRITE_BYTE(GetIndex());
+        WRITE_BYTE(m_index);
         WRITE_STRING(tempMessage);
         MESSAGE_END();
     }

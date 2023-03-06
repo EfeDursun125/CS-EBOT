@@ -265,13 +265,10 @@ Bot* BotControl::FindOneValidAliveBot(void)
 {
 	Array <int> foundBots;
 
-	for (const auto& client : g_clients)
+	for (const auto& bot : m_bots)
 	{
-		if (client.index < 0)
-			continue;
-
-		if (m_bots[client.index] != nullptr && m_bots[client.index]->m_isAlive)
-			foundBots.Push(client.index);
+		if (bot != nullptr && bot->m_isAlive)
+			foundBots.Push(bot->m_index);
 	}
 
 	if (!foundBots.IsEmpty())
@@ -307,7 +304,7 @@ void BotControl::DoJoinQuitStuff(void)
 	if (min > max)
 		max = min * 1.5f;
 
-	m_randomJoinTime = AddTime(RANDOM_FLOAT(min, max));
+	m_randomJoinTime = AddTime(engine->RandomFloat(min, max));
 }
 
 void BotControl::Think(void)
@@ -863,7 +860,7 @@ Bot* BotControl::GetHighestSkillBot(int team)
 		{
 			if (highFragBot->m_skill > bestSkill)
 			{
-				bestIndex = bot->GetIndex();
+				bestIndex = bot->m_index;
 				bestSkill = highFragBot->m_skill;
 			}
 		}

@@ -158,7 +158,8 @@ bool Bot::LookupEnemy(void)
 		return false;
 
 	int i;
-	edict_t* entity = nullptr, * targetEntity = nullptr;
+	edict_t* entity = nullptr;
+	edict_t* targetEntity = nullptr;
 	float enemy_distance = FLT_MAX;
 	edict_t* oneTimeCheckEntity = nullptr;
 
@@ -196,11 +197,12 @@ bool Bot::LookupEnemy(void)
 	}
 	else if (!FNullEnt(m_moveTargetEntity))
 	{
-		if (m_team == GetTeam(m_moveTargetEntity) || !IsAlive(m_moveTargetEntity) || GetEntityOrigin(m_moveTargetEntity) == nullvec)
+		auto origin = GetEntityOrigin(m_moveTargetEntity);
+		if (m_team == GetTeam(m_moveTargetEntity) || !IsAlive(m_moveTargetEntity) || origin == nullvec)
 			SetMoveTarget(nullptr);
 
 		targetEntity = m_moveTargetEntity;
-		enemy_distance = (pev->origin - GetEntityOrigin(m_moveTargetEntity)).GetLengthSquared();
+		enemy_distance = (pev->origin - origin).GetLengthSquared();
 	}
 
 	ResetCheckEnemy();
@@ -506,9 +508,8 @@ bool Bot::IsFriendInLineOfFire(float distance)
 	MakeVectors(pev->v_angle);
 
 	TraceResult tr;
-	TraceLine(EyePosition(), EyePosition() + pev->v_angle.Normalize() * distance, false, false, GetEntity(), &tr);
+	TraceLine(EyePosition(), EyePosition() + distance * pev->v_angle.Normalize(), false, false, GetEntity(), &tr);
 
-	int i;
 	if (!FNullEnt(tr.pHit))
 	{
 		if (IsAlive(tr.pHit) && m_team == GetTeam(tr.pHit))
@@ -517,7 +518,7 @@ bool Bot::IsFriendInLineOfFire(float distance)
 				return true;
 
 			int entityIndex = ENTINDEX(tr.pHit);
-			for (i = 0; i < entityNum; i++)
+			for (int i = 0; i < entityNum; i++)
 			{
 				if (g_entityId[i] == -1 || g_entityAction[i] != 1)
 					continue;
@@ -526,6 +527,21 @@ bool Bot::IsFriendInLineOfFire(float distance)
 					return true;
 			}
 		}
+	}
+
+	for (const auto& client : g_clients)
+	{
+		if (client.index < 0)
+			continue;
+
+		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != m_team || client.ent == GetEntity())
+			continue;
+
+		Vector origin = client.ent->v.origin;
+		float friendDistance = (origin - pev->origin).GetLengthSquared();
+
+		if (friendDistance <= distance && GetShootingConeDeviation(GetEntity(), &origin) > friendDistance / (friendDistance + 1089.0f))
+			return true;
 	}
 
 	return false;
@@ -644,14 +660,14 @@ bool Bot::DoFirePause(float distance)//, FireDelay *fireDelay)
 // this function will return true if weapon was fired, false otherwise
 void Bot::FireWeapon(void)
 {
-	float distance = (m_lookAt - EyePosition()).GetLength(); // how far away is the enemy?
-
 	// if using grenade stop this
 	if (m_isUsingGrenade)
 	{
-		m_shootTime = engine->GetTime() + 0.2f;
+		m_shootTime = engine->GetTime() + 0.25f;
 		return;
 	}
+
+	float distance = (m_lookAt - pev->origin).GetLength(); // how far away is the enemy?
 
 	// or if friend in line of fire, stop this too but do not update shoot time
 	if (!FNullEnt(m_enemy) && IsFriendInLineOfFire(distance))
@@ -682,6 +698,7 @@ void Bot::FireWeapon(void)
 			if ((m_ammoInClip[selectTab[selectIndex].id] > 0) && !IsWeaponBadInDistance(selectIndex, distance))
 				chosenWeaponIndex = selectIndex;
 		}
+
 		selectIndex++;
 	}
 	selectId = selectTab[chosenWeaponIndex].id;
@@ -918,9 +935,10 @@ bool Bot::KnifeAttack(float attackDistance)
 
 	if (kaMode > 0)
 	{
-		float distanceSkipZ = (pev->origin - GetEntityOrigin(entity)).GetLengthSquared2D();
+		Vector entityOrigin = GetEntityOrigin(entity);
+		float distanceSkipZ = (pev->origin - entityOrigin).GetLengthSquared2D();
 
-		if (pev->origin.z > GetEntityOrigin(entity).z && distanceSkipZ < SquaredF(64.0f))
+		if (pev->origin.z > entityOrigin.z && distanceSkipZ < SquaredF(64.0f))
 		{
 			pev->button |= IN_DUCK;
 			m_campButtons |= IN_DUCK;
@@ -931,7 +949,7 @@ bool Bot::KnifeAttack(float attackDistance)
 			pev->button &= ~IN_DUCK;
 			m_campButtons &= ~IN_DUCK;
 
-			if (pev->origin.z + 150.0f < GetEntityOrigin(entity).z && distanceSkipZ < SquaredF(300.0f))
+			if (pev->origin.z + 150.0f < entityOrigin.z && distanceSkipZ < SquaredF(300.0f))
 				pev->button |= IN_JUMP;
 		}
 
@@ -992,7 +1010,7 @@ void Bot::FocusEnemy(void)
 	if (m_enemySurpriseTime > engine->GetTime())
 		return;
 
-	float distance = (m_lookAt - EyePosition()).GetLengthSquared2D();  // how far away is the enemy scum?
+	float distance = (m_lookAt - EyePosition()).GetLengthSquared();  // how far away is the enemy scum?
 
 	if (distance < SquaredF(128.0f))
 	{

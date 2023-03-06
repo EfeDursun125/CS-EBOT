@@ -1906,15 +1906,18 @@ int Bot::FindDefendWaypoint(Vector origin)
 		if (g_waypoint->GetPath(index)->flags & WAYPOINT_LADDER)
 			continue;
 
-		TraceResult tr{};
-		TraceLine(g_waypoint->GetPath(index)->origin, origin, true, true, GetEntity(), &tr);
+		if (!IsWaypointOccupied(index))
+		{
+			TraceResult tr{};
+			TraceLine(g_waypoint->GetPath(index)->origin, origin, true, true, GetEntity(), &tr);
 
-		if (tr.flFraction == 1.0f && !IsWaypointOccupied(index)) // distance isn't matter
-			BestSpots.Push(index);
-		else if ((g_waypoint->GetPath(index)->origin - origin).GetLengthSquared() <= (1024.0f * 1024.0f) && !IsWaypointOccupied(index))
-			OkSpots.Push(index);
-		else if (!IsWaypointOccupied(index))
-			WorstSpots.Push(index);
+			if (tr.flFraction == 1.0f) // distance isn't matter
+				BestSpots.Push(index);
+			else if ((g_waypoint->GetPath(index)->origin - origin).GetLengthSquared() <= SquaredF(1024.0f))
+				OkSpots.Push(index);
+			else
+				WorstSpots.Push(index);
+		}
 	}
 
 	int BestIndex = -1;
@@ -1959,14 +1962,20 @@ int Bot::FindCoverWaypoint(float maxDistance)
 		if (g_waypoint->GetPath(i)->flags & WAYPOINT_FALLCHECK)
 			continue;
 
-		TraceResult tr{};
-		Vector origin = !FNullEnt(m_enemy) ? GetPlayerHeadOrigin(m_enemy) : GetPlayerHeadOrigin(m_lastEnemy);
-		TraceLine(g_waypoint->GetPath(i)->origin, origin, true, true, GetEntity(), &tr);
+		if (!IsWaypointOccupied(i))
+		{
+			TraceResult tr{};
+			Vector origin = !FNullEnt(m_enemy) ? GetPlayerHeadOrigin(m_enemy) : m_lastEnemyOrigin;
+			TraceLine(g_waypoint->GetPath(i)->origin, origin, true, true, GetEntity(), &tr);
 
-		if (tr.flFraction != 1.0f && !IsWaypointOccupied(i) && (g_waypoint->GetPath(i)->origin - origin).GetLengthSquared2D() <= SquaredF(maxDistance))
-			BestSpots.Push(i);
-		else if (tr.flFraction != 1.0f && !IsWaypointOccupied(i)) // distance isn't matter now
-			OkSpots.Push(i);
+			if (tr.flFraction != 1.0f)
+			{
+				if ((g_waypoint->GetPath(i)->origin - origin).GetLengthSquared2D() <= SquaredF(maxDistance))
+					BestSpots.Push(i);
+				else
+					OkSpots.Push(i);
+			}
+		}
 	}
 
 	if (!BestSpots.IsEmpty() && !IsValidWaypoint(ChoosenIndex))
@@ -2925,9 +2934,6 @@ bool Bot::IsWaypointOccupied(int index)
 {
 	if (pev->solid == SOLID_NOT)
 		return false;
-
-	if (!IsValidWaypoint(index))
-		return true;
 
 	for (const auto& bot : g_botManager->m_bots)
 	{
