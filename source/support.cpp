@@ -693,7 +693,7 @@ void RoundInit(void)
 	
 	for (const auto& client : g_clients)
 	{
-		if (g_botManager->GetBot(client.index))
+		if (g_botManager->GetBot(client.index) != nullptr)
 			g_botManager->GetBot(client.index)->NewRound();
 
 		g_radioSelect[client.index] = 0;
@@ -1737,6 +1737,9 @@ void SoundAttachToThreat(edict_t* ent, const char* sample, float volume)
 		// loop through all players
 		for (const auto& client : g_clients)
 		{
+			if (client.index < 0)
+				continue;
+
 			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE))
 				continue;
 
@@ -2187,9 +2190,8 @@ void GetVoiceAndDur(ChatterMessage message, char** voice, float* dur)
 			*voice = "where_could_they_be";
 			*dur = 0.0f;
 			
-			for (const auto& client : g_clients)
+			for (const auto& otherBot : g_botManager->m_bots)
 			{
-				Bot* otherBot = g_botManager->GetBot(client.index);
 				if (otherBot != nullptr)
 					otherBot->m_radioOrder = Radio_ReportTeam;
 			}
@@ -2199,9 +2201,8 @@ void GetVoiceAndDur(ChatterMessage message, char** voice, float* dur)
 			*voice = "where_is_it";
 			*dur = 0.4f;
 
-			for (const auto& client : g_clients)
+			for (const auto& otherBot : g_botManager->m_bots)
 			{
-				Bot* otherBot = g_botManager->GetBot(client.index);
 				if (otherBot != nullptr)
 					otherBot->m_radioOrder = Radio_ReportTeam;
 			}
@@ -2221,9 +2222,8 @@ void GetVoiceAndDur(ChatterMessage message, char** voice, float* dur)
 			*voice = "anyone_see_anything";
 			*dur = 1.0f;
 			
-			for (const auto& client : g_clients)
+			for (const auto& otherBot : g_botManager->m_bots)
 			{
-				Bot* otherBot = g_botManager->GetBot(client.index);
 				if (otherBot != nullptr)
 					otherBot->m_radioOrder = Radio_ReportTeam;
 			}
@@ -2263,9 +2263,8 @@ void GetVoiceAndDur(ChatterMessage message, char** voice, float* dur)
 			*voice = "anyone_see_them";
 			*dur = 0.0f;
 
-			for (const auto& client : g_clients)
+			for (const auto& otherBot : g_botManager->m_bots)
 			{
-				Bot* otherBot = g_botManager->GetBot(client.index);
 				if (otherBot != nullptr)
 					otherBot->m_radioOrder = Radio_ReportTeam;
 			}

@@ -41,6 +41,9 @@ int Bot::GetNearbyFriendsNearPosition(Vector origin, float radius)
 	int count = 0;
 	for (const auto& client : g_clients)
 	{
+		if (client.index < 0)
+			continue;
+
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != m_team || client.ent == GetEntity())
 			continue;
 
@@ -59,6 +62,9 @@ int Bot::GetNearbyEnemiesNearPosition(Vector origin, float radius)
 	int count = 0;
 	for (const auto& client : g_clients)
 	{
+		if (client.index < 0)
+			continue;
+
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team == m_team)
 			continue;
 
@@ -85,6 +91,9 @@ void Bot::ResetCheckEnemy()
 
 	for (const auto& client : g_clients)
 	{
+		if (client.index < 0)
+			continue;
+
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team == m_team)
 			continue;
 
@@ -1691,6 +1700,9 @@ void Bot::CommandTeam(void)
 	// search teammates seen by this bot
 	for (const auto& client : g_clients)
 	{
+		if (client.index < 0)
+			continue;
+
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != m_team || client.ent == GetEntity())
 			continue;
 
@@ -1738,6 +1750,9 @@ bool Bot::IsGroupOfEnemies(Vector location, int numEnemies, float radius)
 	// search the world for enemy players...
 	for (const auto& client : g_clients)
 	{
+		if (client.index < 0)
+			continue;
+
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team == m_team)
 			continue;
 

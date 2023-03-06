@@ -161,6 +161,9 @@ void Bot::PrepareChatMessage(char* text)
 
                 for (const auto& client : g_clients)
                 {
+                    if (client.index < 0)
+                        continue;
+
                     if (!(client.flags & CFLAG_USED) || client.ent == GetEntity())
                         continue;
 
@@ -202,6 +205,9 @@ void Bot::PrepareChatMessage(char* text)
 
                 for (const auto& client : g_clients)
                 {
+                    if (client.index < 0)
+                        continue;
+
                     if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || (client.team != m_team) || (client.ent == GetEntity()))
                         continue;
 
@@ -224,6 +230,9 @@ void Bot::PrepareChatMessage(char* text)
                 {
                     for (const auto& client : g_clients)
                     {
+                        if (client.index < 0)
+                            continue;
+
                         if (!(client.flags & CFLAG_USED) || (client.team != m_team) || (client.ent == GetEntity()))
                             continue;
 
@@ -247,6 +256,9 @@ void Bot::PrepareChatMessage(char* text)
 
                 for (const auto& client : g_clients)
                 {
+                    if (client.index < 0)
+                        continue;
+
                     if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || (client.team == m_team) || (client.ent == GetEntity()))
                         continue;
 
@@ -266,6 +278,9 @@ void Bot::PrepareChatMessage(char* text)
                 {
                     for (const auto& client : g_clients)
                     {
+                        if (client.index < 0)
+                            continue;
+
                         if (!(client.flags & CFLAG_USED) || (client.team == m_team) || (client.ent == GetEntity()))
                             continue;
 
@@ -440,7 +455,7 @@ void Bot::ChatSay(bool teamSay, const char* text, ...)
 
     for (const auto& client : g_clients)
     {
-        if (FNullEnt(client.ent))
+        if (client.index < 0)
             continue;
 
         if (!(client.flags & CFLAG_USED) || client.ent == GetEntity())
@@ -449,7 +464,7 @@ void Bot::ChatSay(bool teamSay, const char* text, ...)
         if (teamSay && client.team != m_team)
             continue;
 
-        if (!m_notKilled)
+        if (!m_isAlive)
             sprintf(tempMessage, "%c*DEAD*%s %c%s%c :  %s\n", 0x01, botTeam, 0x03, botName, 0x01, text);
         else
         {

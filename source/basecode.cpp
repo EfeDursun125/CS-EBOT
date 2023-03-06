@@ -65,15 +65,14 @@ void Bot::PushMessageQueue(int message)
 		// notify other bots of the spoken text otherwise, bots won't respond to other bots (network messages aren't sent from bots)
 		int entityIndex = GetIndex();
 
-		for (const auto& client : g_clients)
+		for (const auto& bot : g_botManager->m_bots)
 		{
-			Bot* otherBot = g_botManager->GetBot(client.index);
-			if (otherBot != nullptr && otherBot->pev != pev)
+			if (bot != nullptr && bot != this)
 			{
-				if (m_notKilled == IsAlive(otherBot->GetEntity()))
+				if (m_isAlive == bot->m_isAlive)
 				{
-					otherBot->m_sayTextBuffer.entityIndex = entityIndex;
-					strcpy(otherBot->m_sayTextBuffer.sayText, m_tempStrings);
+					bot->m_sayTextBuffer.entityIndex = entityIndex;
+					strcpy(bot->m_sayTextBuffer.sayText, m_tempStrings);
 				}
 			}
 		}
@@ -237,6 +236,9 @@ void Bot::ZombieModeAi(void)
 		// zombie improve
 		for (const auto& client : g_clients)
 		{
+			if (client.index < 0)
+				continue;
+
 			if (!(client.flags & CFLAG_USED))
 				continue;
 
@@ -250,7 +252,7 @@ void Bot::ZombieModeAi(void)
 			{
 				Bot* bot = g_botManager->GetBot(client.index);
 
-				if (bot == nullptr || bot == this || !bot->m_notKilled)
+				if (bot == nullptr || bot == this || !bot->m_isAlive)
 					continue;
 
 				if (bot->m_enemy == nullptr && bot->m_moveTargetEntity == nullptr)
@@ -864,11 +866,9 @@ void Bot::FindItem(void)
 					allowPickup = false; // never pickup dead/moving hostages
 				else
 				{
-					for (const auto& client : g_clients)
+					for (const auto& bot : g_botManager->m_bots)
 					{
-						Bot* bot = g_botManager->GetBot(client.index);
-
-						if (bot != nullptr && bot->m_notKilled)
+						if (bot != nullptr && bot->m_isAlive)
 						{
 							for (const auto& hostage : bot->m_hostages)
 							{
@@ -934,14 +934,12 @@ void Bot::FindItem(void)
 
 	if (!FNullEnt(pickupItem))
 	{
-		for (const auto& client : g_clients)
+		for (const auto& bot : g_botManager->m_bots)
 		{
-			Bot* bot = g_botManager->GetBot(client.index);
-			if (bot != nullptr && bot != this && IsAlive(bot->GetEntity()) && bot->m_pickupItem == pickupItem)
+			if (bot != nullptr && bot != this && bot->m_isAlive && bot->m_pickupItem == pickupItem)
 			{
 				m_pickupItem = nullptr;
 				m_pickupType = PICKTYPE_NONE;
-
 				return;
 			}
 		}
@@ -1217,7 +1215,7 @@ void Bot::CheckMessageQueue(void)
 		break;
 
 	case CMENU_RADIO:
-		if (!m_notKilled)
+		if (!m_isAlive)
 			break;
 
 		// if last bot radio command (global) happened just a 3 seconds ago, delay response
@@ -1235,10 +1233,9 @@ void Bot::CheckMessageQueue(void)
 					else
 						g_lastRadio[m_team] = -1;
 
-					for (const auto& client : g_clients)
+					for (const auto& bot : g_botManager->m_bots)
 					{
-						Bot* bot = g_botManager->GetBot(client.index);
-						if (bot != nullptr && pev != bot->pev && bot->m_team == m_team)
+						if (bot != nullptr && bot != this && bot->m_team == m_team)
 						{
 							bot->m_radioOrder = m_radioSelect;
 							bot->m_radioEntity = GetEntity();
@@ -2784,11 +2781,9 @@ void Bot::CheckRadioCommands(void)
 			int numFollowers = 0;
 
 			// check if no more followers are allowed
-			for (const auto& client : g_clients)
+			for (const auto& bot : g_botManager->m_bots)
 			{
-				Bot* bot = g_botManager->GetBot(client.index);
-
-				if (bot != nullptr && bot->m_notKilled)
+				if (bot != nullptr && bot->m_isAlive)
 				{
 					if (bot->m_targetEntity == m_radioEntity)
 						numFollowers++;
@@ -3172,6 +3167,9 @@ void Bot::CheckRadioCommands(void)
 					// take nearest enemy to ordering player
 					for (const auto& client : g_clients)
 					{
+						if (client.index < 0)
+							continue;
+
 						if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team == m_team)
 							continue;
 
@@ -3352,6 +3350,9 @@ void Bot::CheckRadioCommands(void)
 					// take nearest enemy to ordering player
 					for (const auto& client : g_clients)
 					{
+						if (client.index < 0)
+							continue;
+
 						if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_USED) || client.team == m_team)
 							continue;
 
@@ -3736,7 +3737,7 @@ void Bot::Think(void)
 
 		m_isZombieBot = IsZombieEntity(GetEntity());
 		m_team = GetTeam(GetEntity());
-		m_notKilled = IsAlive(GetEntity());
+		m_isAlive = IsAlive(GetEntity());
 		m_isBomber = pev->weapons & (1 << WEAPON_C4);
 
 		if (m_isZombieBot)
@@ -3771,7 +3772,7 @@ void Bot::Think(void)
 
 	if (m_notStarted) // if the bot hasn't selected stuff to start the game yet, go do that...
 		StartGame(); // select team & class
-	else if (!m_notKilled)
+	else if (!m_isAlive)
 	{
 		extern ConVar ebot_chat;
 		extern ConVar ebot_random_join_quit;
@@ -3854,7 +3855,7 @@ void Bot::Think(void)
 
 	CheckMessageQueue(); // check for pending messages
 
-	if (botMovement && m_notKilled)
+	if (botMovement && m_isAlive)
 	{
 		BotAI();
 		MoveAction();
@@ -6488,7 +6489,7 @@ void Bot::BotAI(void)
 			m_checkWeaponSwitch = false;
 		}
 
-		if (g_mapType & MAP_DE && m_notKilled && OutOfBombTimer())
+		if (g_mapType & MAP_DE && m_isAlive && OutOfBombTimer())
 		{
 			if (GetCurrentTask()->taskID != TASK_ESCAPEFROMBOMB && GetCurrentTask()->taskID != TASK_CAMP)
 			{
@@ -7477,11 +7478,9 @@ bool Bot::CampingAllowed(void)
 		int numFollowers = 0;
 
 		// check if no more followers are allowed
-		for (const auto& client : g_clients)
+		for (const auto& bot : g_botManager->m_bots)
 		{
-			Bot* bot = g_botManager->GetBot(client.index);
-
-			if (bot != nullptr && bot->m_notKilled)
+			if (bot != nullptr && bot->m_isAlive)
 			{
 				if (bot->m_targetEntity == m_radioEntity)
 					numFollowers++;
@@ -7526,10 +7525,8 @@ bool Bot::OutOfBombTimer(void)
 	// check if our teammates has defusal kit
 	if (m_numFriendsLeft > 0)
 	{
-		for (const auto& client : g_clients)
+		for (const auto& bot : g_botManager->m_bots)
 		{
-			Bot* bot = g_botManager->GetBot(client.index); // temporaly pointer to bot
-
 			// search players with defuse kit
 			if (bot != nullptr && bot->m_team == TEAM_COUNTER && bot->m_hasDefuser && (bombOrigin - bot->pev->origin).GetLengthSquared() <= SquaredF(512.0f))
 			{
@@ -7570,6 +7567,9 @@ void Bot::ReactOnSound(void)
 	// loop through all enemy clients to check for hearable stuff
 	for (const auto& client : g_clients)
 	{
+		if (client.index < 0)
+			continue;
+
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.ent == GetEntity())
 			continue;
 
@@ -7686,6 +7686,9 @@ bool Bot::IsBombDefusing(Vector bombOrigin)
 
 	for (const auto& client : g_clients)
 	{
+		if (client.index < 0)
+			continue;
+
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE))
 			continue;
 

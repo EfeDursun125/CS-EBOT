@@ -265,10 +265,13 @@ Bot* BotControl::FindOneValidAliveBot(void)
 {
 	Array <int> foundBots;
 
-	for (int i = 0; i < engine->GetMaxClients(); i++)
+	for (const auto& client : g_clients)
 	{
-		if (m_bots[i] != nullptr && IsAlive(m_bots[i]->GetEntity()))
-			foundBots.Push(i);
+		if (client.index < 0)
+			continue;
+
+		if (m_bots[client.index] != nullptr && m_bots[client.index]->m_isAlive)
+			foundBots.Push(client.index);
 	}
 
 	if (!foundBots.IsEmpty())
@@ -312,33 +315,36 @@ void BotControl::Think(void)
 	g_botManager->DoJoinQuitStuff();
 
 	extern ConVar ebot_stopbots;
-	for (int i = 0; i < engine->GetMaxClients(); i++)
+	if (ebot_stopbots.GetBool())
+		return;
+
+	for (const auto& bot : m_bots)
 	{
-		if (m_bots[i] == nullptr)
+		if (bot == nullptr)
 			continue;
 
 		bool runThink = false;
 
-		if (m_bots[i]->m_thinkTimer < engine->GetTime())
+		if (bot->m_thinkTimer < engine->GetTime())
 		{
-			if (m_bots[i]->m_lastThinkTime < engine->GetTime())
+			if (bot->m_lastThinkTime < engine->GetTime())
 				runThink = true;
 		}
 
 		if (runThink)
 		{
-			g_botManager->GetBot(i)->Think();
-			m_bots[i]->m_thinkTimer = AddTime(1.0f / ebot_think_fps.GetFloat());
+			bot->Think();
+			bot->m_thinkTimer = AddTime(1.0f / ebot_think_fps.GetFloat());
 		}
-		else if (!ebot_stopbots.GetBool() && m_bots[i]->m_notKilled)
+		else if (bot->m_isAlive)
 		{
-			g_botManager->GetBot(i)->FacePosition();
-			m_bots[i]->m_moveAnglesForRunMove = m_bots[i]->m_moveAngles;
-			m_bots[i]->m_moveSpeedForRunMove = m_bots[i]->m_moveSpeed;
-			m_bots[i]->m_strafeSpeedForRunMove = m_bots[i]->m_strafeSpeed;
+			bot->FacePosition();
+			bot->m_moveAnglesForRunMove = bot->m_moveAngles;
+			bot->m_moveSpeedForRunMove = bot->m_moveSpeed;
+			bot->m_strafeSpeedForRunMove = bot->m_strafeSpeed;
 		}
 
-		m_bots[i]->RunPlayerMovement(); // run the player movement 
+		bot->RunPlayerMovement(); // run the player movement 
 	}
 }
 
@@ -519,7 +525,7 @@ void BotControl::MaintainBotQuota(void)
 			ebot_quota.SetInt(GetBotsNum());
 		}
 
-		m_maintainTime = AddTime(0.15f);
+		m_maintainTime = AddTime(0.25f);
 	}
 
 	if (ebot_random_join_quit.GetBool())
@@ -536,18 +542,27 @@ void BotControl::MaintainBotQuota(void)
 			desiredBotCount = __min(desiredBotCount, maxClients - (GetHumansNum() + 1));
 		
 		if (botNumber > desiredBotCount)
+		{
 			RemoveRandom();
+			m_maintainTime = AddTime(0.25f);
+		}
 		else if (botNumber < desiredBotCount && botNumber < maxClients)
+		{
 			AddRandom();
-		else if (ebot_save_bot_names.GetBool() && !m_savedBotNames.IsEmpty()) // clear the saved names when quota balancing ended
-			m_savedBotNames.Destory();
+			m_maintainTime = AddTime(0.25f);
+		}
+		else
+		{
+			m_maintainTime = AddTime(1.0f);
+
+			if (ebot_save_bot_names.GetBool() && !m_savedBotNames.IsEmpty()) // clear the saved names when quota balancing ended
+				m_savedBotNames.Destory();
+		}
 
 		if (ebot_quota.GetInt() > maxClients)
 			ebot_quota.SetInt(maxClients);
 		else if (ebot_quota.GetInt() < 0)
 			ebot_quota.SetInt(0);
-
-		m_maintainTime = AddTime(0.5f);
 	}
 }
 
@@ -619,9 +634,8 @@ void BotControl::RemoveAll(void)
 {
 	CenterPrint("E-Bots are removed from server");
 
-	for (int i = 0; i < engine->GetMaxClients(); i++)
+	for (const auto& bot : m_bots)
 	{
-		Bot* bot = g_botManager->GetBot(i);
 		if (bot != nullptr) // is this slot used?
 			bot->Kick();
 	}
@@ -640,9 +654,8 @@ void BotControl::RemoveAll(void)
 // this function remove random bot from specified team (if removeAll value = 1 then removes all players from team)
 void BotControl::RemoveFromTeam(Team team, bool removeAll)
 {
-	for (int i = 0; i < engine->GetMaxClients(); i++)
+	for (const auto& bot : m_bots)
 	{
-		Bot* bot = g_botManager->GetBot(i);
 		if (bot != nullptr && team == bot->m_team)
 		{
 			bot->Kick();
@@ -713,9 +726,8 @@ void BotControl::RemoveMenu(edict_t* ent, int selection)
 // this function kills all bots on server (only this dll controlled bots)
 void BotControl::KillAll(int team)
 {
-	for (int i = 0; i < engine->GetMaxClients(); i++)
+	for (const auto& bot : m_bots)
 	{
-		Bot* bot = g_botManager->GetBot(i);
 		if (bot != nullptr)
 		{
 			if (team != -1 && team != bot->m_team)
@@ -731,9 +743,8 @@ void BotControl::KillAll(int team)
 // this function removes random bot from server (only ebots)
 void BotControl::RemoveRandom(void)
 {
-	for (int i = 0; i < engine->GetMaxClients(); i++)
+	for (const auto& bot : m_bots)
 	{
-		Bot* bot = g_botManager->GetBot(i);
 		if (bot != nullptr)  // is this slot used?
 		{
 			bot->Kick();
@@ -798,13 +809,13 @@ void BotControl::ListBots(void)
 {
 	ServerPrintNoTag("%-3.5s %-9.13s %-17.18s %-3.4s %-3.4s %-3.4s", "index", "name", "personality", "team", "skill", "frags");
 
-	for (int i = 0; i < engine->GetMaxClients(); i++)
+	for (const auto& client : g_clients)
 	{
-		edict_t* player = INDEXENT(i);
+		edict_t* player = client.ent;
 
 		// is this player slot valid
 		if (IsValidBot(player) && GetBot(player))
-			ServerPrintNoTag("[%-3.1d] %-9.13s %-17.18s %-3.4s %-3.1d %-3.1d", i, GetEntityName(player), GetBot(player)->m_personality == PERSONALITY_RUSHER ? "rusher" : GetBot(player)->m_personality == PERSONALITY_NORMAL ? "normal" : "careful", GetTeam(player) != 0 ? "CT" : "T", GetBot(player)->m_skill, static_cast <int> (player->v.frags));
+			ServerPrintNoTag("[%-3.1d] %-9.13s %-17.18s %-3.4s %-3.1d %-3.1d", client.index, GetEntityName(player), GetBot(player)->m_personality == PERSONALITY_RUSHER ? "rusher" : GetBot(player)->m_personality == PERSONALITY_NORMAL ? "normal" : "careful", GetTeam(player) != 0 ? "CT" : "T", GetBot(player)->m_skill, static_cast <int> (player->v.frags));
 	}
 }
 
@@ -812,9 +823,9 @@ void BotControl::ListBots(void)
 int BotControl::GetBotsNum(void)
 {
 	int count = 0;
-	for (int i = 0; i < engine->GetMaxClients(); i++)
+	for (const auto& bot : m_bots)
 	{
-		if (m_bots[i] != nullptr)
+		if (bot != nullptr)
 			count++;
 	}
 
@@ -825,9 +836,12 @@ int BotControl::GetBotsNum(void)
 int BotControl::GetHumansNum()
 {
 	int count = 0;
-	for (int i = 0; i < engine->GetMaxClients(); i++)
+	for (const auto& client : g_clients)
 	{
-		if ((g_clients[i].flags & CFLAG_USED) && m_bots[i] == nullptr)
+		if (client.index < 0)
+			continue;
+
+		if (m_bots[client.index] == nullptr)
 			count++;
 	}
 
@@ -843,15 +857,13 @@ Bot* BotControl::GetHighestSkillBot(int team)
 	int bestSkill = -1;
 
 	// search bots in this team
-	for (int i = 0; i < engine->GetMaxClients(); i++)
+	for (const auto& bot : m_bots)
 	{
-		highFragBot = g_botManager->GetBot(i);
-
-		if (highFragBot != nullptr && GetTeam(highFragBot->GetEntity()) == team)
+		if (highFragBot != nullptr && highFragBot->m_team == team)
 		{
 			if (highFragBot->m_skill > bestSkill)
 			{
-				bestIndex = i;
+				bestIndex = bot->GetIndex();
 				bestSkill = highFragBot->m_skill;
 			}
 		}
@@ -875,11 +887,14 @@ void BotControl::CheckTeamEconomics(int team)
 	int numTeamPlayers = 0;
 
 	// start calculating
-	for (int i = 0; i < engine->GetMaxClients(); i++)
+	for (const auto& client : g_clients)
 	{
-		if (m_bots[i] != nullptr && GetTeam(m_bots[i]->GetEntity()) == team)
+		if (client.index < 0)
+			continue;
+
+		if (m_bots[client.index] != nullptr && m_bots[client.index]->m_team == team)
 		{
-			if (m_bots[i]->m_moneyAmount <= 1500)
+			if (m_bots[client.index]->m_moneyAmount <= 1500)
 				numPoorPlayers++;
 
 			numTeamPlayers++; // update count of team
@@ -990,7 +1005,7 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	m_sayTextBuffer.chatDelay = engine->RandomFloat(3.8f, 10.0f);
 	m_sayTextBuffer.chatProbability = engine->RandomInt(1, 100);
 
-	m_notKilled = false;
+	m_isAlive = false;
 	m_skill = skill;
 	m_weaponBurstMode = BURST_DISABLED;
 
@@ -1180,7 +1195,7 @@ void Bot::NewRound(void)
 	m_zhCampPointIndex = -1;
 	m_checkCampPointTime = 0.0f;
 
-	if (!m_notKilled) // if bot died, clear all weapon stuff and force buying again
+	if (!m_isAlive) // if bot died, clear all weapon stuff and force buying again
 	{
 		memset(&m_ammoInClip, 0, sizeof(m_ammoInClip));
 		memset(&m_ammo, 0, sizeof(m_ammo));

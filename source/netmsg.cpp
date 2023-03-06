@@ -356,18 +356,16 @@ void NetworkMsg::Execute(void* p)
                 g_bombPlanted = true;
                 g_bombSayString = true;
                 g_timeBombPlanted = engine->GetTime();
+                g_waypoint->SetBombPosition();
 
-                for (int i = 0; i < engine->GetMaxClients(); i++)
+                for (const auto& bot : g_botManager->m_bots)
                 {
-                    Bot* bot = g_botManager->GetBot(i);
-
-                    if (bot != nullptr && IsAlive(bot->GetEntity()))
+                    if (bot != nullptr && bot->m_isAlive)
                     {
                         bot->DeleteSearchNodes();
                         bot->ResetTasks();
                     }
                 }
-                g_waypoint->SetBombPosition();
             }
             else if (m_bot != nullptr && FStrEq(PTR_TO_STR(p), "#Switch_To_BurstFire"))
                 m_bot->m_weaponBurstMode = BURST_ENABLED;

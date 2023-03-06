@@ -271,8 +271,13 @@ const Client& Engine::GetClientByIndex(int index)
 
 void Engine::MaintainClients(void)
 {
-    for (int i = 0; i < GetMaxClients(); i++)
-        m_clients[i].Maintain(g_engfuncs.pfnPEntityOfEntIndex(i));
+    for (const auto& client : g_clients)
+    {
+        if (client.index < 0)
+            continue;
+
+        m_clients[client.index].Maintain(g_engfuncs.pfnPEntityOfEntIndex(client.index));
+    }
 }
 
 void Engine::DrawLine(const Client& client, const Vector& start, const Vector& end, const Color& color, int width, int noise, int speed, int life, int lineType)

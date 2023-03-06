@@ -771,6 +771,9 @@ inline const float GF_CostHuman(int index, int parent, int team, float gravity, 
 	{
 		for (const auto& client : g_clients)
 		{
+			if (client.index < 0)
+				continue;
+
 			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || team != client.team)
 				continue;
 
@@ -834,6 +837,9 @@ inline const float GF_CostCareful(int index, int parent, int team, float gravity
 	{
 		for (const auto& client : g_clients)
 		{
+			if (client.index < 0)
+				continue;
+
 			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || team != client.team)
 				continue;
 
@@ -852,6 +858,9 @@ inline const float GF_CostCareful(int index, int parent, int team, float gravity
 			int count = 0;
 			for (const auto& client : g_clients)
 			{
+				if (client.index < 0)
+					continue;
+
 				if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != team)
 					continue;
 
@@ -874,6 +883,9 @@ inline const float GF_CostCareful(int index, int parent, int team, float gravity
 		int count = 0;
 		for (const auto& client : g_clients)
 		{
+			if (client.index < 0)
+				continue;
+
 			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != team)
 				continue;
 
@@ -912,6 +924,9 @@ inline const float GF_CostNormal(int index, int parent, int team, float gravity,
 	{
 		for (const auto& client : g_clients)
 		{
+			if (client.index < 0)
+				continue;
+
 			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || team != client.team)
 				continue;
 
@@ -930,6 +945,9 @@ inline const float GF_CostNormal(int index, int parent, int team, float gravity,
 			int count = 0;
 			for (const auto& client : g_clients)
 			{
+				if (client.index < 0)
+					continue;
+
 				if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != team)
 					continue;
 
@@ -980,6 +998,9 @@ inline const float GF_CostRusher(int index, int parent, int team, float gravity,
 	{
 		for (const auto& client : g_clients)
 		{
+			if (client.index < 0)
+				continue;
+
 			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || team != client.team)
 				continue;
 
@@ -1435,22 +1456,21 @@ void Bot::CheckTouchEntity(edict_t* entity)
 			// tell my friends to destroy it
 			if (!m_isZombieBot)
 			{
-				for (const auto& client : g_clients)
+				for (const auto& bot : g_botManager->m_bots)
 				{
-					auto bot = g_botManager->GetBot(client.index);
 					if (bot == nullptr)
 						continue;
 
 					if (m_team != bot->m_team)
 						continue;
 
-					if (GetEntity() == bot->GetEntity())
-						continue;
-
-					if (!bot->m_notKilled)
+					if (!bot->m_isAlive)
 						continue;
 
 					if (bot->m_isZombieBot)
+						continue;
+
+					if (GetEntity() == bot->GetEntity())
 						continue;
 
 					Vector breakableOrigin = GetBoxOrigin(m_breakableEntity);
@@ -1477,16 +1497,15 @@ void Bot::CheckTouchEntity(edict_t* entity)
 		else if (pev->origin.z > m_breakable.z) // make bots smarter
 		{
 			// tell my enemies to destroy it, so i will fall
-			for (const auto& client : g_clients)
+			for (const auto& enemy : g_botManager->m_bots)
 			{
-				auto enemy = g_botManager->GetBot(client.index);
 				if (enemy == nullptr)
 					continue;
 
 				if (m_team == enemy->m_team)
 					continue;
 
-				if (!enemy->m_notKilled)
+				if (!enemy->m_isAlive)
 					continue;
 
 				TraceResult tr;
@@ -2538,11 +2557,15 @@ void Bot::CheckCloseAvoidance(const Vector& dirNormal)
 	// find nearest player to bot
 	for (const auto& client : g_clients)
 	{
+		// only valid meat
+		if (client.index < 0)
+			continue;
+
 		// need only good meat
 		if (!(client.flags & CFLAG_USED))
 			continue;
 
-		// and still alive meet
+		// and still alive meat
 		if (!(client.flags & CFLAG_ALIVE))
 			continue;
 
@@ -2838,11 +2861,9 @@ int Bot::FindHostage(void)
 	{
 		bool canF = true;
 
-		for (const auto& client : g_clients)
+		for (const auto& bot : g_botManager->m_bots)
 		{
-			Bot* bot = g_botManager->GetBot(client.index);
-
-			if (bot != nullptr && bot->m_notKilled)
+			if (bot != nullptr && bot->m_isAlive)
 			{
 				for (int j = 0; j < Const_MaxHostages; j++)
 				{
@@ -2908,22 +2929,9 @@ bool Bot::IsWaypointOccupied(int index)
 	if (!IsValidWaypoint(index))
 		return true;
 
-	for (const auto& client : g_clients)
+	for (const auto& bot : g_botManager->m_bots)
 	{
-		if (!(client.flags & CFLAG_USED))
-			continue;
-
-		if (!(client.flags & CFLAG_ALIVE))
-			continue;
-
-		if (client.team != m_team || client.ent == GetEntity())
-			continue;
-
-		if ((g_waypoint->GetPath(index)->origin - client.origin).GetLengthSquared() <= SquaredF(48.0f))
-			return true;
-
-		Bot* bot = g_botManager->GetBot(client.index);
-		if (bot != nullptr && bot->m_currentWaypointIndex == index)
+		if (bot != nullptr && (bot->m_currentWaypointIndex == index || bot->m_prevWptIndex == index))
 			return true;
 	}
 

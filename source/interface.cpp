@@ -183,6 +183,9 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 	{
 		for (const auto& client : g_clients)
 		{
+			if (client.index < 0)
+				continue;
+
 			if (!(client.flags & CFLAG_USED))
 				continue;
 
@@ -213,10 +216,10 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 			int nominatedMap = atoi(arg1);
 
 			// loop through all players
-			for (const auto& client : g_clients)
+			for (const auto& bot : g_botManager->m_bots)
 			{
-				if (g_botManager->GetBot(client.index) != nullptr)
-					g_botManager->GetBot(client.index)->m_voteMap = nominatedMap;
+				if (bot != nullptr)
+					bot->m_voteMap = nominatedMap;
 			}
 
 			ClientPrint(ent, print_withtag, "All dead bots will vote for map #%d", nominatedMap);
@@ -353,10 +356,10 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		{
 			ClientPrint(ent, print_withtag, "E-Bot health is set to %d%%", atoi(arg1));
 
-			for (const auto& client : g_clients)
+			for (const auto& bot : g_botManager->m_bots)
 			{
-				if (g_botManager->GetBot(client.index) != nullptr)
-					g_botManager->GetBot(client.index)->pev->health = fabsf(static_cast <float> (atof(arg1)));
+				if (bot != nullptr)
+					bot->pev->health = fabsf(static_cast <float> (atof(arg1)));
 			}
 		}
 	}
@@ -2567,7 +2570,10 @@ void ClientCommand(edict_t* ent)
 
 		for (const auto& client : g_clients)
 		{
-			if (!(client.flags & CFLAG_USED) || (team != -1 && team != client.team) || isAlive != IsAlive(client.ent))
+			if (client.index < 0)
+				continue;
+
+			if ((team != -1 && team != client.team) || isAlive != IsAlive(client.ent))
 				continue;
 
 			Bot* iter = g_botManager->GetBot(client.index);
@@ -2598,12 +2604,10 @@ void ClientCommand(edict_t* ent)
 
 			if (radioCommand != Radio_Affirmative && radioCommand != Radio_Negative && radioCommand != Radio_ReportingIn)
 			{
-				for (const auto& client : g_clients)
+				for (const auto& bot : g_botManager->m_bots)
 				{
-					Bot* bot = g_botManager->GetBot(client.index);
-
 					// validate bot
-					if (bot != nullptr && GetTeam(bot->GetEntity()) == g_clients[clientIndex].team && VARS(ent) != bot->pev && bot->m_radioOrder == 0)
+					if (bot != nullptr && bot->m_team == g_clients[clientIndex].team && VARS(ent) != bot->pev && bot->m_radioOrder == 0)
 					{
 						bot->m_radioOrder = radioCommand;
 						bot->m_radioEntity = ent;
@@ -2719,7 +2723,7 @@ void LoadEntityData(void)
 			SetEntityWaypoint(entity);
 	}
 
-	for (int i = 1; i < engine->GetMaxClients(); i++)
+	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
 		entity = INDEXENT(i);
 
@@ -2785,9 +2789,8 @@ void SetPing(edict_t* to)
 	// missing from sdk
 	static const int SVC_PINGS = 17;
 
-	for (const auto& client : g_clients)
+	for (const auto& bot : g_botManager->m_bots)
 	{
-		Bot* bot = g_botManager->GetBot(client.index);
 		if (bot == nullptr)
 			continue;
 
@@ -2797,21 +2800,21 @@ void SetPing(edict_t* to)
 		{
 			// start a new message
 			MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_PINGS, nullptr, to);
-			WRITE_BYTE((bot->m_pingOffset[sending] * 64) + (1 + 2 * client.index));
+			WRITE_BYTE((bot->m_pingOffset[sending] * 64) + (1 + 2 * bot->GetIndex()));
 			WRITE_SHORT(bot->m_ping[sending]);
 			sending++;
 		}
 		case 1:
 		{
 			// append additional data
-			WRITE_BYTE((bot->m_pingOffset[sending] * 128) + (2 + 4 * client.index));
+			WRITE_BYTE((bot->m_pingOffset[sending] * 128) + (2 + 4 * bot->GetIndex()));
 			WRITE_SHORT(bot->m_ping[sending]);
 			sending++;
 		}
 		case 2:
 		{
 			// append additional data and end message
-			WRITE_BYTE(4 + 8 * client.index);
+			WRITE_BYTE(4 + 8 * bot->GetIndex());
 			WRITE_SHORT(bot->m_ping[sending]);
 			WRITE_BYTE(0);
 			MESSAGE_END();
@@ -2851,6 +2854,9 @@ void JustAStuff(void)
 	{
 		for (const auto& client : g_clients)
 		{
+			if (client.index < 0)
+				continue;
+
 			edict_t* player = client.ent;
 			int index = client.index;
 
@@ -2885,9 +2891,9 @@ void JustAStuff(void)
 		if (g_waypointOn)
 		{
 			bool hasBot = false;
-			for (const auto& client : g_clients)
+			for (const auto& bot : g_botManager->m_bots)
 			{
-				if (g_botManager->GetBot(client.index))
+				if (bot != nullptr)
 				{
 					hasBot = true;
 					g_botManager->RemoveAll();
@@ -3222,12 +3228,10 @@ void pfnMessageBegin(int msgDest, int msgType, const float* origin, edict_t* ed)
 
 		if (msgType == SVC_INTERMISSION)
 		{
-			for (const auto& client : g_clients)
+			for (const auto& bot : g_botManager->m_bots)
 			{
-				Bot* bot = g_botManager->GetBot(client.index);
-
 				if (bot != nullptr)
-					bot->m_notKilled = false;
+					bot->m_isAlive = false;
 			}
 		}
 	}
@@ -3543,11 +3547,9 @@ void pfnAlertMessage(ALERT_TYPE alertType, char* format, ...)
 	if (strstr(buffer, "_Defuse_") != nullptr)
 	{
 		// notify all terrorists that CT is starting bomb defusing
-		for (const auto& client : g_clients)
+		for (const auto& bot : g_botManager->m_bots)
 		{
-			Bot* bot = g_botManager->GetBot(client.index);
-
-			if (bot != nullptr && GetTeam(bot->GetEntity()) == TEAM_TERRORIST && IsAlive(bot->GetEntity()))
+			if (bot != nullptr && bot->m_team == TEAM_TERRORIST && bot->m_isAlive)
 			{
 				bot->ResetTasks();
 				bot->MoveToVector(g_waypoint->GetBombPosition());
