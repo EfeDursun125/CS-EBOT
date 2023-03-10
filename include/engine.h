@@ -246,7 +246,7 @@ public:
     }
     inline Vector2D operator/ (float fl) const
     {
-        return Vector2D(x / fl, y / fl);
+        return Vector2D(_mm_cvtss_f32(_mm_div_ps(_mm_load_ss(&x), _mm_load_ss(&fl))), _mm_cvtss_f32(_mm_div_ps(_mm_load_ss(&y), _mm_load_ss(&fl))));
     }
     inline int operator== (const Vector2D& v) const
     {
@@ -255,39 +255,20 @@ public:
 
     inline float Length(void) const
     {
-#ifdef __SSE2__
-        float number = _mm_cvtss_f32(_mm_add_ss(_mm_mul_ss(_mm_load_ss(&x), _mm_load_ss(&x)), _mm_mul_ss(_mm_load_ss(&y), _mm_load_ss(&y))));
-        return _mm_cvtss_f32(_mm_sqrt_ss(_mm_load_ss(&number)));
-#else
         float number = x * x + y * y;
-        long i;
-        float x2, y;
-        const float threehalfs = 1.5F;
-        x2 = number * 0.5F;
-        y = number;
-        i = *(long*)&y;
-        i = 0x5f3759df - (i >> 1);
-        y = *(float*)&i;
-        y = y * (threehalfs - (x2 * y * y));
-        return y * number;
-#endif
+        return _mm_cvtss_f32(_mm_sqrt_ss(_mm_load_ss(&number)));
     }
 
     inline Vector2D Normalize(void) const
     {
-        Vector2D vec2;
-
         float flLen = Length();
         if (flLen == 0)
             return Vector2D(0, 0);
         else
         {
-            flLen = 1 / flLen;
-#ifdef __SSE2__
-            return Vector2D(_mm_cvtss_f32(_mm_mul_ss(_mm_load_ss(&x), _mm_load_ss(&flLen))), _mm_cvtss_f32(_mm_mul_ss(_mm_load_ss(&y), _mm_load_ss(&flLen))));
-#else
+            const float one = 1.0f;
+            flLen = _mm_cvtss_f32(_mm_div_ps(_mm_load_ss(&one), _mm_load_ss(&flLen)));
             return Vector2D(x * flLen, y * flLen);
-#endif
         }
     }
 
@@ -369,20 +350,7 @@ public:
     inline float Length(void) const
     {
         float number = x * x + y * y + z * z;
-#ifdef __SSE2__
         return _mm_cvtss_f32(_mm_sqrt_ss(_mm_load_ss(&number)));
-#else
-        long i;
-        float x2, y;
-        const float threehalfs = 1.5F;
-        x2 = number * 0.5F;
-        y = number;
-        i = *(long*)&y;
-        i = 0x5f3759df - (i >> 1);
-        y = *(float*)&i;
-        y = y * (threehalfs - (x2 * y * y));
-        return y * number;
-#endif
     }
     operator float* ()
     {
@@ -402,11 +370,7 @@ public:
             return Vector(0, 0, 1);       // ????
 
         flLen = 1 / flLen;
-#ifdef __SSE2__
-        return Vector(_mm_cvtss_f32(_mm_mul_ss(_mm_load_ss(&x), _mm_load_ss(&flLen))), _mm_cvtss_f32(_mm_mul_ss(_mm_load_ss(&y), _mm_load_ss(&flLen))), _mm_cvtss_f32(_mm_mul_ss(_mm_load_ss(&z), _mm_load_ss(&flLen))));
-#else
         return Vector(x * flLen, y * flLen, z * flLen);
-#endif
     }
 
     inline Vector IgnoreZComponent(void) const
@@ -425,22 +389,8 @@ public:
     }
     inline float Length2D(void) const
     {
-#ifdef __SSE2__
-        float number = _mm_cvtss_f32(_mm_add_ss(_mm_mul_ss(_mm_load_ss(&x), _mm_load_ss(&x)), _mm_mul_ss(_mm_load_ss(&y), _mm_load_ss(&y))));
-        return _mm_cvtss_f32(_mm_sqrt_ss(_mm_load_ss(&number)));
-#else
         float number = x * x + y * y;
-        long i;
-        float x2, y;
-        const float threehalfs = 1.5F;
-        x2 = number * 0.5F;
-        y = number;
-        i = *(long*)&y;
-        i = 0x5f3759df - (i >> 1);
-        y = *(float*)&i;
-        y = y * (threehalfs - (x2 * y * y));
-        return y * number;
-#endif
+        return _mm_cvtss_f32(_mm_sqrt_ss(_mm_load_ss(&number)));
     }
 
     // Members
@@ -2278,8 +2228,6 @@ void inline UTIL_TraceHull(const Vector& start, const Vector& end, bool ignoreMo
 {
     (*g_engfuncs.pfnTraceHull) (start, end, ignoreMonsters ? 1 : 0, hullNumber, ignoreEntity, ptr);
 }
-
-Vector UTIL_VecToAngles(const Vector& vec);
 
 #ifdef _WIN32
 #pragma once

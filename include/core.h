@@ -37,7 +37,6 @@
 #include <stdio.h>
 #include <memory.h>
 
-// SSE
 #include <xmmintrin.h>
 #include <emmintrin.h>
 #include <immintrin.h>
@@ -761,6 +760,7 @@ private:
 
 	unsigned int m_aimFlags; // aiming conditions
 	Vector m_lookAt; // vector bot should look at
+	Vector m_lookAtCache; // cache for look at
 	Vector m_throw; // origin of waypoint to throw grenades
 	Vector m_idealAngles; // ideal aim angles
 	float m_lookYawVel; // look yaw velocity
@@ -1188,8 +1188,6 @@ public:
 	bool HasShield(void);
 	bool IsSniper(void);
 	bool IsShieldDrawn(void);
-
-	int GetNavData(int data);
 };
 
 // manager class
@@ -1372,7 +1370,7 @@ public:
 	void TeleportWaypoint(void);
 	void SgdWp_Set(const char* modset);
 
-	float GetTravelTime(float maxSpeed, Vector src, Vector origin);
+	float GetTravelTime(const float maxSpeed, const Vector src, const Vector origin);
 	bool IsVisible(int srcIndex, int destIndex);
 	bool IsStandVisible(int srcIndex, int destIndex);
 	bool IsDuckVisible(int srcIndex, int destIndex);
@@ -1382,9 +1380,9 @@ public:
 	void Save(void);
 	void SaveOLD(void);
 
-	bool Reachable(edict_t* entity, int index);
-	bool IsNodeReachable(Vector src, Vector destination);
-	bool IsNodeReachableWithJump(Vector src, Vector destination, int flags);
+	bool Reachable(edict_t* entity, const int index);
+	bool IsNodeReachable(const Vector src, const Vector destination);
+	bool IsNodeReachableWithJump(const Vector src, const Vector destination, const int flags);
 	void Think(void);
 	void ShowWaypointMsg(void);
 	bool NodesValid(void);
@@ -1427,6 +1425,7 @@ extern bool IsZombieMode(void);
 extern bool IsDeathmatchMode(void);
 extern bool IsValidWaypoint(int index);
 extern bool ChanceOf(int number);
+extern float Divide(float number, float number2);
 extern float Q_sqrt(float number);
 extern float Clamp(float a, float b, float c);
 extern float SquaredF(float a);

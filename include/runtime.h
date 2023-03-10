@@ -466,7 +466,8 @@ public:
 
     inline const Vector operator / (float vec) const
     {
-        const float inv = 1 / vec;
+        const float one = 1.0f;
+        const float inv = _mm_cvtss_f32(_mm_div_ps(_mm_load_ss(&one), _mm_load_ss(&vec)));
         return Vector(inv * x, inv * y, inv * z);
     }
 
@@ -509,7 +510,8 @@ public:
 
     inline const Vector& operator /= (float vec)
     {
-        const float inv = 1 / vec;
+        const float one = 1.0f;
+        const float inv = _mm_cvtss_f32(_mm_div_ps(_mm_load_ss(&one), _mm_load_ss(&vec)));
 
         x *= inv;
         y *= inv;
@@ -555,20 +557,7 @@ public:
     inline float GetLength(void) const
     {
         float number = x * x + y * y + z * z;
-#ifdef __SSE2__
         return _mm_cvtss_f32(_mm_sqrt_ss(_mm_load_ss(&number)));
-#else
-        long i;
-        float x2, y;
-        const float threehalfs = 1.5F;
-        x2 = number * 0.5F;
-        y = number;
-        i = *(long*)&y;
-        i = 0x5f3759df - (i >> 1);
-        y = *(float*)&i;
-        y = y * (threehalfs - (x2 * y * y));
-        return y * number;
-#endif
     }
 
     //
@@ -584,22 +573,8 @@ public:
     //
     inline float GetLength2D(void) const
     {
-#ifdef __SSE2__
-        float number = _mm_cvtss_f32(_mm_add_ss(_mm_mul_ss(_mm_load_ss(&x), _mm_load_ss(&x)), _mm_mul_ss(_mm_load_ss(&y), _mm_load_ss(&y))));
-        return _mm_cvtss_f32(_mm_sqrt_ss(_mm_load_ss(&number)));
-#else
         float number = x * x + y * y;
-        long i;
-        float x2, y;
-        const float threehalfs = 1.5F;
-        x2 = number * 0.5F;
-        y = number;
-        i = *(long*)&y;
-        i = 0x5f3759df - (i >> 1);
-        y = *(float*)&i;
-        y = y * (threehalfs - (x2 * y * y));
-        return y * number;
-#endif
+        return _mm_cvtss_f32(_mm_sqrt_ss(_mm_load_ss(&number)));
     }
 
     //
@@ -662,7 +637,8 @@ public:
         if (Math::FltZero(length))
             return Vector(0, 0, 1.0f);
 
-        length = 1.0f / length;
+        const float one = 1.0f;
+        length = _mm_cvtss_f32(_mm_div_ps(_mm_load_ss(&one), _mm_load_ss(&length)));//1.0f / length;
 
         return Vector(x * length, y * length, z * length);
     }
@@ -682,7 +658,8 @@ public:
         if (Math::FltZero(length))
             return Vector(0, 1.0, 0);
 
-        length = 1.0f / length;
+        const float one = 1.0f;
+        length = _mm_cvtss_f32(_mm_div_ps(_mm_load_ss(&one), _mm_load_ss(&length)));//1.0f / length;
 
         return Vector(x * length, y * length, 0.0f);
     }
