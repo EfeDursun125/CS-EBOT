@@ -331,7 +331,7 @@ void BotControl::Think(void)
 		if (runThink)
 		{
 			bot->Think();
-			bot->m_thinkTimer = AddTime(1.0f / ebot_think_fps.GetFloat());
+			bot->m_thinkTimer = AddTime(Divide(1.0f, ebot_think_fps.GetFloat()));
 		}
 		else if (bot->m_isAlive)
 		{

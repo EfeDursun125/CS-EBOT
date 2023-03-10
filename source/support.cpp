@@ -128,7 +128,7 @@ bool IsInViewCone(Vector origin, edict_t* ent)
 
 	MakeVectors(ent->v.v_angle);
 
-	if (((origin - (GetEntityOrigin(ent) + ent->v.view_ofs)).Normalize() | g_pGlobals->v_forward) >= cosf(((ent->v.fov > 0 ? ent->v.fov : 90.0f) * 0.5f) * Math::MATH_PI / 180.0f))
+	if (((origin - (GetEntityOrigin(ent) + ent->v.view_ofs)).Normalize() | g_pGlobals->v_forward) >= cosf(((ent->v.fov > 0 ? ent->v.fov : 90.0f) * 0.5f) * Divide(Math::MATH_PI, 180.0f)))
 		return true;
 
 	return false;
@@ -973,7 +973,6 @@ lastly:
 bool IsWeaponShootingThroughWall(int id)
 {
 	int i = 0;
-
 	while (g_weaponSelect[i].id)
 	{
 		if (g_weaponSelect[i].id == id)
@@ -983,6 +982,7 @@ bool IsWeaponShootingThroughWall(int id)
 
 			return false;
 		}
+
 		i++;
 	}
 
@@ -1022,22 +1022,14 @@ int GetGameMode(void)
 	return ebot_gamemod.GetInt();
 }
 
+float Divide(float number, float number2)
+{
+	return _mm_cvtss_f32(_mm_div_ps(_mm_load_ss(&number), _mm_load_ss(&number2)));
+}
+
 float Q_sqrt(float number)
 {
-#ifdef __SSE2__
 	return _mm_cvtss_f32(_mm_sqrt_ss(_mm_load_ss(&number)));
-#else
-	long i;
-	float x2, y;
-	const float threehalfs = 1.5F;
-	x2 = number * 0.5F;
-	y = number;
-	i = *(long*)&y;
-	i = 0x5f3759df - (i >> 1);
-	y = *(float*)&i;
-	y = y * (threehalfs - (x2 * y * y));
-	return y * number;
-#endif
 }
 
 float Clamp(float a, float b, float c)
@@ -1651,16 +1643,17 @@ void MOD_AddLogEntry(int mod, char* format)
 	sprintf(buildVersionName, "%s_build_%u_%u_%u_%u.txt", modName,
 		mod_bV16[0], mod_bV16[1], mod_bV16[2], mod_bV16[3]);
 
+	// if logs folder deleted, it will result a crash... so create it again before writing logs...
+	CreatePath(FormatBuffer("%s/addons/ebot/logs", GetModName()));
+
 	File checkLogFP(FormatBuffer("%s/addons/ebot/logs/%s", GetModName(), buildVersionName), "rb");
 	File fp(FormatBuffer("%s/addons/ebot/logs/%s", GetModName(), buildVersionName), "at");
-
 
 	if (!checkLogFP.IsValid())
 	{
 		fp.Print("---------- %s Log \n", modName);
 		fp.Print("---------- %s Version: %u.%u  \n", modName, mod_bV16[0], mod_bV16[1]);
-		fp.Print("---------- %s Build: %u.%u.%u.%u  \n", modName,
-			mod_bV16[0], mod_bV16[1], mod_bV16[2], mod_bV16[3]);
+		fp.Print("---------- %s Build: %u.%u.%u.%u  \n", modName, mod_bV16[0], mod_bV16[1], mod_bV16[2], mod_bV16[3]);
 		fp.Print("----------------------------- \n\n");
 	}
 
@@ -1672,13 +1665,12 @@ void MOD_AddLogEntry(int mod, char* format)
 	time_t tickTime = time(&tickTime);
 	tm* time = localtime(&tickTime);
 
-	int buildVersion[4] = { PRODUCT_VERSION_DWORD };
-	uint16 bV16[4] = { (uint16)buildVersion[0], (uint16)buildVersion[1], (uint16)buildVersion[2], (uint16)buildVersion[3] };
-
 	sprintf(logLine, "[%02d:%02d:%02d] %s", time->tm_hour, time->tm_min, time->tm_sec, format);
 	fp.Print("%s\n", logLine);
+
 	if (mod != -1)
-		fp.Print("E-BOT Build: %u.%u.%u.%u  \n", bV16[0], bV16[1], bV16[2], bV16[3]);
+		fp.Print("E-BOT Build: %d \n", PRODUCT_VERSION);
+
 	fp.Print("----------------------------- \n");
 	fp.Close();
 }

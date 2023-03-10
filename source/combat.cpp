@@ -540,7 +540,7 @@ bool Bot::IsFriendInLineOfFire(float distance)
 		Vector origin = client.ent->v.origin;
 		float friendDistance = (origin - pev->origin).GetLengthSquared();
 
-		if (friendDistance <= distance && GetShootingConeDeviation(GetEntity(), &origin) > friendDistance / (friendDistance + 1089.0f))
+		if (friendDistance <= distance && GetShootingConeDeviation(GetEntity(), &origin) > Divide(friendDistance, (friendDistance + 1089.0f)))
 			return true;
 	}
 
@@ -628,7 +628,7 @@ bool Bot::DoFirePause(float distance)//, FireDelay *fireDelay)
 			return true;
 	}
 
-	float angle = (fabsf(pev->punchangle.y) + fabsf(pev->punchangle.x)) * Math::MATH_PI / 360.0f;
+	float angle = (fabsf(pev->punchangle.y) + fabsf(pev->punchangle.x)) * Divide(Math::MATH_PI, 360.0f);
 
 	// check if we need to compensate recoil
 	if (tanf(angle) * (distance + (distance * 0.25f)) > g_skillTab[m_skill / 20].recoilAmount)

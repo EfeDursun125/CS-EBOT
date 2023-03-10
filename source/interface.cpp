@@ -261,7 +261,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 	{
 		if (g_gameVersion == CSVER_VERYOLD)
 		{
-			ServerPrint("Cannot do this on CS 1.5");
+			ServerPrint("Cannot do this on old cs");
 			return 1;
 		}
 
@@ -269,10 +269,10 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 			"+---------------------------------------------------------------------------------+\n"
 			" The E-BOT for Counter-Strike 1.6 " PRODUCT_SUPPORT_VERSION "\n"
 			" Made by " PRODUCT_AUTHOR ", Based on SyPB & YaPB\n"
-#ifdef __SSE2__
-			" Website: " PRODUCT_URL ", SSE2 Support: Yes\n"
+#ifdef WORK_ASYNC
+			" Website: " PRODUCT_URL ", ASYNC Build: Yes\n"
 #else
-			" Website: " PRODUCT_URL ", SSE2 Support: No\n"
+			" Website: " PRODUCT_URL ", ASYNC Build: No\n"
 #endif
 			"+---------------------------------------------------------------------------------+\n";
 
@@ -301,9 +301,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		ClientPrint(ent, print_console, "ebot weaponmode         - select e-bot weapon mode");
 		ClientPrint(ent, print_console, "ebot votemap            - allows dead e-bots to vote for specific map");
 		ClientPrint(ent, print_console, "ebot cmenu              - displaying e-bots command menu");
-
-
-		ClientPrint(ent, print_console, "ebot_add                - create a e-bot in current game");
+		ClientPrint(ent, print_console, "ebot_add                - adds a e-bot in current game");
 
 		if (!IsDedicatedServer())
 			ServerPrintNoTag("ebot sgdwp on           - New making waypoint system from ebot");
@@ -819,9 +817,6 @@ void InitConfig(void)
 	KwChat replyKey;
 	int chatType = -1;
 
-	// fixes for crashing if configs couldn't be accessed
-	g_chatFactory.SetSize(CHAT_NUM);
-
 	#define SKIP_COMMENTS() if ((line[0] == '/') || (line[0] == '\r') || (line[0] == '\n') || (line[0] == 0) || (line[0] == ' ') || (line[0] == '\t')) continue;
 
 	if (!g_botNames.IsEmpty())
@@ -853,116 +848,123 @@ void InitConfig(void)
 	}
 
 	// CHAT SYSTEM CONFIG INITIALIZATION
-	if (OpenConfig("chat.cfg", "Chat file not found.", &fp))
+	if (g_chatFactory.IsEmpty())
 	{
-		while (fp.GetBuffer(line, 255))
+		if (OpenConfig("chat.cfg", "Chat file not found.", &fp))
 		{
-			SKIP_COMMENTS();
-			strcpy(command, GetField(line, 0, 1));
+			int chatType = -1;
+			g_chatFactory.SetSize(CHAT_NUM);
 
-			if (strcmp(command, "[KILLED]") == 0)
+			while (fp.GetBuffer(line, 255))
 			{
-				chatType = 0;
-				continue;
-			}
-			else if (strcmp(command, "[BOMBPLANT]") == 0)
-			{
-				chatType = 1;
-				continue;
-			}
-			else if (strcmp(command, "[DEADCHAT]") == 0)
-			{
-				chatType = 2;
-				continue;
-			}
-			else if (strcmp(command, "[REPLIES]") == 0)
-			{
-				chatType = 3;
-				continue;
-			}
-			else if (strcmp(command, "[UNKNOWN]") == 0)
-			{
-				chatType = 4;
-				continue;
-			}
-			else if (strcmp(command, "[TEAMATTACK]") == 0)
-			{
-				chatType = 5;
-				continue;
-			}
-			else if (strcmp(command, "[WELCOME]") == 0)
-			{
-				chatType = 6;
-				continue;
-			}
-			else if (strcmp(command, "[TEAMKILL]") == 0)
-			{
-				chatType = 7;
-				continue;
-			}
+				SKIP_COMMENTS();
+				strcpy(command, GetField(line, 0, 1));
 
-			if (chatType != 3)
-				line[79] = 0;
-
-			strtrim(line);
-
-			switch (chatType)
-			{
-			case 0:
-				g_chatFactory[CHAT_KILL].Push(line);
-				break;
-
-			case 1:
-				g_chatFactory[CHAT_PLANTBOMB].Push(line);
-				break;
-
-			case 2:
-				g_chatFactory[CHAT_DEAD].Push(line);
-				break;
-
-			case 3:
-				if (strstr(line, "@KEY") != nullptr)
+				if (strcmp(command, "[KILLED]") == 0)
 				{
-					if (!replyKey.keywords.IsEmpty() && !replyKey.replies.IsEmpty())
-					{
-						g_replyFactory.Push(replyKey);
-						replyKey.replies.RemoveAll();
-					}
-
-					replyKey.keywords.RemoveAll();
-					replyKey.keywords = String(&line[4]).Split(',');
-
-					ITERATE_ARRAY(replyKey.keywords, i)
-						replyKey.keywords[i].Trim().TrimQuotes();
+					chatType = 0;
+					continue;
 				}
-				else if (!replyKey.keywords.IsEmpty())
-					replyKey.replies.Push(line);
+				else if (strcmp(command, "[BOMBPLANT]") == 0)
+				{
+					chatType = 1;
+					continue;
+				}
+				else if (strcmp(command, "[DEADCHAT]") == 0)
+				{
+					chatType = 2;
+					continue;
+				}
+				else if (strcmp(command, "[REPLIES]") == 0)
+				{
+					chatType = 3;
+					continue;
+				}
+				else if (strcmp(command, "[UNKNOWN]") == 0)
+				{
+					chatType = 4;
+					continue;
+				}
+				else if (strcmp(command, "[TEAMATTACK]") == 0)
+				{
+					chatType = 5;
+					continue;
+				}
+				else if (strcmp(command, "[WELCOME]") == 0)
+				{
+					chatType = 6;
+					continue;
+				}
+				else if (strcmp(command, "[TEAMKILL]") == 0)
+				{
+					chatType = 7;
+					continue;
+				}
 
-				break;
+				if (chatType != 3)
+					line[79] = 0;
 
-			case 4:
-				g_chatFactory[CHAT_NOKW].Push(line);
-				break;
+				strtrim(line);
 
-			case 5:
-				g_chatFactory[CHAT_TEAMATTACK].Push(line);
-				break;
+				switch (chatType)
+				{
+				case 0:
+					g_chatFactory[CHAT_KILL].Push(line);
+					break;
 
-			case 6:
-				g_chatFactory[CHAT_HELLO].Push(line);
-				break;
+				case 1:
+					g_chatFactory[CHAT_PLANTBOMB].Push(line);
+					break;
 
-			case 7:
-				g_chatFactory[CHAT_TEAMKILL].Push(line);
-				break;
+				case 2:
+					g_chatFactory[CHAT_DEAD].Push(line);
+					break;
+
+				case 3:
+					if (strstr(line, "@KEY") != nullptr)
+					{
+						if (!replyKey.keywords.IsEmpty() && !replyKey.replies.IsEmpty())
+						{
+							g_replyFactory.Push(replyKey);
+							replyKey.replies.RemoveAll();
+						}
+
+						replyKey.keywords.RemoveAll();
+						replyKey.keywords = String(&line[4]).Split(',');
+
+						ITERATE_ARRAY(replyKey.keywords, i)
+							replyKey.keywords[i].Trim().TrimQuotes();
+					}
+					else if (!replyKey.keywords.IsEmpty())
+						replyKey.replies.Push(line);
+
+					break;
+
+				case 4:
+					g_chatFactory[CHAT_NOKW].Push(line);
+					break;
+
+				case 5:
+					g_chatFactory[CHAT_TEAMATTACK].Push(line);
+					break;
+
+				case 6:
+					g_chatFactory[CHAT_HELLO].Push(line);
+					break;
+
+				case 7:
+					g_chatFactory[CHAT_TEAMKILL].Push(line);
+					break;
+				}
 			}
+
+			fp.Close();
 		}
-		fp.Close();
-	}
-	else
-	{
-		extern ConVar ebot_chat;
-		ebot_chat.SetInt(0);
+		else
+		{
+			extern ConVar ebot_chat;
+			ebot_chat.SetInt(0);
+		}
 	}
 
 	// GENERAL DATA INITIALIZATION
@@ -1253,7 +1255,7 @@ int Spawn(edict_t* ent)
 	if (g_isMetamod)
 		RETURN_META_VALUE(MRES_IGNORED, 0);
 
-	int result = (*g_functionTable.pfnSpawn) (ent); // get result
+	const int result = (*g_functionTable.pfnSpawn) (ent); // get result
 
 	if (ent->v.rendermode == kRenderTransTexture)
 		ent->v.flags &= ~FL_WORLDBRUSH; // clear the FL_WORLDBRUSH flag out of transparent ents
@@ -2562,32 +2564,25 @@ void ClientCommand(edict_t* ent)
 			return;
 		}
 
-		bool isAlive = IsAlive(ent);
 		int team = -1;
-
 		if (FStrEq(command, "say_team"))
 			team = GetTeam(ent);
 
-		for (const auto& client : g_clients)
+		for (const auto& bot : g_botManager->m_bots)
 		{
-			if (client.index < 0)
+			if (bot == nullptr)
 				continue;
 
-			if ((team != -1 && team != client.team) || isAlive != IsAlive(client.ent))
+			if (team != -1 && team != bot->m_team)
 				continue;
 
-			Bot* iter = g_botManager->GetBot(client.index);
+			bot->m_sayTextBuffer.entityIndex = ENTINDEX(ent);
 
-			if (iter != nullptr)
-			{
-				iter->m_sayTextBuffer.entityIndex = ENTINDEX(ent);
+			if (IsNullString(CMD_ARGS()))
+				continue;
 
-				if (IsNullString(CMD_ARGS()))
-					continue;
-
-				strcpy(iter->m_sayTextBuffer.sayText, CMD_ARGS());
-				iter->m_sayTextBuffer.timeNextChat = engine->GetTime() + iter->m_sayTextBuffer.chatDelay;
-			}
+			strcpy(bot->m_sayTextBuffer.sayText, CMD_ARGS());
+			bot->m_sayTextBuffer.timeNextChat = engine->GetTime() + bot->m_sayTextBuffer.chatDelay;
 		}
 	}
 
@@ -2723,7 +2718,7 @@ void LoadEntityData(void)
 			SetEntityWaypoint(entity);
 	}
 
-	for (int i = 0; i < engine->GetMaxClients(); i++)
+	for (int i = 0; i <= engine->GetMaxClients(); i++)
 	{
 		entity = INDEXENT(i);
 
@@ -3876,8 +3871,10 @@ DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* 
 					fp.Write(buffer, size);
 					fp.Close();
 				}
+
 				FREE_FILE(buffer);
 			}
+
 			g_gameLib = new Library(gameDLLName);
 		}
 	}

@@ -144,10 +144,26 @@ void AnalyzeThread(void)
 
     if (!ebot_use_old_analyzer.GetBool())
     {
+        if (!FNullEnt(g_hostEntity))
+        {
+            char message[] =
+                "+---------------------------------------------+\n"
+                " Analyzing the map for walkable places \n"
+                "+---------------------------------------------+\n";
+
+            HudMessage(g_hostEntity, true, Color(100, 100, 255), message);
+        }
+
+        static float magicTimer;
         for (int i = 0; i < g_numWaypoints; i++)
         {
             if (g_expanded[i])
                 continue;
+            
+            if (magicTimer >= engine->GetTime())
+                return;
+
+            magicTimer = engine->GetTime() + g_pGlobals->frametime * 0.054f;
 
             Vector WayVec = g_waypoint->GetPath(i)->origin;
             float range = ebot_analyze_distance.GetFloat();
@@ -1363,11 +1379,15 @@ void Waypoint::SetRadius(int radius)
 // this function checks if waypoint A has a connection to waypoint B
 bool Waypoint::IsConnected(int pointA, int pointB)
 {
-    for (int i = 0; i < Const_MaxPathIndex; i++)
+    if (pointA == -1 || pointB == -1)
+        return false;
+
+    for (const auto& connection : m_paths[pointA]->index)
     {
-        if (m_paths[pointA]->index[i] == pointB)
+        if (connection == pointB)
             return true;
     }
+
     return false;
 }
 
@@ -1380,7 +1400,7 @@ int Waypoint::GetFacingIndex(void)
     // find the waypoint the user is pointing at
     for (int i = 0; i < g_numWaypoints; i++)
     {
-        if ((m_paths[i]->origin - GetEntityOrigin(g_hostEntity)).GetLengthSquared() > 250000)
+        if ((m_paths[i]->origin - GetEntityOrigin(g_hostEntity)).GetLengthSquared() > SquaredF(768.0f))
             continue;
 
         // get the current view cone
@@ -1407,7 +1427,7 @@ int Waypoint::GetFacingIndex(void)
 // this function allow player to manually create a path from one waypoint to another
 void Waypoint::CreatePath(char dir)
 {
-    int nodeFrom = FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
+    const int nodeFrom = FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
 
     if (nodeFrom == -1)
     {
@@ -1415,7 +1435,7 @@ void Waypoint::CreatePath(char dir)
         return;
     }
 
-    int nodeTo = m_facingAtIndex;
+   int nodeTo = m_facingAtIndex;
 
     if (!IsValidWaypoint(nodeTo))
     {
@@ -1434,7 +1454,7 @@ void Waypoint::CreatePath(char dir)
         return;
     }
 
-    float distance = (m_paths[nodeTo]->origin - m_paths[nodeFrom]->origin).GetLength2D();
+    const float distance = (m_paths[nodeTo]->origin - m_paths[nodeFrom]->origin).GetLength2D();
 
     if (dir == PATHCON_OUTGOING)
         AddPath(nodeFrom, nodeTo, distance);
@@ -1913,16 +1933,16 @@ String Waypoint::CheckSubfolderFileOLD(void)
 }
 
 // this function returns 2D traveltime to a position
-float Waypoint::GetTravelTime(float maxSpeed, Vector src, Vector origin)
+float Waypoint::GetTravelTime(const float maxSpeed, const Vector src, const Vector origin)
 {
     // give 10 sec...
     if (src == nullvec || origin == nullvec)
         return 10.0f;
 
-    return (origin - src).GetLengthSquared2D() / SquaredF(fabsf(maxSpeed));
+    return Divide((origin - src).GetLengthSquared2D(), SquaredF(fabsf(maxSpeed)));
 }
 
-bool Waypoint::Reachable(edict_t* entity, int index)
+bool Waypoint::Reachable(edict_t* entity, const int index)
 {
     if (FNullEnt(entity))
         return false;
@@ -1950,7 +1970,7 @@ bool Waypoint::Reachable(edict_t* entity, int index)
     return false;
 }
 
-bool Waypoint::IsNodeReachable(Vector src, Vector destination)
+bool Waypoint::IsNodeReachable(const Vector src, const Vector destination)
 {
     float distance = (destination - src).GetLengthSquared();
     if ((destination.z - src.z) >= 45.0f)
@@ -2038,7 +2058,7 @@ bool Waypoint::IsNodeReachable(Vector src, Vector destination)
     return false;
 }
 
-bool Waypoint::IsNodeReachableWithJump(Vector src, Vector destination, int flags)
+bool Waypoint::IsNodeReachableWithJump(const Vector src, const Vector destination, const int flags)
 {
     if (flags > 0)
         return false;
@@ -2480,7 +2500,7 @@ void Waypoint::ShowWaypointMsg(void)
         float distance = (m_paths[i]->origin - GetEntityOrigin(g_hostEntity)).GetLengthSquared();
 
         // check if waypoint is whitin a distance, and is visible
-        if ((distance < SquaredF(640.0f) && ::IsVisible(m_paths[i]->origin, g_hostEntity) && IsInViewCone(m_paths[i]->origin, g_hostEntity)) || distance < SquaredF(54.0f))
+        if ((distance < SquaredF(640.0f) && ::IsVisible(m_paths[i]->origin, g_hostEntity) && IsInViewCone(m_paths[i]->origin, g_hostEntity)) || distance < SquaredF(48.0f))
         {
             // check the distance
             if (distance < nearestDistance)

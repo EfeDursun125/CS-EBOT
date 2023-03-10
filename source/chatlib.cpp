@@ -351,35 +351,14 @@ bool Bot::CheckKeywords(char* tempMessage, char* reply)
             // check is keyword has occurred in message
             if (strstr(tempMessage, g_replyFactory[i].keywords[j].GetBuffer()) != nullptr)
             {
-                Array <String>& replies = g_replyFactory[i].usedReplies;
-
-                if (replies.GetElementNumber() >= g_replyFactory[i].replies.GetElementNumber() / 2)
-                    replies.RemoveAll();
-
-                bool replyUsed = false;
-                const char* generatedReply = g_replyFactory[i].replies.GetRandomElement();
-
-                // don't say this twice
-                ITERATE_ARRAY(replies, k)
-                {
-                    if (strstr(replies[k].GetBuffer(), generatedReply) != nullptr)
-                        replyUsed = true;
-                }
-
-                // reply not used, so use it
-                if (!replyUsed)
-                {
-                    strcpy(reply, generatedReply); // update final buffer
-                    replies.Push(generatedReply); //add to ignore list
-
-                    return true;
-                }
+                strcpy(reply, g_replyFactory[i].replies.GetRandomElement()); // update final buffer
+                return true;
             }
         }
     }
 
-    // didn't find a keyword? 70% of the time use some universal reply
-    if (ChanceOf(70) && !g_chatFactory[CHAT_NOKW].IsEmpty())
+    // didn't find a keyword? 80% of the time use some universal reply
+    if (ChanceOf(80) && !g_chatFactory[CHAT_NOKW].IsEmpty())
     {
         strcpy(reply, g_chatFactory[CHAT_NOKW].GetRandomElement().GetBuffer());
         return true;

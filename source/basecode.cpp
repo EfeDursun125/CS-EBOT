@@ -662,7 +662,7 @@ void Bot::FindItem(void)
 	if (GetCurrentTask()->taskID == TASK_THROWSMGRENADE)
 		return;
 
-	if ((!FNullEnt(m_enemy) || m_isSlowThink || m_isZombieBot) && GetCurrentTask()->taskID != TASK_DEFUSEBOMB)
+	if (GetCurrentTask()->taskID != TASK_DEFUSEBOMB && (m_isZombieBot || !FNullEnt(m_enemy) || !FNullEnt(m_breakableEntity)))
 		return;
 
 	if (IsOnLadder())
@@ -1926,7 +1926,7 @@ void Bot::SetConditions(void)
 		if (FNullEnt(m_enemy) && (g_timeRoundMid < engine->GetTime()) && !m_isUsingGrenade && m_personality != PERSONALITY_CAREFUL && m_currentWaypointIndex != g_waypoint->FindNearest(m_lastEnemyOrigin))
 		{
 			desireLevel = 4096.0f - ((1.0f - tempAgression) * Q_sqrt(distance));
-			desireLevel = (100 * desireLevel) / 4096.0f;
+			desireLevel = Divide((100 * desireLevel), 4096.0f);
 			desireLevel -= retreatLevel;
 
 			if (desireLevel > 89)
@@ -3488,7 +3488,6 @@ void Bot::ChooseAimDirection(void)
 		else if (m_isZombieBot && HasNextPath() && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_ZOMBIEPUSH)
 		{
 			m_lookAt = pev->flags & FL_DUCKING ? m_waypointOrigin : m_destOrigin + m_moveAngles * m_frameInterval;
-			m_lookAt.z = EyePosition().z;
 			return;
 		}
 	}
@@ -3604,16 +3603,19 @@ void Bot::ChooseAimDirection(void)
 		m_aimFlags &= ~AIM_NAVPOINT;
 		if (m_lastDamageOrigin != nullvec && m_damageTime + (float(m_skill + 55) * 0.05f) > engine->GetTime() && IsVisible(m_lastDamageOrigin, GetEntity()))
 			m_lookAt = m_lastDamageOrigin;
-		else if (m_lastEnemyOrigin != nullvec && m_seeEnemyTime + (float(m_skill + 55) * 0.05f) > engine->GetTime() && IsVisible(m_lastEnemyOrigin, GetEntity()))
-			m_lookAt = m_lastEnemyOrigin;
-		else
+		else if (m_lastEnemyOrigin != nullvec)
 		{
+			if (m_seeEnemyTime + (float(m_skill + 55) * 0.05f) > engine->GetTime() && IsVisible(m_lastEnemyOrigin, GetEntity()))
+				m_lookAt = m_lastEnemyOrigin;
+
 			if (m_nextCampDirTime < engine->GetTime())
 			{
-				if (m_seeEnemyTime + 2.0f + m_difficulty > engine->GetTime() && m_lastEnemyOrigin != nullvec)
+				if (m_seeEnemyTime + 2.0f + m_difficulty > engine->GetTime())
 					m_camp = m_lastEnemyOrigin;
-				else if (m_lastEnemyOrigin != nullvec && ChanceOf(30) && IsVisible(m_lastEnemyOrigin, GetEntity()))
+				else if (ChanceOf(30) && IsVisible(m_lastEnemyOrigin, GetEntity()))
 					m_camp = m_lastEnemyOrigin;
+				else if (ChanceOf(30) && IsVisible(m_lastDamageOrigin, GetEntity()))
+					m_camp = m_lastDamageOrigin;
 				else
 				{
 					int aimIndex = GetCampAimingWaypoint();
@@ -3624,6 +3626,20 @@ void Bot::ChooseAimDirection(void)
 				m_nextCampDirTime = engine->GetTime() + engine->RandomFloat(1.5f, 5.0f);
 			}
 		}
+		else if (m_nextCampDirTime < engine->GetTime())
+		{
+			if (m_lastDamageOrigin != nullvec && ChanceOf(30) && IsVisible(m_lastDamageOrigin, GetEntity()))
+				m_camp = m_lastDamageOrigin;
+			else
+			{
+				int aimIndex = GetCampAimingWaypoint();
+				if (IsValidWaypoint(aimIndex))
+					m_camp = g_waypoint->GetPath(aimIndex)->origin;
+			}
+			
+
+			m_nextCampDirTime = engine->GetTime() + engine->RandomFloat(1.5f, 5.0f);
+		}
 
 		m_lookAt = m_camp;
 	}
@@ -3632,13 +3648,8 @@ void Bot::ChooseAimDirection(void)
 		if (!IsValidWaypoint(m_currentWaypointIndex))
 			return;
 
-		if (!FNullEnt(m_breakableEntity) && m_breakableEntity->v.health > 0.0f)
-		{
+		if (!FNullEnt(m_breakableEntity) && m_breakableEntity->v.health > 0.0f && m_breakable != nullvec)
 			m_lookAt = m_breakable;
-			extern ConVar ebot_escape;
-			if (ebot_escape.GetBool())
-				m_breakableEntity->v.health = 0.0f;
-		}
 		else if (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_LADDER)
 		{
 			m_aimStopTime = 0.0f;
@@ -3647,49 +3658,29 @@ void Bot::ChooseAimDirection(void)
 		else if (m_isZombieBot || m_currentWeapon == WEAPON_KNIFE)
 		{
 			if (HasNextPath())
-				m_lookAt = g_waypoint->GetPath(m_navNode->next->index)->origin + pev->velocity + pev->view_ofs;
+				m_lookAt = g_waypoint->GetPath(m_navNode->next->index)->origin + pev->view_ofs;
 			else
 				m_lookAt = m_destOrigin + pev->velocity + pev->view_ofs;
-			m_lookAt.z = EyePosition().z;
 		}
-		else if (!(m_currentTravelFlags & PATHFLAG_JUMP) && !FNullEnt(m_moveTargetEntity) && m_currentWaypointIndex == m_prevGoalIndex)
-			m_lookAt = GetTopOrigin(m_moveTargetEntity);
-		else if (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_CAMP)
-			m_lookAt = m_camp;
-		else if (m_damageTime + float(m_skill + 50) * 0.04f > engine->GetTime())
+		else if (m_lastDamageOrigin != nullvec && m_damageTime + float(m_skill + 50) * 0.04f > engine->GetTime())
 			m_lookAt = m_lastDamageOrigin;
 	    else if (m_seeEnemyTime + float(m_skill + 50) * 0.04f > engine->GetTime())
 		{
-			if (!FNullEnt(m_lastEnemy) && IsAlive(m_lastEnemy) && m_seeEnemyTime + float(m_skill) * 0.03703703703f > engine->GetTime())
+			if (!FNullEnt(m_lastEnemy) && IsAlive(m_lastEnemy) && m_lastEnemyOrigin != nullvec && m_seeEnemyTime + float(m_skill) * 0.03703703703f > engine->GetTime())
 				m_lookAt = m_lastEnemyOrigin;
 			else
-			{
 				m_lookAt = m_destOrigin + pev->view_ofs;
-				m_lookAt.z = EyePosition().z;
-			}
 		}
 		else if (HasNextPath())
-			m_lookAt = g_waypoint->GetPath(m_navNode->next->index)->origin + pev->velocity + pev->view_ofs;
+			m_lookAt = g_waypoint->GetPath(m_navNode->next->index)->origin + pev->view_ofs;
 		else
 			m_lookAt = m_destOrigin + pev->velocity + pev->view_ofs;
-		m_lookAt.z = EyePosition().z;
 	}
-
-	if (!IsValidWaypoint(m_currentWaypointIndex))
-		return;
 
 	if (m_lookAt == nullvec)
-	{
-		if (HasNextPath())
-			m_lookAt = g_waypoint->GetPath(m_navNode->next->index)->origin + pev->velocity + pev->view_ofs;
-		else
-			m_lookAt = m_destOrigin + pev->velocity + pev->view_ofs;
-
-		if (!(g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_LADDER))
-			m_lookAt.z = EyePosition().z;
-		else
-			m_aimStopTime = 0.0f;
-	}
+		m_lookAt = m_lookAtCache;
+	else
+		m_lookAtCache = m_lookAt;
 }
 
 void Bot::Think(void)
@@ -4010,13 +4001,13 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 			{
 				if (g_mapType & MAP_CS)
 				{
-					int hostageWptIndex = FindHostage();
+					const int hostageWptIndex = FindHostage();
 
 					if (IsValidWaypoint(hostageWptIndex) && m_currentWaypointIndex != hostageWptIndex)
 						GetCurrentTask()->data = hostageWptIndex;
 					else // no hostage? search goal waypoints
 					{
-						int goalindex = g_waypoint->m_goalPoints.GetRandomElement();
+						const int goalindex = g_waypoint->m_goalPoints.GetRandomElement();
 
 						if (IsValidWaypoint(goalindex))
 						{
@@ -4047,7 +4038,7 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 					}
 					else if (!m_defendedBomb)
 					{
-						int plantedBombWptIndex = g_waypoint->FindNearest(g_waypoint->GetBombPosition());
+						const int plantedBombWptIndex = g_waypoint->FindNearest(g_waypoint->GetBombPosition());
 
 						if (IsValidWaypoint(plantedBombWptIndex) && m_currentWaypointIndex != plantedBombWptIndex)
 							GetCurrentTask()->data = plantedBombWptIndex;
@@ -4729,6 +4720,13 @@ void Bot::RunTask(void)
 				TaskComplete();
 				break;
 			}
+		}
+
+		if (m_isSlowThink && m_seeEnemyTime + 6.0f < engine->GetTime())
+		{
+			extern ConVar ebot_chat;
+			if (ebot_chat.GetBool() && !RepliesToPlayer() && m_lastChatTime + 10.0f < engine->GetTime() && g_lastChatTime + 5.0f < engine->GetTime()) // bot chatting turned on?
+				m_lastChatTime = engine->GetTime();
 		}
 
 		if (IsZombieMode() && IsValidWaypoint(m_zhCampPointIndex))
@@ -7191,7 +7189,7 @@ void Bot::ResetDoubleJumpState(void)
 Vector Bot::CheckToss(const Vector& start, Vector end)
 {
 	TraceResult tr;
-	float gravity = engine->GetGravity() * 0.55f;
+	float gravity = engine->GetGravity() * 0.54f;
 
 	end = end - pev->velocity;
 	end.z -= 15.0f;
@@ -7211,8 +7209,8 @@ Vector Bot::CheckToss(const Vector& start, Vector end)
 	if ((midPoint.z < start.z) || (midPoint.z < end.z))
 		return nullvec;
 
-	float timeOne = Q_sqrt((midPoint.z - start.z) / (0.54f * gravity));
-	float timeTwo = Q_sqrt((midPoint.z - end.z) / (0.54f * gravity));
+	float timeOne = Q_sqrt(Divide((midPoint.z - start.z), (0.5f * gravity)));
+	float timeTwo = Q_sqrt(Divide((midPoint.z - end.z), (0.5f * gravity)));
 
 	if (timeOne < 0.1)
 		return nullvec;
@@ -7248,14 +7246,14 @@ Vector Bot::CheckThrow(const Vector& start, Vector end)
 	TraceResult tr;
 
 	float gravity = engine->GetGravity() * 0.55f;
-	float time = nadeVelocity.GetLengthSquared() / SquaredF(195.0f);
+	float time = Divide(nadeVelocity.GetLengthSquared(), SquaredF(195.0f));
 
 	if (time < 0.01f)
 		return nullvec;
 	else if (time > 2.0f)
 		time = 1.2f;
 
-	nadeVelocity = nadeVelocity * (1.0f / time);
+	nadeVelocity = nadeVelocity * Divide(1.0f, time);
 	nadeVelocity.z += gravity * time * 0.5f;
 
 	Vector apex = start + (end - start) * 0.5f;
@@ -7290,7 +7288,7 @@ Vector Bot::CheckBombAudible(void)
 	if (m_skill > 90)
 		return bombOrigin;
 
-	float timeElapsed = ((engine->GetTime() - g_timeBombPlanted) / engine->GetC4TimerTime()) * 100.0f;
+	float timeElapsed = (Divide((engine->GetTime() - g_timeBombPlanted), engine->GetC4TimerTime())) * 100.0f;
 	float desiredRadius = 768.0f;
 
 	// start the manual calculations
@@ -7409,7 +7407,7 @@ float Bot::GetEstimatedReachTime(void)
 		const float distance = (g_waypoint->GetPath(m_prevWptIndex)->origin - g_waypoint->GetPath(m_currentWaypointIndex)->origin).GetLengthSquared();
 
 		// caclulate estimated time
-		estimatedTime = 5.0f * distance / SquaredF(pev->maxspeed);
+		estimatedTime = 5.0f * Divide(distance, SquaredF(pev->maxspeed));
 
 		// check for special waypoints, that can slowdown our movement
 		if ((g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_CROUCH) || (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_LADDER) || (pev->button & IN_DUCK))
@@ -7444,23 +7442,37 @@ bool Bot::CampingAllowed(void)
 		if (m_isBomber || m_isVIP || m_isUsingGrenade)
 			return false;
 
-		if (m_numEnemiesLeft <= 1 || m_numFriendsLeft <= 0)
+		if (!(g_mapType & MAP_DE) && (m_numEnemiesLeft <= 1 || m_numFriendsLeft <= 0))
 			return false;
 
 		if (m_team == TEAM_COUNTER)
 		{
-			if ((g_mapType & MAP_CS) && HasHostage())
+			if (g_mapType & MAP_CS && HasHostage())
 				return false;
-			else if (g_bombPlanted && (g_mapType & MAP_DE) && m_defendedBomb && !IsBombDefusing(g_waypoint->GetBombPosition()) && !OutOfBombTimer())
-			{
-				m_defendedBomb = false;
+			else if (g_bombPlanted && g_mapType & MAP_DE && (!IsBombDefusing(g_waypoint->GetBombPosition()) || OutOfBombTimer()))
 				return false;
-			}
 		}
 		else
 		{
-			if (!g_bombPlanted && (g_mapType & MAP_DE) && FindLoosedBomb() == -1)
-				return false;
+			if (g_mapType & MAP_DE)
+			{
+				if (g_bombPlanted)
+				{
+					const Vector bomb = g_waypoint->GetBombPosition();
+
+					// where is the bomb?
+					if (bomb == nullvec)
+						return false;
+					else if (IsBombDefusing(bomb))
+						return false;
+					else if (OutOfBombTimer())
+						return false;
+
+					return true;
+				}
+				else if (IsValidWaypoint(m_loosedBombWptIndex))
+					return false;
+			}
 		}
 
 		if (m_personality == PERSONALITY_RUSHER)
