@@ -55,7 +55,7 @@ using namespace Math;
 
 #include <runtime.h>
 
-#define WORK_ASYNC
+//#define WORK_ASYNC
 
 #ifdef WORK_ASYNC
 #include <future>
@@ -482,7 +482,7 @@ const int Const_MaxDamageValue = 2040;
 const int Const_MaxGoalValue = 2040;
 const int Const_MaxKillHistory = 16;
 const int Const_MaxRegMessages = 256;
-const int Const_MaxWaypoints = 4096;
+const int Const_MaxWaypoints = 8192;
 const int Const_MaxWeapons = 32;
 const int Const_NumWeapons = 26;
 
@@ -1139,6 +1139,7 @@ public:
 
 	void Think(void);
 	void FacePosition(void);
+	void FacePositionLowCost(void);
 	void UpdateAI(void);
 	void NewRound(void);
 	void EquipInBuyzone(int buyCount);
@@ -1345,8 +1346,9 @@ public:
 	void AddPath(int addIndex, int pathIndex, float distance, int type = 0);
 
 	int GetFacingIndex(void);
-	int FindFarest(const Vector& origin, float maxDistance = 9999.0);
-	int FindNearest(Vector origin, float minDistance = 9999.0, int flags = -1, edict_t* entity = nullptr, int* findWaypointPoint = (int*)-2, int mode = -1);
+	int FindFarest(const Vector& origin, float maxDistance = 99999.0f);
+	int FindNearestInCircle(const Vector& origin, float maxDistance = 99999.0f);
+	int FindNearest(Vector origin, float minDistance = 99999.0f, int flags = -1, edict_t* entity = nullptr, int* findWaypointPoint = (int*)-2, int mode = -1);
 	void FindInRadius(Vector origin, float radius, int* holdTab, int* count);
 	void FindInRadius(Array <int>& queueID, float radius, Vector origin);
 
@@ -1418,6 +1420,7 @@ public:
 extern int GetWeaponReturn(bool isString, const char* weaponAlias, int weaponID = -1);
 extern int GetTeam(edict_t* ent);
 extern int GetGameMode(void);
+extern bool IsBreakable(edict_t* ent);
 extern bool IsZombieEntity(edict_t* ent);
 
 extern void SetGameMod(int gamemode);
