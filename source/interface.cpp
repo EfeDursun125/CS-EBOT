@@ -35,6 +35,8 @@ ConVar ebot_showwp("ebot_show_waypoints", "0");
 
 ConVar ebot_analyze_create_goal_waypoints("ebot_analyze_starter_waypoints", "1");
 
+float secondTimer = 0.0f;
+
 void ebotVersionMSG(edict_t* entity = nullptr)
 {
 	int buildVersion[4] = { PRODUCT_VERSION_DWORD };
@@ -2675,6 +2677,7 @@ void ServerDeactivate(void)
 	// any case, when the new map will be booting, ServerActivate() will be called, so we'll do
 	// the loading of new bots and the new BSP data parsing there.
 
+	secondTimer = 0.0f;
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -2702,7 +2705,7 @@ void LoadEntityData(void)
 {
 	edict_t* entity;
 
-	for (int i = 0; i < entityNum; i++)
+	for (int i = engine->GetMaxClients() + 1; i < entityNum; i++)
 	{
 		if (g_entityId[i] == -1)
 			continue;
@@ -2722,7 +2725,7 @@ void LoadEntityData(void)
 	{
 		entity = INDEXENT(i);
 
-		if (FNullEnt(entity) || !(entity->v.flags & FL_CLIENT))
+		if (FNullEnt(entity) || (!(entity->v.flags & FL_CLIENT) && !(entity->v.flags & FL_FAKECLIENT)))
 		{
 			g_clients[i].flags &= ~(CFLAG_USED | CFLAG_ALIVE);
 			g_clients[i].ent = nullptr;
@@ -2732,6 +2735,7 @@ void LoadEntityData(void)
 			g_clients[i].getWpOrigin = nullvec;
 			g_clients[i].getWPTime = 0.0f;
 			g_clients[i].index = -1;
+			g_clients[i].team = TEAM_COUNT;
 			continue;
 		}
 
@@ -2909,39 +2913,27 @@ void JustAStuff(void)
 	}
 }
 
-static float secondTimer = 0.0;
 void FrameThread(void)
 {
-	if (secondTimer < engine->GetTime())
+	LoadEntityData();
+	JustAStuff();
+
+	if (g_bombPlanted)
+		g_waypoint->SetBombPosition();
+
+	if (ebot_lockzbot.GetBool())
 	{
-		LoadEntityData();
-		JustAStuff();
-
-		if (g_bombPlanted)
-			g_waypoint->SetBombPosition();
-
-		if (ebot_lockzbot.GetBool())
+		if (CVAR_GET_FLOAT("bot_quota") > 0)
 		{
-			if (CVAR_GET_FLOAT("bot_quota") > 0)
-			{
-				CVAR_SET_FLOAT("ebot_quota", CVAR_GET_FLOAT("bot_quota"));
-				ServerPrint("ebot_lockzbot is 1, you cannot add Z-Bot");
-				ServerPrint("You can input ebot_lockzbot unlock add Z-Bot");
-				ServerPrint("But, If you have use AMXX plug-in or Zombie Mod, I think this is not good choice");
-				CVAR_SET_FLOAT("bot_quota", 0);
-			}
+			CVAR_SET_FLOAT("ebot_quota", CVAR_GET_FLOAT("bot_quota"));
+			ServerPrint("ebot_lockzbot is 1, you cannot add Z-Bot");
+			ServerPrint("You can input ebot_lockzbot unlock add Z-Bot");
+			ServerPrint("But, If you have use AMXX plug-in or Zombie Mod, I think this is not good choice");
+			CVAR_SET_FLOAT("bot_quota", 0);
 		}
-
-		secondTimer = AddTime(1.0f);
 	}
-	else
-	{
-		// keep bot number up to date
-		g_botManager->MaintainBotQuota();
 
-		if (g_analyzewaypoints)
-			g_waypoint->Analyze();
-	}
+	secondTimer = AddTime(1.0f);
 }
 
 void StartFrame(void)
@@ -2954,11 +2946,22 @@ void StartFrame(void)
 	// for example if a new player joins the server, we should disconnect a bot, and if the
 	// player population decreases, we should fill the server with other bots.
 
+	if (secondTimer < engine->GetTime())
+	{
 #ifdef WORK_ASYNC
-	async(launch::async, FrameThread);
+		async(launch::async, FrameThread);
 #else
-	FrameThread();
+		FrameThread();
 #endif
+	}
+	else
+	{
+		if (g_analyzewaypoints)
+			g_waypoint->Analyze();
+
+		// keep bot number up to date
+		g_botManager->MaintainBotQuota();
+	}
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -3027,6 +3030,8 @@ void ServerActivate_Post(edict_t* /*pentEdictList*/, int /*edictCount*/, int /*c
 	// loading the bot profiles, and drawing the world map (ie, filling the navigation hashtable).
 	// Once this function has been called, the server can be considered as "running". Post version
 	// called only by metamod.
+
+	secondTimer = 0.0f;
 
 #ifdef WORK_ASYNC
 	async(launch::async, ThreadedVis);
@@ -3190,13 +3195,12 @@ void pfnMessageBegin(int msgDest, int msgType, const float* origin, edict_t* ed)
 
 	if (!FNullEnt(ed))
 	{
-		int index = g_botManager->GetIndex(ed);
+		const int index = g_botManager->GetIndex(ed);
 
 		// is this message for a bot?
 		if (index != -1 && !(ed->v.flags & FL_DORMANT) && g_botManager->GetBot(index)->GetEntity() == ed)
 		{
 			NetworkMsg::GetObjectPtr()->Reset();
-
 			NetworkMsg::GetObjectPtr()->SetBot(g_botManager->GetBot(index));
 
 			// message handling is done in usermsg.cpp
