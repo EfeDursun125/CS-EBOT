@@ -32,9 +32,6 @@ ConVar ebot_aim_type("ebot_aim_type", "1");
 
 int Bot::FindGoal(void)
 {
-	if (!g_waypoint->m_rescuePoints.IsEmpty() && HasHostage())
-		return m_chosenGoalIndex = g_waypoint->m_rescuePoints.GetRandomElement();
-	
 	if (IsZombieMode())
 	{
 		if (m_isZombieBot)
@@ -272,9 +269,37 @@ int Bot::FindGoal(void)
 				}
 			}
 		}
+		else if (g_mapType & MAP_CS)
+		{
+			static bool ohShit;
+			if (m_team == TEAM_COUNTER)
+			{
+				ohShit = false;
+				if (HasHostage())
+				{
+					ohShit = true;
+					if (!IsValidWaypoint(m_chosenGoalIndex) || !(g_waypoint->GetPath(m_chosenGoalIndex)->flags & WAYPOINT_RESCUE))
+						return m_chosenGoalIndex = g_waypoint->m_rescuePoints.GetRandomElement();
+				}
+				else
+				{
+					if (engine->RandomInt(1, 2) == 1)
+						return m_chosenGoalIndex = g_waypoint->m_ctPoints.GetRandomElement();
+					else
+						return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
+				}
+			}
+			else
+			{
+				if (ohShit || engine->RandomInt(1, 11) == 1)
+					return m_chosenGoalIndex = g_waypoint->m_rescuePoints.GetRandomElement();
+				else
+					return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
+			}
+		}
 	}
 
-	if (!FNullEnt(m_lastEnemy))
+	if (!FNullEnt(m_lastEnemy) || IsAlive(m_lastEnemy))
 	{
 		const Vector origin = GetEntityOrigin(m_lastEnemy);
 		if (origin != nullvec)
@@ -424,7 +449,7 @@ bool Bot::DoWaypointNav(void)
 		desiredDistance *= 2.0f;
 
 	// tweak for distance
-	desiredDistance += (m_frameInterval * (256.0f - desiredDistance));
+	desiredDistance += (m_frameInterval * (300.0f - desiredDistance));
 
 	if (waypointDistance <= SquaredF(desiredDistance))
 	{
@@ -2601,7 +2626,7 @@ void Bot::FacePosition(void)
 		Vector direction = (m_lookAt - EyePosition()).ToAngles() + pev->punchangle;
 		direction.x = -direction.x; // invert for engine
 
-		float aimSpeed = ((m_skill * 0.054f) + m_frameInterval + 11.0f) * g_pGlobals->frametime;
+		float aimSpeed = ((m_skill * 0.054f) + 11.0f) * g_pGlobals->frametime;
 
 		m_idealAngles.x += AngleNormalize(direction.x - m_idealAngles.x) * aimSpeed;
 		m_idealAngles.y += AngleNormalize(direction.y - m_idealAngles.y) * aimSpeed;
@@ -2650,8 +2675,6 @@ void Bot::FacePosition(void)
 		lockn = 10.0f;
 	}
 
-	const float frameInveral = g_pGlobals->frametime - (m_frameInterval * g_pGlobals->frametime);
-
 	if (angleDiffYaw <= lockn && angleDiffYaw >= -lockn)
 	{
 		m_lookYawVel = 0.0f;
@@ -2666,14 +2689,14 @@ void Bot::FacePosition(void)
 	{
 		float accel = Clamp((stiffness * angleDiffYaw) - (damping * m_lookYawVel), -accelerate, accelerate);
 
-		m_lookYawVel += frameInveral * accel;
-		m_idealAngles.y += frameInveral * m_lookYawVel;
+		m_lookYawVel += g_pGlobals->frametime * accel;
+		m_idealAngles.y += g_pGlobals->frametime * m_lookYawVel;
 	}
 
 	float accel = Clamp(2.0f * stiffness * angleDiffPitch - (damping * m_lookPitchVel), -accelerate, accelerate);
 
-	m_lookPitchVel += frameInveral * accel;
-	m_idealAngles.x += frameInveral * m_lookPitchVel;
+	m_lookPitchVel += g_pGlobals->frametime * accel;
+	m_idealAngles.x += g_pGlobals->frametime * m_lookPitchVel;
 
 	if (m_idealAngles.x < -89.0f)
 		m_idealAngles.x = -89.0f;
@@ -2683,6 +2706,22 @@ void Bot::FacePosition(void)
 	pev->v_angle = m_idealAngles;
 
 	// set the body angles to point the gun correctly
+	pev->angles.x = -pev->v_angle.x * 0.33333333333f;
+	pev->angles.y = pev->v_angle.y;
+}
+
+void Bot::FacePositionLowCost(void)
+{
+	m_idealAngles = pev->v_angle;
+	Vector direction = (m_lookAt - EyePosition()).ToAngles() + pev->punchangle;
+	direction.x = -direction.x; // invert for engine
+
+	float aimSpeed = ((m_skill * 0.054f) + 11.0f) * g_pGlobals->frametime;
+
+	m_idealAngles.x += AngleNormalize(direction.x - m_idealAngles.x) * aimSpeed;
+	m_idealAngles.y += AngleNormalize(direction.y - m_idealAngles.y) * aimSpeed;
+
+	pev->v_angle = m_idealAngles;
 	pev->angles.x = -pev->v_angle.x * 0.33333333333f;
 	pev->angles.y = pev->v_angle.y;
 }
@@ -2738,14 +2777,15 @@ int Bot::FindHostage(void)
 			}
 		}
 
-		int nearestIndex = g_waypoint->FindNearest(GetEntityOrigin(ent), 512.0f, -1, ent);
+		const Vector entOrigin = GetEntityOrigin(ent);
+		const int nearestIndex = g_waypoint->FindNearest(entOrigin, 512.0f, -1, ent);
 
 		if (IsValidWaypoint(nearestIndex) && canF)
 			return nearestIndex;
 		else
 		{
 			// do we need second try?
-			int nearestIndex2 = g_waypoint->FindNearest(GetEntityOrigin(ent));
+			const int nearestIndex2 = g_waypoint->FindNearest(entOrigin);
 
 			if (IsValidWaypoint(nearestIndex2) && canF)
 				return nearestIndex2;
@@ -2767,13 +2807,14 @@ int Bot::FindLoosedBomb(void)
 	{
 		if (strcmp(STRING(bombEntity->v.model) + 9, "backpack.mdl") == 0)
 		{
-			const int nearestIndex = g_waypoint->FindNearest(GetEntityOrigin(bombEntity), 512.0f, -1, bombEntity);
+			const Vector bombOrigin = GetEntityOrigin(bombEntity);
+			const int nearestIndex = g_waypoint->FindNearest(bombOrigin, 512.0f, -1, bombEntity);
 			if (IsValidWaypoint(nearestIndex))
 				return nearestIndex;
 			else
 			{
 				// do we need second try?
-				const int nearestIndex2 = g_waypoint->FindNearest(GetEntityOrigin(bombEntity));
+				const int nearestIndex2 = g_waypoint->FindNearest(bombOrigin);
 
 				if (IsValidWaypoint(nearestIndex2))
 					return nearestIndex2;
@@ -2814,10 +2855,7 @@ edict_t* Bot::FindNearestButton(const char* className)
 	// find the nearest button which can open our target
 	while (!FNullEnt(searchEntity = FIND_ENTITY_BY_TARGET(searchEntity, className)))
 	{
-		Vector entityOrign = GetEntityOrigin(searchEntity);
-
-		float distance = (pev->origin - entityOrign).GetLengthSquared();
-
+		float distance = (pev->origin - GetEntityOrigin(searchEntity)).GetLengthSquared();
 		if (distance < nearestDistance)
 		{
 			nearestDistance = distance;

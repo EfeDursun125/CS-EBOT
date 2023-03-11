@@ -2762,6 +2762,7 @@ void LoadEntityData(void)
 		g_clients[i].wpIndex2 = -1;
 		g_clients[i].getWpOrigin = nullvec;
 		g_clients[i].getWPTime = 0.0f;
+		g_clients[i].team = TEAM_COUNT;
 	}
 }
 

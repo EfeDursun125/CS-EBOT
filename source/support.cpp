@@ -1078,6 +1078,21 @@ float MinFloat(float a, float b)
 	return b;
 }
 
+bool IsBreakable(edict_t* ent)
+{
+	if (FNullEnt(ent))
+		return false;
+
+	extern ConVar ebot_breakable_health_limit;
+	if ((FClassnameIs(ent, "func_breakable") || (FClassnameIs(ent, "func_pushable") && (ent->v.spawnflags & SF_PUSH_BREAKABLE)) || FClassnameIs(ent, "func_wall")) && ent->v.health <= ebot_breakable_health_limit.GetFloat())
+	{
+		if (ent->v.takedamage != DAMAGE_NO && ent->v.impulse <= 0 && !(ent->v.flags & FL_WORLDBRUSH) && !(ent->v.spawnflags & SF_BREAK_TRIGGER_ONLY))
+			return (ent->v.movetype == MOVETYPE_PUSH || ent->v.movetype == MOVETYPE_PUSHSTEP);
+	}
+
+	return false;
+}
+
 // new get team off set, return player true team
 int GetTeam(edict_t* ent)
 {
@@ -1695,7 +1710,9 @@ bool FindNearestPlayer(void** pvHolder, edict_t* to, float searchDistance, bool 
 	edict_t* ent = nullptr, * survive = nullptr; // pointer to temporaly & survive entity
 	float nearestPlayer = FLT_MAX; // nearest player
 
-	while (!FNullEnt(ent = FIND_ENTITY_IN_SPHERE(ent, GetEntityOrigin(to), searchDistance)))
+	const Vector toOrigin = GetEntityOrigin(to);
+
+	while (!FNullEnt(ent = FIND_ENTITY_IN_SPHERE(ent, toOrigin, searchDistance)))
 	{
 		if (FNullEnt(ent) || !IsValidPlayer(ent) || to == ent)
 			continue; // skip invalid players
@@ -1703,7 +1720,7 @@ bool FindNearestPlayer(void** pvHolder, edict_t* to, float searchDistance, bool 
 		if ((sameTeam && GetTeam(ent) != GetTeam(to)) || (isAlive && !IsAlive(ent)) || (needBot && !IsValidBot(ent)) || (needDrawn && (ent->v.effects & EF_NODRAW)))
 			continue; // filter players with parameters
 
-		float distance = (GetEntityOrigin(ent) - GetEntityOrigin(to)).GetLengthSquared();
+		float distance = (GetEntityOrigin(ent) - toOrigin).GetLengthSquared();
 
 		if (distance < nearestPlayer)
 		{
