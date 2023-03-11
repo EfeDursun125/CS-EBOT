@@ -1115,7 +1115,7 @@ void Bot::NewRound(void)
 	m_askCheckTime = 0.0f;
 	m_minSpeed = 260.0f;
 	m_prevSpeed = 0.0f;
-	m_prevOrigin = Vector(9999.0, 9999.0, 9999.0f);
+	m_prevOrigin = Vector(9999.0f, 9999.0f, 9999.0f);
 	m_prevTime = engine->GetTime();
 	m_blindRecognizeTime = engine->GetTime();
 
@@ -1192,7 +1192,7 @@ void Bot::NewRound(void)
 	m_zhCampPointIndex = -1;
 	m_checkCampPointTime = 0.0f;
 
-	if (!m_isAlive) // if bot died, clear all weapon stuff and force buying again
+	if (!IsAlive(GetEntity())) // if bot died, clear all weapon stuff and force buying again
 	{
 		memset(&m_ammoInClip, 0, sizeof(m_ammoInClip));
 		memset(&m_ammo, 0, sizeof(m_ammo));

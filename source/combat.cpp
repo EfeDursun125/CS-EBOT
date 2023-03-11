@@ -1501,7 +1501,6 @@ int Bot::CheckGrenades(void)
 		return WEAPON_FBGRENADE;
 	else if (pev->weapons & (1 << WEAPON_SMGRENADE))
 		return WEAPON_SMGRENADE;
-
 	return -1;
 }
 
@@ -1512,7 +1511,6 @@ void Bot::SelectKnife(void)
 		return;
 
 	auto task = GetCurrentTask()->taskID;
-
 	if (task == TASK_THROWFBGRENADE)
 		return;
 

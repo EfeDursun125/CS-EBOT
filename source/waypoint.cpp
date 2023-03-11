@@ -2207,6 +2207,7 @@ void Waypoint::InitializeVisibility(void)
             if (!(res & 1))
                 standCount++;
         }
+
         m_paths[m_visibilityIndex]->vis.crouch = crouchCount;
         m_paths[m_visibilityIndex]->vis.stand = standCount;
     }
@@ -2307,7 +2308,9 @@ char* Waypoint::GetWaypointInfo(int id)
 void Waypoint::Think(void)
 {
     if (FNullEnt(g_hostEntity))
-        return; // this function is only valid on listenserver, and in waypoint enabled mode.
+        return; // this function is only valid on listenserver, and in waypoint enabled mode
+
+    ShowWaypointMsg();
 
     float nearestDistance = FLT_MAX;
     if (m_learnJumpWaypoint)
@@ -2326,10 +2329,9 @@ void Waypoint::Think(void)
                 m_learnPosition = GetEntityOrigin(g_hostEntity);
             }
         }
-        else if (((g_hostEntity->v.flags & FL_ONGROUND) || g_hostEntity->v.movetype == MOVETYPE_FLY) && m_timeJumpStarted + 0.1 < engine->GetTime())
+        else if (((g_hostEntity->v.flags & FL_PARTIALGROUND) || g_hostEntity->v.movetype == MOVETYPE_FLY) && m_timeJumpStarted + 0.1 < engine->GetTime())
         {
             Add(10);
-
             m_learnJumpWaypoint = false;
             m_endJumpPoint = false;
         }
@@ -2479,15 +2481,10 @@ void Waypoint::Think(void)
                 Add(0);  // place a waypoint here
         }
     }
-
-    ShowWaypointMsg();
 }
 
 void Waypoint::ShowWaypointMsg(void)
 {
-    if (FNullEnt(g_hostEntity))
-        return;
-
     m_facingAtIndex = GetFacingIndex();
 
     // reset the minimal distance changed before

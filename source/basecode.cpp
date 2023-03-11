@@ -2451,71 +2451,69 @@ void Bot::CheckGrenadeThrow(void)
 		return;
 	}
 
-	if ((grenadeToThrow == WEAPON_HEGRENADE || grenadeToThrow == WEAPON_SMGRENADE) && !(m_states & (m_isZombieBot ? STATE_THROWSMOKE : STATE_SEEINGENEMY | STATE_THROWEXPLODE | STATE_THROWFLASH | STATE_THROWSMOKE)))
+	if ((grenadeToThrow == WEAPON_HEGRENADE || grenadeToThrow == WEAPON_SMGRENADE) && !(m_states & (STATE_SEEINGENEMY | STATE_THROWEXPLODE | STATE_THROWFLASH | STATE_THROWSMOKE)))
 	{
 		float distance = (GetEntityOrigin(targetEntity) - pev->origin).GetLengthSquared();
 
 		// is enemy to high to throw
-		if ((GetEntityOrigin(targetEntity).z > (pev->origin.z + 650.0f)) || !(targetEntity->v.flags & (FL_ONGROUND | FL_DUCKING)))
+		if ((GetEntityOrigin(targetEntity).z > (pev->origin.z + 650.0f)) || !(targetEntity->v.flags & (FL_PARTIALGROUND | FL_DUCKING)))
 			distance = FLT_MAX; // just some crazy value
 
 		// enemy is within a good throwing distance ?
-		if (distance > (grenadeToThrow == WEAPON_SMGRENADE ? SquaredF(400.0f) : SquaredF(600.0f)) && distance <= SquaredF(768.0f))
+		if (distance > (grenadeToThrow == WEAPON_SMGRENADE ? SquaredF(400.0f) : SquaredF(600.0f)) && distance <= SquaredF(800.0f))
 		{
-			// care about different types of grenades
-			if (grenadeToThrow == WEAPON_HEGRENADE)
+			bool allowThrowing = true;
+
+			// check for teammates
+			if (grenadeToThrow == WEAPON_HEGRENADE && GetGameMode() == MODE_BASE && m_numFriendsLeft > 0 && GetNearbyFriendsNearPosition(GetEntityOrigin(targetEntity), 256.0f) > 0)
+				allowThrowing = false;
+
+			if (allowThrowing && m_seeEnemyTime + 2.0f < engine->GetTime())
 			{
-				bool allowThrowing = true;
+				Vector enemyPredict = (targetEntity->v.velocity * 0.5f).SkipZ() + GetEntityOrigin(targetEntity);
+				int searchTab[4], count = 4;
 
-				// check for teammates
-				if (GetGameMode() == MODE_BASE && m_numFriendsLeft > 0 && GetNearbyFriendsNearPosition(GetEntityOrigin(targetEntity), 256.0f) > 0)
-					allowThrowing = false;
+				float searchRadius = targetEntity->v.velocity.GetLength2D();
 
-				if (allowThrowing && m_seeEnemyTime + 2.0f < engine->GetTime())
+				// check the search radius
+				if (searchRadius < 128.0f)
+					searchRadius = 128.0f;
+
+				// search waypoints
+				g_waypoint->FindInRadius(enemyPredict, searchRadius, searchTab, &count);
+
+				while (count > 0)
 				{
-					Vector enemyPredict = (targetEntity->v.velocity * 0.5f).SkipZ() + GetEntityOrigin(targetEntity);
-					int searchTab[4], count = 4;
+					allowThrowing = true;
 
-					float searchRadius = targetEntity->v.velocity.GetLength2D();
+					// check the throwing
+					m_throw = g_waypoint->GetPath(searchTab[count--])->origin;
+					Vector src = CheckThrow(EyePosition(), m_throw);
 
-					// check the search radius
-					if (searchRadius < 128.0f)
-						searchRadius = 128.0f;
+					if (src.GetLengthSquared() <= SquaredF(100.0f))
+						src = CheckToss(EyePosition(), m_throw);
 
-					// search waypoints
-					g_waypoint->FindInRadius(enemyPredict, searchRadius, searchTab, &count);
-
-					while (count > 0)
-					{
-						allowThrowing = true;
-
-						// check the throwing
-						m_throw = g_waypoint->GetPath(searchTab[count--])->origin;
-						Vector src = CheckThrow(EyePosition(), m_throw);
-
-						if (src.GetLengthSquared() <= SquaredF(100.0f))
-							src = CheckToss(EyePosition(), m_throw);
-
-						if (src == nullvec)
-							allowThrowing = false;
-						else
-							break;
-					}
+					if (src == nullvec)
+						allowThrowing = false;
+					else
+						break;
 				}
+			}
 
-				// start explosive grenade throwing?
-				if (allowThrowing)
+			// start explosive grenade throwing?
+			if (allowThrowing)
+			{
+				if (grenadeToThrow == WEAPON_HEGRENADE)
 					m_states |= STATE_THROWEXPLODE;
 				else
-					m_states &= ~STATE_THROWEXPLODE;
-			}
-			else if (GetGameMode() == MODE_BASE && grenadeToThrow == WEAPON_SMGRENADE)
-			{
-				// start smoke grenade throwing?
-				if ((m_states & STATE_SEEINGENEMY) && GetShootingConeDeviation(m_enemy, &pev->origin) >= 0.90)
-					m_states &= ~STATE_THROWSMOKE;
-				else
 					m_states |= STATE_THROWSMOKE;
+			}
+			else
+			{
+				if (grenadeToThrow == WEAPON_HEGRENADE)
+					m_states &= ~STATE_THROWEXPLODE;
+				else
+					m_states &= ~STATE_THROWSMOKE;
 			}
 		}
 	}
@@ -4016,36 +4014,7 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 						}
 					}
 				}
-				// if bomb planted and it's a CT calculate new path to bomb point if he's not already heading for
-				else if (g_bombPlanted && IsValidWaypoint(GetCurrentTask()->data) && !(g_waypoint->GetPath(m_tasks->data)->flags & WAYPOINT_GOAL) && GetCurrentTask()->taskID != TASK_ESCAPEFROMBOMB && (g_waypoint->GetPath(m_tasks->data)->origin - g_waypoint->GetBombPosition()).GetLengthSquared() > SquaredF(128.0f))
-				{
-					DeleteSearchNodes();
-					m_tasks->data = -1;
-				}
-				else if (m_numEnemiesLeft > 0 && IsValidWaypoint(m_currentWaypointIndex) && (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_GOAL) && ChanceOf(50 + m_numEnemiesLeft + m_numFriendsLeft) && GetNearbyEnemiesNearPosition(pev->origin, 768.0f) == 0)
-					RadioMessage(Radio_SectorClear);
 			}
-			else
-			{
-				if (g_mapType & MAP_DE)
-				{
-					if (!g_bombPlanted)
-					{
-						m_loosedBombWptIndex = FindLoosedBomb();
-
-						if (IsValidWaypoint(m_loosedBombWptIndex) && m_currentWaypointIndex != m_loosedBombWptIndex && ChanceOf(50 + m_numEnemiesLeft + m_numFriendsLeft))
-							GetCurrentTask()->data = m_loosedBombWptIndex;
-					}
-					else if (!m_defendedBomb)
-					{
-						const int plantedBombWptIndex = g_waypoint->FindNearest(g_waypoint->GetBombPosition());
-
-						if (IsValidWaypoint(plantedBombWptIndex) && m_currentWaypointIndex != plantedBombWptIndex)
-							GetCurrentTask()->data = plantedBombWptIndex;
-					}
-				}
-			}
-			
 		}
 
 		if (engine->IsFootstepsOn() && m_skill > 50 && !(m_aimFlags & AIM_ENEMY) && (m_heardSoundTime + 13.0f >= engine->GetTime() || (m_states & (STATE_HEARENEMY))) && !(m_currentTravelFlags & PATHFLAG_JUMP) && !(pev->button & IN_DUCK) && !(pev->flags & FL_DUCKING) && !g_bombPlanted && !m_isZombieBot)
@@ -5301,10 +5270,17 @@ void Bot::RunTask(void)
 		{
 			if (m_isZombieBot)
 			{
-				destination = m_enemyOrigin;
-				m_destOrigin = destination;
-				m_moveSpeed = pev->maxspeed;
-				m_moveToGoal = false;
+				if (m_enemyOrigin != nullvec)
+				{
+					destination = m_enemyOrigin;
+					m_destOrigin = destination;
+					m_moveSpeed = pev->maxspeed;
+				}
+				else
+				{
+					m_moveSpeed = 0.0f;
+					m_strafeSpeed = 0.0f;
+				}
 			}
 			else if (((pev->origin + pev->velocity * m_frameInterval) - m_enemyOrigin).GetLengthSquared() <= SquaredF(fabsf(m_enemy->v.speed) + ebot_zp_escape_distance.GetFloat()))
 			{
@@ -5410,10 +5386,17 @@ void Bot::RunTask(void)
 		{
 			if (m_isZombieBot)
 			{
-				destination = m_enemyOrigin;
-				m_destOrigin = destination;
-				m_moveSpeed = pev->maxspeed;
-				m_moveToGoal = false;
+				if (m_enemyOrigin != nullvec)
+				{
+					destination = m_enemyOrigin;
+					m_destOrigin = destination;
+					m_moveSpeed = pev->maxspeed;
+				}
+				else
+				{
+					m_moveSpeed = 0.0f;
+					m_strafeSpeed = 0.0f;
+				}
 			}
 			else if (((pev->origin + pev->velocity * m_frameInterval) - m_enemyOrigin).GetLengthSquared() <= SquaredF(fabsf(m_enemy->v.speed) + ebot_zp_escape_distance.GetFloat()))
 			{
@@ -5495,57 +5478,98 @@ void Bot::RunTask(void)
 
 		break;
 
-		// smoke grenade throw behavior
-		// a bit different to the others because it mostly tries to throw the sg on the ground
 	case TASK_THROWSMGRENADE:
+
 		m_aimFlags |= AIM_GRENADE;
+		destination = m_throw;
+
 		RemoveCertainTask(TASK_FIGHTENEMY);
 
-		if (!(m_states & STATE_SEEINGENEMY))
+		extern ConVar ebot_zp_escape_distance;
+		if (IsZombieMode() && !FNullEnt(m_enemy))
+		{
+			if (m_isZombieBot)
+			{
+				if (m_enemyOrigin != nullvec)
+				{
+					destination = m_enemyOrigin;
+					m_destOrigin = destination;
+					m_moveSpeed = pev->maxspeed;
+				}
+				else
+				{
+					m_moveSpeed = 0.0f;
+					m_strafeSpeed = 0.0f;
+				}
+
+				m_moveToGoal = false;
+			}
+			else if (((pev->origin + pev->velocity * m_frameInterval) - m_enemyOrigin).GetLengthSquared() <= SquaredF(fabsf(m_enemy->v.speed) + ebot_zp_escape_distance.GetFloat()))
+			{
+				destination = m_enemyOrigin;
+				m_destOrigin = destination;
+				m_moveSpeed = -pev->maxspeed;
+				m_moveToGoal = false;
+			}
+			else
+			{
+				destination = m_enemyOrigin;
+				m_moveSpeed = 0.0f;
+				m_moveToGoal = false;
+			}
+		}
+		else if (!(m_states & STATE_SEEINGENEMY))
 		{
 			m_moveSpeed = 0.0f;
 			m_strafeSpeed = 0.0f;
-
 			m_moveToGoal = false;
 		}
-
-		m_checkTerrain = false;
-		m_isUsingGrenade = true;
-
-		src = m_lastEnemyOrigin - pev->velocity;
-
-		// predict where the enemy is in 0.54 secs
-		if (!FNullEnt(m_enemy))
-			src += m_enemy->v.velocity * 0.54f;
-
-		m_grenade = (src - EyePosition()).Normalize();
-
-		if (m_tasks->time < engine->GetTime() + 0.5)
-		{
-			m_aimFlags &= ~AIM_GRENADE;
-			m_states &= ~STATE_THROWSMOKE;
-
-			TaskComplete();
-			break;
-		}
-
-		if (m_currentWeapon != WEAPON_SMGRENADE)
-		{
-			if (pev->weapons & (1 << WEAPON_SMGRENADE))
-			{
-				SelectWeaponByName("weapon_smokegrenade");
-				m_tasks->time = engine->GetTime() + Const_GrenadeTimer;
-			}
-			else
-				TaskComplete();
-		}
-		else if (!(pev->oldbuttons & IN_ATTACK))
-			pev->button |= IN_ATTACK;
+		else if (!FNullEnt(m_enemy) || m_enemyOrigin != nullvec)
+			destination = m_enemyOrigin + (m_enemy->v.velocity.SkipZ() * 0.54f);
 		else
+			m_enemy = m_lastEnemy;
+
+		m_isUsingGrenade = true;
+		m_checkTerrain = false;
+
+		m_grenade = CheckThrow(EyePosition(), destination);
+
+		// dammit
 		{
-			SelectBestWeapon();
-			TaskComplete();
+			edict_t* ent = nullptr;
+
+			while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "grenade")))
+			{
+				if (ent->v.owner == GetEntity() && strcmp(STRING(ent->v.model) + 9, "smokegrenade.mdl") == 0)
+				{
+					// set the correct velocity for the grenade
+					if (m_grenade != nullvec && m_grenade.GetLengthSquared() >= SquaredF(100.0f))
+						ent->v.velocity = m_grenade;
+
+					m_grenadeCheckTime = engine->GetTime() + Const_GrenadeTimer;
+
+					SelectBestWeapon();
+					TaskComplete();
+
+					break;
+				}
+			}
+
+			if (FNullEnt(ent))
+			{
+				if (m_currentWeapon != WEAPON_SMGRENADE)
+				{
+					if (pev->weapons & (1 << WEAPON_SMGRENADE))
+						SelectWeaponByName("weapon_smokegrenade");
+					else // no grenade???
+						TaskComplete();
+				}
+				else if (!(pev->oldbuttons & IN_ATTACK))
+					pev->button |= IN_ATTACK;
+			}
 		}
+
+		pev->button |= m_campButtons;
 
 		break;
 
@@ -7463,15 +7487,17 @@ bool Bot::CampingAllowed(void)
 					// where is the bomb?
 					if (bomb == nullvec)
 						return false;
-					else if (IsBombDefusing(bomb))
-						return false;
-					else if (OutOfBombTimer())
-						return false;
 
 					return true;
 				}
-				else if (IsValidWaypoint(m_loosedBombWptIndex))
-					return false;
+				else
+				{
+					if (m_isSlowThink)
+						m_loosedBombWptIndex = FindLoosedBomb();
+
+					if (IsValidWaypoint(m_loosedBombWptIndex))
+						return false;
+				}
 			}
 		}
 

@@ -31,6 +31,7 @@
 //
 
 ConVar ebot_ignore_enemies("ebot_ignore_enemies", "0");
+ConVar ebot_zp_delay_custom("ebot_zp_delay_custom", "0.0");
 
 void TraceLine(const Vector& start, const Vector& end, bool ignoreMonsters, bool ignoreGlass, edict_t* ignoreEntity, TraceResult* ptr)
 {
@@ -501,8 +502,10 @@ void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
 
 			stringIndex++;
 		}
+
 		MDLL_ClientCommand(fakeClient);
 	}
+
 	g_isFakeCommand = false;
 }
 
@@ -802,37 +805,46 @@ void AutoLoadGameMode(void)
 		goto lastly;
 	}
 
-	// Zombie
-	char* zpGameVersion[] =
+	if (ebot_zp_delay_custom.GetFloat() > 0.0f)
 	{
-		"plugins-zplague",  // ZP 4.3
-		"plugins-zp50_ammopacks", // ZP 5.0
-		"plugins-zp50_money", // ZP 5.0
-		"plugins-ze", // ZE
-		"plugins-zp", // ZP
-		"plugins-zescape", // ZE
-		"plugins-escape", // ZE
-		"plugins-plague" // ZP
-	};
-
-	for (int i = 0; i < 8; i++)
+		SetGameMod(MODE_ZP);
+		g_DelayTimer = engine->GetTime() + ebot_zp_delay_custom.GetFloat();
+		goto lastly;
+	}
+	else
 	{
-		Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/%s.ini", GetModName(), zpGameVersion[i]);
-		if (TryFileOpen(Plugin_INI))
+		// Zombie
+		char* zpGameVersion[] =
 		{
-			float delayTime = CVAR_GET_FLOAT("zp_delay") + 2.2f;
+			"plugins-zplague",  // ZP 4.3
+			"plugins-zp50_ammopacks", // ZP 5.0
+			"plugins-zp50_money", // ZP 5.0
+			"plugins-ze", // ZE
+			"plugins-zp", // ZP
+			"plugins-zescape", // ZE
+			"plugins-escape", // ZE
+			"plugins-plague" // ZP
+		};
 
-			if (i != 0)
-				delayTime = CVAR_GET_FLOAT("zp_gamemode_delay") + 0.2f;
-
-			if (delayTime > 0)
+		for (int i = 0; i < 8; i++)
+		{
+			Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/%s.ini", GetModName(), zpGameVersion[i]);
+			if (TryFileOpen(Plugin_INI))
 			{
-				if (checkShowTextTime < 3 || GetGameMode() != MODE_ZP)
-					ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Mode (Plague/Escape) ***");
+				float delayTime = CVAR_GET_FLOAT("zp_delay") + 2.2f;
 
-				SetGameMod(MODE_ZP);
-				g_DelayTimer = engine->GetTime() + delayTime;
-				goto lastly;
+				if (i == 1 || i == 2)
+					delayTime = CVAR_GET_FLOAT("zp_gamemode_delay") + 0.2f;
+
+				if (delayTime > 0.0f)
+				{
+					if (checkShowTextTime < 3 || GetGameMode() != MODE_ZP)
+						ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Mode (Plague/Escape) ***");
+
+					SetGameMod(MODE_ZP);
+					g_DelayTimer = engine->GetTime() + delayTime;
+					goto lastly;
+				}
 			}
 		}
 	}

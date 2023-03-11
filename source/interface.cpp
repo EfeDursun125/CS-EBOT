@@ -1167,7 +1167,6 @@ int Spawn(edict_t* ent)
 	// and any MOD is supposed to implement one for each of its entities.
 
 	const char* entityClassname = STRING(ent->v.classname);
-
 	if (strcmp(entityClassname, "worldspawn") == 0)
 	{
 		PRECACHE_SOUND("weapons/xbow_hit1.wav");      // waypoint add
@@ -1219,7 +1218,6 @@ int Spawn(edict_t* ent)
 		ent->v.renderamt = 127; // set its transparency amount
 		ent->v.effects |= EF_NODRAW;
 	}
-
 	else if (strcmp(entityClassname, "info_vip_start") == 0)
 	{
 		SET_MODEL(ent, "models/player/vip/vip.mdl");
@@ -1231,17 +1229,13 @@ int Spawn(edict_t* ent)
 	else if (strcmp(entityClassname, "func_vip_safetyzone") == 0 ||
 		strcmp(entityClassname, "info_vip_safetyzone") == 0)
 		g_mapType |= MAP_AS; // assassination map
-
 	else if (strcmp(entityClassname, "hostage_entity") == 0)
 		g_mapType |= MAP_CS; // rescue map
-
 	else if (strcmp(entityClassname, "func_bomb_target") == 0 ||
 		strcmp(entityClassname, "info_bomb_target") == 0)
 		g_mapType |= MAP_DE; // defusion map
-
 	else if (strcmp(entityClassname, "func_escapezone") == 0)
 		g_mapType |= MAP_ES;
-
 	// next maps doesn't have map-specific entities, so determine it by name
 	else if (strncmp(GetMapName(), "fy_", 3) == 0) // fun map
 		g_mapType |= MAP_FY;
@@ -2750,6 +2744,9 @@ void LoadEntityData(void)
 
 		if (g_clients[i].flags & CFLAG_ALIVE)
 		{
+			// get team
+			g_clients[i].team = GetTeam(entity);
+
 			// keep the clipping mode enabled, or it can be turned off after new round has started
 			if (g_hostEntity == entity && g_editNoclip && g_waypointOn)
 				g_hostEntity->v.movetype = MOVETYPE_NOCLIP;
@@ -2889,19 +2886,16 @@ void JustAStuff(void)
 	{
 		if (g_waypointOn)
 		{
-			bool hasBot = false;
 			for (const auto& bot : g_botManager->m_bots)
 			{
 				if (bot != nullptr)
 				{
-					hasBot = true;
 					g_botManager->RemoveAll();
 					break;
 				}
 			}
 
-			if (!hasBot)
-				g_waypoint->Think();
+			g_waypoint->Think();
 
 			if (ebot_showwp.GetBool() == true)
 				ebot_showwp.SetInt(0);
@@ -2927,8 +2921,8 @@ void FrameThread(void)
 		{
 			CVAR_SET_FLOAT("ebot_quota", CVAR_GET_FLOAT("bot_quota"));
 			ServerPrint("ebot_lockzbot is 1, you cannot add Z-Bot");
-			ServerPrint("You can input ebot_lockzbot unlock add Z-Bot");
-			ServerPrint("But, If you have use AMXX plug-in or Zombie Mod, I think this is not good choice");
+			ServerPrint("You can input ebot_lockzbot for unlock Z-Bot");
+			ServerPrint("But, If you have use AMXX plugins or Zombie Mod, Its not a good choice");
 			CVAR_SET_FLOAT("bot_quota", 0);
 		}
 	}
