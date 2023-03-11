@@ -363,7 +363,14 @@ bool Bot::DoWaypointNav(void)
 		m_destOrigin = m_waypointOrigin;
 	}
 
-	auto currentWaypoint = g_waypoint->GetPath(m_currentWaypointIndex);
+	const auto currentWaypoint = g_waypoint->GetPath(m_currentWaypointIndex);
+	if (currentWaypoint->flags & WAYPOINT_FALLCHECK)
+	{
+		TraceResult tr;
+		TraceLine(currentWaypoint->origin, currentWaypoint->origin - Vector(0.0f, 0.0f, 60.0f), false, false, GetEntity(), &tr);
+		if (tr.flFraction == 1.0f)
+			DeleteSearchNodes();
+	}
 
 	// this waypoint has additional travel flags - care about them
 	if (IsOnFloor() && m_currentTravelFlags & PATHFLAG_JUMP && !m_jumpFinished)
@@ -392,13 +399,6 @@ bool Bot::DoWaypointNav(void)
 	}
 	else if (currentWaypoint->flags & WAYPOINT_CROUCH && !(currentWaypoint->flags & WAYPOINT_CAMP))
 		pev->button |= IN_DUCK;
-	else if (currentWaypoint->flags & WAYPOINT_FALLCHECK)
-	{
-		TraceResult tr;
-		TraceLine(currentWaypoint->origin, currentWaypoint->origin - Vector(0.0f, 0.0f, 60.0f), false, false, GetEntity(), &tr);
-		if (tr.flFraction == 1.0f)
-			DeleteSearchNodes();
-	}
 	else if (currentWaypoint->flags & WAYPOINT_LADDER)
 	{
 		m_aimStopTime = 0.0f;
@@ -2706,22 +2706,6 @@ void Bot::FacePosition(void)
 	pev->v_angle = m_idealAngles;
 
 	// set the body angles to point the gun correctly
-	pev->angles.x = -pev->v_angle.x * 0.33333333333f;
-	pev->angles.y = pev->v_angle.y;
-}
-
-void Bot::FacePositionLowCost(void)
-{
-	m_idealAngles = pev->v_angle;
-	Vector direction = (m_lookAt - EyePosition()).ToAngles() + pev->punchangle;
-	direction.x = -direction.x; // invert for engine
-
-	float aimSpeed = ((m_skill * 0.054f) + 11.0f) * g_pGlobals->frametime;
-
-	m_idealAngles.x += AngleNormalize(direction.x - m_idealAngles.x) * aimSpeed;
-	m_idealAngles.y += AngleNormalize(direction.y - m_idealAngles.y) * aimSpeed;
-
-	pev->v_angle = m_idealAngles;
 	pev->angles.x = -pev->v_angle.x * 0.33333333333f;
 	pev->angles.y = pev->v_angle.y;
 }

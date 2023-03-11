@@ -730,7 +730,7 @@ void Bot::FindItem(void)
 				if (g_entityId[i] == -1 || g_entityAction[i] != 3)
 					continue;
 
-				if (g_entityTeam[i] != 2 && m_team != g_entityTeam[i])
+				if (m_team != g_entityTeam[i] || (g_entityTeam[i] != TEAM_COUNTER && g_entityTeam[i] != TEAM_TERRORIST))
 					continue;
 
 				if (ent != INDEXENT(g_entityId[i]))
@@ -992,6 +992,7 @@ void Bot::GetCampDirection(Vector* dest)
 				minDistance = distance;
 				tempIndex = i;
 			}
+
 			distance = (g_waypoint->GetPath(i)->origin - *dest).GetLengthSquared();
 
 			if (distance < maxDistance)

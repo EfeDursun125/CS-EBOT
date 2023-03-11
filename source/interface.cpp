@@ -3814,18 +3814,20 @@ DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* 
 		int modType;
 	} s_supportedMods[] =
 	{
-	   {"cstrike", "cs_i386.so", "mp.dll", "Counter-Strike v1.6+", CSVER_CSTRIKE },
-	   {"czero", "cs_i386.so", "mp.dll", "Counter-Strike: Condition Zero", CSVER_CZERO},
-	   {"csv15", "cs_i386.so", "mp.dll", "CS 1.5 for Steam", CSVER_VERYOLD},
-	   {"cs13", "cs_i386.so", "mp.dll", "Counter-Strike v1.3", CSVER_VERYOLD}, // assume cs13 = cs15
-	   {"retrocs", "rcs_i386.so", "rcs.dll", "Retro Counter-Strike", CSVER_VERYOLD},
-	   {"", "", "", "", 0}
+		{ "cstrike", "cs_i386.so", "mp.dll", "Counter-Strike v1.6", CSVER_CSTRIKE },
+		{ "cstrike", "cs.so", "mp.dll", "Counter-Strike v1.6 (Newer)", CSVER_CSTRIKE },
+		{ "czero", "cs_i386.so", "mp.dll", "Counter-Strike: Condition Zero", CSVER_CZERO },
+		{ "czero", "cs.so", "mp.dll", "Counter-Strike: Condition Zero (Newer)", CSVER_CZERO },
+		{ "csv15", "cs_i386.so", "mp.dll", "CS 1.5 for Steam", CSVER_VERYOLD },
+		{ "csdm", "cs_i386.so", "mp.dll", "CSDM for Windows", CSVER_VERYOLD },
+		{ "cs13", "cs_i386.so", "mp.dll", "Counter-Strike v1.3", CSVER_VERYOLD }, // assume cs13 = cs15
+		{ "retrocs", "rcs_i386.so", "rcs.dll", "Retro Counter-Strike", CSVER_VERYOLD },
+		{ "", "", "", "", 0 }
 	};
 
 	// get the engine functions from the engine...
 	memcpy(&g_engfuncs, functionTable, sizeof(enginefuncs_t));
 	g_pGlobals = pGlobals;
-
 
 	ModSupport_t* knownMod = nullptr;
 	char gameDLLName[256];

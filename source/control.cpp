@@ -323,17 +323,16 @@ void BotControl::Think(void)
 		if (bot->m_thinkTimer < engine->GetTime() && bot->m_lastThinkTime < engine->GetTime())
 		{
 			bot->Think();
-			if (bot->m_isAlive)
-			{
-				bot->m_moveAnglesForRunMove = bot->m_moveAngles;
-				bot->m_moveSpeedForRunMove = bot->m_moveSpeed;
-				bot->m_strafeSpeedForRunMove = bot->m_strafeSpeed;
-				bot->FacePositionLowCost();
-			}
 			bot->m_thinkTimer = AddTime(Divide(1.0f, ebot_think_fps.GetFloat()));
 		}
 		else if (bot->m_isAlive)
+		{
+			bot->m_moveAnglesForRunMove = bot->m_moveAngles;
+			bot->m_moveSpeedForRunMove = bot->m_moveSpeed;
+			bot->m_strafeSpeedForRunMove = bot->m_strafeSpeed;
 			bot->FacePosition();
+		}
+			
 
 		bot->RunPlayerMovement(); // run the player movement 
 	}
