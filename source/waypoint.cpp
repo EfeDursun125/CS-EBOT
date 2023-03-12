@@ -400,7 +400,6 @@ void Waypoint::AddPath(int addIndex, int pathIndex, float distance, int type)
 
     if (slotID != -1)
     {
-        AddLogEntry(LOG_DEFAULT, "Path added from %d to %d", addIndex, pathIndex);
         path->index[slotID] = static_cast <int16> (pathIndex);
         path->distances[slotID] = abs(static_cast <int> (distance));
         if (type == 1)
