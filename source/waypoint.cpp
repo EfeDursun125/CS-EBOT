@@ -174,7 +174,7 @@ void AnalyzeThread(void)
                 return;
 
             if ((ebot_analyzer_min_fps.GetFloat() + g_pGlobals->frametime) <= Divide(1.0f, g_pGlobals->frametime))
-                magicTimer = engine->GetTime() + g_pGlobals->frametime; // pause 1 frame
+                magicTimer = engine->GetTime() + g_pGlobals->frametime * 0.054f; // pause
 
             Vector WayVec = g_waypoint->GetPath(i)->origin;
             float range = ebot_analyze_distance.GetFloat();

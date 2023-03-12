@@ -3702,7 +3702,7 @@ void Bot::Think(void)
 	m_frameInterval = engine->GetTime() - m_lastThinkTime;
 	m_lastThinkTime = engine->GetTime();
 
-	if (ebot_use_radio.GetInt() != 2 || m_chatterTimer < engine->GetTime())
+	if (ebot_use_radio.GetInt() == 2 && m_chatterTimer < engine->GetTime())
 		SwitchChatterIcon(false);
 
 	if (m_slowthinktimer < engine->GetTime())

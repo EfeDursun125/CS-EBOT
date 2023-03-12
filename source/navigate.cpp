@@ -247,9 +247,12 @@ int Bot::FindGoal(void)
 				{
 					if (m_team == TEAM_COUNTER)
 					{
-						m_chosenGoalIndex = g_waypoint->m_ctPoints.GetRandomElement();
-						if (IsValidWaypoint(m_chosenGoalIndex))
-							return m_chosenGoalIndex;
+						if (!g_waypoint->m_ctPoints.IsEmpty())
+						{
+							m_chosenGoalIndex = g_waypoint->m_ctPoints.GetRandomElement();
+							if (IsValidWaypoint(m_chosenGoalIndex))
+								return m_chosenGoalIndex;
+						}
 					}
 					else
 					{
@@ -257,9 +260,12 @@ int Bot::FindGoal(void)
 						{
 							m_loosedBombWptIndex = -1;
 							if (!IsValidWaypoint(m_chosenGoalIndex) || !(g_waypoint->GetPath(m_chosenGoalIndex)->flags & WAYPOINT_GOAL))
-								return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
+							{
+								if (!g_waypoint->m_goalPoints.IsEmpty())
+									return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
+							}
 						}
-						else
+						else if (!g_waypoint->m_terrorPoints.IsEmpty())
 						{
 							m_chosenGoalIndex = g_waypoint->m_terrorPoints.GetRandomElement();
 							if (IsValidWaypoint(m_chosenGoalIndex))
@@ -275,7 +281,7 @@ int Bot::FindGoal(void)
 			if (m_team == TEAM_COUNTER)
 			{
 				ohShit = false;
-				if (HasHostage())
+				if (!g_waypoint->m_rescuePoints.IsEmpty() && HasHostage())
 				{
 					ohShit = true;
 					if (!IsValidWaypoint(m_chosenGoalIndex) || !(g_waypoint->GetPath(m_chosenGoalIndex)->flags & WAYPOINT_RESCUE))
@@ -283,17 +289,17 @@ int Bot::FindGoal(void)
 				}
 				else
 				{
-					if (engine->RandomInt(1, 2) == 1)
+					if (!g_waypoint->m_ctPoints.IsEmpty() && engine->RandomInt(1, 2) == 1)
 						return m_chosenGoalIndex = g_waypoint->m_ctPoints.GetRandomElement();
-					else
+					else if (!g_waypoint->m_goalPoints.IsEmpty())
 						return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
 				}
 			}
 			else
 			{
-				if (ohShit || engine->RandomInt(1, 11) == 1)
+				if (!g_waypoint->m_rescuePoints.IsEmpty() && (ohShit || engine->RandomInt(1, 11) == 1))
 					return m_chosenGoalIndex = g_waypoint->m_rescuePoints.GetRandomElement();
-				else
+				else if (!g_waypoint->m_goalPoints.IsEmpty())
 					return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
 			}
 		}
@@ -301,21 +307,21 @@ int Bot::FindGoal(void)
 		{
 			if (m_team == TEAM_COUNTER)
 			{
-				if (m_isVIP)
+				if (m_isVIP && !g_waypoint->m_goalPoints.IsEmpty())
 					return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
 				else
 				{
-					if (engine->RandomInt(1, 2) == 1)
+					if (!g_waypoint->m_goalPoints.IsEmpty() && engine->RandomInt(1, 2) == 1)
 						return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
-					else
+					else if (!g_waypoint->m_ctPoints.IsEmpty())
 						return m_chosenGoalIndex = g_waypoint->m_ctPoints.GetRandomElement();
 				}
 			}
 			else
 			{
-				if (engine->RandomInt(1, 11) == 1)
+				if (!g_waypoint->m_goalPoints.IsEmpty() && engine->RandomInt(1, 11) == 1)
 					return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
-				else
+				else if (!g_waypoint->m_terrorPoints.IsEmpty())
 					return m_chosenGoalIndex = g_waypoint->m_terrorPoints.GetRandomElement();
 			}
 		}
