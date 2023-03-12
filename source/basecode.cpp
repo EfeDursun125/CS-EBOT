@@ -3668,21 +3668,13 @@ void Bot::ChooseAimDirection(void)
 			m_aimStopTime = 0.0f;
 			m_lookAt = m_destOrigin + pev->view_ofs;
 		}
-		else if (m_isZombieBot || m_currentWeapon == WEAPON_KNIFE)
+	    else if (m_seeEnemyTime + 4.0f > engine->GetTime())
 		{
-			if (HasNextPath())
-				m_lookAt = g_waypoint->GetPath(m_navNode->next->index)->origin + pev->view_ofs;
+			if (m_skill > 50 && !FNullEnt(m_lastEnemy))
+				m_lookAt = GetEntityOrigin(m_lastEnemy);
 			else
-				m_lookAt = m_destOrigin + pev->velocity + pev->view_ofs;
-		}
-		else if (m_lastDamageOrigin != nullvec && m_damageTime + float(m_skill + 50) * 0.04f > engine->GetTime())
-			m_lookAt = m_lastDamageOrigin;
-	    else if (m_seeEnemyTime + float(m_skill + 50) * 0.04f > engine->GetTime())
-		{
-			if (!FNullEnt(m_lastEnemy) && IsAlive(m_lastEnemy) && m_lastEnemyOrigin != nullvec && m_seeEnemyTime + float(m_skill) * 0.03703703703f > engine->GetTime())
 				m_lookAt = m_lastEnemyOrigin;
-			else
-				m_lookAt = m_destOrigin + pev->view_ofs;
+			m_aimStopTime = 0.0f;
 		}
 		else if (HasNextPath())
 			m_lookAt = g_waypoint->GetPath(m_navNode->next->index)->origin + pev->view_ofs;

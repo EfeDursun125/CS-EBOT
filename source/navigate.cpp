@@ -297,9 +297,31 @@ int Bot::FindGoal(void)
 					return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
 			}
 		}
+		else if (g_mapType & MAP_AS)
+		{
+			if (m_team == TEAM_COUNTER)
+			{
+				if (m_isVIP)
+					return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
+				else
+				{
+					if (engine->RandomInt(1, 2) == 1)
+						return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
+					else
+						return m_chosenGoalIndex = g_waypoint->m_ctPoints.GetRandomElement();
+				}
+			}
+			else
+			{
+				if (engine->RandomInt(1, 11) == 1)
+					return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
+				else
+					return m_chosenGoalIndex = g_waypoint->m_terrorPoints.GetRandomElement();
+			}
+		}
 	}
 
-	if (!FNullEnt(m_lastEnemy) || IsAlive(m_lastEnemy))
+	if (!FNullEnt(m_lastEnemy) && IsAlive(m_lastEnemy))
 	{
 		const Vector origin = GetEntityOrigin(m_lastEnemy);
 		if (origin != nullvec)
