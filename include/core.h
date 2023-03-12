@@ -55,7 +55,7 @@ using namespace Math;
 
 #include <runtime.h>
 
-#define WORK_ASYNC
+//#define WORK_ASYNC
 
 #ifdef WORK_ASYNC
 #include <future>
