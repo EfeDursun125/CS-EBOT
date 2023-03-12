@@ -359,10 +359,7 @@ void Waypoint::AddPath(int addIndex, int pathIndex, float distance, int type)
     for (int i = 0; i < Const_MaxPathIndex; i++)
     {
         if (path->index[i] == pathIndex)
-        {
-            AddLogEntry(LOG_WARNING, "Denied path creation from %d to %d (path already exists)", addIndex, pathIndex);
             return;
-        }
     }
 
     // check for free space in the connection indices
@@ -383,7 +380,7 @@ void Waypoint::AddPath(int addIndex, int pathIndex, float distance, int type)
                 path->connectionFlags[i] |= PATHFLAG_DOUBLE;
                 path->flags |= WAYPOINT_DJUMP;
             }
-            AddLogEntry(LOG_DEFAULT, "Path added from %d to %d", addIndex, pathIndex);
+
             return;
         }
     }
