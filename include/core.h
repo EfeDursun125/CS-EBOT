@@ -55,7 +55,7 @@ using namespace Math;
 
 #include <runtime.h>
 
-//#define WORK_ASYNC
+#define WORK_ASYNC
 
 #ifdef WORK_ASYNC
 #include <future>
@@ -1429,7 +1429,6 @@ extern bool IsDeathmatchMode(void);
 extern bool IsValidWaypoint(int index);
 extern bool ChanceOf(int number);
 extern float Divide(float number, float number2);
-extern float Q_sqrt(float number);
 extern float Clamp(float a, float b, float c);
 extern float SquaredF(float a);
 extern float AddTime(float time);

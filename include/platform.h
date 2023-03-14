@@ -45,9 +45,9 @@
 
 // configure export macros
 #if defined (COMPILER_VISUALC) || defined (COMPILER_MINGW32)
-#define export extern "C" __declspec (dllexport)
+#define exportc extern "C" __declspec (dllexport)
 #elif defined (PLATFORM_LINUX32) || defined (PLATFORM_LINUX64) || defined (COMPILER_BORLAND)
-#define export extern "C"
+#define exportc extern "C"
 #else
 #error "Can't configure export macros. Compiler unrecognized."
 #endif
@@ -64,7 +64,7 @@
 #if defined (COMPILER_VISUALC)
 #define DLL_GIVEFNPTRSTODLL extern "C" void STDCALL
 #elif defined (COMPILER_MINGW32)
-#define DLL_GIVEFNPTRSTODLL export void STDCALL
+#define DLL_GIVEFNPTRSTODLL exportc void STDCALL
 #endif
 
 // specify export parameter

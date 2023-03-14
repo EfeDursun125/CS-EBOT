@@ -255,8 +255,7 @@ public:
 
     inline float Length(void) const
     {
-        float number = x * x + y * y;
-        return _mm_cvtss_f32(_mm_sqrt_ss(_mm_load_ss(&number)));
+        return sqrtf(x * x + y * y);
     }
 
     inline Vector2D Normalize(void) const
@@ -349,8 +348,7 @@ public:
     }
     inline float Length(void) const
     {
-        float number = x * x + y * y + z * z;
-        return _mm_cvtss_f32(_mm_sqrt_ss(_mm_load_ss(&number)));
+        return sqrtf(x * x + y * y + z * z);
     }
     operator float* ()
     {
@@ -389,8 +387,7 @@ public:
     }
     inline float Length2D(void) const
     {
-        float number = x * x + y * y;
-        return _mm_cvtss_f32(_mm_sqrt_ss(_mm_load_ss(&number)));
+        return sqrtf(x * x + y * y);
     }
 
     // Members
