@@ -991,12 +991,12 @@ bool Bot::IsWeaponBadInDistance(int weaponIndex, float distance)
 		return false;
 
 	// shotguns is too inaccurate at long distances, so weapon is bad
-	if ((weaponID == WEAPON_M3 || weaponID == WEAPON_XM1014) && distance > 768.0f)
+	if ((weaponID == WEAPON_M3 || weaponID == WEAPON_XM1014) && distance > SquaredF(768.0f))
 		return true;
 
 	if (!IsZombieMode())
 	{
-		if ((weaponID == WEAPON_SCOUT || weaponID == WEAPON_AWP || weaponID == WEAPON_G3SG1 || weaponID == WEAPON_SG550) && distance <= 384.0f)
+		if ((weaponID == WEAPON_SCOUT || weaponID == WEAPON_AWP || weaponID == WEAPON_G3SG1 || weaponID == WEAPON_SG550) && distance <= SquaredF(384.0f))
 			return true;
 	}
 
@@ -1179,8 +1179,47 @@ void Bot::CombatFight(void)
 				m_moveSpeed = tempMoveSpeed;
 		}
 	}
-	else if (!IsZombieMode() && GetCurrentTask()->taskID != TASK_CAMP && GetCurrentTask()->taskID != TASK_SEEKCOVER && GetCurrentTask()->taskID != TASK_ESCAPEFROMBOMB)
+	else if (GetCurrentTask()->taskID != TASK_CAMP && GetCurrentTask()->taskID != TASK_SEEKCOVER && GetCurrentTask()->taskID != TASK_ESCAPEFROMBOMB)
 	{
+		if (m_isReloading || (m_isBomber && (engine->RandomFloat(1.0f, pev->health) <= 40.0f || !HasPrimaryWeapon())) || m_isVIP)
+		{
+			const int seekindex = FindCoverWaypoint(99999.0f);
+			if (IsValidWaypoint(seekindex))
+				PushTask(TASK_SEEKCOVER, TASKPRI_SEEKCOVER, seekindex, 4.0f, true);
+			return;
+		}
+
+		float distance = ((pev->origin + pev->velocity * m_frameInterval) - m_lookAt).GetLengthSquared(); // how far away is the enemy scum?
+		if (IsWeaponBadInDistance(m_currentWeapon, distance))
+		{
+			const int seekindex = FindCoverWaypoint(99999.0f);
+			if (IsValidWaypoint(seekindex))
+				PushTask(TASK_SEEKCOVER, TASKPRI_SEEKCOVER, seekindex, 12.0f, true);
+			return;
+		}
+
+		if (m_currentWeapon == WEAPON_KNIFE)
+		{
+			if (distance > SquaredF(128.0f))
+			{
+				if (!(g_mapType & MAP_KA) && engine->RandomFloat(1.0f, pev->health) <= 20.0f)
+				{
+					const int seekindex = FindCoverWaypoint(99999.0f);
+					if (IsValidWaypoint(seekindex))
+						PushTask(TASK_SEEKCOVER, TASKPRI_SEEKCOVER, seekindex, 8.0f, true);
+				}
+				return;
+			}
+		}
+		else
+		{
+			if (distance <= SquaredF(256.0f)) // get back!
+			{
+				m_moveSpeed = -pev->maxspeed;
+				return;
+			}
+		}
+
 		if (!FNullEnt(m_enemy))
 			SetLastEnemy(m_enemy);
 
@@ -1188,13 +1227,6 @@ void Bot::CombatFight(void)
 		m_destOrigin = m_enemyOrigin - m_lastWallOrigin;
 		m_waypointOrigin = nullvec;
 		m_currentWaypointIndex = -1;
-
-		float distance = ((pev->origin + pev->velocity * m_frameInterval) - m_lookAt).GetLengthSquared(); // how far away is the enemy scum?
-		if (m_currentWeapon != WEAPON_KNIFE && distance <= SquaredF(256.0f)) // get back!
-		{
-			m_moveSpeed = -pev->maxspeed;
-			return;
-		}
 
 		int approach;
 		if (m_currentWeapon == WEAPON_KNIFE) // knife?

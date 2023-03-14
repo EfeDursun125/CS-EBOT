@@ -1935,7 +1935,7 @@ void Bot::SetConditions(void)
 		// FIXME: it probably should be also team/map dependant
 		if (FNullEnt(m_enemy) && (g_timeRoundMid < engine->GetTime()) && !m_isUsingGrenade && m_personality != PERSONALITY_CAREFUL && m_currentWaypointIndex != g_waypoint->FindNearest(m_lastEnemyOrigin))
 		{
-			desireLevel = 4096.0f - ((1.0f - tempAgression) * Q_sqrt(distance));
+			desireLevel = 4096.0f - ((1.0f - tempAgression) * sqrtf(distance));
 			desireLevel = Divide((100 * desireLevel), 4096.0f);
 			desireLevel -= retreatLevel;
 
@@ -3434,13 +3434,13 @@ float Bot::GetWalkSpeed(void)
 	if (!ebot_walkallow.GetBool())
 		return pev->maxspeed;
 
-	if (IsZombieMode() || IsOnLadder() ||
-		pev->maxspeed <= 180.f || m_currentTravelFlags & PATHFLAG_JUMP ||
-		pev->button & IN_JUMP || pev->oldbuttons & IN_JUMP ||
-		pev->flags & FL_DUCKING || pev->button & IN_DUCK || pev->oldbuttons & IN_DUCK || IsInWater())
+	if (IsZombieMode() || IsOnLadder() || m_numEnemiesLeft <= 0 || 
+		m_currentTravelFlags & PATHFLAG_JUMP || 
+		pev->button & IN_JUMP || pev->oldbuttons & IN_JUMP || 
+		pev->flags & FL_DUCKING || pev->button & IN_DUCK || pev->oldbuttons & IN_DUCK || IsInWater() || GetCurrentTask()->taskID == TASK_SEEKCOVER)
 		return pev->maxspeed;
 
-	return (pev->maxspeed * 0.5f) + (pev->maxspeed * 0.02f) - 18.0f;
+	return pev->maxspeed * 0.4f;
 }
 
 bool Bot::IsNotAttackLab(edict_t* entity)
@@ -4024,7 +4024,7 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 			}
 		}
 
-		if (engine->IsFootstepsOn() && m_skill > 50 && !(m_aimFlags & AIM_ENEMY) && (m_heardSoundTime + 13.0f >= engine->GetTime() || (m_states & (STATE_HEARENEMY))) && !(m_currentTravelFlags & PATHFLAG_JUMP) && !(pev->button & IN_DUCK) && !(pev->flags & FL_DUCKING) && !g_bombPlanted && !m_isZombieBot)
+		if (ebot_walkallow.GetBool() && engine->IsFootstepsOn() && m_moveSpeed != 0.0f && !(m_aimFlags & AIM_ENEMY) && (m_seeEnemyTime + 13.0f >= engine->GetTime() || m_heardSoundTime + 13.0f >= engine->GetTime() || (m_states & (STATE_HEARENEMY))) && !g_bombPlanted)
 		{
 			if (FNullEnt(m_enemy)) // don't walk if theres a enemy
 			{
@@ -4406,9 +4406,6 @@ void Bot::RunTask(void)
 			return;
 		}
 
-		if (!FNullEnt(m_enemy))
-			DeleteSearchNodes();
-
 		if (DoWaypointNav()) // reached final cover waypoint?
 		{
 			// yep. activate hide behaviour
@@ -4417,7 +4414,7 @@ void Bot::RunTask(void)
 			m_prevGoalIndex = -1;
 
 			// start hide task
-			PushTask(TASK_HIDE, TASKPRI_HIDE, -1, engine->GetTime() + engine->RandomFloat(5.0f, 15.0f), false);
+			PushTask(TASK_HIDE, TASKPRI_HIDE, -1, engine->GetTime() + engine->RandomFloat(6.0f, 12.0f), false);
 			destination = m_lastEnemyOrigin;
 
 			// get a valid look direction
@@ -4442,8 +4439,8 @@ void Bot::RunTask(void)
 			if ((m_reloadState == RSTATE_NONE) && (GetAmmoInClip() < 8) && (GetAmmo() != 0))
 				m_reloadState = RSTATE_PRIMARY;
 
-			m_moveSpeed = 0;
-			m_strafeSpeed = 0;
+			m_moveSpeed = 0.0f;
+			m_strafeSpeed = 0.0f;
 
 			m_moveToGoal = false;
 			m_checkTerrain = true;
@@ -4454,10 +4451,12 @@ void Bot::RunTask(void)
 				DeleteSearchNodes();
 
 			if (GetGameMode() == MODE_ZP && !m_isZombieBot)
+			{
 				if (FNullEnt(m_enemy) && !g_waypoint->m_zmHmPoints.IsEmpty())
 					destIndex = FindGoal();
 				else
 					destIndex = FindCoverWaypoint(2048.0f);
+			}
 			else if (IsValidWaypoint(GetCurrentTask()->data))
 				destIndex = m_tasks->data;
 			else
@@ -7221,8 +7220,9 @@ Vector Bot::CheckToss(const Vector& start, Vector end)
 	if ((midPoint.z < start.z) || (midPoint.z < end.z))
 		return nullvec;
 
-	float timeOne = Q_sqrt(Divide((midPoint.z - start.z), (0.5f * gravity)));
-	float timeTwo = Q_sqrt(Divide((midPoint.z - end.z), (0.5f * gravity)));
+	const float half = 0.5f * gravity;
+	float timeOne = sqrtf(Divide((midPoint.z - start.z), half));
+	float timeTwo = sqrtf(Divide((midPoint.z - end.z), half));
 
 	if (timeOne < 0.1)
 		return nullvec;

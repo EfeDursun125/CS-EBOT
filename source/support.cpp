@@ -1039,11 +1039,6 @@ float Divide(float number, float number2)
 	return _mm_cvtss_f32(_mm_div_ps(_mm_load_ss(&number), _mm_load_ss(&number2)));
 }
 
-float Q_sqrt(float number)
-{
-	return _mm_cvtss_f32(_mm_sqrt_ss(_mm_load_ss(&number)));
-}
-
 float Clamp(float a, float b, float c)
 {
 	return engine->DoClamp(a, b, c);

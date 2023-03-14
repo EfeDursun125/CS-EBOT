@@ -1001,7 +1001,7 @@ void Waypoint::Add(int flags, Vector waypointOrigin)
                 }
 
                 if (IsNodeReachable(newOrigin, m_paths[destIndex]->origin))
-                    AddPath(index, destIndex, Q_sqrt(distance));
+                    AddPath(index, destIndex, sqrtf(distance));
             }
         }
 
@@ -1560,6 +1560,7 @@ void Waypoint::CalculateWayzone(int index)
         if (wayBlocked)
             break;
     }
+
     path->radius -= 16.0f;
 
     if (path->radius < 0.0f)
@@ -1586,11 +1587,7 @@ void Waypoint::InitTypes(int mode)
     {
         if (mode == 0)
         {
-            if (m_paths[i]->flags & WAYPOINT_TERRORIST)
-                m_terrorPoints.Push(i);
-            else if (m_paths[i]->flags & WAYPOINT_COUNTER)
-                m_ctPoints.Push(i);
-            else if (m_paths[i]->flags & WAYPOINT_GOAL)
+            if (m_paths[i]->flags & WAYPOINT_GOAL)
                 m_goalPoints.Push(i);
             else if (m_paths[i]->flags & WAYPOINT_CAMP)
                 m_campPoints.Push(i);
@@ -1602,6 +1599,10 @@ void Waypoint::InitTypes(int mode)
                 m_zmHmPoints.Push(i);
             else if (m_paths[i]->flags & WAYPOINT_HMCAMPMESH)
                 m_hmMeshPoints.Push(i);
+            else if (m_paths[i]->flags & WAYPOINT_TERRORIST)
+                m_terrorPoints.Push(i);
+            else if (m_paths[i]->flags & WAYPOINT_COUNTER)
+                m_ctPoints.Push(i);
             else if (m_paths[i]->flags == 0)
                 m_otherPoints.Push(i);
         }

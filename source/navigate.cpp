@@ -1794,6 +1794,14 @@ int Bot::FindDefendWaypoint(Vector origin)
 		if (g_waypoint->GetPath(index)->flags & WAYPOINT_LADDER)
 			continue;
 
+		if (GetGameMode() == MODE_BASE)
+		{
+			if (m_team == TEAM_COUNTER && g_waypoint->GetPath(index)->flags & WAYPOINT_TERRORIST)
+				continue;
+			else if (g_waypoint->GetPath(index)->flags & WAYPOINT_COUNTER)
+				continue;
+		}
+
 		if (!IsWaypointOccupied(index))
 		{
 			TraceResult tr{};
@@ -1820,7 +1828,7 @@ int Bot::FindDefendWaypoint(Vector origin)
 	if (IsValidWaypoint(BestIndex))
 		return BestIndex;
 
-	return g_waypoint->m_campPoints.GetRandomElement();
+	return -1;
 }
 
 int Bot::FindCoverWaypoint(float maxDistance)

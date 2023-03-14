@@ -3559,7 +3559,7 @@ void pfnAlertMessage(ALERT_TYPE alertType, char* format, ...)
 
 gamedll_funcs_t gameDLLFunc;
 
-export int GetEntityAPI2(DLL_FUNCTIONS* functionTable, int* /*interfaceVersion*/)
+exportc int GetEntityAPI2(DLL_FUNCTIONS* functionTable, int* /*interfaceVersion*/)
 {
 	// this function is called right after FuncPointers_t() by the engine in the game DLL (or
 	// what it BELIEVES to be the game DLL), in order to copy the list of MOD functions that can
@@ -3604,7 +3604,7 @@ export int GetEntityAPI2(DLL_FUNCTIONS* functionTable, int* /*interfaceVersion*/
 	return true;
 }
 
-export int GetEntityAPI2_Post(DLL_FUNCTIONS* functionTable, int* /*interfaceVersion*/)
+exportc int GetEntityAPI2_Post(DLL_FUNCTIONS* functionTable, int* /*interfaceVersion*/)
 {
 	// this function is called right after FuncPointers_t() by the engine in the game DLL (or
 	// what it BELIEVES to be the game DLL), in order to copy the list of MOD functions that can
@@ -3626,7 +3626,7 @@ export int GetEntityAPI2_Post(DLL_FUNCTIONS* functionTable, int* /*interfaceVers
 	return true;
 }
 
-export int GetNewDLLFunctions(NEW_DLL_FUNCTIONS* functionTable, int* interfaceVersion)
+exportc int GetNewDLLFunctions(NEW_DLL_FUNCTIONS* functionTable, int* interfaceVersion)
 {
 	// it appears that an extra function table has been added in the engine to gamedll interface
 	// since the date where the first enginefuncs table standard was frozen. These ones are
@@ -3647,7 +3647,7 @@ export int GetNewDLLFunctions(NEW_DLL_FUNCTIONS* functionTable, int* interfaceVe
 	return true;
 }
 
-export int GetEngineFunctions_Post(enginefuncs_t* functionTable, int* /*interfaceVersion*/)
+exportc int GetEngineFunctions_Post(enginefuncs_t* functionTable, int* /*interfaceVersion*/)
 {
 	if (g_isMetamod)
 		memset(functionTable, 0, sizeof(enginefuncs_t));
@@ -3657,7 +3657,7 @@ export int GetEngineFunctions_Post(enginefuncs_t* functionTable, int* /*interfac
 	return true;
 }
 
-export int GetEngineFunctions(enginefuncs_t* functionTable, int* /*interfaceVersion*/)
+exportc int GetEngineFunctions(enginefuncs_t* functionTable, int* /*interfaceVersion*/)
 {
 	if (g_isMetamod)
 		memset(functionTable, 0, sizeof(enginefuncs_t));
@@ -3687,7 +3687,7 @@ export int GetEngineFunctions(enginefuncs_t* functionTable, int* /*interfaceVers
 	return true;
 }
 
-export int Server_GetBlendingInterface(int version, void** ppinterface, void* pstudio, float(*rotationmatrix)[3][4], float(*bonetransform)[128][3][4])
+exportc int Server_GetBlendingInterface(int version, void** ppinterface, void* pstudio, float(*rotationmatrix)[3][4], float(*bonetransform)[128][3][4])
 {
 	// this function synchronizes the studio model animation blending interface (i.e, what parts
 	// of the body move, which bones, which hitboxes and how) between the server and the game DLL.
@@ -3699,7 +3699,7 @@ export int Server_GetBlendingInterface(int version, void** ppinterface, void* ps
 	return (*g_serverBlendingAPI) (version, ppinterface, pstudio, rotationmatrix, bonetransform);
 }
 
-export int Meta_Query(char* ifvers, plugin_info_t** pPlugInfo, mutil_funcs_t* pMetaUtilFuncs)
+exportc int Meta_Query(char* ifvers, plugin_info_t** pPlugInfo, mutil_funcs_t* pMetaUtilFuncs)
 {
 	// this function is the first function ever called by metamod in the plugin DLL. Its purpose
 	// is for metamod to retrieve basic information about the plugin, such as its meta-interface
@@ -3742,7 +3742,7 @@ export int Meta_Query(char* ifvers, plugin_info_t** pPlugInfo, mutil_funcs_t* pM
 	return true; // tell metamod this plugin looks safe
 }
 
-export int Meta_Attach(PLUG_LOADTIME now, metamod_funcs_t* functionTable, meta_globals_t* pMGlobals, gamedll_funcs_t* pGamedllFuncs)
+exportc int Meta_Attach(PLUG_LOADTIME now, metamod_funcs_t* functionTable, meta_globals_t* pMGlobals, gamedll_funcs_t* pGamedllFuncs)
 {
 	// this function is called when metamod attempts to load the plugin. Since it's the place
 	// where we can tell if the plugin will be allowed to run or not, we wait until here to make
@@ -3765,7 +3765,7 @@ export int Meta_Attach(PLUG_LOADTIME now, metamod_funcs_t* functionTable, meta_g
 	return true; // returning true enables metamod to attach this plugin
 }
 
-export int Meta_Detach(PLUG_LOADTIME now, PL_UNLOAD_REASON reason)
+exportc int Meta_Detach(PLUG_LOADTIME now, PL_UNLOAD_REASON reason)
 {
 	// this function is called when metamod unloads the plugin. A basic check is made in order
 	// to prevent unloading the plugin if its processing should not be interrupted.
@@ -3784,7 +3784,7 @@ export int Meta_Detach(PLUG_LOADTIME now, PL_UNLOAD_REASON reason)
 	return true;
 }
 
-export void Meta_Init(void)
+exportc void Meta_Init(void)
 {
 	// this function is called by metamod, before any other interface functions. Purpose of this
 	// function to give plugin a chance to determine is plugin running under metamod or not.
@@ -3914,7 +3914,7 @@ DLL_ENTRYPOINT
 }
 
 #define LINK_ENTITY(entityFunction) \
-export void entityFunction (entvars_t *pev); \
+exportc void entityFunction (entvars_t *pev); \
 \
 void entityFunction (entvars_t *pev) \
 { \
