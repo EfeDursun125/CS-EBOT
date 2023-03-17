@@ -239,17 +239,20 @@ void NetworkMsg::Execute(void* p)
             break;
 
         case 1:
-            if (strcmp(PTR_TO_STR(p), "defuser") == 0)
-                m_bot->m_hasDefuser = (enabled != 0);
-            else if (strcmp(PTR_TO_STR(p), "buyzone") == 0)
+            if (g_gameVersion != HALFLIFE)
             {
-                m_bot->m_inBuyZone = (enabled != 0);
-                m_bot->EquipInBuyzone(0);
+                if (strcmp(PTR_TO_STR(p), "defuser") == 0)
+                    m_bot->m_hasDefuser = (enabled != 0);
+                else if (strcmp(PTR_TO_STR(p), "buyzone") == 0)
+                {
+                    m_bot->m_inBuyZone = (enabled != 0);
+                    m_bot->EquipInBuyzone(0);
+                }
+                else if (strcmp(PTR_TO_STR(p), "vipsafety") == 0)
+                    m_bot->m_inVIPZone = (enabled != 0);
+                else if (strcmp(PTR_TO_STR(p), "c4") == 0)
+                    m_bot->m_inBombZone = (enabled == 2);
             }
-            else if (strcmp(PTR_TO_STR(p), "vipsafety") == 0)
-                m_bot->m_inVIPZone = (enabled != 0);
-            else if (strcmp(PTR_TO_STR(p), "c4") == 0)
-                m_bot->m_inBombZone = (enabled == 2);
 
             break;
         }

@@ -261,9 +261,9 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 	// displays bot about information
 	else if (stricmp(arg0, "about_bot") == 0 || stricmp(arg0, "about") == 0)
 	{
-		if (g_gameVersion == CSVER_VERYOLD)
+		if (g_gameVersion == CSVER_VERYOLD || g_gameVersion == HALFLIFE)
 		{
-			ServerPrint("Cannot do this on old cs");
+			ServerPrint("Cannot do this on your game version");
 			return 1;
 		}
 
@@ -763,6 +763,77 @@ void CheckEntityAction(void)
 	ServerPrintNoTag("Total Entity Action Num: %d", workEntityWork);
 }
 
+void LoadEntityData(void)
+{
+	edict_t* entity;
+
+	for (int i = engine->GetMaxClients() + 1; i < entityNum; i++)
+	{
+		if (g_entityId[i] == -1)
+			continue;
+
+		entity = INDEXENT(g_entityId[i]);
+		if (FNullEnt(entity) || !IsAlive(entity))
+		{
+			SetEntityActionData(i);
+			continue;
+		}
+
+		if (g_entityGetWpTime[i] + 1.55f < engine->GetTime() || g_entityWpIndex[i] == -1)
+			SetEntityWaypoint(entity);
+	}
+
+	for (int i = 0; i <= engine->GetMaxClients(); i++)
+	{
+		entity = INDEXENT(i);
+
+		if (FNullEnt(entity) || (!(entity->v.flags & FL_CLIENT) && !(entity->v.flags & FL_FAKECLIENT)))
+		{
+			g_clients[i].flags &= ~(CFLAG_USED | CFLAG_ALIVE);
+			g_clients[i].ent = nullptr;
+			g_clients[i].origin = nullvec;
+			g_clients[i].wpIndex = -1;
+			g_clients[i].wpIndex2 = -1;
+			g_clients[i].getWpOrigin = nullvec;
+			g_clients[i].getWPTime = 0.0f;
+			g_clients[i].index = -1;
+			g_clients[i].team = TEAM_COUNT;
+			continue;
+		}
+
+		g_clients[i].ent = entity;
+		g_clients[i].index = i;
+		g_clients[i].flags |= CFLAG_USED;
+
+		if (IsAlive(entity))
+			g_clients[i].flags |= CFLAG_ALIVE;
+		else
+			g_clients[i].flags &= ~CFLAG_ALIVE;
+
+		if (g_clients[i].flags & CFLAG_ALIVE)
+		{
+			// get team
+			g_clients[i].team = GetTeam(entity);
+
+			// keep the clipping mode enabled, or it can be turned off after new round has started
+			if (g_hostEntity == entity && g_editNoclip && g_waypointOn)
+				g_hostEntity->v.movetype = MOVETYPE_NOCLIP;
+
+			g_clients[i].origin = GetEntityOrigin(entity);
+			if (g_clients[i].getWPTime + 1.25f < engine->GetTime() || (g_clients[i].wpIndex == -1 && g_clients[i].wpIndex2 == -1))
+				SetEntityWaypoint(entity);
+
+			continue;
+		}
+
+		g_clients[i].wpIndex = -1;
+		g_clients[i].wpIndex2 = -1;
+		g_clients[i].getWpOrigin = nullvec;
+		g_clients[i].getWPTime = 0.0f;
+		g_clients[i].team = TEAM_COUNT;
+	}
+}
+
 #ifdef WORK_ASYNC
 void ThreadAddBot(void)
 {
@@ -1187,7 +1258,7 @@ int Spawn(edict_t* ent)
 	}
 	else if (strcmp(entityClassname, "player_weaponstrip") == 0)
 	{
-		if (g_gameVersion == CSVER_VERYOLD && (STRING(ent->v.target))[0] == '\0')
+		if ((g_gameVersion == CSVER_VERYOLD || g_gameVersion == HALFLIFE) && (STRING(ent->v.target))[0] == '\0')
 		{
 			ent->v.target = MAKE_STRING("fake");
 			ent->v.targetname = MAKE_STRING("fake");
@@ -1202,51 +1273,73 @@ int Spawn(edict_t* ent)
 			return (*g_functionTable.pfnSpawn) (ent);
 		}
 	}
-	else if (strcmp(entityClassname, "info_player_start") == 0)
+	else
 	{
-		SET_MODEL(ent, "models/player/urban/urban.mdl");
+		if (g_gameVersion != HALFLIFE)
+		{
+			if (strcmp(entityClassname, "info_player_start") == 0)
+			{
+				SET_MODEL(ent, "models/player/urban/urban.mdl");
+				ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
+				ent->v.renderamt = 127; // set its transparency amount
+				ent->v.effects |= EF_NODRAW;
+			}
+			else if (strcmp(entityClassname, "info_player_deathmatch") == 0)
+			{
+				SET_MODEL(ent, "models/player/terror/terror.mdl");
+				ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
+				ent->v.renderamt = 127; // set its transparency amount
+				ent->v.effects |= EF_NODRAW;
+			}
+			else if (strcmp(entityClassname, "info_vip_start") == 0)
+			{
+				SET_MODEL(ent, "models/player/vip/vip.mdl");
+				ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
+				ent->v.renderamt = 127; // set its transparency amount
+				ent->v.effects |= EF_NODRAW;
+			}
+			else if (strcmp(entityClassname, "func_vip_safetyzone") == 0 ||
+				strcmp(entityClassname, "info_vip_safetyzone") == 0)
+				g_mapType |= MAP_AS; // assassination map
+			else if (strcmp(entityClassname, "hostage_entity") == 0)
+				g_mapType |= MAP_CS; // rescue map
+			else if (strcmp(entityClassname, "func_bomb_target") == 0 ||
+				strcmp(entityClassname, "info_bomb_target") == 0)
+				g_mapType |= MAP_DE; // defusion map
+			else if (strcmp(entityClassname, "func_escapezone") == 0)
+				g_mapType |= MAP_ES;
+			// next maps doesn't have map-specific entities, so determine it by name
+			else if (strncmp(GetMapName(), "fy_", 3) == 0) // fun map
+				g_mapType |= MAP_FY;
+			else if (strncmp(GetMapName(), "ka_", 3) == 0) // knife arena map
+				g_mapType |= MAP_KA;
+			else if (strncmp(GetMapName(), "awp_", 4) == 0) // awp only map
+				g_mapType |= MAP_AWP;
+			else if (strncmp(GetMapName(), "he_", 4) == 0) // grenade wars
+				g_mapType |= MAP_HE;
+			else if (strncmp(GetMapName(), "ze_", 4) == 0) // zombie escape
+				g_mapType |= MAP_ZE;
+			else
+				g_mapType |= MAP_DE;
+		}
+		else
+		{
+			if (strcmp(entityClassname, "info_player_start") == 0)
+			{
+				ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
+				ent->v.renderamt = 127; // set its transparency amount
+				ent->v.effects |= EF_NODRAW;
+			}
+			else if (strcmp(entityClassname, "info_player_deathmatch") == 0)
+			{
+				ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
+				ent->v.renderamt = 127; // set its transparency amount
+				ent->v.effects |= EF_NODRAW;
+			}
 
-		ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
-		ent->v.renderamt = 127; // set its transparency amount
-		ent->v.effects |= EF_NODRAW;
+			g_mapType |= MAP_DE;
+		}
 	}
-	else if (strcmp(entityClassname, "info_player_deathmatch") == 0)
-	{
-		SET_MODEL(ent, "models/player/terror/terror.mdl");
-
-		ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
-		ent->v.renderamt = 127; // set its transparency amount
-		ent->v.effects |= EF_NODRAW;
-	}
-	else if (strcmp(entityClassname, "info_vip_start") == 0)
-	{
-		SET_MODEL(ent, "models/player/vip/vip.mdl");
-
-		ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
-		ent->v.renderamt = 127; // set its transparency amount
-		ent->v.effects |= EF_NODRAW;
-	}
-	else if (strcmp(entityClassname, "func_vip_safetyzone") == 0 ||
-		strcmp(entityClassname, "info_vip_safetyzone") == 0)
-		g_mapType |= MAP_AS; // assassination map
-	else if (strcmp(entityClassname, "hostage_entity") == 0)
-		g_mapType |= MAP_CS; // rescue map
-	else if (strcmp(entityClassname, "func_bomb_target") == 0 ||
-		strcmp(entityClassname, "info_bomb_target") == 0)
-		g_mapType |= MAP_DE; // defusion map
-	else if (strcmp(entityClassname, "func_escapezone") == 0)
-		g_mapType |= MAP_ES;
-	// next maps doesn't have map-specific entities, so determine it by name
-	else if (strncmp(GetMapName(), "fy_", 3) == 0) // fun map
-		g_mapType |= MAP_FY;
-	else if (strncmp(GetMapName(), "ka_", 3) == 0) // knife arena map
-		g_mapType |= MAP_KA;
-	else if (strncmp(GetMapName(), "awp_", 4) == 0) // awp only map
-		g_mapType |= MAP_AWP;
-	else if (strncmp(GetMapName(), "he_", 4) == 0) // grenade wars
-		g_mapType |= MAP_HE;
-	else if (strncmp(GetMapName(), "ze_", 4) == 0) // zombie escape
-		g_mapType |= MAP_ZE;
 
 	if (g_isMetamod)
 		RETURN_META_VALUE(MRES_IGNORED, 0);
@@ -1320,21 +1413,12 @@ int ClientConnect(edict_t* ent, const char* name, const char* addr, char rejectR
 	if (strcmp(addr, "loopback") == 0)
 		g_hostEntity = ent; // save the edict of the listen server client...
 
+	LoadEntityData();
+
 	if (g_isMetamod)
 		RETURN_META_VALUE(MRES_IGNORED, 0);
 
 	return (*g_functionTable.pfnClientConnect) (ent, name, addr, rejectReason);
-}
-
-void ThreadedDisconnect(edict_t* ent)
-{
-	int i = ENTINDEX(ent) - 1;
-
-	InternalAssert(i >= 0 && i < 32);
-
-	// check if its a bot
-	if (g_botManager->GetBot(i) != nullptr && g_botManager->GetBot(i)->pev == &ent->v)
-		g_botManager->Free(i);
 }
 
 void ClientDisconnect(edict_t* ent)
@@ -1349,12 +1433,16 @@ void ClientDisconnect(edict_t* ent)
 	// brain(s) up to disk. We also try to notice when a listenserver client disconnects, so as
 	// to reset his entity pointer for safety. There are still a few server frames to go once a
 	// listen server client disconnects, and we don't want to send him any sort of message then.
-	
-#ifdef WORK_ASYNC
-	async(launch::async, ThreadedDisconnect, ent);
-#else
-	ThreadedDisconnect(ent);
-#endif
+
+	int i = ENTINDEX(ent) - 1;
+
+	InternalAssert(i >= 0 && i < 32);
+
+	// check if its a bot
+	if (g_botManager->GetBot(i) != nullptr && g_botManager->GetBot(i)->pev == &ent->v)
+		g_botManager->Free(i);
+
+	LoadEntityData();
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -2695,77 +2783,6 @@ void KeyValue(edict_t* ent, KeyValueData* data)
 	(*g_functionTable.pfnKeyValue) (ent, data);
 }
 
-void LoadEntityData(void)
-{
-	edict_t* entity;
-
-	for (int i = engine->GetMaxClients() + 1; i < entityNum; i++)
-	{
-		if (g_entityId[i] == -1)
-			continue;
-
-		entity = INDEXENT(g_entityId[i]);
-		if (FNullEnt(entity) || !IsAlive(entity))
-		{
-			SetEntityActionData(i);
-			continue;
-		}
-
-		if (g_entityGetWpTime[i] + 1.55f < engine->GetTime() || g_entityWpIndex[i] == -1)
-			SetEntityWaypoint(entity);
-	}
-
-	for (int i = 0; i <= engine->GetMaxClients(); i++)
-	{
-		entity = INDEXENT(i);
-
-		if (FNullEnt(entity) || (!(entity->v.flags & FL_CLIENT) && !(entity->v.flags & FL_FAKECLIENT)))
-		{
-			g_clients[i].flags &= ~(CFLAG_USED | CFLAG_ALIVE);
-			g_clients[i].ent = nullptr;
-			g_clients[i].origin = nullvec;
-			g_clients[i].wpIndex = -1;
-			g_clients[i].wpIndex2 = -1;
-			g_clients[i].getWpOrigin = nullvec;
-			g_clients[i].getWPTime = 0.0f;
-			g_clients[i].index = -1;
-			g_clients[i].team = TEAM_COUNT;
-			continue;
-		}
-
-		g_clients[i].ent = entity;
-		g_clients[i].index = i;
-		g_clients[i].flags |= CFLAG_USED;
-
-		if (IsAlive(entity))
-			g_clients[i].flags |= CFLAG_ALIVE;
-		else
-			g_clients[i].flags &= ~CFLAG_ALIVE;
-
-		if (g_clients[i].flags & CFLAG_ALIVE)
-		{
-			// get team
-			g_clients[i].team = GetTeam(entity);
-
-			// keep the clipping mode enabled, or it can be turned off after new round has started
-			if (g_hostEntity == entity && g_editNoclip && g_waypointOn)
-				g_hostEntity->v.movetype = MOVETYPE_NOCLIP;
-
-			g_clients[i].origin = GetEntityOrigin(entity);
-			if (g_clients[i].getWPTime + 1.25f < engine->GetTime() || (g_clients[i].wpIndex == -1 && g_clients[i].wpIndex2 == -1))
-				SetEntityWaypoint(entity);
-
-			continue;
-		}
-
-		g_clients[i].wpIndex = -1;
-		g_clients[i].wpIndex2 = -1;
-		g_clients[i].getWpOrigin = nullvec;
-		g_clients[i].getWPTime = 0.0f;
-		g_clients[i].team = TEAM_COUNT;
-	}
-}
-
 void SetPing(edict_t* to)
 {
 	if (FNullEnt(to))
@@ -3822,6 +3839,7 @@ DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* 
 		{ "csdm", "cs_i386.so", "mp.dll", "CSDM for Windows", CSVER_VERYOLD },
 		{ "cs13", "cs_i386.so", "mp.dll", "Counter-Strike v1.3", CSVER_VERYOLD }, // assume cs13 = cs15
 		{ "retrocs", "rcs_i386.so", "rcs.dll", "Retro Counter-Strike", CSVER_VERYOLD },
+		{ "valve", "hl.so", "hl.dll", "Half-Life", HALFLIFE },
 		{ "", "", "", "", 0 }
 	};
 
@@ -3918,18 +3936,19 @@ exportc void entityFunction (entvars_t *pev); \
 \
 void entityFunction (entvars_t *pev) \
 { \
-   static EntityPtr_t funcPtr = nullptr; \
-   \
-   if (funcPtr == nullptr) \
-      funcPtr = (EntityPtr_t) g_gameLib->GetFunctionAddr (#entityFunction); \
-   \
-   if (funcPtr == nullptr) \
-      return; \
-   \
-   (*funcPtr) (pev); \
+	static EntityPtr_t funcPtr = nullptr; \
+	\
+	if (funcPtr == nullptr) \
+		funcPtr = (EntityPtr_t) g_gameLib->GetFunctionAddr (#entityFunction); \
+	\
+	if (funcPtr == nullptr) \
+		return; \
+	\
+	(*funcPtr) (pev); \
 } \
 
-// entities in counter-strike...
+// entities
+LINK_ENTITY(bot)
 LINK_ENTITY(DelayedUse)
 LINK_ENTITY(ambient_generic)
 LINK_ENTITY(ammo_338magnum)
@@ -4126,3 +4145,14 @@ LINK_ENTITY(weapon_xm1014)
 LINK_ENTITY(weaponbox)
 LINK_ENTITY(world_items)
 LINK_ENTITY(worldspawn)
+LINK_ENTITY(weapon_crowbar)
+LINK_ENTITY(monster_snark)
+LINK_ENTITY(weapon_rpg)
+LINK_ENTITY(weapon_9mmhandgun)
+LINK_ENTITY(weapon_crossbow)
+LINK_ENTITY(weapon_shotgun)
+LINK_ENTITY(weapon_gauss)
+LINK_ENTITY(weapon_egon)
+LINK_ENTITY(weapon_hornetgun)
+LINK_ENTITY(weapon_handgrenade)
+LINK_ENTITY(weapon_snark)

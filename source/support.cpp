@@ -687,13 +687,6 @@ void RoundInit(void)
 	g_roundEnded = false;
 	g_audioTime = 0.0f;
 
-	if (GetGameMode() == MODE_BASE)
-	{
-		// check team economics
-		g_botManager->CheckTeamEconomics(TEAM_TERRORIST);
-		g_botManager->CheckTeamEconomics(TEAM_COUNTER);
-	}
-	
 	for (const auto& client : g_clients)
 	{
 		if (g_botManager->GetBot(client.index) != nullptr)
@@ -701,11 +694,6 @@ void RoundInit(void)
 
 		g_radioSelect[client.index] = 0;
 	}
-
-	g_waypoint->SetBombPosition(true);
-	g_waypoint->ClearGoalScore();
-
-	g_waypoint->InitTypes(1);
 
 	g_bombSayString = false;
 	g_timeBombPlanted = 0.0f;
@@ -718,12 +706,34 @@ void RoundInit(void)
 	g_lastRadioTime[1] = 0.0f;
 	g_botsCanPause = false;
 
-	AutoLoadGameMode();
+	g_waypoint->ClearGoalScore();
+	g_waypoint->SetBombPosition(true);
 
-	// calculate the round mid/end in world time
-	g_timeRoundStart = engine->GetTime() + engine->GetFreezeTime() + g_pGlobals->frametime;
-	g_timeRoundMid = g_timeRoundStart + engine->GetRoundTime() * 30.0f;
-	g_timeRoundEnd = g_timeRoundStart + engine->GetRoundTime() * 60.0f;
+	if (g_gameVersion != HALFLIFE)
+	{
+		AutoLoadGameMode();
+
+		if (GetGameMode() == MODE_BASE)
+		{
+			// check team economics
+			g_botManager->CheckTeamEconomics(TEAM_TERRORIST);
+			g_botManager->CheckTeamEconomics(TEAM_COUNTER);
+		}
+
+		// calculate the round mid/end in world time
+		g_timeRoundStart = engine->GetTime() + engine->GetFreezeTime() + g_pGlobals->frametime;
+		g_timeRoundMid = g_timeRoundStart + engine->GetRoundTime() * 30.0f;
+		g_timeRoundEnd = g_timeRoundStart + engine->GetRoundTime() * 60.0f;
+	}
+	else
+	{
+		g_timeRoundStart = engine->GetTime();
+		g_timeRoundMid = g_timeRoundStart + 999999.0f;
+		g_timeRoundEnd = g_timeRoundStart + 999999.0f;
+
+		SetGameMode(MODE_DM);
+		g_mapType |= MAP_DE;
+	}
 }
 
 void AutoLoadGameMode(void)
@@ -787,10 +797,10 @@ void AutoLoadGameMode(void)
 				{
 					ServerPrint("***** E-BOT not support the mode now :( *****");
 
-					SetGameMod(MODE_TDM);
+					SetGameMode(MODE_TDM);
 				}
 				else
-					SetGameMod(bteGameModAi[i]);
+					SetGameMode(bteGameModAi[i]);
 
 				g_gameVersion = CSVER_CZERO;
 
@@ -807,7 +817,7 @@ void AutoLoadGameMode(void)
 
 	if (ebot_zp_delay_custom.GetFloat() > 0.0f)
 	{
-		SetGameMod(MODE_ZP);
+		SetGameMode(MODE_ZP);
 		g_DelayTimer = engine->GetTime() + ebot_zp_delay_custom.GetFloat();
 		goto lastly;
 	}
@@ -841,7 +851,7 @@ void AutoLoadGameMode(void)
 					if (checkShowTextTime < 3 || GetGameMode() != MODE_ZP)
 						ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Mode (Plague/Escape) ***");
 
-					SetGameMod(MODE_ZP);
+					SetGameMode(MODE_ZP);
 					g_DelayTimer = engine->GetTime() + delayTime;
 					goto lastly;
 				}
@@ -876,7 +886,7 @@ void AutoLoadGameMode(void)
 				if (checkShowTextTime < 3 || GetGameMode() != MODE_ZP)
 					ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Mode (Base Builder) ***");
 
-				SetGameMod(MODE_ZP);
+				SetGameMode(MODE_ZP);
 
 				g_DelayTimer = engine->GetTime() + delayTime;
 
@@ -894,14 +904,14 @@ void AutoLoadGameMode(void)
 			if (checkShowTextTime < 3 || GetGameMode() != MODE_DM)
 				ServerPrint("*** E-BOT Auto Game Mode Setting: DM:KD-DM ***");
 
-			SetGameMod(MODE_DM);
+			SetGameMode(MODE_DM);
 		}
 		else
 		{
 			if (checkShowTextTime < 3 || GetGameMode() != MODE_TDM)
 				ServerPrint("*** E-BOT Auto Game Mode Setting: DM:KD-TDM ***");
 
-			SetGameMod(MODE_TDM);
+			SetGameMode(MODE_TDM);
 		}
 
 		goto lastly;
@@ -914,7 +924,7 @@ void AutoLoadGameMode(void)
 		if (checkShowTextTime < 3 || GetGameMode() != MODE_ZH)
 			ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Hell ***");
 
-		SetGameMod(MODE_ZH);
+		SetGameMode(MODE_ZH);
 
 		extern ConVar ebot_quota;
 		ebot_quota.SetInt(static_cast <int> (CVAR_GET_FLOAT("zh_zombie_maxslots")));
@@ -942,7 +952,7 @@ void AutoLoadGameMode(void)
 				if (checkShowTextTime < 3 || GetGameMode() != MODE_ZP)
 					ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Mode (Biohazard) ***");
 
-				SetGameMod(MODE_ZP);
+				SetGameMode(MODE_ZP);
 
 				g_DelayTimer = engine->GetTime() + delayTime;
 
@@ -963,7 +973,7 @@ void AutoLoadGameMode(void)
 				if (checkShowTextTime < 3 || GetGameMode() != MODE_DM)
 					ServerPrint("*** E-BOT Auto Game Mode Setting: CSDM-DM ***");
 
-				SetGameMod(MODE_DM);
+				SetGameMode(MODE_DM);
 			}
 		}
 	}
@@ -984,6 +994,9 @@ lastly:
 // returns if weapon can pierce through a wall
 bool IsWeaponShootingThroughWall(int id)
 {
+	if (g_gameVersion == HALFLIFE)
+		return false;
+
 	int i = 0;
 	while (g_weaponSelect[i].id)
 	{
@@ -1001,7 +1014,7 @@ bool IsWeaponShootingThroughWall(int id)
 	return false;
 }
 
-void SetGameMod(int gamemode)
+void SetGameMode(int gamemode)
 {
 	ebot_gamemod.SetInt(gamemode);
 }
@@ -1458,6 +1471,7 @@ void ClientPrint(edict_t* ent, int dest, const char* format, ...)
 
 		return;
 	}
+
 	strcat(string, "\n");
 
 	if (dest & 0x3ff)
@@ -1566,14 +1580,14 @@ void CheckWelcomeMessage(void)
 void DetectCSVersion(void)
 {
 	uint8_t* detection = nullptr;
-	const char* const infoBuffer = "Game Registered: CS %s (0x%d)";
+	const char* const infoBuffer = "Game Registered: %s (0x%d)";
 
 	// switch version returned by dll loader
 	switch (g_gameVersion)
 	{
 		// counter-strike 1.x, WON ofcourse
 	case CSVER_VERYOLD:
-		ServerPrint(infoBuffer, "1.x (WON)", sizeof(Bot));
+		ServerPrint(infoBuffer, "CS 1.x (WON)", sizeof(Bot));
 		break;
 
 		// counter-strike 1.6 or higher (plus detects for non-steam versions of 1.5)
@@ -1582,12 +1596,12 @@ void DetectCSVersion(void)
 
 		if (detection != nullptr)
 		{
-			ServerPrint(infoBuffer, "1.6 (Steam)", sizeof(Bot));
+			ServerPrint(infoBuffer, "CS 1.6 (Steam)", sizeof(Bot));
 			g_gameVersion = CSVER_CSTRIKE; // just to be sure
 		}
 		else if (detection == nullptr)
 		{
-			ServerPrint(infoBuffer, "1.5 (WON)", sizeof(Bot));
+			ServerPrint(infoBuffer, "CS 1.5 (WON)", sizeof(Bot));
 			g_gameVersion = CSVER_VERYOLD; // reset it to WON
 		}
 
@@ -1598,7 +1612,10 @@ void DetectCSVersion(void)
 
 		// counter-strike cz
 	case CSVER_CZERO:
-		ServerPrint(infoBuffer, "CZ (Steam)", sizeof(Bot));
+		ServerPrint(infoBuffer, "CS CZ (Steam)", sizeof(Bot));
+		break;
+	case HALFLIFE:
+		ServerPrint(infoBuffer, "Half-Life", sizeof(Bot));
 		break;
 	}
 

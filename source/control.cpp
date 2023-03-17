@@ -332,7 +332,6 @@ void BotControl::Think(void)
 			bot->m_strafeSpeedForRunMove = bot->m_strafeSpeed;
 			bot->FacePosition();
 		}
-			
 
 		bot->RunPlayerMovement(); // run the player movement 
 	}
@@ -966,6 +965,41 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	if (ebot_display_avatar.GetBool() && !g_botManager->m_avatars.IsEmpty())
 		SET_CLIENT_KEYVALUE(clientIndex, buffer, "*sid", g_botManager->m_avatars.GetRandomElement());
 
+	if (g_gameVersion == HALFLIFE)
+	{
+		char c_topcolor[4], c_bottomcolor[4];
+		sprintf(c_topcolor, "%d", engine->RandomInt(1, 254));
+		sprintf(c_bottomcolor, "%d", engine->RandomInt(1, 254));
+
+		SET_CLIENT_KEYVALUE(clientIndex, buffer, "topcolor", c_topcolor);
+		SET_CLIENT_KEYVALUE(clientIndex, buffer, "bottomcolor", c_bottomcolor);
+
+		static int randomModel = engine->RandomInt(1, 10);
+		switch (randomModel)
+		{
+			case 1:
+				SET_CLIENT_KEYVALUE(clientIndex, buffer, "model", "barney");
+			case 2:
+				SET_CLIENT_KEYVALUE(clientIndex, buffer, "model", "gina");
+			case 3:
+				SET_CLIENT_KEYVALUE(clientIndex, buffer, "model", "gman");
+			case 4:
+				SET_CLIENT_KEYVALUE(clientIndex, buffer, "model", "helmet");
+			case 5:
+				SET_CLIENT_KEYVALUE(clientIndex, buffer, "model", "hgrunt");
+			case 6:
+				SET_CLIENT_KEYVALUE(clientIndex, buffer, "model", "recon");
+			case 7:
+				SET_CLIENT_KEYVALUE(clientIndex, buffer, "model", "robo");
+			case 8:
+				SET_CLIENT_KEYVALUE(clientIndex, buffer, "model", "scientist");
+			case 9:
+				SET_CLIENT_KEYVALUE(clientIndex, buffer, "model", "zombie");
+			default:
+				SET_CLIENT_KEYVALUE(clientIndex, buffer, "model", "gordon");
+		}
+	}
+
 	if (!IsNullString(rejectReason))
 	{
 		AddLogEntry(LOG_WARNING, "Server refused '%s' connection (%s)", GetEntityName(bot), rejectReason);
@@ -986,10 +1020,8 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	m_logotypeIndex = engine->RandomInt(0, 5);
 
 	// initialize msec value
-	m_msecNum = m_msecDel = 0.0f;
 	m_msecInterval = engine->GetTime();
-	m_msecVal = static_cast <uint8_t> (g_pGlobals->frametime * 1000.0f);
-	m_msecBuiltin = engine->RandomInt(1, 4);
+	m_msecVal = g_pGlobals->frametime * 1000.0f;
 
 	// assign how talkative this bot will be
 	m_sayTextBuffer.chatDelay = engine->RandomFloat(3.8f, 10.0f);
@@ -1179,8 +1211,6 @@ void Bot::NewRound(void)
 	m_sayTextBuffer.entityIndex = -1;
 	m_sayTextBuffer.sayText[0] = 0x0;
 
-	m_buyState = 0;
-
 	m_damageTime = 0.0f;
 	m_zhCampPointIndex = -1;
 	m_checkCampPointTime = 0.0f;
@@ -1193,8 +1223,6 @@ void Bot::NewRound(void)
 	}
 
 	m_nextBuyTime = AddTime(engine->RandomFloat(0.6f, 1.2f));
-
-	m_buyPending = false;
 	m_inBombZone = false;
 
 	m_shieldCheckTime = 0.0f;
@@ -1206,7 +1234,6 @@ void Bot::NewRound(void)
 
 	m_checkWeaponSwitch = true;
 	m_checkKnifeSwitch = true;
-	m_buyingFinished = false;
 
 	m_radioEntity = nullptr;
 	m_radioOrder = 0;
@@ -1235,7 +1262,19 @@ void Bot::NewRound(void)
 	SetEntityWaypoint(GetEntity(), -2);
 
 	// and put buying into its message queue
-	PushMessageQueue(CMENU_BUY);
+	if (g_gameVersion == HALFLIFE)
+	{
+		m_buyState = 7;
+		m_buyingFinished = true;
+		m_startAction = CMENU_IDLE;
+	}
+	else
+	{
+		m_buyingFinished = false;
+		m_buyState = 0;
+		PushMessageQueue(CMENU_BUY);
+	}
+
 	PushTask(TASK_NORMAL, TASKPRI_NORMAL, -1, 1.0f, true);
 
 	// hear range based on difficulty
@@ -1296,6 +1335,16 @@ void Bot::Kick(void)
 // this function handles the selection of teams & class
 void Bot::StartGame(void)
 {
+	if (g_gameVersion == HALFLIFE)
+	{
+		if (engine->RandomInt(1, 3) == 1)
+			ChatMessage(CHAT_HELLO);
+
+		m_notStarted = false;
+		m_startAction = CMENU_IDLE;
+		return;
+	}
+
 	// handle counter-strike stuff here...
 	if (m_startAction == CMENU_TEAM)
 	{
@@ -1318,7 +1367,7 @@ void Bot::StartGame(void)
 	{
 		m_startAction = CMENU_IDLE;  // switch back to idle
 
-		int maxChoice = (g_gameVersion == CSVER_CZERO) ? 5 : 4;
+		int maxChoice = g_gameVersion == CSVER_CZERO ? 5 : 4;
 		m_wantedClass = engine->RandomInt(1, maxChoice);
 
 		// select the class the bot wishes to use...

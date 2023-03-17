@@ -163,6 +163,8 @@ void AnalyzeThread(void)
 
             HudMessage(g_hostEntity, true, Color(100, 100, 255), message);
         }
+        else if (!IsDedicatedServer()) // let player join first...
+            return;
 
         static float magicTimer;
         for (int i = 0; i < g_numWaypoints; i++)
@@ -1028,7 +1030,7 @@ void Waypoint::Add(int flags, Vector waypointOrigin)
     }
     else
     {
-        float addDist = ebot_analyze_distance.GetFloat() * 2.25f;
+        float addDist = ebot_analyze_distance.GetFloat() * 3.0f;
 
         // calculate all the paths to this new waypoint
         for (i = 0; i < g_numWaypoints; i++)
@@ -1567,45 +1569,39 @@ void Waypoint::CalculateWayzone(int index)
         path->radius = 0.0f;
 }
 
-void Waypoint::InitTypes(int mode)
+void Waypoint::InitTypes()
 {
-    if (mode == 0)
-    {
-        m_terrorPoints.RemoveAll();
-        m_ctPoints.RemoveAll();
-        m_goalPoints.RemoveAll();
-        m_campPoints.RemoveAll();
-        m_rescuePoints.RemoveAll();
-        m_sniperPoints.RemoveAll();
-        m_visitedGoals.RemoveAll();
-        m_zmHmPoints.RemoveAll();
-        m_hmMeshPoints.RemoveAll();
-        m_otherPoints.RemoveAll();
-    }
+    m_terrorPoints.RemoveAll();
+    m_ctPoints.RemoveAll();
+    m_goalPoints.RemoveAll();
+    m_campPoints.RemoveAll();
+    m_rescuePoints.RemoveAll();
+    m_sniperPoints.RemoveAll();
+    m_visitedGoals.RemoveAll();
+    m_zmHmPoints.RemoveAll();
+    m_hmMeshPoints.RemoveAll();
+    m_otherPoints.RemoveAll();
 
     for (int i = 0; i < g_numWaypoints; i++)
     {
-        if (mode == 0)
-        {
-            if (m_paths[i]->flags & WAYPOINT_GOAL)
-                m_goalPoints.Push(i);
-            else if (m_paths[i]->flags & WAYPOINT_CAMP)
-                m_campPoints.Push(i);
-            else if (m_paths[i]->flags & WAYPOINT_SNIPER)
-                m_sniperPoints.Push(i);
-            else if (m_paths[i]->flags & WAYPOINT_RESCUE)
-                m_rescuePoints.Push(i);
-            else if (m_paths[i]->flags & WAYPOINT_ZMHMCAMP)
-                m_zmHmPoints.Push(i);
-            else if (m_paths[i]->flags & WAYPOINT_HMCAMPMESH)
-                m_hmMeshPoints.Push(i);
-            else if (m_paths[i]->flags & WAYPOINT_TERRORIST)
-                m_terrorPoints.Push(i);
-            else if (m_paths[i]->flags & WAYPOINT_COUNTER)
-                m_ctPoints.Push(i);
-            else if (m_paths[i]->flags == 0)
-                m_otherPoints.Push(i);
-        }
+        if (m_paths[i]->flags & WAYPOINT_GOAL)
+            m_goalPoints.Push(i);
+        else if (m_paths[i]->flags & WAYPOINT_CAMP)
+            m_campPoints.Push(i);
+        else if (m_paths[i]->flags & WAYPOINT_SNIPER)
+            m_sniperPoints.Push(i);
+        else if (m_paths[i]->flags & WAYPOINT_RESCUE)
+            m_rescuePoints.Push(i);
+        else if (m_paths[i]->flags & WAYPOINT_ZMHMCAMP)
+            m_zmHmPoints.Push(i);
+        else if (m_paths[i]->flags & WAYPOINT_HMCAMPMESH)
+            m_hmMeshPoints.Push(i);
+        else if (m_paths[i]->flags & WAYPOINT_TERRORIST)
+            m_terrorPoints.Push(i);
+        else if (m_paths[i]->flags & WAYPOINT_COUNTER)
+            m_ctPoints.Push(i);
+        else if (m_paths[i]->flags == 0)
+            m_otherPoints.Push(i);
     }
 }
 
@@ -1687,7 +1683,7 @@ bool Waypoint::Load(int mode)
     for (int i = 0; i < g_numWaypoints; i++)
         m_waypointDisplayTime[i] = 0.0f;
 
-    InitTypes(0);
+    InitTypes();
 
     g_waypointsChanged = false;
     g_killHistory = 0;
@@ -1906,7 +1902,7 @@ bool Waypoint::IsNodeReachable(const Vector src, const Vector destination)
     TraceLine(src, destination, true, false, g_hostEntity, &tr);
 
     // if waypoint is visible from current position (even behind head)...
-    if (tr.pHit && (tr.flFraction >= 1.0f || strncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0))
+    if (tr.pHit && (tr.flFraction >= 1.0f || strncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0 || IsBreakable(tr.pHit)))
     {
         // if it's a door check if nothing blocks behind
         if (strncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0)
@@ -1998,7 +1994,7 @@ bool Waypoint::IsNodeReachableWithJump(const Vector src, const Vector destinatio
     TraceLine(src, destination, true, false, g_hostEntity, &tr);
 
     // if waypoint is visible from current position (even behind head)...
-    if (tr.pHit && (tr.flFraction >= 1.0f || strncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0))
+    if (tr.pHit && (tr.flFraction >= 1.0f || strncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0 || IsBreakable(tr.pHit)))
     {
         // if it's a door check if nothing blocks behind
         if (strncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0)

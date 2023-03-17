@@ -673,14 +673,15 @@ void Bot::FireWeapon(void)
 	if (!FNullEnt(m_enemy) && IsFriendInLineOfFire(distance))
 		return;
 
+	int melee = g_gameVersion == HALFLIFE ? WEAPON_CROWBAR : WEAPON_KNIFE;
+
 	FireDelay* delay = &g_fireDelay[0];
-	WeaponSelect* selectTab = &g_weaponSelect[0];
+	WeaponSelect* selectTab = g_gameVersion == HALFLIFE ? &g_weaponSelectHL[0] : &g_weaponSelect[0];
 
 	edict_t* enemy = m_enemy;
 
-	int selectId = WEAPON_KNIFE, selectIndex = 0, chosenWeaponIndex = 0;
+	int selectId = melee, selectIndex = 0, chosenWeaponIndex = 0;
 	int weapons = pev->weapons;
-
 
 	if (m_isZombieBot || ebot_knifemode.GetBool())
 		goto WeaponSelectEnd;
@@ -695,7 +696,15 @@ void Bot::FireWeapon(void)
 		if (weapons & (1 << selectTab[selectIndex].id))
 		{
 			// is enough ammo available to fire AND check is better to use pistol in our current situation...
-			if ((m_ammoInClip[selectTab[selectIndex].id] > 0) && !IsWeaponBadInDistance(selectIndex, distance))
+			if (g_gameVersion == HALFLIFE)
+			{
+				if (selectIndex == WEAPON_SNARK || selectIndex == WEAPON_EGON || (selectIndex == WEAPON_RPG && distance > 256.0f) || (selectIndex == WEAPON_CROSSBOW && distance > 256.0f))
+					chosenWeaponIndex = selectIndex;
+				else if ((m_ammoInClip[selectTab[selectIndex].id] > 0) && !IsWeaponBadInDistance(selectIndex, distance))
+						chosenWeaponIndex = selectIndex;
+
+			}
+			else if ((m_ammoInClip[selectTab[selectIndex].id] > 0) && !IsWeaponBadInDistance(selectIndex, distance))
 				chosenWeaponIndex = selectIndex;
 		}
 
@@ -725,15 +734,16 @@ void Bot::FireWeapon(void)
 						m_reloadState = RSTATE_PRIMARY;
 						m_reloadCheckTime = engine->GetTime();
 						m_fearLevel = 1.0f;
-
 						RadioMessage(Radio_NeedBackup);
 					}
 					return;
 				}
 			}
+
 			selectIndex++;
 		}
-		selectId = WEAPON_KNIFE; // no available ammo, use knife!
+
+		selectId = melee; // no available ammo, use knife!
 	}
 
 WeaponSelectEnd:
@@ -744,11 +754,10 @@ WeaponSelectEnd:
 		m_reloadCheckTime = engine->GetTime() + 5.0f;
 	}
 
-	if (m_currentWeapon == WEAPON_KNIFE && selectId != WEAPON_KNIFE && GetGameMode() == MODE_ZP && !m_isZombieBot)
+	if (IsZombieMode() && m_currentWeapon == melee && selectId != melee && !m_isZombieBot)
 	{
 		m_reloadState = RSTATE_PRIMARY;
 		m_reloadCheckTime = engine->GetTime() + 2.5f;
-
 		return;
 	}
 
@@ -762,9 +771,6 @@ WeaponSelectEnd:
 
 		return;
 	}
-
-	if (delay[chosenWeaponIndex].weaponIndex != selectId)
-		return;
 
 	if (selectTab[chosenWeaponIndex].id != selectId)
 	{
@@ -781,16 +787,19 @@ WeaponSelectEnd:
 	}
 
 	// if we're have a glock or famas vary burst fire mode
-	CheckBurstMode(distance);
-
-	if (HasShield() && m_shieldCheckTime < engine->GetTime() && GetCurrentTask()->taskID != TASK_CAMP) // better shield gun usage
+	if (g_gameVersion != HALFLIFE)
 	{
-		if ((distance > 750.0f) && !IsShieldDrawn())
-			pev->button |= IN_ATTACK2; // draw the shield
-		else if (IsShieldDrawn() || (!FNullEnt(enemy) && (enemy->v.button & IN_RELOAD)))
-			pev->button |= IN_ATTACK2; // draw out the shield
+		CheckBurstMode(distance);
 
-		m_shieldCheckTime = engine->GetTime() + 2.0f;
+		if (HasShield() && m_shieldCheckTime < engine->GetTime() && GetCurrentTask()->taskID != TASK_CAMP) // better shield gun usage
+		{
+			if ((distance > 750.0f) && !IsShieldDrawn())
+				pev->button |= IN_ATTACK2; // draw the shield
+			else if (IsShieldDrawn() || (!FNullEnt(enemy) && (enemy->v.button & IN_RELOAD)))
+				pev->button |= IN_ATTACK2; // draw out the shield
+
+			m_shieldCheckTime = engine->GetTime() + 2.0f;
+		}
 	}
 
 	if (UsesSniper() && m_zoomCheckTime < engine->GetTime()) // is the bot holding a sniper rifle?
@@ -818,9 +827,9 @@ WeaponSelectEnd:
 	}
 
 	// need to care for burst fire?
-	if (distance < 256.0f || m_blindTime > engine->GetTime())
+	if (g_gameVersion == HALFLIFE || distance < 256.0f || m_blindTime > engine->GetTime())
 	{
-		if (selectId == WEAPON_KNIFE)
+		if (selectId == melee)
 			KnifeAttack();
 		else
 		{
@@ -846,7 +855,7 @@ WeaponSelectEnd:
 			return;
 
 		// don't attack with knife over long distance
-		if (selectId == WEAPON_KNIFE)
+		if (selectId == melee)
 		{
 			KnifeAttack();
 			return;
@@ -982,12 +991,11 @@ bool Bot::KnifeAttack(float attackDistance)
 // to attack our enemy, since current weapon is not very good in this situation
 bool Bot::IsWeaponBadInDistance(int weaponIndex, float distance)
 {
-	int weaponID = g_weaponSelect[weaponIndex].id;
-	if (weaponID == WEAPON_KNIFE)
+	if (g_gameVersion == HALFLIFE)
 		return false;
 
-	// check is ammo available for secondary weapon
-	if (m_ammoInClip[g_weaponSelect[GetBestSecondaryWeaponCarried()].id] >= 1)
+	int weaponID = g_weaponSelect[weaponIndex].id;
+	if (weaponID == WEAPON_KNIFE)
 		return false;
 
 	// shotguns is too inaccurate at long distances, so weapon is bad
@@ -996,9 +1004,13 @@ bool Bot::IsWeaponBadInDistance(int weaponIndex, float distance)
 
 	if (!IsZombieMode())
 	{
-		if ((weaponID == WEAPON_SCOUT || weaponID == WEAPON_AWP || weaponID == WEAPON_G3SG1 || weaponID == WEAPON_SG550) && distance <= SquaredF(384.0f))
+		if ((weaponID == WEAPON_SCOUT || weaponID == WEAPON_AWP || weaponID == WEAPON_G3SG1 || weaponID == WEAPON_SG550) && distance <= SquaredF(512.0f))
 			return true;
 	}
+
+	// check is ammo available for secondary weapon
+	if (m_ammoInClip[g_weaponSelect[GetBestSecondaryWeaponCarried()].id] >= 1)
+		return false;
 
 	return false;
 }
@@ -1181,6 +1193,31 @@ void Bot::CombatFight(void)
 	}
 	else if (GetCurrentTask()->taskID != TASK_CAMP && GetCurrentTask()->taskID != TASK_SEEKCOVER && GetCurrentTask()->taskID != TASK_ESCAPEFROMBOMB)
 	{
+		if (g_gameVersion == HALFLIFE && fabsf(pev->speed) >= pev->maxspeed)
+		{
+			if (m_personality == PERSONALITY_CAREFUL)
+			{
+				if (!FNullEnt(m_enemy) && (m_enemy->v.button & IN_ATTACK || m_enemy->v.oldbuttons & IN_ATTACK))
+				{
+					pev->button |= IN_DUCK;
+					pev->button |= IN_JUMP;
+				}
+			}
+			else if (m_personality == PERSONALITY_RUSHER)
+			{
+				if (pev->button & IN_ATTACK || pev->oldbuttons & IN_ATTACK)
+				{
+					pev->button |= IN_DUCK;
+					pev->button |= IN_JUMP;
+				}
+			}
+			else
+			{
+				pev->button |= IN_DUCK;
+				pev->button |= IN_JUMP;
+			}
+		}
+
 		if (m_isReloading || (m_isBomber && (engine->RandomFloat(1.0f, pev->health) <= 40.0f || !HasPrimaryWeapon())) || m_isVIP)
 		{
 			const int seekindex = FindCoverWaypoint(99999.0f);
@@ -1198,7 +1235,28 @@ void Bot::CombatFight(void)
 			return;
 		}
 
-		if (m_currentWeapon == WEAPON_KNIFE)
+		if (FNullEnt(m_enemy) && IsSniper())
+		{
+			m_moveSpeed = 0.0f;
+			m_strafeSpeed = 0.0f;
+			SelectBestWeapon();
+
+			if (UsesSniper() && m_zoomCheckTime < engine->GetTime())
+			{
+				if (distance > SquaredF(1500.0f) && pev->fov >= 40.0f)
+					pev->button |= IN_ATTACK2;
+				else if (distance > SquaredF(150.0f) && pev->fov >= 90.0f)
+					pev->button |= IN_ATTACK2;
+				else if (distance <= SquaredF(150.0f) && pev->fov < 90.0f)
+					pev->button |= IN_ATTACK2;
+				m_zoomCheckTime = engine->GetTime();
+			}
+
+			return;
+		}
+
+		const int melee = g_gameVersion == HALFLIFE ? WEAPON_CROWBAR : WEAPON_KNIFE;
+		if (m_currentWeapon == melee && !FNullEnt(m_enemy))
 		{
 			if (distance > SquaredF(128.0f))
 			{
@@ -1208,6 +1266,14 @@ void Bot::CombatFight(void)
 					if (IsValidWaypoint(seekindex))
 						PushTask(TASK_SEEKCOVER, TASKPRI_SEEKCOVER, seekindex, 8.0f, true);
 				}
+
+				if (!HasNextPath())
+				{
+					const int nearest = g_waypoint->FindNearest(m_enemyOrigin, 99999999.0f, -1, m_enemy);
+					if (IsValidWaypoint(nearest))
+						FindShortestPath(m_currentWaypointIndex, nearest);
+				}
+
 				return;
 			}
 		}
@@ -1229,7 +1295,7 @@ void Bot::CombatFight(void)
 		m_currentWaypointIndex = -1;
 
 		int approach;
-		if (m_currentWeapon == WEAPON_KNIFE) // knife?
+		if (m_currentWeapon == melee) // knife?
 			approach = 100;
 		else if (!(m_states & STATE_SEEINGENEMY)) // if suspecting enemy stand still
 			approach = 49;
@@ -1251,7 +1317,7 @@ void Bot::CombatFight(void)
 			GetCurrentTask()->canContinue = true;
 			GetCurrentTask()->desire = TASKPRI_FIGHTENEMY + 1.0f;
 		}
-		else if (m_currentWeapon != WEAPON_KNIFE) // if enemy cant see us, we never move
+		else if (m_currentWeapon != melee) // if enemy cant see us, we never move
 			m_moveSpeed = 0.0f;
 		else if (approach >= 50 || UsesBadPrimary() || (!FNullEnt(m_enemy) && IsBehindSmokeClouds(m_enemy))) // we lost him?
 			m_moveSpeed = pev->maxspeed;
@@ -1306,7 +1372,7 @@ void Bot::CombatFight(void)
 			}
 		}
 
-		if (m_fightStyle == 0 || ((pev->button & IN_RELOAD) || m_isReloading) || (UsesPistol() && distance < SquaredF(768.0f)) || m_currentWeapon == WEAPON_KNIFE)
+		if (m_fightStyle == 0 || ((pev->button & IN_RELOAD) || m_isReloading) || (UsesPistol() && distance < SquaredF(768.0f)) || m_currentWeapon == melee)
 		{
 			if (m_strafeSetTime < engine->GetTime())
 			{
@@ -1413,6 +1479,9 @@ bool Bot::HasShield(void)
 // this function returns true, is the tactical shield is drawn
 bool Bot::IsShieldDrawn(void)
 {
+	if (g_gameVersion == HALFLIFE)
+		return false;
+
 	if (!HasShield())
 		return false;
 
@@ -1422,6 +1491,9 @@ bool Bot::IsShieldDrawn(void)
 // this function returns true, if enemy protected by the shield
 bool Bot::IsEnemyProtectedByShield(edict_t* enemy)
 {
+	if (g_gameVersion == HALFLIFE)
+		return false;
+
 	if (FNullEnt(enemy))
 		return false;
 
@@ -1440,11 +1512,20 @@ bool Bot::IsEnemyProtectedByShield(edict_t* enemy)
 
 bool Bot::UsesSniper(void)
 {
+	if (g_gameVersion == HALFLIFE)
+		return m_currentWeapon == WEAPON_CROSSBOW;
+
 	return m_currentWeapon == WEAPON_AWP || m_currentWeapon == WEAPON_G3SG1 || m_currentWeapon == WEAPON_SCOUT || m_currentWeapon == WEAPON_SG550;
 }
 
 bool Bot::IsSniper(void)
 {
+	if (g_gameVersion == HALFLIFE)
+	{
+		if (pev->weapons & (1 << WEAPON_CROSSBOW))
+			return true;
+	}
+
 	if (pev->weapons & (1 << WEAPON_AWP))
 		return true;
 	else if (pev->weapons & (1 << WEAPON_G3SG1))
@@ -1459,6 +1540,9 @@ bool Bot::IsSniper(void)
 
 bool Bot::UsesRifle(void)
 {
+	if (g_gameVersion == HALFLIFE)
+		return m_currentWeapon == WEAPON_MP5_HL;
+
 	WeaponSelect* selectTab = &g_weaponSelect[0];
 	int count = 0;
 
@@ -1479,6 +1563,9 @@ bool Bot::UsesRifle(void)
 
 bool Bot::UsesPistol(void)
 {
+	if (g_gameVersion == HALFLIFE)
+		return m_currentWeapon == WEAPON_GLOCK || m_currentWeapon == WEAPON_PYTHON;
+
 	WeaponSelect* selectTab = &g_weaponSelect[0];
 	int count = 0;
 
@@ -1500,16 +1587,25 @@ bool Bot::UsesPistol(void)
 
 bool Bot::UsesSubmachineGun(void)
 {
+	if (g_gameVersion == HALFLIFE)
+		return m_currentWeapon == WEAPON_EGON;
+
 	return m_currentWeapon == WEAPON_MP5 || m_currentWeapon == WEAPON_TMP || m_currentWeapon == WEAPON_P90 || m_currentWeapon == WEAPON_MAC10 || m_currentWeapon == WEAPON_UMP45;
 }
 
 bool Bot::UsesZoomableRifle(void)
 {
+	if (g_gameVersion == HALFLIFE)
+		return false;
+
 	return m_currentWeapon == WEAPON_AUG || m_currentWeapon == WEAPON_SG552;
 }
 
 bool Bot::UsesBadPrimary(void)
 {
+	if (g_gameVersion == HALFLIFE)
+		return m_currentWeapon == WEAPON_HORNETGUN;
+
 	return m_currentWeapon == WEAPON_M3 || m_currentWeapon == WEAPON_UMP45 || m_currentWeapon == WEAPON_MAC10 || m_currentWeapon == WEAPON_TMP || m_currentWeapon == WEAPON_P90;
 }
 
@@ -1538,6 +1634,15 @@ int Bot::CheckGrenades(void)
 
 void Bot::SelectKnife(void)
 {
+	if (g_gameVersion == HALFLIFE)
+	{
+		if (m_currentWeapon == WEAPON_CROWBAR)
+			return;
+
+		SelectWeaponByName("weapon_crowbar");
+		return;
+	}
+
 	// already have
 	if (m_currentWeapon == WEAPON_KNIFE)
 		return;
@@ -1595,46 +1700,55 @@ void Bot::SelectBestWeapon(void)
 	if (!m_isSlowThink)
 		return;
 
-	if (ebot_sb_mode.GetBool())
-	{
-		if (m_currentWeapon != WEAPON_HEGRENADE && m_currentWeapon != WEAPON_FBGRENADE && m_currentWeapon != WEAPON_SMGRENADE)
-		{
-			if (pev->weapons & (1 << WEAPON_HEGRENADE))
-				SelectWeaponByName("weapon_hegrenade");
-			else if (pev->weapons & (1 << WEAPON_FBGRENADE))
-				SelectWeaponByName("weapon_flashbang");
-			else if (pev->weapons & (1 << WEAPON_SMGRENADE))
-				SelectWeaponByName("weapon_smokegrenade");
-		}
-
-		return;
-	}
-
 	// never change weapon while reloading if theres no enemy
 	if (FNullEnt(m_enemy) && m_isReloading)
 		return;
 
-	if (!IsZombieMode())
+	if (g_gameVersion != HALFLIFE)
 	{
-		if (m_numEnemiesLeft <= 0)
+		if (ebot_sb_mode.GetBool())
 		{
-			SelectKnife();
+			if (m_currentWeapon != WEAPON_HEGRENADE && m_currentWeapon != WEAPON_FBGRENADE && m_currentWeapon != WEAPON_SMGRENADE)
+			{
+				if (pev->weapons & (1 << WEAPON_HEGRENADE))
+					SelectWeaponByName("weapon_hegrenade");
+				else if (pev->weapons & (1 << WEAPON_FBGRENADE))
+					SelectWeaponByName("weapon_flashbang");
+				else if (pev->weapons & (1 << WEAPON_SMGRENADE))
+					SelectWeaponByName("weapon_smokegrenade");
+			}
+
 			return;
 		}
 
-		if (!FNullEnt(m_enemy) && GetCurrentTask()->taskID == TASK_FIGHTENEMY && (pev->origin - m_enemyOrigin).GetLengthSquared() <= SquaredF(128.0f))
+		if (!IsZombieMode())
 		{
-			SelectKnife();
-			return;
+			if (m_numEnemiesLeft <= 0)
+			{
+				if (m_currentWeapon != WEAPON_KNIFE)
+					SelectWeaponByName("weapon_knife");
+
+				m_weaponSelectDelay = engine->GetTime() + 3.0f;
+				return;
+			}
+
+			if (!FNullEnt(m_enemy) && GetCurrentTask()->taskID == TASK_FIGHTENEMY && (pev->origin - m_enemyOrigin).GetLengthSquared() <= SquaredF(96.0f))
+			{
+				if (m_currentWeapon != WEAPON_KNIFE)
+					SelectWeaponByName("weapon_knife");
+
+				m_weaponSelectDelay = engine->GetTime() + 3.0f;
+				return;
+			}
 		}
 	}
 
-	if (m_weaponSelectDelay >= engine->GetTime() && m_currentWeapon != WEAPON_KNIFE)
+	if (m_weaponSelectDelay >= engine->GetTime())
 		return;
 
-	WeaponSelect* selectTab = &g_weaponSelect[0];
+	WeaponSelect* selectTab = g_gameVersion == HALFLIFE ? &g_weaponSelectHL[0] : &g_weaponSelect[0];
 
-	int selectIndex = 0;
+	int selectIndex = -1;
 	int chosenWeaponIndex = -1;
 
 	while (selectTab[selectIndex].id)
@@ -1651,21 +1765,26 @@ void Bot::SelectBestWeapon(void)
 		if (pev->waterlevel == 3 && g_weaponDefs[id].flags & ITEM_FLAG_NOFIREUNDERWATER)
 			continue;
 
-		bool ammoLeft = false;
-
-		if (id == m_currentWeapon)
-		{
-			// dont be fool
-			if (m_isReloading)
-				ammoLeft = false;
-			else if (GetAmmoInClip() > 0)
-				ammoLeft = true;
-		}
-		else if (m_ammo[g_weaponDefs[id].ammo1] > 0)
-			ammoLeft = true;
-
-		if (ammoLeft)
+		if (g_gameVersion == HALFLIFE)
 			chosenWeaponIndex = selectIndex;
+		else
+		{
+			bool ammoLeft = false;
+
+			if (id == m_currentWeapon)
+			{
+				// dont be fool
+				if (m_isReloading)
+					ammoLeft = false;
+				else if (GetAmmoInClip() > 0)
+					ammoLeft = true;
+			}
+			else if (m_ammo[g_weaponDefs[id].ammo1] > 0)
+				ammoLeft = true;
+
+			if (ammoLeft)
+				chosenWeaponIndex = selectIndex;
+		}
 
 		selectIndex++;
 	}
@@ -1703,7 +1822,7 @@ void Bot::SelectPistol(void)
 
 int Bot::GetHighestWeapon(void)
 {
-	WeaponSelect* selectTab = &g_weaponSelect[0];
+	WeaponSelect* selectTab = g_gameVersion == HALFLIFE ? &g_weaponSelectHL[0] : &g_weaponSelect[0];
 
 	int weapons = pev->weapons;
 	int num = 0;
@@ -1848,8 +1967,7 @@ void Bot::CheckReload(void)
 		int weaponIndex = -1;
 		int maxClip = CheckMaxClip(weapons, &weaponIndex);
 
-		if (m_ammoInClip[weaponIndex] < maxClip * 0.8f && g_weaponDefs[weaponIndex].ammo1 != -1 &&
-			g_weaponDefs[weaponIndex].ammo1 < 32 && m_ammo[g_weaponDefs[weaponIndex].ammo1] > 0)
+		if (m_ammoInClip[weaponIndex] < maxClip * 0.8f && g_weaponDefs[weaponIndex].ammo1 != -1 && g_weaponDefs[weaponIndex].ammo1 < 32 && m_ammo[g_weaponDefs[weaponIndex].ammo1] > 0)
 		{
 			if (m_currentWeapon != weaponIndex)
 				SelectWeaponByName(g_weaponDefs[weaponIndex].className);

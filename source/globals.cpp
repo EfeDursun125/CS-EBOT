@@ -224,6 +224,23 @@ WeaponSelect g_weaponSelect[Const_NumWeapons + 1] =
 	{0,					"",                 "",              0,    0,  0,  0,  0,   0, 0,  0,  false, false}
 };
 
+WeaponSelect g_weaponSelectHL[Const_NumWeaponsHL + 1] =
+{
+	{WEAPON_CROWBAR, "weapon_crowbar", "crowbar.mdl", 0, 0, -1, -1, 0, 0, 0, 0, false, true},
+	{WEAPON_GLOCK, "weapon_9mmhandgun", "9mmhandgun.mdl", 2222, 1, -1, -1, 1, 1, 2, 2, false, false},
+	{WEAPON_PYTHON, "weapon_357", "357.mdl", 3333, 1, -1, -1, 1, 2, 1, 1, false, false},
+	{WEAPON_MP5_HL, "weapon_9mmAR",	"9mmar.mdl", 4444, 1, 0, 0, 1, 3, 4, 4, false, false},
+	{WEAPON_CROSSBOW, "weapon_crossbow", "crossbow.mdl", 5555, 1, 2, 2, 1, 5, 5, 5, false, false},
+	{WEAPON_SHOTGUN, "weapon_shotgun", "shotgun.mdl", 5555, 1, 1, 1, 1, 6, 5, 5, false, false},
+	{WEAPON_RPG, "weapon_rpg", "rpg.mdl", 8888, 1, 2, -1, 2, 1, 1, 1, false, false},
+	{WEAPON_GAUSS, "weapon_gauss", "gauss.mdl", 6666, 1, 2, -1, 2, 2, 2, 2, false, false},
+	{WEAPON_EGON, "weapon_egon", "egon.mdl", 7777, 1, 2, 1, 3, 1, 2, 2, false, true},
+	{WEAPON_HORNETGUN, "weapon_hornetgun", "hgun.mdl", 3333, 1, 1, 1, 3, 2, 1, 1, false, true},
+	{WEAPON_HANDGRENADE, "weapon_handgrenade", "grenade.mdl", 1111, 1, 2, 1, 3, 3, 4, 4, false, false},
+	{WEAPON_SNARK, "weapon_snark", "squeak.mdl", 9999, 1, 0, 0, 4, 1, 2, 2, false, true},
+	{0,	"", "", 0, 0, 0, 0, 0, 0, 0, 0, false, false}
+};
+
 // weapon firing delay based on skill (min and max delay for each weapon)
 FireDelay g_fireDelay[Const_NumWeapons + 1] =
 {

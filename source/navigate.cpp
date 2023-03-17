@@ -477,7 +477,7 @@ bool Bot::DoWaypointNav(void)
 		desiredDistance *= 2.0f;
 
 	// tweak for distance
-	desiredDistance += (m_frameInterval * (300.0f - desiredDistance));
+	desiredDistance += (m_frameInterval * ((pev->maxspeed + pev->maxspeed) - desiredDistance));
 
 	if (waypointDistance <= SquaredF(desiredDistance))
 	{
@@ -979,6 +979,12 @@ inline const float HF_Cheby(const int start, const int goal)
 // this function finds a path from srcIndex to destIndex
 void Bot::FindPath(int srcIndex, int destIndex)
 {
+	if (g_gameVersion == HALFLIFE)
+	{
+		FindShortestPath(srcIndex, destIndex);
+		return;
+	}
+
 	// if we're stuck, find nearest waypoint
 	if (!IsValidWaypoint(srcIndex))
 	{
@@ -997,8 +1003,8 @@ void Bot::FindPath(int srcIndex, int destIndex)
 
 	if (!IsValidWaypoint(destIndex))
 	{
+		destIndex = g_waypoint->m_otherPoints.GetRandomElement();
 		AddLogEntry(LOG_ERROR, "Pathfinder destination path index not valid (%d)", destIndex);
-		return;
 	}
 
 	AStar_t waypoints[Const_MaxWaypoints];
@@ -1268,6 +1274,19 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 				openList.Insert(self, childWaypoint->f);
 			}
 		}
+	}
+
+	Array <int> PossiblePath;
+	for (int i = 0; i < g_numWaypoints; i++)
+	{
+		if (waypoints[i].state == State::Closed)
+			PossiblePath.Push(i);
+	}
+
+	if (!PossiblePath.IsEmpty())
+	{
+		FindShortestPath(srcIndex, PossiblePath.GetRandomElement());
+		return;
 	}
 }
 
@@ -1626,8 +1645,6 @@ void Bot::SetWaypointOrigin(void)
 				waypointOrigin[i] += Vector(engine->RandomFloat(-radius, radius), engine->RandomFloat(-radius, radius), 0.0f);
 			}
 
-			int destIndex = m_navNode->next->index;
-
 			float sDistance = FLT_MAX;
 			for (int i = 0; i < 5; i++)
 			{
@@ -1876,12 +1893,13 @@ int Bot::FindCoverWaypoint(float maxDistance)
 
 	if (!BestSpots.IsEmpty() && !IsValidWaypoint(ChoosenIndex))
 	{
+		float maxdist = maxDistance;
+
 		for (int i = 0; i < BestSpots.GetElementNumber(); i++)
 		{
 			if (!IsValidWaypoint(i))
 				continue;
 
-			float maxdist = maxDistance;
 			float distance = (pev->origin - g_waypoint->GetPath(i)->origin).GetLengthSquared2D();
 
 			if (distance < maxdist)
@@ -1893,12 +1911,12 @@ int Bot::FindCoverWaypoint(float maxDistance)
 	}
 	else if (!OkSpots.IsEmpty() && !IsValidWaypoint(ChoosenIndex))
 	{
+		float maxdist = FLT_MAX;
 		for (int i = 0; i < OkSpots.GetElementNumber(); i++)
 		{
 			if (!IsValidWaypoint(i))
 				continue;
 
-			float maxdist = FLT_MAX;
 			float distance = (pev->origin - g_waypoint->GetPath(i)->origin).GetLengthSquared2D();
 
 			if (distance < maxdist)
@@ -2030,10 +2048,6 @@ bool Bot::HeadTowardWaypoint(void)
 					}
 				}
 
-				// check if bot is going to jump
-				bool willJump = false;
-				float jumpDistance = 0.0f;
-
 				Vector src = nullvec;
 				Vector destination = nullvec;
 
@@ -2046,8 +2060,6 @@ bool Bot::HeadTowardWaypoint(void)
 						{
 							src = g_waypoint->GetPath(m_navNode->index)->origin;
 							destination = g_waypoint->GetPath(m_navNode->next->index)->origin;
-							jumpDistance = (g_waypoint->GetPath(m_navNode->index)->origin - g_waypoint->GetPath(m_navNode->next->index)->origin).GetLengthSquared();
-							willJump = true;
 							break;
 						}
 					}

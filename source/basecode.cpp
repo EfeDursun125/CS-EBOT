@@ -75,6 +75,13 @@ void Bot::PushMessageQueue(int message)
 			}
 		}
 	}
+	else if (message == CMENU_BUY && g_gameVersion == HALFLIFE)
+	{
+		m_buyingFinished = true;
+		m_isVIP = false;
+		m_buyState = 7;
+		return;
+	}
 
 	m_messageQueue[m_pushMessageIndex++] = message;
 	m_pushMessageIndex &= 0x1f; // wraparound
@@ -182,11 +189,19 @@ bool Bot::ItemIsVisible(Vector destination, char* itemName)//, bool bomb)
 	if (tr.flFraction < 1.0f)
 	{
 		// check for standard items
-		if (tr.flFraction > 0.97f && strcmp(STRING(tr.pHit->v.classname), itemName) == 0)
-			return true;
+		if (g_gameVersion == HALFLIFE)
+		{
+			if (tr.flFraction > 0.90f && strcmp(STRING(tr.pHit->v.classname), itemName) == 0)
+				return true;
+		}
+		else
+		{
+			if (tr.flFraction > 0.97f && strcmp(STRING(tr.pHit->v.classname), itemName) == 0)
+				return true;
 
-		if (tr.flFraction > 0.95f && strncmp(STRING(tr.pHit->v.classname), "csdmw_", 6) == 0)
-			return true;
+			if (tr.flFraction > 0.95f && strncmp(STRING(tr.pHit->v.classname), "csdmw_", 6) == 0)
+				return true;
+		}
 
 		return false;
 	}
@@ -643,32 +658,35 @@ edict_t* Bot::FindButton(void)
 
 void Bot::FindItem(void)
 {
-	if (m_isZombieBot)
-		return;
+	if (g_gameVersion != HALFLIFE)
+	{
+		if (m_isZombieBot)
+			return;
 
-	if (IsZombieMode() && m_currentWeapon != WEAPON_KNIFE) // if we're holding knife, mostly our guns dont have a ammo
-		return;
+		if (IsZombieMode() && m_currentWeapon != WEAPON_KNIFE) // if we're holding knife, mostly our guns dont have a ammo
+			return;
 
-	if (GetCurrentTask()->taskID == TASK_ESCAPEFROMBOMB)
-		return;
+		if (GetCurrentTask()->taskID == TASK_ESCAPEFROMBOMB)
+			return;
 
-	if (GetCurrentTask()->taskID == TASK_PLANTBOMB)
-		return;
+		if (GetCurrentTask()->taskID == TASK_PLANTBOMB)
+			return;
 
-	if (GetCurrentTask()->taskID == TASK_THROWHEGRENADE)
-		return;
+		if (GetCurrentTask()->taskID == TASK_THROWHEGRENADE)
+			return;
 
-	if (GetCurrentTask()->taskID == TASK_THROWFBGRENADE)
-		return;
+		if (GetCurrentTask()->taskID == TASK_THROWFBGRENADE)
+			return;
 
-	if (GetCurrentTask()->taskID == TASK_THROWSMGRENADE)
-		return;
+		if (GetCurrentTask()->taskID == TASK_THROWSMGRENADE)
+			return;
 
-	if (GetCurrentTask()->taskID == TASK_DESTROYBREAKABLE)
-		return;
+		if (GetCurrentTask()->taskID == TASK_DESTROYBREAKABLE)
+			return;
 
-	if (!FNullEnt(m_enemy))
-		return;
+		if (!FNullEnt(m_enemy))
+			return;
+	}
 
 	if (IsOnLadder())
 	{
@@ -681,7 +699,7 @@ void Bot::FindItem(void)
 
 	if (!FNullEnt(m_pickupItem))
 	{
-		while (!FNullEnt(ent = FIND_ENTITY_IN_SPHERE(ent, pev->origin, 400.0f)))
+		while (!FNullEnt(ent = FIND_ENTITY_IN_SPHERE(ent, pev->origin, 512.0f)))
 		{
 			if (ent != m_pickupItem || (ent->v.effects & EF_NODRAW) || IsValidPlayer(ent->v.owner))
 				continue; // someone owns this weapon or it hasn't re spawned yet
@@ -701,15 +719,30 @@ void Bot::FindItem(void)
 
 	PickupType pickupType = PICKTYPE_NONE;
 
-	float minDistance = SquaredF(400.0f);
+	float minDistance = SquaredF(512.0f);
 
-	while (!FNullEnt(ent = FIND_ENTITY_IN_SPHERE(ent, pev->origin, 400.0f)))
+	while (!FNullEnt(ent = FIND_ENTITY_IN_SPHERE(ent, pev->origin, 512.0f)))
 	{
 		pickupType = PICKTYPE_NONE;
 		if ((ent->v.effects & EF_NODRAW) || ent == m_itemIgnore)
 			continue;
 
-		if (strncmp("hostage_entity", STRING(ent->v.classname), 14) == 0)
+		if (g_gameVersion == HALFLIFE)
+		{
+			if (pev->health < pev->max_health && strncmp("item_healthkit", STRING(ent->v.classname), 14) == 0)
+				pickupType = PICKTYPE_GETENTITY;
+			else if (pev->armorvalue < 100 && strncmp("item_battery", STRING(ent->v.classname), 12) == 0)
+				pickupType = PICKTYPE_GETENTITY;
+			else if (strncmp("monster_snark", STRING(ent->v.classname), 13) == 0)
+				pickupType = PICKTYPE_GETENTITY;
+			else if (strncmp("weapon_", STRING(ent->v.classname), 7) == 0)
+				pickupType = PICKTYPE_GETENTITY;
+			else if (strncmp("ammo_", STRING(ent->v.classname), 5) == 0)
+				pickupType = PICKTYPE_GETENTITY;
+			else if (strncmp("weaponbox", STRING(ent->v.classname), 9) == 0)
+				pickupType = PICKTYPE_GETENTITY;
+		}
+		else if (strncmp("hostage_entity", STRING(ent->v.classname), 14) == 0)
 			pickupType = PICKTYPE_HOSTAGE;
 		else if (strncmp("weaponbox", STRING(ent->v.classname), 9) == 0 && strcmp(STRING(ent->v.model) + 9, "backpack.mdl") == 0)
 			pickupType = PICKTYPE_DROPPEDC4;
@@ -772,13 +805,9 @@ void Bot::FindItem(void)
 			secondaryWeaponAmmoMax = g_weaponDefs[g_weaponSelect[secondaryWeaponCarried].id].ammo1Max;
 			weaponAmmoMax = g_weaponDefs[g_weaponSelect[weaponCarried].id].ammo1Max;
 
-			if (secondaryWeaponCarried < 7 &&
-				(m_ammo[g_weaponSelect[secondaryWeaponCarried].id] > 0.3 * secondaryWeaponAmmoMax) &&
-				strcmp(STRING(ent->v.model) + 9, "w_357ammobox.mdl") == 0)
+			if (secondaryWeaponCarried < 7 && (m_ammo[g_weaponSelect[secondaryWeaponCarried].id] > 0.3 * secondaryWeaponAmmoMax) && strcmp(STRING(ent->v.model) + 9, "w_357ammobox.mdl") == 0)
 				allowPickup = false;
-			else if (!m_isVIP && weaponCarried >= 7 &&
-				(m_ammo[g_weaponSelect[weaponCarried].id] > 0.3 * weaponAmmoMax) &&
-				strncmp(STRING(ent->v.model) + 9, "w_", 2) == 0)
+			else if (!m_isVIP && weaponCarried >= 7 && (m_ammo[g_weaponSelect[weaponCarried].id] > 0.3 * weaponAmmoMax) && strncmp(STRING(ent->v.model) + 9, "w_", 2) == 0)
 			{
 				if (strcmp(STRING(ent->v.model) + 9, "w_9mmarclip.mdl") == 0 && !(weaponCarried == WEAPON_FAMAS || weaponCarried == WEAPON_AK47 || weaponCarried == WEAPON_M4A1 || weaponCarried == WEAPON_GALIL || weaponCarried == WEAPON_AUG || weaponCarried == WEAPON_SG552))
 					allowPickup = false;
@@ -1032,7 +1061,7 @@ void Bot::GetCampDirection(Vector* dest)
 // this function depending on show boolen, shows/remove chatter, icon, on the head of bot
 void Bot::SwitchChatterIcon(bool show)
 {
-	if (g_gameVersion == CSVER_VERYOLD)
+	if (g_gameVersion == CSVER_VERYOLD || g_gameVersion == HALFLIFE)
 		return;
 
 	for (const auto& client : g_clients)
@@ -1050,6 +1079,9 @@ void Bot::SwitchChatterIcon(bool show)
 // this function inserts the radio message into the message queue
 void Bot::RadioMessage(int message)
 {
+	if (g_gameVersion == HALFLIFE)
+		return;
+
 	if (ebot_use_radio.GetInt() <= 0)
 		return;
 
@@ -1146,13 +1178,13 @@ void Bot::CheckMessageQueue(void)
 	auto state = GetMessageQueue();
 
 	// nothing to do?
-	if (state == CMENU_IDLE || (state == CMENU_RADIO && GetGameMode() == MODE_DM))
+	if (state == CMENU_IDLE || (state == CMENU_RADIO && (GetGameMode() == MODE_DM || g_gameVersion == HALFLIFE)))
 		return;
 
 	switch (state)
 	{
 	case CMENU_BUY: // general buy message
-	   // buy weapon
+		// buy weapon
 		if (m_nextBuyTime > engine->GetTime())
 		{
 			// keep sending message
@@ -1162,12 +1194,10 @@ void Bot::CheckMessageQueue(void)
 
 		if (!m_inBuyZone)
 		{
-			m_buyPending = true;
 			m_buyingFinished = true;
 			break;
 		}
 
-		m_buyPending = false;
 		m_nextBuyTime = engine->GetTime() + engine->RandomFloat(0.6f, 1.2f);
 
 		// if freezetime is very low do not delay the buy process
@@ -1837,8 +1867,8 @@ void Bot::SetConditions(void)
 	// check if there are items needing to be used/collected
 	if (m_itemCheckTime < engine->GetTime() || !FNullEnt(m_pickupItem))
 	{
-		m_itemCheckTime = engine->GetTime() + engine->RandomInt(2.0f, 4.0f);
 		FindItem();
+		m_itemCheckTime = engine->GetTime() + g_gameVersion == HALFLIFE ? 1.0f : engine->RandomInt(2.0f, 4.0f);
 	}
 
 	float tempFear = m_fearLevel;
@@ -3431,7 +3461,7 @@ void Bot::SelectLeaderEachTeam(int team)
 
 float Bot::GetWalkSpeed(void)
 {
-	if (!ebot_walkallow.GetBool())
+	if (!ebot_walkallow.GetBool() || g_gameVersion == HALFLIFE)
 		return pev->maxspeed;
 
 	if (IsZombieMode() || IsOnLadder() || m_numEnemiesLeft <= 0 || 
@@ -3690,9 +3720,6 @@ void Bot::ChooseAimDirection(void)
 
 void Bot::Think(void)
 {
-	if (!m_buyingFinished)
-		ResetCollideState();
-
 	pev->button = 0;
 	m_moveSpeed = 0.0f;
 	m_strafeSpeed = 0.0f;
@@ -3701,9 +3728,6 @@ void Bot::Think(void)
 
 	m_frameInterval = engine->GetTime() - m_lastThinkTime;
 	m_lastThinkTime = engine->GetTime();
-
-	if (ebot_use_radio.GetInt() == 2 && m_chatterTimer < engine->GetTime())
-		SwitchChatterIcon(false);
 
 	if (m_slowthinktimer < engine->GetTime())
 	{
@@ -3769,6 +3793,9 @@ void Bot::Think(void)
 		StartGame(); // select team & class
 	else if (!m_isAlive)
 	{
+		if (g_gameVersion == HALFLIFE && engine->RandomInt(1, 3) == 1)
+			pev->button |= IN_ATTACK;
+
 		extern ConVar ebot_chat;
 		extern ConVar ebot_random_join_quit;
 
@@ -3817,34 +3844,55 @@ void Bot::Think(void)
 			return;
 		}
 	}
-	else if (m_buyingFinished && !(pev->maxspeed < 10.0f && GetCurrentTask()->taskID != TASK_PLANTBOMB && GetCurrentTask()->taskID != TASK_DEFUSEBOMB) && !ebot_stopbots.GetBool())
-		botMovement = true;
-
-	if (m_randomattacktimer < engine->GetTime() && !engine->IsFriendlyFireOn() && !HasHostage()) // simulate players with random knife attacks
+	else
 	{
-		if (m_isStuck && m_personality != PERSONALITY_CAREFUL)
+		if (g_gameVersion == HALFLIFE)
 		{
-			if (m_personality == PERSONALITY_RUSHER)
-				m_randomattacktimer = 0.0f;
-			else
-				m_randomattacktimer = engine->GetTime() + engine->RandomFloat(0.1f, 10.0f);
+			if (!ebot_stopbots.GetBool())
+			{
+				// idk why ???
+				pev->maxspeed = 270.0f;
+				botMovement = true;
+			}
 		}
-		else if (m_personality == PERSONALITY_RUSHER)
-			m_randomattacktimer = engine->GetTime() + engine->RandomFloat(0.1f, 30.0f);
-		else if (m_personality == PERSONALITY_CAREFUL)
-			m_randomattacktimer = engine->GetTime() + engine->RandomFloat(10.0f, 100.0f);
 		else
-			m_randomattacktimer = engine->GetTime() + engine->RandomFloat(0.15f, 75.0f);
-
-		if (m_currentWeapon == WEAPON_KNIFE)
 		{
-			if (engine->RandomInt(1, 3) == 1)
-				pev->button |= IN_ATTACK;
-			else
-				pev->button |= IN_ATTACK2;
+			if (!m_buyingFinished)
+				ResetCollideState();
 
-			if (engine->RandomInt(1, 10) == 1)
-				PlayChatterMessage(ChatterMessage::Happy);
+			if (ebot_use_radio.GetInt() == 2 && m_chatterTimer < engine->GetTime())
+				SwitchChatterIcon(false);
+
+			if (m_buyingFinished && !(pev->maxspeed < 10.0f && GetCurrentTask()->taskID != TASK_PLANTBOMB && GetCurrentTask()->taskID != TASK_DEFUSEBOMB) && !ebot_stopbots.GetBool())
+				botMovement = true;
+
+			if (m_randomattacktimer < engine->GetTime() && !engine->IsFriendlyFireOn() && !HasHostage()) // simulate players with random knife attacks
+			{
+				if (m_isStuck && m_personality != PERSONALITY_CAREFUL)
+				{
+					if (m_personality == PERSONALITY_RUSHER)
+						m_randomattacktimer = 0.0f;
+					else
+						m_randomattacktimer = engine->GetTime() + engine->RandomFloat(0.1f, 10.0f);
+				}
+				else if (m_personality == PERSONALITY_RUSHER)
+					m_randomattacktimer = engine->GetTime() + engine->RandomFloat(0.1f, 30.0f);
+				else if (m_personality == PERSONALITY_CAREFUL)
+					m_randomattacktimer = engine->GetTime() + engine->RandomFloat(10.0f, 100.0f);
+				else
+					m_randomattacktimer = engine->GetTime() + engine->RandomFloat(0.15f, 75.0f);
+
+				if (m_currentWeapon == WEAPON_KNIFE)
+				{
+					if (engine->RandomInt(1, 3) == 1)
+						pev->button |= IN_ATTACK;
+					else
+						pev->button |= IN_ATTACK2;
+
+					if (engine->RandomInt(1, 10) == 1)
+						PlayChatterMessage(ChatterMessage::Happy);
+				}
+			}
 		}
 	}
 
@@ -3853,6 +3901,7 @@ void Bot::Think(void)
 	if (botMovement && m_isAlive)
 	{
 		BotAI();
+
 		MoveAction();
 		DebugModeMsg();
 
@@ -3864,26 +3913,35 @@ void Bot::Think(void)
 void Bot::SecondThink(void)
 {
 	m_numEnemiesLeft = GetNearbyEnemiesNearPosition(pev->origin, 99999999.0f);
-	m_numFriendsLeft = GetNearbyFriendsNearPosition(pev->origin, 99999999.0f);
 
-	if (ebot_use_flare.GetBool() && !m_isReloading && !m_isZombieBot && GetGameMode() == MODE_ZP && FNullEnt(m_enemy) && !FNullEnt(m_lastEnemy))
+	if (g_gameVersion != HALFLIFE)
 	{
-		if (pev->weapons & (1 << WEAPON_SMGRENADE) && ChanceOf(40))
-			PushTask(TASK_THROWFLARE, TASKPRI_THROWGRENADE, -1, engine->RandomFloat(0.6f, 0.9f), false);
-	}
+		m_numFriendsLeft = GetNearbyFriendsNearPosition(pev->origin, 99999999.0f);
 
-	// zp & biohazard flashlight support
-	if (ebot_force_flashlight.GetBool() && !m_isZombieBot && !(pev->effects & EF_DIMLIGHT))
-		pev->impulse = 100;
+		if (ebot_use_flare.GetBool() && !m_isReloading && !m_isZombieBot && GetGameMode() == MODE_ZP && FNullEnt(m_enemy) && !FNullEnt(m_lastEnemy))
+		{
+			if (pev->weapons & (1 << WEAPON_SMGRENADE) && ChanceOf(40))
+				PushTask(TASK_THROWFLARE, TASKPRI_THROWGRENADE, -1, engine->RandomFloat(0.6f, 0.9f), false);
+		}
+
+		// zp & biohazard flashlight support
+		if (ebot_force_flashlight.GetBool() && !m_isZombieBot && !(pev->effects & EF_DIMLIGHT))
+			pev->impulse = 100;
+
+		if (g_bombPlanted && m_team == TEAM_COUNTER && (pev->origin - g_waypoint->GetBombPosition()).GetLengthSquared() <= SquaredF(768.0f) && !IsBombDefusing(g_waypoint->GetBombPosition()))
+			ResetTasks();
+	}
+	else
+	{
+		m_startAction = CMENU_IDLE;
+		m_numFriendsLeft = 0;
+	}
 
 	if (m_voteMap != 0) // host wants the bots to vote for a map?
 	{
 		FakeClientCommand(GetEntity(), "votemap %d", m_voteMap);
 		m_voteMap = 0;
 	}
-
-	if (g_bombPlanted && m_team == TEAM_COUNTER && (pev->origin - g_waypoint->GetBombPosition()).GetLengthSquared() <= SquaredF(768.0f) && !IsBombDefusing(g_waypoint->GetBombPosition()))
-		ResetTasks();
 }
 
 void Bot::CalculatePing(void)
@@ -3991,7 +4049,7 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 			}
 		}
 	}
-	else
+	else if (g_gameVersion == HALFLIFE)
 	{
 		if (GetGameMode() == MODE_BASE)
 		{
@@ -4245,21 +4303,6 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 		if (IsValidWaypoint(destIndex) && m_currentWaypointIndex != destIndex && !HasNextPath())
 			FindPath(m_currentWaypointIndex, destIndex);
 	}
-	else
-	{
-		if (!(pev->flags & FL_DUCKING) && m_minSpeed != pev->maxspeed)
-			m_moveSpeed = m_minSpeed;
-
-		if (GetGameMode() == MODE_ZP && !m_isZombieBot && !g_waypoint->m_zmHmPoints.IsEmpty())
-		{
-			ZmCampPointAction(1);
-			if (IsValidWaypoint(GetCurrentTask()->data) && !(g_waypoint->IsZBCampPoint(GetCurrentTask()->data)))
-			{
-				m_prevGoalIndex = -1;
-				GetCurrentTask()->data = -1;
-			}
-		}
-	}
 }
 
 // this is core function that handle task execution
@@ -4486,7 +4529,7 @@ void Bot::RunTask(void)
 		m_moveToGoal = true;
 		m_checkTerrain = true;
 
-		if (!FNullEnt(m_enemy) || m_seeEnemyTime + (m_personality == PERSONALITY_CAREFUL ? 1.08f : 0.54f) > engine->GetTime())
+		if (!FNullEnt(m_enemy) || m_seeEnemyTime + 0.54f > engine->GetTime())
 			CombatFight();
 		else
 		{
@@ -6467,7 +6510,7 @@ void Bot::BotAI(void)
 				SelectBestWeapon();
 		}
 	}
-	else
+	else if (g_gameVersion != HALFLIFE)
 	{
 		// if there's some radio message to respond, check it
 		if (m_radioOrder != 0)
@@ -6515,15 +6558,15 @@ void Bot::BotAI(void)
 
 			m_checkWeaponSwitch = false;
 		}
+	}
 
-		if (!IsOnLadder())
+	if (!IsOnLadder())
+	{
+		if (!FNullEnt(m_enemy) && GetCurrentTask()->taskID != TASK_CAMP)
 		{
-			if (!FNullEnt(m_enemy) && GetCurrentTask()->taskID != TASK_CAMP)
-			{
-				m_moveToGoal = false; // don't move to goal
-				m_navTimeset = engine->GetTime();
-				CombatFight();
-			}
+			m_moveToGoal = false; // don't move to goal
+			m_navTimeset = engine->GetTime();
+			CombatFight();
 		}
 	}
 
@@ -6564,12 +6607,9 @@ void Bot::BotAI(void)
 	Vector direction = directionNormal;
 	directionNormal.z = 0.0f;
 
-	if (m_destOrigin != nullvec)
-	{
-		m_moveAngles = directionOld.ToAngles();
-		m_moveAngles.ClampAngles();
-		m_moveAngles.x *= -1.0f; // invert for engine
-	}
+	m_moveAngles = directionOld.ToAngles();
+	m_moveAngles.ClampAngles();
+	m_moveAngles.x *= -1.0f; // invert for engine
 
 	if (GetCurrentTask()->taskID == TASK_CAMP || GetCurrentTask()->taskID == TASK_DESTROYBREAKABLE)
 		SelectBestWeapon();
@@ -7344,14 +7384,10 @@ void Bot::RunPlayerMovement(void)
 	// elapses, that bot will behave like a ghost : no movement, but bullets and players can
 	// pass through it. Then, when the next frame will begin, the stucking problem will arise !
 
-	m_msecVal = static_cast <uint8_t> ((engine->GetTime() - m_msecInterval) * 1000.0f);
+	m_msecVal = (engine->GetTime() - m_msecInterval) * 1000.0f;
 	m_msecInterval = engine->GetTime();
 
-	(*g_engfuncs.pfnRunPlayerMove) (GetEntity(),
-		m_moveAnglesForRunMove, m_moveSpeedForRunMove, m_strafeSpeedForRunMove, 0.0f,
-		static_cast <unsigned short> (pev->button),
-		0,
-		static_cast <uint8_t> (m_msecVal));
+	(*g_engfuncs.pfnRunPlayerMove) (GetEntity(), m_moveAnglesForRunMove, m_moveSpeedForRunMove, m_strafeSpeedForRunMove, 0.0f, static_cast <unsigned short> (pev->button), static_cast <uint8_t> (pev->impulse), static_cast <uint8_t> (m_msecVal));
 }
 
 // this function checks burst mode, and switch it depending distance to to enemy
@@ -7684,7 +7720,10 @@ bool Bot::IsShootableBreakable(edict_t* ent)
 // this function is gets called when bot enters a buyzone, to allow bot to buy some stuff
 void Bot::EquipInBuyzone(int iBuyCount)
 {
-	static float lastEquipTime = 0.0f; 
+	if (g_gameVersion == HALFLIFE)
+		return;
+
+	static float lastEquipTime = 0.0f;
 
 	// if bot is in buy zone, try to buy ammo for this weapon...
 	if (lastEquipTime + 15.0f < engine->GetTime() && m_inBuyZone && g_timeRoundStart + engine->RandomFloat(10.0f, 20.0f) + engine->GetBuyTime() < engine->GetTime() && !g_bombPlanted && m_moneyAmount > 700)

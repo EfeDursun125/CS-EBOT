@@ -303,8 +303,6 @@ void Bot::PrepareChatMessage(char* text)
                 {
                     if (engine->RandomInt(1, 100) < 30)
                         strcat(m_tempStrings, "CZ");
-                    else if (engine->RandomInt(1, 100) < 80)
-                        strcat(m_tempStrings, "KoHTpa K3");
                     else
                         strcat(m_tempStrings, "Condition Zero");
                 }
@@ -312,8 +310,6 @@ void Bot::PrepareChatMessage(char* text)
                 {
                     if (engine->RandomInt(1, 100) < 30)
                         strcat(m_tempStrings, "CS");
-                    else if (engine->RandomInt(1, 100) < 80)
-                        strcat(m_tempStrings, "KoHTpa");
                     else
                         strcat(m_tempStrings, "Counter-Strike");
                 }
@@ -423,12 +419,15 @@ void Bot::ChatSay(bool teamSay, const char* text, ...)
     char botTeam[22];
     char tempMessage[256];
 
-    if (!teamSay)
-        strcpy(botTeam, "");
-    else if (m_team == TEAM_TERRORIST)
-        strcpy(botTeam, "(Terrorist)");
-    else if (m_team == TEAM_COUNTER)
-        strcpy(botTeam, "(Counter-Terrorist)");
+    if (g_gameVersion != HALFLIFE)
+    {
+        if (!teamSay)
+            strcpy(botTeam, "");
+        else if (m_team == TEAM_TERRORIST)
+            strcpy(botTeam, "(Terrorist)");
+        else if (m_team == TEAM_COUNTER)
+            strcpy(botTeam, "(Counter-Terrorist)");
+    }
 
     strcpy(botName, GetEntityName(GetEntity()));
 
@@ -443,7 +442,9 @@ void Bot::ChatSay(bool teamSay, const char* text, ...)
         if (teamSay && client.team != m_team)
             continue;
 
-        if (!m_isAlive)
+        if (g_gameVersion == HALFLIFE)
+            sprintf(tempMessage, "%c%s: %s\n", 0x02, botName, text);
+        else if (!m_isAlive)
             sprintf(tempMessage, "%c*DEAD*%s %c%s%c :  %s\n", 0x01, botTeam, 0x03, botName, 0x01, text);
         else
         {
