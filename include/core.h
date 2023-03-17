@@ -99,7 +99,8 @@ enum GameVersion
 {
 	CSVER_CSTRIKE = 1, // Counter-Strike 1.6 and Above
 	CSVER_CZERO = 2, // Counter-Strike: Condition Zero
-	CSVER_VERYOLD = 3 // Counter-Strike 1.3-1.5 with/without Steam
+	CSVER_VERYOLD = 3, // Counter-Strike 1.3-1.5 with/without Steam
+	HALFLIFE = 4
 };
 
 // log levels
@@ -295,6 +296,26 @@ enum Weapon
 	WEAPON_DEFUSER = 33
 };
 
+// half-life weapon id's
+enum WeaponHL
+{
+	WEAPON_CROWBAR = 1,
+	WEAPON_GLOCK = 2,
+	WEAPON_PYTHON = 3,
+	WEAPON_MP5_HL = 4,
+	WEAPON_CHAINGUN = 5,
+	WEAPON_CROSSBOW = 6,
+	WEAPON_SHOTGUN = 7,
+	WEAPON_RPG = 8,
+	WEAPON_GAUSS = 9,
+	WEAPON_EGON = 10,
+	WEAPON_HORNETGUN = 11,
+	WEAPON_HANDGRENADE = 12,
+	WEAPON_TRIPMINE = 13,
+	WEAPON_SATCHEL = 14,
+	WEAPON_SNARK = 15
+};
+
 // defines for pickup items
 enum PickupType
 {
@@ -485,6 +506,7 @@ const int Const_MaxRegMessages = 256;
 const int Const_MaxWaypoints = 8192;
 const int Const_MaxWeapons = 32;
 const int Const_NumWeapons = 26;
+const int Const_NumWeaponsHL = 15;
 
 // A* Stuff
 enum class State { Open, Closed, New };
@@ -793,13 +815,7 @@ private:
 	bool m_duckDefuse; // should or not bot duck to defuse bomb
 	float m_duckDefuseCheckTime; // time to check for ducking for defuse
 
-	float m_GetNewEnemyTimer; // ebot aim
-
-	int m_msecBuiltin; // random msec method for this bot
-	//uint8_t m_msecVal; // calculated msec value
 	float m_msecVal; // same
-	float m_msecDel; // used for msec calculation
-	float m_msecNum; // also used for mseccalculation
 	float m_msecInterval; // used for leon hartwig's method for msec calculation
 	float m_impulse;
 
@@ -1024,7 +1040,6 @@ public:
 	bool m_inBuyZone; // bot currently in buy zone
 	bool m_inVIPZone; // bot in the vip satefy zone
 	bool m_buyingFinished; // done with buying
-	bool m_buyPending; // bot buy is pending
 	bool m_hasDefuser; // does bot has defuser
 	bool m_hasProgressBar; // has progress bar on a HUD
 	bool m_jumpReady; // is double jump ready
@@ -1342,7 +1357,7 @@ public:
 
 	void Analyze(void);
 	void AnalyzeDeleteUselessWaypoints(void);
-	void InitTypes(int mode);
+	void InitTypes();
 	void AddPath(int addIndex, int pathIndex, float distance, int type = 0);
 
 	int GetFacingIndex(void);
@@ -1423,7 +1438,7 @@ extern int GetGameMode(void);
 extern bool IsBreakable(edict_t* ent);
 extern bool IsZombieEntity(edict_t* ent);
 
-extern void SetGameMod(int gamemode);
+extern void SetGameMode(int gamemode);
 extern bool IsZombieMode(void);
 extern bool IsDeathmatchMode(void);
 extern bool IsValidWaypoint(int index);
