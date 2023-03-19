@@ -955,6 +955,28 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	char* buffer = GET_INFOKEYBUFFER(bot);
 	SET_CLIENT_KEYVALUE(clientIndex, buffer, "_vgui_menus", "0");
 
+	if (g_gameVersion == HALFLIFE)
+	{
+		char c_topcolor[4], c_bottomcolor[4];
+		sprintf(c_topcolor, "%d", engine->RandomInt(1, 254));
+		sprintf(c_bottomcolor, "%d", engine->RandomInt(1, 254));
+		SET_CLIENT_KEYVALUE(clientIndex, buffer, "topcolor", c_topcolor);
+		SET_CLIENT_KEYVALUE(clientIndex, buffer, "bottomcolor", c_bottomcolor);
+	}
+	else
+	{
+		SET_CLIENT_KEYVALUE(clientIndex, buffer, "rate", "3500.000000");
+		SET_CLIENT_KEYVALUE(clientIndex, buffer, "cl_updaterate", "20");
+		SET_CLIENT_KEYVALUE(clientIndex, buffer, "cl_lw", "1");
+		SET_CLIENT_KEYVALUE(clientIndex, buffer, "cl_lc", "1");
+		SET_CLIENT_KEYVALUE(clientIndex, buffer, "tracker", "0");
+		SET_CLIENT_KEYVALUE(clientIndex, buffer, "cl_dlmax", "128");
+		SET_CLIENT_KEYVALUE(clientIndex, buffer, "lefthand", "1");
+		SET_CLIENT_KEYVALUE(clientIndex, buffer, "friends", "0");
+		SET_CLIENT_KEYVALUE(clientIndex, buffer, "dm", "0");
+		SET_CLIENT_KEYVALUE(clientIndex, buffer, "ah", "1");
+	}
+
 	if (g_gameVersion != CSVER_VERYOLD && !ebot_ping.GetBool())
 		SET_CLIENT_KEYVALUE(clientIndex, buffer, "*bot", "1");
 
@@ -964,41 +986,6 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	// should be set after client connect
 	if (ebot_display_avatar.GetBool() && !g_botManager->m_avatars.IsEmpty())
 		SET_CLIENT_KEYVALUE(clientIndex, buffer, "*sid", g_botManager->m_avatars.GetRandomElement());
-
-	if (g_gameVersion == HALFLIFE)
-	{
-		char c_topcolor[4], c_bottomcolor[4];
-		sprintf(c_topcolor, "%d", engine->RandomInt(1, 254));
-		sprintf(c_bottomcolor, "%d", engine->RandomInt(1, 254));
-
-		SET_CLIENT_KEYVALUE(clientIndex, buffer, "topcolor", c_topcolor);
-		SET_CLIENT_KEYVALUE(clientIndex, buffer, "bottomcolor", c_bottomcolor);
-
-		static int randomModel = engine->RandomInt(1, 10);
-		switch (randomModel)
-		{
-			case 1:
-				SET_CLIENT_KEYVALUE(clientIndex, buffer, "model", "barney");
-			case 2:
-				SET_CLIENT_KEYVALUE(clientIndex, buffer, "model", "gina");
-			case 3:
-				SET_CLIENT_KEYVALUE(clientIndex, buffer, "model", "gman");
-			case 4:
-				SET_CLIENT_KEYVALUE(clientIndex, buffer, "model", "helmet");
-			case 5:
-				SET_CLIENT_KEYVALUE(clientIndex, buffer, "model", "hgrunt");
-			case 6:
-				SET_CLIENT_KEYVALUE(clientIndex, buffer, "model", "recon");
-			case 7:
-				SET_CLIENT_KEYVALUE(clientIndex, buffer, "model", "robo");
-			case 8:
-				SET_CLIENT_KEYVALUE(clientIndex, buffer, "model", "scientist");
-			case 9:
-				SET_CLIENT_KEYVALUE(clientIndex, buffer, "model", "zombie");
-			default:
-				SET_CLIENT_KEYVALUE(clientIndex, buffer, "model", "gordon");
-		}
-	}
 
 	if (!IsNullString(rejectReason))
 	{

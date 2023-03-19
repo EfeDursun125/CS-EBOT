@@ -452,7 +452,7 @@ bool Bot::DoWaypointNav(void)
 	else if (currentWaypoint->flags & WAYPOINT_FALLRISK || currentWaypoint->flags & WAYPOINT_JUMP || m_currentTravelFlags & PATHFLAG_JUMP)
 		waypointDistance = ((pev->origin + pev->velocity * -m_frameInterval) - m_waypointOrigin).GetLengthSquared();
 	else
-		waypointDistance = ((pev->origin + pev->velocity * g_pGlobals->frametime) - m_waypointOrigin).GetLengthSquared2D();
+		waypointDistance = ((pev->origin + pev->velocity * m_frameInterval) - m_waypointOrigin).GetLengthSquared2D();
 	
 	float desiredDistance = 8.0f;
 
@@ -473,11 +473,14 @@ bool Bot::DoWaypointNav(void)
 	else if (currentWaypoint->radius > 12.0f)
 		desiredDistance += currentWaypoint->radius;
 
-	if (!(currentWaypoint->flags & WAYPOINT_LADDER) && !FNullEnt(m_avoid))
-		desiredDistance *= 2.0f;
+	if (!IsOnLadder() && !(currentWaypoint->flags & WAYPOINT_LADDER) && !(currentWaypoint->flags & WAYPOINT_FALLRISK))
+	{
+		// tweak for distance
+		desiredDistance += ((pev->maxspeed + fabsf(pev->speed)) - desiredDistance) * m_frameInterval;
 
-	// tweak for distance
-	desiredDistance += (m_frameInterval * ((pev->maxspeed + pev->maxspeed) - desiredDistance));
+		if (!FNullEnt(m_avoid))
+			desiredDistance *= 2.0f;
+	}
 
 	if (waypointDistance <= SquaredF(desiredDistance))
 	{

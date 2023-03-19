@@ -502,7 +502,7 @@ float Bot::GetZOffset(float distance)
 // bot can't hurt teammates, if friendly fire is not enabled...
 bool Bot::IsFriendInLineOfFire(float distance)
 {
-	if (!engine->IsFriendlyFireOn() || GetGameMode() == MODE_DM || GetGameMode() == MODE_NOTEAM)
+	if (g_gameVersion == HALFLIFE || !engine->IsFriendlyFireOn() || GetGameMode() == MODE_DM || GetGameMode() == MODE_NOTEAM)
 		return false;
 
 	MakeVectors(pev->v_angle);
@@ -667,7 +667,7 @@ void Bot::FireWeapon(void)
 		return;
 	}
 
-	float distance = (m_lookAt - pev->origin).GetLength(); // how far away is the enemy?
+	float distance = (m_lookAt - pev->origin).GetLengthSquared(); // how far away is the enemy?
 
 	// or if friend in line of fire, stop this too but do not update shoot time
 	if (!FNullEnt(m_enemy) && IsFriendInLineOfFire(distance))
@@ -685,8 +685,7 @@ void Bot::FireWeapon(void)
 
 	if (m_isZombieBot || ebot_knifemode.GetBool())
 		goto WeaponSelectEnd;
-	else if (!FNullEnt(enemy) && ChanceOf(m_skill) && !IsZombieEntity(enemy) && IsOnAttackDistance(enemy, 120.0f) &&
-		(enemy->v.health <= 30 || pev->health > enemy->v.health) && !IsOnLadder() && !IsGroupOfEnemies(pev->origin))
+	else if (!FNullEnt(enemy) && ChanceOf(m_skill) && !IsZombieEntity(enemy) && IsOnAttackDistance(enemy, 128.0f) && (enemy->v.health <= 30 || pev->health > enemy->v.health) && !IsOnLadder() && !IsGroupOfEnemies(pev->origin))
 		goto WeaponSelectEnd;
 
 	// loop through all the weapons until terminator is found...
@@ -698,7 +697,7 @@ void Bot::FireWeapon(void)
 			// is enough ammo available to fire AND check is better to use pistol in our current situation...
 			if (g_gameVersion == HALFLIFE)
 			{
-				if (selectIndex == WEAPON_SNARK || selectIndex == WEAPON_EGON || (selectIndex == WEAPON_RPG && distance > 256.0f) || (selectIndex == WEAPON_CROSSBOW && distance > 256.0f))
+				if (selectIndex == WEAPON_SNARK || selectIndex == WEAPON_EGON || (selectIndex == WEAPON_HANDGRENADE && distance > SquaredF(384.0f) && distance <= SquaredF(768.0f)) || (selectIndex == WEAPON_RPG && distance > SquaredF(320.0f)) || (selectIndex == WEAPON_CROSSBOW && distance > SquaredF(320.0f)))
 					chosenWeaponIndex = selectIndex;
 				else if ((m_ammoInClip[selectTab[selectIndex].id] > 0) && !IsWeaponBadInDistance(selectIndex, distance))
 						chosenWeaponIndex = selectIndex;
@@ -793,7 +792,7 @@ WeaponSelectEnd:
 
 		if (HasShield() && m_shieldCheckTime < engine->GetTime() && GetCurrentTask()->taskID != TASK_CAMP) // better shield gun usage
 		{
-			if ((distance > 750.0f) && !IsShieldDrawn())
+			if ((distance > SquaredF(768.0f)) && !IsShieldDrawn())
 				pev->button |= IN_ATTACK2; // draw the shield
 			else if (IsShieldDrawn() || (!FNullEnt(enemy) && (enemy->v.button & IN_RELOAD)))
 				pev->button |= IN_ATTACK2; // draw out the shield
@@ -804,23 +803,23 @@ WeaponSelectEnd:
 
 	if (UsesSniper() && m_zoomCheckTime < engine->GetTime()) // is the bot holding a sniper rifle?
 	{
-		if (distance > 1500.0f && pev->fov >= 40.0f) // should the bot switch to the long-range zoom?
+		if (distance > SquaredF(1500.0f) && pev->fov >= 40.0f) // should the bot switch to the long-range zoom?
 			pev->button |= IN_ATTACK2;
 
-		else if (distance > 150.0f && pev->fov >= 90.0f) // else should the bot switch to the close-range zoom ?
+		else if (distance > SquaredF(150.0f) && pev->fov >= 90.0f) // else should the bot switch to the close-range zoom ?
 			pev->button |= IN_ATTACK2;
 
-		else if (distance <= 150.0f && pev->fov < 90.0f) // else should the bot restore the normal view ?
+		else if (distance <= SquaredF(150.0f) && pev->fov < 90.0f) // else should the bot restore the normal view ?
 			pev->button |= IN_ATTACK2;
 
 		m_zoomCheckTime = engine->GetTime();
 	}
 	else if (UsesZoomableRifle() && m_zoomCheckTime < engine->GetTime() && m_skill < 90) // else is the bot holding a zoomable rifle?
 	{
-		if (distance > 800.0f && pev->fov >= 90.0f) // should the bot switch to zoomed mode?
+		if (distance > SquaredF(800.0f) && pev->fov >= 90.0f) // should the bot switch to zoomed mode?
 			pev->button |= IN_ATTACK2;
 
-		else if (distance <= 800.0f && pev->fov < 90.0f) // else should the bot restore the normal view?
+		else if (distance <= SquaredF(800.0f) && pev->fov < 90.0f) // else should the bot restore the normal view?
 			pev->button |= IN_ATTACK2;
 
 		m_zoomCheckTime = engine->GetTime();
@@ -874,27 +873,27 @@ WeaponSelectEnd:
 			m_zoomCheckTime = engine->GetTime();
 		}
 
-		if (!FNullEnt(enemy) && distance >= 1200.0f)
+		if (!FNullEnt(enemy) && distance >= SquaredF(1200.0f))
 		{
 			if (m_visibility & (VISIBILITY_HEAD | VISIBILITY_BODY))
 				delayTime -= (delayTime == 0.0f) ? 0.0f : 0.02f;
 			else if (m_visibility & VISIBILITY_HEAD)
 			{
-				if (distance >= 2400.0f)
+				if (distance >= SquaredF(2400.0f))
 					delayTime += (delayTime == 0.0f) ? 0.15f : 0.10f;
 				else
 					delayTime += (delayTime == 0.0f) ? 0.10f : 0.05f;
 			}
 			else if (m_visibility & VISIBILITY_BODY)
 			{
-				if (distance >= 2400.f)
+				if (distance >= SquaredF(2400.0f))
 					delayTime += (delayTime == 0.0f) ? 0.12f : 0.08f;
 				else
 					delayTime += (delayTime == 0.0f) ? 0.08f : 0.0f;
 			}
 			else
 			{
-				if (distance >= 2400.0f)
+				if (distance >= SquaredF(2400.0f))
 					delayTime += (delayTime == 0.0f) ? 0.18f : 0.15f;
 				else
 					delayTime += (delayTime == 0.0f) ? 0.15f : 0.10f;
@@ -992,20 +991,30 @@ bool Bot::KnifeAttack(float attackDistance)
 bool Bot::IsWeaponBadInDistance(int weaponIndex, float distance)
 {
 	if (g_gameVersion == HALFLIFE)
-		return false;
-
-	int weaponID = g_weaponSelect[weaponIndex].id;
-	if (weaponID == WEAPON_KNIFE)
-		return false;
-
-	// shotguns is too inaccurate at long distances, so weapon is bad
-	if ((weaponID == WEAPON_M3 || weaponID == WEAPON_XM1014) && distance > SquaredF(768.0f))
-		return true;
-
-	if (!IsZombieMode())
 	{
-		if ((weaponID == WEAPON_SCOUT || weaponID == WEAPON_AWP || weaponID == WEAPON_G3SG1 || weaponID == WEAPON_SG550) && distance <= SquaredF(512.0f))
+		int weaponID = g_weaponSelect[weaponIndex].id;
+		if (weaponID == WEAPON_CROWBAR)
+			return false;
+
+		// shotgun is too inaccurate at long distances, so weapon is bad
+		if (weaponID == WEAPON_SHOTGUN && distance > SquaredF(768.0f))
 			return true;
+	}
+	else
+	{
+		int weaponID = g_weaponSelect[weaponIndex].id;
+		if (weaponID == WEAPON_KNIFE)
+			return false;
+
+		// shotguns is too inaccurate at long distances, so weapon is bad
+		if ((weaponID == WEAPON_M3 || weaponID == WEAPON_XM1014) && distance > SquaredF(768.0f))
+			return true;
+
+		if (!IsZombieMode())
+		{
+			if ((weaponID == WEAPON_SCOUT || weaponID == WEAPON_AWP || weaponID == WEAPON_G3SG1 || weaponID == WEAPON_SG550) && distance <= SquaredF(512.0f))
+				return true;
+		}
 	}
 
 	// check is ammo available for secondary weapon
@@ -1286,8 +1295,14 @@ void Bot::CombatFight(void)
 			}
 		}
 
-		if (!FNullEnt(m_enemy))
-			SetLastEnemy(m_enemy);
+		if (g_gameVersion == HALFLIFE)
+		{
+			if (m_currentWeapon == WEAPON_MP5_HL && distance > SquaredF(300.0f) && distance <= SquaredF(800.0f))
+			{
+				if (!(pev->oldbuttons & IN_ATTACK2) && !m_isSlowThink && engine->RandomInt(1, 3) == 1)
+					pev->button |= IN_ATTACK2;
+			}
+		}
 
 		DeleteSearchNodes();
 		m_destOrigin = m_enemyOrigin - m_lastWallOrigin;

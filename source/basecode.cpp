@@ -643,13 +643,20 @@ edict_t* Bot::FindButton(void)
 	edict_t* searchEntity = nullptr, * foundEntity = nullptr;
 
 	// find the nearest button which can open our target
-	while (!FNullEnt(searchEntity = FIND_ENTITY_BY_CLASSNAME(searchEntity, "func_button")))
+	while (!FNullEnt(searchEntity = FIND_ENTITY_IN_SPHERE(searchEntity, pev->origin, 512.0f)))
 	{
-		float distance = (pev->origin - GetEntityOrigin(searchEntity)).GetLengthSquared();
-		if (distance <= nearestDistance)
+		// we cant see
+		if (searchEntity->v.effects & EF_NODRAW)
+			continue;
+
+		if (strncmp("func_button", STRING(searchEntity->v.classname), 11) == 0 || strncmp("func_rot_button", STRING(searchEntity->v.classname), 15) == 0)
 		{
-			nearestDistance = distance;
-			foundEntity = searchEntity;
+			float distance = (pev->origin - GetEntityOrigin(searchEntity)).GetLengthSquared();
+			if (distance < nearestDistance)
+			{
+				nearestDistance = distance;
+				foundEntity = searchEntity;
+			}
 		}
 	}
 
@@ -683,10 +690,10 @@ void Bot::FindItem(void)
 
 		if (GetCurrentTask()->taskID == TASK_DESTROYBREAKABLE)
 			return;
-
-		if (!FNullEnt(m_enemy))
-			return;
 	}
+
+	if (!FNullEnt(m_enemy))
+		return;
 
 	if (IsOnLadder())
 	{
@@ -731,8 +738,32 @@ void Bot::FindItem(void)
 		{
 			if (pev->health < pev->max_health && strncmp("item_healthkit", STRING(ent->v.classname), 14) == 0)
 				pickupType = PICKTYPE_GETENTITY;
+			else if (pev->health < pev->max_health && strncmp("func_healthcharger", STRING(ent->v.classname), 18) == 0 && ent->v.frame == 0)
+			{
+				pickupType = PICKTYPE_GETENTITY;
+				MDLL_Use(ent, GetEntity());
+				m_canChooseAimDirection = false;
+				m_lookAt = GetEntityOrigin(ent);
+				m_moveToGoal = false;
+				m_checkTerrain = false;
+				m_moveSpeed = pev->maxspeed;
+				m_moveSpeedForRunMove = m_moveSpeed;
+				m_strafeSpeed = 0.0f;
+			}
 			else if (pev->armorvalue < 100 && strncmp("item_battery", STRING(ent->v.classname), 12) == 0)
 				pickupType = PICKTYPE_GETENTITY;
+			else if (pev->armorvalue < 100 && strncmp("func_recharge", STRING(ent->v.classname), 13) == 0 && ent->v.frame == 0)
+			{
+				pickupType = PICKTYPE_GETENTITY;
+				MDLL_Use(ent, GetEntity());
+				m_canChooseAimDirection = false;
+				m_lookAt = GetEntityOrigin(ent);
+				m_moveToGoal = false;
+				m_checkTerrain = false;
+				m_moveSpeed = pev->maxspeed;
+				m_moveSpeedForRunMove = m_moveSpeed;
+				m_strafeSpeed = 0.0f;
+			}
 			else if (strncmp("monster_snark", STRING(ent->v.classname), 13) == 0)
 				pickupType = PICKTYPE_GETENTITY;
 			else if (strncmp("weapon_", STRING(ent->v.classname), 7) == 0)
@@ -855,9 +886,7 @@ void Bot::FindItem(void)
 				if (m_skill > 80 && ChanceOf(50) && GetCurrentTask()->taskID != TASK_GOINGFORCAMP && GetCurrentTask()->taskID != TASK_CAMP)
 				{
 					int index = FindDefendWaypoint(entityOrigin);
-
 					m_campposition = g_waypoint->GetPath(index)->origin;
-
 					PushTask(TASK_GOINGFORCAMP, TASKPRI_GOINGFORCAMP, index, ebot_camp_max.GetFloat(), true);
 					m_campButtons |= IN_DUCK;
 
@@ -966,13 +995,16 @@ void Bot::FindItem(void)
 
 	if (!FNullEnt(pickupItem))
 	{
-		for (const auto& bot : g_botManager->m_bots)
+		if (!IsDeathmatchMode())
 		{
-			if (bot != nullptr && bot != this && bot->m_isAlive && bot->m_pickupItem == pickupItem)
+			for (const auto& bot : g_botManager->m_bots)
 			{
-				m_pickupItem = nullptr;
-				m_pickupType = PICKTYPE_NONE;
-				return;
+				if (bot != nullptr && bot != this && bot->m_isAlive && bot->m_pickupItem == pickupItem && bot->m_team == m_team)
+				{
+					m_pickupItem = nullptr;
+					m_pickupType = PICKTYPE_NONE;
+					return;
+				}
 			}
 		}
 
@@ -3793,7 +3825,7 @@ void Bot::Think(void)
 		StartGame(); // select team & class
 	else if (!m_isAlive)
 	{
-		if (g_gameVersion == HALFLIFE && engine->RandomInt(1, 3) == 1)
+		if (g_gameVersion == HALFLIFE && !(pev->oldbuttons & IN_ATTACK))
 			pev->button |= IN_ATTACK;
 
 		extern ConVar ebot_chat;
@@ -6596,12 +6628,10 @@ void Bot::BotAI(void)
 	auto flag = g_waypoint->GetPath(m_currentWaypointIndex)->flags;
 	Vector directionOld;
 	
-	if (IsOnLadder() || flag & WAYPOINT_LADDER)
+	if (IsOnLadder() || flag & WAYPOINT_LADDER || flag & WAYPOINT_FALLRISK || flag & WAYPOINT_JUMP)
 		directionOld = m_destOrigin - pev->origin;
-	else if (flag & WAYPOINT_FALLRISK || flag & WAYPOINT_JUMP)
-		directionOld = m_destOrigin - (pev->origin + pev->velocity * m_frameInterval);
 	else
-		directionOld = (m_destOrigin + (m_destOrigin - pev->origin) * pev->maxspeed) - (pev->origin + pev->velocity * m_frameInterval);
+		directionOld = m_destOrigin - (pev->origin + pev->velocity * m_frameInterval);
 
 	Vector directionNormal = directionOld.Normalize();
 	Vector direction = directionNormal;
@@ -6656,16 +6686,13 @@ void Bot::BotAI(void)
 		// use button waypoints
 		if (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_USEBUTTON)
 		{
-			if ((pev->origin - g_waypoint->GetPath(m_currentWaypointIndex)->origin).GetLengthSquared() <= SquaredF(100.0f))
+			if ((pev->origin - g_waypoint->GetPath(m_currentWaypointIndex)->origin).GetLengthSquared() <= SquaredF(80.0f))
 			{
 				edict_t* button = FindButton();
-				if (!m_isSlowThink)
-				{
-					if (button != nullptr)
-						MDLL_Use(button, GetEntity());
-					else
-						pev->button |= IN_USE;
-				}
+				if (button != nullptr)
+					MDLL_Use(button, GetEntity());
+				else if (!(pev->oldbuttons & IN_USE))
+					pev->button |= IN_USE;
 			}
 		}
 
