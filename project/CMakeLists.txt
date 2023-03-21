@@ -4,7 +4,8 @@ project(EBOT)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Release)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-parentheses -03 -DNDEBUG=1 -fno-exceptions -fno-rtti -funroll-loops -fomit-frame-pointer -pipe") set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m32 -fvisibility=hidden -fno-exceptions -fno-rtti")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-parentheses -03 -DNDEBUG=1 -fno-exceptions -fno-rtti -funroll-loops -fomit-frame-pointer -pipe")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m32 -fvisibility=hidden -fno-exceptions -fno-rtti")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -m32 -lm -ldl")
 
