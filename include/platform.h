@@ -27,11 +27,11 @@
 
 // detects the build platform
 #if defined (__linux__) || defined (__debian__) || defined (__linux)
-#define PLATFORM_LINUX32 1
+#define PLATFORM_LINUX32
 #elif defined (__x86_64__) || defined (__amd64__)
-#define PLATFORM_LINUX64 1
+#define PLATFORM_LINUX64
 #elif defined (_WIN32)
-#define PLATFORM_WIN32 1
+#define PLATFORM_WIN32
 #endif
 
 // detects the compiler
@@ -56,6 +56,8 @@
 #ifdef PLATFORM_WIN32
 
 #include <direct.h>
+
+#define stricmp _stricmp
 
 #define DLL_ENTRYPOINT int STDCALL DllMain (void *, unsigned long dwReason, void *)
 #define DLL_DETACHING (dwReason == 0)
@@ -86,12 +88,12 @@ typedef void (*EntityPtr_t) (entvars_t*);
 #include <errno.h>
 #include <sys/stat.h>
 
+#define stricmp strcmp
+
 #define DLL_ENTRYPOINT void _fini (void)
 #define DLL_DETACHING TRUE
 #define DLL_RETENTRY return
 #define DLL_GIVEFNPTRSTODLL extern "C" void
-
-inline uint32 _lrotl(uint32 x, int r) { return (x << r) | (x >> (sizeof(x) * 8 - r)); }
 
 typedef int (*EntityAPI_t) (DLL_FUNCTIONS*, int);
 typedef int (*NewEntityAPI_t) (NEW_DLL_FUNCTIONS*, int*);
@@ -103,9 +105,11 @@ typedef void (*EntityPtr_t) (entvars_t*);
 #error "Platform unrecognized."
 #endif
 
+#ifdef PLATFORM_WIN32
 extern "C" void* __stdcall GetProcAddress(void*, const char*);
 extern "C" void* __stdcall LoadLibraryA(const char*);
 extern "C" int __stdcall FreeLibrary(void*);
+#endif
 
 // library wrapper
 class Library

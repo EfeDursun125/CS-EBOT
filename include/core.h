@@ -37,9 +37,7 @@
 #include <stdio.h>
 #include <memory.h>
 
-#include <xmmintrin.h>
-#include <emmintrin.h>
-#include <immintrin.h>
+extern float Q_rsqrt(float number);
 
 #include <engine.h>
 
@@ -1443,12 +1441,12 @@ extern bool IsZombieMode(void);
 extern bool IsDeathmatchMode(void);
 extern bool IsValidWaypoint(int index);
 extern bool ChanceOf(int number);
-extern float Divide(float number, float number2);
 extern float Clamp(float a, float b, float c);
 extern float SquaredF(float a);
 extern float AddTime(float time);
 extern float MaxFloat(float a, float b);
 extern float MinFloat(float a, float b);
+extern int MinInt(int a, int b);
 extern unsigned int GetPlayerPriority(edict_t* player);
 extern ChatterMessage GetEqualChatter(int message);
 extern void GetVoiceAndDur(ChatterMessage message, char* *voice, float *dur);
@@ -1505,6 +1503,7 @@ extern void HudMessage(edict_t* ent, bool toCenter, const Color& rgb, char* form
 
 extern void AutoLoadGameMode(void);
 
+extern bool SetEntityAction(int index, int team, int action);
 extern void SetEntityActionData(int i, int index = -1, int team = -1, int action = -1);
 
 extern void AddLogEntry(int logLevel, const char* format, ...);

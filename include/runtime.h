@@ -466,8 +466,7 @@ public:
 
     inline const Vector operator / (float vec) const
     {
-        const float one = 1.0f;
-        const float inv = _mm_cvtss_f32(_mm_div_ps(_mm_load_ss(&one), _mm_load_ss(&vec)));
+        const float inv = 1.0f / vec;
         return Vector(inv * x, inv * y, inv * z);
     }
 
@@ -510,8 +509,7 @@ public:
 
     inline const Vector& operator /= (float vec)
     {
-        const float one = 1.0f;
-        const float inv = _mm_cvtss_f32(_mm_div_ps(_mm_load_ss(&one), _mm_load_ss(&vec)));
+        const float inv = 1.0f / vec;
 
         x *= inv;
         y *= inv;
@@ -556,7 +554,7 @@ public:
     //
     inline float GetLength(void) const
     {
-        return sqrtf(x * x + y * y + z * z);
+        return Q_rsqrt(x * x + y * y + z * z);
     }
 
     //
@@ -572,7 +570,7 @@ public:
     //
     inline float GetLength2D(void) const
     {
-        return sqrtf(x * x + y * y);
+        return Q_rsqrt(x * x + y * y);
     }
 
     //
@@ -635,8 +633,7 @@ public:
         if (Math::FltZero(length))
             return Vector(0, 0, 1.0f);
 
-        const float one = 1.0f;
-        length = _mm_cvtss_f32(_mm_div_ps(_mm_load_ss(&one), _mm_load_ss(&length)));//1.0f / length;
+        length = 1.0f / length;
 
         return Vector(x * length, y * length, z * length);
     }
@@ -657,7 +654,7 @@ public:
             return Vector(0, 1.0, 0);
 
         const float one = 1.0f;
-        length = _mm_cvtss_f32(_mm_div_ps(_mm_load_ss(&one), _mm_load_ss(&length)));//1.0f / length;
+        length = 1.0f / length;
 
         return Vector(x * length, y * length, 0.0f);
     }
@@ -1365,7 +1362,13 @@ public:
     //
     T& GetRandomElement(void) const
     {
+#if defined (_WIN32)
         return m_elements[(*g_engfuncs.pfnRandomLong) (0, m_itemCount - 1)];
+#else
+        srand(time(nullptr));
+        int val = rand() % ((m_itemCount - 1) + 1);
+        return m_elements[val];
+#endif
     }
 
     Array <T>& operator = (const Array <T>& other)
@@ -1700,7 +1703,7 @@ public:
     //
     bool Remove(const K& keyName)
     {
-        int hashID = Map::HashFunc <K>(keyName) % m_hashSize;
+        int hashID = Map::HashFunc <K(keyName) % m_hashSize;
         HashItem* hashItem = m_table[hashID], * nextHash = nullptr;
 
         while (hashItem != nullptr)
@@ -1720,6 +1723,7 @@ public:
             nextHash = hashItem;
             hashItem = hashItem->next;
         }
+
         return false;
     }
 

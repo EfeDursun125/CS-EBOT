@@ -246,7 +246,7 @@ public:
     }
     inline Vector2D operator/ (float fl) const
     {
-        return Vector2D(_mm_cvtss_f32(_mm_div_ps(_mm_load_ss(&x), _mm_load_ss(&fl))), _mm_cvtss_f32(_mm_div_ps(_mm_load_ss(&y), _mm_load_ss(&fl))));
+        return Vector2D(x / fl, y / fl);
     }
     inline int operator== (const Vector2D& v) const
     {
@@ -255,7 +255,7 @@ public:
 
     inline float Length(void) const
     {
-        return sqrtf(x * x + y * y);
+        return Q_rsqrt(x * x + y * y);
     }
 
     inline Vector2D Normalize(void) const
@@ -265,8 +265,7 @@ public:
             return Vector2D(0, 0);
         else
         {
-            const float one = 1.0f;
-            flLen = _mm_cvtss_f32(_mm_div_ps(_mm_load_ss(&one), _mm_load_ss(&flLen)));
+            flLen = 1.0f / flLen;
             return Vector2D(x * flLen, y * flLen);
         }
     }
@@ -348,7 +347,7 @@ public:
     }
     inline float Length(void) const
     {
-        return sqrtf(x * x + y * y + z * z);
+        return Q_rsqrt(x * x + y * y + z * z);
     }
     operator float* ()
     {
@@ -385,9 +384,10 @@ public:
 
         return Vec2;
     }
+
     inline float Length2D(void) const
     {
-        return sqrtf(x * x + y * y);
+        return Q_rsqrt(x * x + y * y);
     }
 
     // Members
@@ -2546,7 +2546,6 @@ inline void STOP_SOUND(edict_t* entity, int channel, const char* sample)
 
 // removes linker warning when using msvcrt library
 #if defined ( _MSC_VER )
-#define stricmp _stricmp
 #define unlink _unlink
 #define mkdir _mkdir
 #endif
@@ -3228,12 +3227,6 @@ public:
     }
 
 public:
-    float ApproachAngle(float target, float value, float speed);
-
-    float AngleDiff(float destAngle, float srcAngle);
-
-    float DoClamp(float a, float b, float c);
-
     // sends bot command
     void IssueBotCommand(edict_t* ent, const char* fmt, ...);
 
