@@ -540,7 +540,7 @@ bool Bot::IsFriendInLineOfFire(float distance)
 		Vector origin = client.ent->v.origin;
 		float friendDistance = (origin - pev->origin).GetLengthSquared();
 
-		if (friendDistance <= distance && GetShootingConeDeviation(GetEntity(), &origin) > Divide(friendDistance, (friendDistance + 1089.0f)))
+		if (friendDistance <= distance && GetShootingConeDeviation(GetEntity(), &origin) > (friendDistance / (friendDistance + 1089.0f)))
 			return true;
 	}
 
@@ -628,7 +628,7 @@ bool Bot::DoFirePause(float distance)//, FireDelay *fireDelay)
 			return true;
 	}
 
-	float angle = (fabsf(pev->punchangle.y) + fabsf(pev->punchangle.x)) * Divide(Math::MATH_PI, 360.0f);
+	float angle = (fabsf(pev->punchangle.y) + fabsf(pev->punchangle.x)) * (Math::MATH_PI * 0.00277777777f);
 
 	// check if we need to compensate recoil
 	if (tanf(angle) * (distance + (distance * 0.25f)) > g_skillTab[m_skill / 20].recoilAmount)
@@ -697,9 +697,9 @@ void Bot::FireWeapon(void)
 			// is enough ammo available to fire AND check is better to use pistol in our current situation...
 			if (g_gameVersion == HALFLIFE)
 			{
-				if (selectIndex == WEAPON_SNARK || selectIndex == WEAPON_EGON || (selectIndex == WEAPON_HANDGRENADE && distance > SquaredF(384.0f) && distance <= SquaredF(768.0f)) || (selectIndex == WEAPON_RPG && distance > SquaredF(320.0f)) || (selectIndex == WEAPON_CROSSBOW && distance > SquaredF(320.0f)))
+				if (selectIndex == WEAPON_SNARK || selectIndex == WEAPON_GAUSS ||selectIndex == WEAPON_EGON || (selectIndex == WEAPON_HANDGRENADE && distance > SquaredF(384.0f) && distance <= SquaredF(768.0f)) || (selectIndex == WEAPON_RPG && distance > SquaredF(320.0f)) || (selectIndex == WEAPON_CROSSBOW && distance > SquaredF(320.0f)))
 					chosenWeaponIndex = selectIndex;
-				else if ((m_ammoInClip[selectTab[selectIndex].id] > 0) && !IsWeaponBadInDistance(selectIndex, distance))
+				else if (selectIndex != WEAPON_HANDGRENADE && selectIndex != WEAPON_RPG  && selectIndex != WEAPON_CROSSBOW && (m_ammoInClip[selectTab[selectIndex].id] > 0) && !IsWeaponBadInDistance(selectIndex, distance))
 						chosenWeaponIndex = selectIndex;
 
 			}
@@ -1202,7 +1202,7 @@ void Bot::CombatFight(void)
 	}
 	else if (GetCurrentTask()->taskID != TASK_CAMP && GetCurrentTask()->taskID != TASK_SEEKCOVER && GetCurrentTask()->taskID != TASK_ESCAPEFROMBOMB)
 	{
-		if (g_gameVersion == HALFLIFE && fabsf(pev->speed) >= pev->maxspeed)
+		if (g_gameVersion == HALFLIFE && fabsf(pev->speed) >= (pev->maxspeed * 0.54f) && !(pev->oldbuttons & IN_JUMP) && !(pev->oldbuttons & IN_DUCK))
 		{
 			if (m_personality == PERSONALITY_CAREFUL)
 			{
@@ -1302,6 +1302,8 @@ void Bot::CombatFight(void)
 				if (!(pev->oldbuttons & IN_ATTACK2) && !m_isSlowThink && engine->RandomInt(1, 3) == 1)
 					pev->button |= IN_ATTACK2;
 			}
+			else if (m_currentWeapon == WEAPON_CROWBAR && m_personality != PERSONALITY_CAREFUL)
+				pev->button |= IN_ATTACK;
 		}
 
 		DeleteSearchNodes();

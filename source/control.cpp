@@ -323,7 +323,7 @@ void BotControl::Think(void)
 		if (bot->m_thinkTimer < engine->GetTime() && bot->m_lastThinkTime < engine->GetTime())
 		{
 			bot->Think();
-			bot->m_thinkTimer = AddTime(Divide(1.0f, ebot_think_fps.GetFloat()));
+			bot->m_thinkTimer = AddTime(1.0f / ebot_think_fps.GetFloat());
 		}
 		else if (bot->m_isAlive)
 		{
@@ -528,7 +528,7 @@ void BotControl::MaintainBotQuota(void)
 		int desiredBotCount = ebot_quota.GetInt();
 		
 		if (ebot_autovacate.GetBool())
-			desiredBotCount = __min(desiredBotCount, maxClients - (GetHumansNum() + 1));
+			desiredBotCount = MinInt(desiredBotCount, maxClients - (GetHumansNum() + 1));
 		
 		if (botNumber > desiredBotCount)
 		{

@@ -45,32 +45,6 @@ int Engine::RandomInt(int low, int high)
     return RANDOM_LONG(low, high);
 }
 
-float Engine::ApproachAngle(float target, float value, float speed)
-{
-    float delta = AngleDiff(target, value);
-    if (speed < 0.0)
-        speed = -speed;
-
-    if (delta > speed)
-        value += speed;
-    else if (delta < -speed)
-        value -= speed;
-    else
-        value = target;
-
-    return AngleNormalize(value);
-}
-
-float Engine::AngleDiff(float destAngle, float srcAngle)
-{
-    return AngleNormalize(destAngle - srcAngle);
-}
-
-float Engine::DoClamp(float a, float b, float c)
-{
-    return (a > c ? c : (a < b ? b : a));
-}
-
 void Engine::RegisterVariable(const char* variable, const char* value, VarType varType, ConVar* self)
 {
     VarPair newVariable;

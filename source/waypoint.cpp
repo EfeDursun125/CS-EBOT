@@ -175,7 +175,7 @@ void AnalyzeThread(void)
             if (magicTimer >= engine->GetTime())
                 return;
 
-            if ((ebot_analyzer_min_fps.GetFloat() + g_pGlobals->frametime) <= Divide(1.0f, g_pGlobals->frametime))
+            if ((ebot_analyzer_min_fps.GetFloat() + g_pGlobals->frametime) <= 1.0f / g_pGlobals->frametime)
                 magicTimer = engine->GetTime() + g_pGlobals->frametime * 0.054f; // pause
 
             Vector WayVec = g_waypoint->GetPath(i)->origin;
@@ -1003,7 +1003,7 @@ void Waypoint::Add(int flags, Vector waypointOrigin)
                 }
 
                 if (IsNodeReachable(newOrigin, m_paths[destIndex]->origin))
-                    AddPath(index, destIndex, sqrtf(distance));
+                    AddPath(index, destIndex, Q_rsqrt(distance));
             }
         }
 
@@ -1849,7 +1849,7 @@ float Waypoint::GetTravelTime(const float maxSpeed, const Vector src, const Vect
     if (src == nullvec || origin == nullvec)
         return 10.0f;
 
-    return Divide((origin - src).GetLengthSquared2D(), SquaredF(fabsf(maxSpeed)));
+    return (origin - src).GetLengthSquared2D() / SquaredF(fabsf(maxSpeed));
 }
 
 bool Waypoint::Reachable(edict_t* entity, const int index)

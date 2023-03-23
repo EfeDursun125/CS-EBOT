@@ -191,7 +191,7 @@ bool Bot::ItemIsVisible(Vector destination, char* itemName)//, bool bomb)
 		// check for standard items
 		if (g_gameVersion == HALFLIFE)
 		{
-			if (tr.flFraction > 0.90f && strcmp(STRING(tr.pHit->v.classname), itemName) == 0)
+			if (tr.flFraction > 0.95f && strcmp(STRING(tr.pHit->v.classname), itemName) == 0)
 				return true;
 		}
 		else
@@ -734,38 +734,60 @@ void Bot::FindItem(void)
 		if ((ent->v.effects & EF_NODRAW) || ent == m_itemIgnore)
 			continue;
 
-		if (g_gameVersion == HALFLIFE)
+		if (pev->health < pev->max_health && strncmp("item_healthkit", STRING(ent->v.classname), 14) == 0)
+			pickupType = PICKTYPE_GETENTITY;
+		else if (pev->health < pev->max_health && strncmp("func_healthcharger", STRING(ent->v.classname), 18) == 0 && ent->v.frame == 0)
 		{
-			if (pev->health < pev->max_health && strncmp("item_healthkit", STRING(ent->v.classname), 14) == 0)
-				pickupType = PICKTYPE_GETENTITY;
-			else if (pev->health < pev->max_health && strncmp("func_healthcharger", STRING(ent->v.classname), 18) == 0 && ent->v.frame == 0)
-			{
-				pickupType = PICKTYPE_GETENTITY;
+			auto origin = GetEntityOrigin(ent);
+			if ((pev->origin - origin).GetLengthSquared() <= SquaredF(100.0f))
 				MDLL_Use(ent, GetEntity());
+
+			m_lookAt = origin;
+			pickupType = PICKTYPE_GETENTITY;
+			m_canChooseAimDirection = false;
+			m_moveToGoal = false;
+			m_checkTerrain = false;
+			m_moveSpeed = pev->maxspeed;
+			m_moveSpeedForRunMove = m_moveSpeed;
+			m_strafeSpeed = 0.0f;
+			m_aimStopTime = 0.0f;
+		}
+		else if (pev->armorvalue < 100 && strncmp("item_battery", STRING(ent->v.classname), 12) == 0)
+			pickupType = PICKTYPE_GETENTITY;
+		else if (pev->armorvalue < 100 && strncmp("func_recharge", STRING(ent->v.classname), 13) == 0 && ent->v.frame == 0)
+		{
+			auto origin = GetEntityOrigin(ent);
+			if ((pev->origin - origin).GetLengthSquared() <= SquaredF(100.0f))
+				MDLL_Use(ent, GetEntity());
+
+			m_lookAt = origin;
+			pickupType = PICKTYPE_GETENTITY;
+			m_canChooseAimDirection = false;
+			m_moveToGoal = false;
+			m_checkTerrain = false;
+			m_moveSpeed = pev->maxspeed;
+			m_moveSpeedForRunMove = m_moveSpeed;
+			m_strafeSpeed = 0.0f;
+			m_aimStopTime = 0.0f;
+		}
+		else if (g_gameVersion == HALFLIFE)
+		{
+			if (m_currentWeapon != WEAPON_SNARK && strncmp("monster_snark", STRING(ent->v.classname), 13) == 0)
+			{
+				SetEnemy(ent);
+				SetLastEnemy(ent);
 				m_canChooseAimDirection = false;
-				m_lookAt = GetEntityOrigin(ent);
 				m_moveToGoal = false;
 				m_checkTerrain = false;
-				m_moveSpeed = pev->maxspeed;
-				m_moveSpeedForRunMove = m_moveSpeed;
-				m_strafeSpeed = 0.0f;
-			}
-			else if (pev->armorvalue < 100 && strncmp("item_battery", STRING(ent->v.classname), 12) == 0)
-				pickupType = PICKTYPE_GETENTITY;
-			else if (pev->armorvalue < 100 && strncmp("func_recharge", STRING(ent->v.classname), 13) == 0 && ent->v.frame == 0)
-			{
-				pickupType = PICKTYPE_GETENTITY;
-				MDLL_Use(ent, GetEntity());
-				m_canChooseAimDirection = false;
 				m_lookAt = GetEntityOrigin(ent);
-				m_moveToGoal = false;
-				m_checkTerrain = false;
-				m_moveSpeed = pev->maxspeed;
+				m_moveSpeed = -pev->maxspeed;
 				m_moveSpeedForRunMove = m_moveSpeed;
 				m_strafeSpeed = 0.0f;
+				m_aimStopTime = 0.0f;
+
+				if (!(pev->oldbuttons & IN_ATTACK))
+					pev->button |= IN_ATTACK;
 			}
-			else if (strncmp("monster_snark", STRING(ent->v.classname), 13) == 0)
-				pickupType = PICKTYPE_GETENTITY;
 			else if (strncmp("weapon_", STRING(ent->v.classname), 7) == 0)
 				pickupType = PICKTYPE_GETENTITY;
 			else if (strncmp("ammo_", STRING(ent->v.classname), 5) == 0)
@@ -1997,8 +2019,8 @@ void Bot::SetConditions(void)
 		// FIXME: it probably should be also team/map dependant
 		if (FNullEnt(m_enemy) && (g_timeRoundMid < engine->GetTime()) && !m_isUsingGrenade && m_personality != PERSONALITY_CAREFUL && m_currentWaypointIndex != g_waypoint->FindNearest(m_lastEnemyOrigin))
 		{
-			desireLevel = 4096.0f - ((1.0f - tempAgression) * sqrtf(distance));
-			desireLevel = Divide((100 * desireLevel), 4096.0f);
+			desireLevel = 4096.0f - ((1.0f - tempAgression) * Q_rsqrt(distance));
+			desireLevel = (100 * desireLevel) / 4096.0f;
 			desireLevel -= retreatLevel;
 
 			if (desireLevel > 89)
@@ -3933,12 +3955,8 @@ void Bot::Think(void)
 	if (botMovement && m_isAlive)
 	{
 		BotAI();
-
 		MoveAction();
 		DebugModeMsg();
-
-		if (!FNullEnt(m_enemy))
-			m_seeEnemyTime = engine->GetTime();
 	}
 }
 
@@ -3991,7 +4009,10 @@ void Bot::CalculatePing(void)
 
 	for (const auto& client : g_clients)
 	{
-		if (!IsValidPlayer(client.ent))
+		if (client.index < 0)
+			continue;
+
+		if (IsValidBot(client.ent))
 			continue;
 
 		numHumans++;
@@ -6631,7 +6652,7 @@ void Bot::BotAI(void)
 	if (IsOnLadder() || flag & WAYPOINT_LADDER || flag & WAYPOINT_FALLRISK || flag & WAYPOINT_JUMP)
 		directionOld = m_destOrigin - pev->origin;
 	else
-		directionOld = m_destOrigin - (pev->origin + pev->velocity * m_frameInterval);
+		directionOld = (m_destOrigin + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval);
 
 	Vector directionNormal = directionOld.Normalize();
 	Vector direction = directionNormal;
@@ -7288,8 +7309,8 @@ Vector Bot::CheckToss(const Vector& start, Vector end)
 		return nullvec;
 
 	const float half = 0.5f * gravity;
-	float timeOne = sqrtf(Divide((midPoint.z - start.z), half));
-	float timeTwo = sqrtf(Divide((midPoint.z - end.z), half));
+	float timeOne = Q_rsqrt((midPoint.z - start.z) / half);
+	float timeTwo = Q_rsqrt((midPoint.z - end.z) / half);
 
 	if (timeOne < 0.1)
 		return nullvec;
@@ -7325,14 +7346,14 @@ Vector Bot::CheckThrow(const Vector& start, Vector end)
 	TraceResult tr;
 
 	float gravity = engine->GetGravity() * 0.55f;
-	float time = Divide(nadeVelocity.GetLengthSquared(), SquaredF(195.0f));
+	float time = nadeVelocity.GetLengthSquared() / SquaredF(196.0f);
 
 	if (time < 0.01f)
 		return nullvec;
 	else if (time > 2.0f)
 		time = 1.2f;
 
-	nadeVelocity = nadeVelocity * Divide(1.0f, time);
+	nadeVelocity = nadeVelocity * (1.0f / time);
 	nadeVelocity.z += gravity * time * 0.5f;
 
 	Vector apex = start + (end - start) * 0.5f;
@@ -7367,7 +7388,7 @@ Vector Bot::CheckBombAudible(void)
 	if (m_skill > 90)
 		return bombOrigin;
 
-	float timeElapsed = (Divide((engine->GetTime() - g_timeBombPlanted), engine->GetC4TimerTime())) * 100.0f;
+	float timeElapsed = ((engine->GetTime() - g_timeBombPlanted) / engine->GetC4TimerTime()) * 100.0f;
 	float desiredRadius = 768.0f;
 
 	// start the manual calculations
@@ -7482,7 +7503,7 @@ float Bot::GetEstimatedReachTime(void)
 		const float distance = (g_waypoint->GetPath(m_prevWptIndex)->origin - g_waypoint->GetPath(m_currentWaypointIndex)->origin).GetLengthSquared();
 
 		// caclulate estimated time
-		estimatedTime = 5.0f * Divide(distance, SquaredF(pev->maxspeed));
+		estimatedTime = 5.0f * (distance / SquaredF(pev->maxspeed));
 
 		// check for special waypoints, that can slowdown our movement
 		if ((g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_CROUCH) || (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_LADDER) || (pev->button & IN_DUCK))

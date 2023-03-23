@@ -413,12 +413,12 @@ bool Bot::DoWaypointNav(void)
 
 			// poor bots can't jump :(
 			if (pev->gravity >= 0.88f)
-				pev->velocity.z *= (0.1f + pev->gravity + m_frameInterval);
+				pev->velocity.z *= (0.11f + pev->gravity + m_frameInterval);
 		}
 		else
 		{
 			pev->button |= IN_JUMP;
-			pev->velocity = m_desiredVelocity + (m_desiredVelocity * 0.046f);
+			pev->velocity = m_desiredVelocity + (m_desiredVelocity * 0.0465f);
 		}
 
 		m_jumpFinished = true;
@@ -443,6 +443,18 @@ bool Bot::DoWaypointNav(void)
 		}
 	}
 
+	float desiredDistance = 9.0f + m_frameInterval;
+
+	// initialize the radius for a special waypoint type, where the wpt is considered to be reached
+	if (currentWaypoint->flags & WAYPOINT_JUMP || m_currentTravelFlags & PATHFLAG_JUMP)
+		desiredDistance = 9.0f + m_frameInterval;
+	else if (currentWaypoint->flags & WAYPOINT_LIFT)
+		desiredDistance = 48.0f;
+	else if (currentWaypoint->flags & WAYPOINT_LADDER)
+		desiredDistance = 24.0f;
+	else if (currentWaypoint->radius > 9.0f)
+		desiredDistance = currentWaypoint->radius;
+
 	float waypointDistance = 0.0f;
 
 	if (IsOnLadder() || currentWaypoint->flags & WAYPOINT_LADDER)
@@ -452,37 +464,17 @@ bool Bot::DoWaypointNav(void)
 	else if (currentWaypoint->flags & WAYPOINT_FALLRISK || currentWaypoint->flags & WAYPOINT_JUMP || m_currentTravelFlags & PATHFLAG_JUMP)
 		waypointDistance = ((pev->origin + pev->velocity * -m_frameInterval) - m_waypointOrigin).GetLengthSquared();
 	else
-		waypointDistance = ((pev->origin + pev->velocity * m_frameInterval) - m_waypointOrigin).GetLengthSquared2D();
-	
-	float desiredDistance = 8.0f;
-
-	// initialize the radius for a special waypoint type, where the wpt is considered to be reached
-	if (currentWaypoint->flags & WAYPOINT_JUMP || m_currentTravelFlags & PATHFLAG_JUMP)
-		desiredDistance = 12.0f;
-	else if (currentWaypoint->flags & WAYPOINT_LIFT)
-		desiredDistance = 48.0f;
-	else if (pev->flags & FL_DUCKING)
-	{
-		if (currentWaypoint->radius > 12.0f)
-			desiredDistance += currentWaypoint->radius;
-		else
-			desiredDistance = 12.0f;
-	}
-	else if (currentWaypoint->flags & WAYPOINT_LADDER)
-		desiredDistance = 24.0f;
-	else if (currentWaypoint->radius > 12.0f)
-		desiredDistance += currentWaypoint->radius;
+		waypointDistance = ((pev->origin + pev->velocity * m_frameInterval) - (m_waypointOrigin + pev->velocity * -m_frameInterval)).GetLengthSquared2D();
 
 	if (!IsOnLadder() && !(currentWaypoint->flags & WAYPOINT_LADDER) && !(currentWaypoint->flags & WAYPOINT_FALLRISK))
 	{
-		// tweak for distance
-		desiredDistance += ((pev->maxspeed + fabsf(pev->speed)) - desiredDistance) * m_frameInterval;
-
 		if (!FNullEnt(m_avoid))
 			desiredDistance *= 2.0f;
+		else
+			desiredDistance += SquaredF(MaxFloat(fabsf(pev->speed), 18.0f)) * m_frameInterval;
 	}
 
-	if (waypointDistance <= SquaredF(desiredDistance))
+	if (waypointDistance < SquaredF(desiredDistance))
 	{
 		// did we reach a destination waypoint?
 		if (GetCurrentTask()->data == m_currentWaypointIndex)
@@ -765,7 +757,7 @@ inline const float GF_CostCareful(const int index, const int parent, const int t
 			if (count <= 1)
 				return 65355.0f;
 			else
-				baseCost = Divide(baseCost, count);
+				baseCost /= count;
 		}
 	}
 
@@ -852,7 +844,7 @@ inline const float GF_CostNormal(const int index, const int parent, const int te
 			if (count <= 1)
 				return 65355.0f;
 			else
-				baseCost = Divide(baseCost, count);
+				baseCost /= count;
 		}
 	}
 	
@@ -1194,7 +1186,7 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 
 	// put start node into open list
 	const auto srcWaypoint = &waypoints[srcIndex];
-	srcWaypoint->f = HF_Distance(srcIndex, destIndex);
+	srcWaypoint->f = HF_Cheby(srcIndex, destIndex);
 	srcWaypoint->state = State::Open;
 
 	PriorityQueue openList;
@@ -1264,8 +1256,7 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 					continue;
 			}
 
-			const float f = HF_Distance(self, destIndex);
-
+			const float f = HF_Cheby(self, destIndex);
 			const auto childWaypoint = &waypoints[self];
 			if (childWaypoint->state == State::New || childWaypoint->f > f)
 			{
@@ -2714,8 +2705,8 @@ void Bot::FacePosition(void)
 
 	m_idealAngles = pev->v_angle;
 
-	float angleDiffPitch = engine->AngleDiff(direction.x, m_idealAngles.x);
-	float angleDiffYaw = engine->AngleDiff(direction.y, m_idealAngles.y);
+	float angleDiffPitch = AngleNormalize(direction.x - m_idealAngles.x);
+	float angleDiffYaw = AngleNormalize(direction.y - m_idealAngles.y);
 
 	float lockn = 1.0f;
 	if (IsZombieMode() && !m_isZombieBot && (m_isEnemyReachable || ebot_aim_boost_in_zm.GetBool()))

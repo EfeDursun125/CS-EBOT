@@ -109,76 +109,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 
 	// set entity action with command
 	else if (stricmp(arg0, "setentityaction") == 0)
-	{
-		int index = atoi(arg1);
-		int team = atoi(arg2);
-		int action = atoi(arg3);
-
-		int i;
-		if (index == -1)
-		{
-			for (i = 0; i < entityNum; i++)
-				SetEntityActionData(i);
-
-			ServerPrintNoTag("[E-Bot] Set Entity Action - Delete All - Done");
-			return 1;
-		}
-
-		edict_t* entity = INDEXENT(index);
-		if (FNullEnt(entity) || !IsAlive(entity))
-		{
-			ServerPrintNoTag("[E-Bot] Set Entity Action - Entity is NULL or not alive - Done");
-			return -1;
-		}
-
-		if (IsValidPlayer(entity))
-		{
-			ServerPrintNoTag("[E-Bot] Set Entity Action - Cannot set the player - Done");
-			return -1;
-		}
-
-		for (i = 0; i < entityNum; i++)
-		{
-			if (g_entityId[i] == index)
-			{
-				if (action != -1)
-				{
-					if (team != g_entityTeam[i] || action != g_entityAction[i])
-					{
-						SetEntityActionData(i, index, team, action);
-						ServerPrintNoTag("[E-Bot] Set Entity Action - Change ID: %d Team: %d Action: %d - Done", index, team, action);
-					}
-					else
-						ServerPrintNoTag("[E-Bot] Set Entity Action - Don't Need Change ID: %d - Not Change - Done", index);
-				}
-				else
-				{
-					SetEntityActionData(i);
-					ServerPrintNoTag("[E-Bot] Set Entity Action - Delete ID: %d - Done", index);
-				}
-
-				return 1;
-			}
-		}
-
-		if (action == -1)
-		{
-			ServerPrintNoTag("[E-Bot] Set Entity Action - Cannot Delete ID: %d - Not Find - Done", index);
-			return -1;
-		}
-
-		for (i = 0; i < entityNum; i++)
-		{
-			if (g_entityId[i] == -1)
-			{
-				SetEntityActionData(i, index, team, action);
-				return 1;
-			}
-		}
-
-		ServerPrintNoTag("[E-Bot] Cannot Add Entity Action - Unknow Error - Done");
-		return -1;
-	}
+		SetEntityAction(atoi(arg1), atoi(arg2), atoi(arg3));
 
 	// swap counter-terrorist and terrorist teams
 	else if (stricmp(arg0, "swaptteams") == 0 || stricmp(arg0, "swap") == 0)
@@ -748,16 +679,10 @@ void CheckEntityAction(void)
 			sprintf(action, "Need Avoid");
 		else if (g_entityAction[i] == 3)
 			sprintf(action, "Pick Up");
-		sprintf(team,
-			(g_entityTeam[i] == TEAM_COUNTER) ? "CT" : (g_entityTeam[i] == TEAM_TERRORIST) ? "TR" : "Team-%d",
-			g_entityTeam[i]);
+		sprintf(team, (g_entityTeam[i] == TEAM_COUNTER) ? "CT" : (g_entityTeam[i] == TEAM_TERRORIST) ? "TR" : "Team-%d", g_entityTeam[i]);
 
 		workEntityWork++;
-		ServerPrintNoTag("Entity Num: %d | Action: %d (%s) | Team: %d (%s) | Entity Name: %s",
-			workEntityWork,
-			g_entityAction[i], action,
-			g_entityTeam[i], team,
-			GetEntityName(entity));
+		ServerPrintNoTag("Entity Num: %d | Action: %d (%s) | Team: %d (%s) | Entity Name: %s", workEntityWork, g_entityAction[i], action, g_entityTeam[i], team, GetEntityName(entity));
 	}
 
 	ServerPrintNoTag("Total Entity Action Num: %d", workEntityWork);
@@ -3840,7 +3765,8 @@ DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* 
 		{ "cs13", "cs_i386.so", "mp.dll", "Counter-Strike v1.3", CSVER_VERYOLD }, // assume cs13 = cs15
 		{ "retrocs", "rcs_i386.so", "rcs.dll", "Retro Counter-Strike", CSVER_VERYOLD },
 		{ "valve", "hl.so", "hl.dll", "Half-Life", HALFLIFE },
-		{ "", "", "", "", 0 }
+		{ "gearbox", "opfor.so", "opfor.dll", "Half-Life: Opposing Force", HALFLIFE },
+		{ "", "", "", "", HALFLIFE }
 	};
 
 	// get the engine functions from the engine...

@@ -129,7 +129,7 @@ bool IsInViewCone(Vector origin, edict_t* ent)
 
 	MakeVectors(ent->v.v_angle);
 
-	if (((origin - (GetEntityOrigin(ent) + ent->v.view_ofs)).Normalize() | g_pGlobals->v_forward) >= cosf(((ent->v.fov > 0 ? ent->v.fov : 90.0f) * 0.5f) * Divide(Math::MATH_PI, 180.0f)))
+	if (((origin - (GetEntityOrigin(ent) + ent->v.view_ofs)).Normalize() | g_pGlobals->v_forward) >= cosf(((ent->v.fov > 0 ? ent->v.fov : 90.0f) * 0.5f) * (Math::MATH_PI * 0.00555555555f)))
 		return true;
 
 	return false;
@@ -419,6 +419,54 @@ void FreeLibraryMemory(void)
 {
 	g_botManager->Free();
 	g_waypoint->Initialize(); // frees waypoint data
+}
+
+bool SetEntityAction(int index, int team, int action)
+{
+	int i;
+	if (index == -1)
+	{
+		for (i = 0; i < entityNum; i++)
+			SetEntityActionData(i);
+		return 1;
+	}
+
+	edict_t* entity = INDEXENT(index);
+	if (FNullEnt(entity) || !IsAlive(entity))
+		return -1;
+
+	if (IsValidPlayer(entity))
+		return -1;
+
+	for (i = 0; i < entityNum; i++)
+	{
+		if (g_entityId[i] == index)
+		{
+			if (action != -1)
+			{
+				if (team != g_entityTeam[i] || action != g_entityAction[i])
+					SetEntityActionData(i, index, team, action);
+			}
+			else
+				SetEntityActionData(i);
+
+			return 1;
+		}
+	}
+
+	if (action == -1)
+		return -1;
+
+	for (i = 0; i < entityNum; i++)
+	{
+		if (g_entityId[i] == -1)
+		{
+			SetEntityActionData(i, index, team, action);
+			return 1;
+		}
+	}
+
+	return -1;
 }
 
 void SetEntityActionData(int i, int index, int team, int action)
@@ -811,15 +859,12 @@ void AutoLoadGameMode(void)
 				break;
 			}
 		}
-
-		goto lastly;
 	}
 
 	if (ebot_zp_delay_custom.GetFloat() > 0.0f)
 	{
 		SetGameMode(MODE_ZP);
 		g_DelayTimer = engine->GetTime() + ebot_zp_delay_custom.GetFloat();
-		goto lastly;
 	}
 	else
 	{
@@ -853,7 +898,6 @@ void AutoLoadGameMode(void)
 
 					SetGameMode(MODE_ZP);
 					g_DelayTimer = engine->GetTime() + delayTime;
-					goto lastly;
 				}
 			}
 		}
@@ -889,8 +933,6 @@ void AutoLoadGameMode(void)
 				SetGameMode(MODE_ZP);
 
 				g_DelayTimer = engine->GetTime() + delayTime;
-
-				goto lastly;
 			}
 		}
 	}
@@ -913,8 +955,6 @@ void AutoLoadGameMode(void)
 
 			SetGameMode(MODE_TDM);
 		}
-
-		goto lastly;
 	}
 
 	// Zombie Hell
@@ -928,8 +968,6 @@ void AutoLoadGameMode(void)
 
 		extern ConVar ebot_quota;
 		ebot_quota.SetInt(static_cast <int> (CVAR_GET_FLOAT("zh_zombie_maxslots")));
-
-		goto lastly;
 	}
 
 	// Biohazard
@@ -955,8 +993,6 @@ void AutoLoadGameMode(void)
 				SetGameMode(MODE_ZP);
 
 				g_DelayTimer = engine->GetTime() + delayTime;
-
-				goto lastly;
 			}
 		}
 	}
@@ -986,7 +1022,6 @@ void AutoLoadGameMode(void)
 			ServerPrint("*** E-BOT Auto Game Mode Setting: N/A ***");
 	}
 
-lastly:
 	if (GetGameMode() != MODE_BASE)
 		g_mapType |= MAP_DE;
 }
@@ -1047,14 +1082,23 @@ int GetGameMode(void)
 	return ebot_gamemod.GetInt();
 }
 
-float Divide(float number, float number2)
+float Q_rsqrt(float number)
 {
-	return _mm_cvtss_f32(_mm_div_ps(_mm_load_ss(&number), _mm_load_ss(&number2)));
+	long i;
+	float x2, y;
+	const float threehalfs = 1.5f;
+	x2 = number * 0.5f;
+	y = number;
+	i = *(long*)&y;
+	i = 0x5f3759df - (i >> 1);
+	y = *(float*)&i;
+	y = y * (threehalfs - (x2 * y * y));
+	return y * number;
 }
 
 float Clamp(float a, float b, float c)
 {
-	return engine->DoClamp(a, b, c);
+	return (a > c ? c : (a < b ? b : a));
 }
 
 float SquaredF(float a)
@@ -1069,21 +1113,17 @@ float AddTime(float a)
 
 float MaxFloat(float a, float b)
 {
-	if (a > b)
-		return a;
-	else if (b > a)
-		return b;
-
-	return b;
+	return a > b ? a : b;
 }
 
 float MinFloat(float a, float b)
 {
-	if (a < b)
-		return a;
-	else if (b < a)
-		return b;
-	return b;
+	return a < b ? a : b;
+}
+
+int MinInt(int a, int b)
+{
+	return a < b ? a : b;
 }
 
 bool IsBreakable(edict_t* ent)
@@ -1152,9 +1192,6 @@ int GetTeam(edict_t* ent)
 
 int SetEntityWaypoint(edict_t* ent, int mode)
 {
-	if (FNullEnt(ent))
-		return -1;
-
 	Vector origin = GetEntityOrigin(ent);
 	if (origin == nullvec)
 		return -1;
@@ -1218,8 +1255,7 @@ int SetEntityWaypoint(edict_t* ent, int mode)
 					needCheckNewWaypoint = true;
 				else
 				{
-					if (traceCheckTime + 5.0f <= engine->GetTime() ||
-						(traceCheckTime + 2.5f <= engine->GetTime() && !g_waypoint->Reachable(ent, wpIndex)))
+					if (traceCheckTime + 5.0f <= engine->GetTime() || (traceCheckTime + 2.5f <= engine->GetTime() && !g_waypoint->Reachable(ent, wpIndex)))
 						needCheckNewWaypoint = true;
 				}
 			}
@@ -1332,7 +1368,7 @@ bool IsValidBot(edict_t* ent)
 // return true if server is dedicated server, false otherwise
 bool IsDedicatedServer(void)
 {
-	return (IS_DEDICATED_SERVER() > 0); // ask engine for this
+	return (IS_DEDICATED_SERVER() > 0); // ask to engine for this
 }
 
 // this function tests if a file exists by attempting to open it
@@ -1345,6 +1381,7 @@ bool TryFileOpen(char* fileName)
 		fp.Close();
 		return true;
 	}
+
 	return false;
 }
 
