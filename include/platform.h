@@ -88,7 +88,7 @@ typedef void (*EntityPtr_t) (entvars_t*);
 #include <errno.h>
 #include <sys/stat.h>
 
-#define stricmp strcmp
+#define stricmp strcasecmp
 
 #define DLL_ENTRYPOINT void _fini (void)
 #define DLL_DETACHING TRUE

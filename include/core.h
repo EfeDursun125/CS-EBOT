@@ -819,6 +819,7 @@ private:
 
 	float m_frameInterval; // bot's frame interval
 	float m_lastThinkTime; // time bot last thinked
+	float m_aimInterval; // bot's aim interval
 
 	float m_reloadCheckTime; // time to check reloading
 	float m_zoomCheckTime; // time to check zoom again

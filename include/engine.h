@@ -1989,12 +1989,11 @@ struct edict_s
 #undef DLLEXPORT
 #ifdef _WIN32
 #define DLLEXPORT   __declspec(dllexport)
+#define C_DLLEXPORT      extern "C" DLLEXPORT
 #elif defined(linux)
 #define DLLEXPORT               /* */
 #define WINAPI                  /* */
 #endif
-
-#define C_DLLEXPORT      extern "C" DLLEXPORT
 
 #define META_INTERFACE_VERSION "5:13"
 
@@ -2613,13 +2612,12 @@ unsigned short FixedUnsigned16(float value, float scale);
 #elif defined(linux)
 #define DLLEXPORT               /* */
 #define WINAPI                  /* */
-#endif /* linux */
+#endif
 
 #define C_DLLEXPORT      extern "C" DLLEXPORT
 
 #include "stdarg.h"
 #include "runtime.h"
-
 
 #undef GetObject
 
