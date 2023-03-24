@@ -645,10 +645,6 @@ edict_t* Bot::FindButton(void)
 	// find the nearest button which can open our target
 	while (!FNullEnt(searchEntity = FIND_ENTITY_IN_SPHERE(searchEntity, pev->origin, 512.0f)))
 	{
-		// we cant see
-		if (searchEntity->v.effects & EF_NODRAW)
-			continue;
-
 		if (strncmp("func_button", STRING(searchEntity->v.classname), 11) == 0 || strncmp("func_rot_button", STRING(searchEntity->v.classname), 15) == 0)
 		{
 			float distance = (pev->origin - GetEntityOrigin(searchEntity)).GetLengthSquared();
@@ -2673,9 +2669,6 @@ bool Bot::IsOnAttackDistance(edict_t* targetEntity, float distance)
 
 bool Bot::ReactOnEnemy(void)
 {
-	if (FNullEnt(m_enemy))
-		return m_isEnemyReachable;
-
 	// NO!
 	if (IsOnLadder())
 	{
@@ -2752,16 +2745,26 @@ bool Bot::ReactOnEnemy(void)
 					goto last;
 				}
 
-				const Vector enemyHead = GetPlayerHeadOrigin(m_enemy);
+				const bool noEnemy = FNullEnt(m_enemy);
+
+				static Vector enemyVel;
+				static float enemySpeed;
+				if (!noEnemy)
+				{
+					enemyVel = m_enemy->v.velocity;
+					enemySpeed = fabsf(m_enemy->v.speed);
+				}
+
+				const Vector enemyHead = noEnemy ? m_enemyOrigin : GetPlayerHeadOrigin(m_enemy);
 				const Vector myVec = pev->origin + pev->velocity * m_frameInterval;
 
 				extern ConVar ebot_zombie_speed_factor;
-				const float enemyDistance = (myVec - (enemyHead + m_enemy->v.velocity * ebot_zombie_speed_factor.GetFloat())).GetLengthSquared();
+				const float enemyDistance = (myVec - (enemyHead + enemyVel * ebot_zombie_speed_factor.GetFloat())).GetLengthSquared();
 
 				extern ConVar ebot_zp_escape_distance;
-				const float escapeDist = SquaredF(fabsf(m_enemy->v.speed) + ebot_zp_escape_distance.GetFloat());
+				const float escapeDist =  SquaredF(enemySpeed + ebot_zp_escape_distance.GetFloat());
 
-				if (pev->flags & FL_DUCKING && m_enemy->v.flags & FL_DUCKING) // danger...
+				if (pev->flags & FL_DUCKING && !noEnemy && m_enemy->v.flags & FL_DUCKING) // danger...
 				{
 					if (enemyDistance < escapeDist)
 					{
@@ -2777,20 +2780,30 @@ bool Bot::ReactOnEnemy(void)
 						m_isEnemyReachable = true;
 					else
 					{
-						if (enemyDistance < escapeDist)
+						if (enemyDistance <= escapeDist)
 						{
 							for (int j = 0; j < Const_MaxPathIndex; j++)
+							{
+								const auto enemyWaypoint = g_waypoint->GetPath(enemyIndex);
+								if (enemyWaypoint->index[j] != -1 && enemyWaypoint->index[j] == ownIndex && !(enemyWaypoint->connectionFlags[j] & PATHFLAG_JUMP))
+								{
+									m_isEnemyReachable = true;
+									break;
+								}
+							}
+
+							if (!m_isEnemyReachable)
 							{
 								const Vector origin = GetBottomOrigin(GetEntity());
 
 								TraceResult tr;
-								TraceLine(Vector(origin.x, origin.y, (origin.z + (pev->flags & FL_DUCKING) ? 4.0f : 10.0f)), enemyHead, true, true, GetEntity(), &tr);
+								TraceLine(Vector(origin.x, origin.y, (origin.z + (pev->flags & FL_DUCKING) ? 5.0f : 10.0f)), enemyHead, true, true, GetEntity(), &tr);
 
 								const auto enemyWaypoint = g_waypoint->GetPath(enemyIndex);
-								if (tr.flFraction == 1.0f && enemyWaypoint->index[j] == ownIndex && !(enemyWaypoint->connectionFlags[j] & PATHFLAG_JUMP))
+								if (tr.flFraction == 1.0f)
 								{
 									m_isEnemyReachable = true;
-									break;
+									goto last;
 								}
 							}
 						}
@@ -2798,14 +2811,14 @@ bool Bot::ReactOnEnemy(void)
 
 					goto last;
 				}
-				else if (enemyDistance < escapeDist)// human improve
+				else if (enemyDistance <= escapeDist)// human improve
 				{
 					if (m_currentTravelFlags & PATHFLAG_JUMP || currentWaypoint->flags & WAYPOINT_FALLRISK || currentWaypoint->flags & WAYPOINT_JUMP || (pev->flags & FL_DUCKING && currentWaypoint->flags & WAYPOINT_CROUCH))
 					{
 						const Vector origin = GetBottomOrigin(GetEntity());
 
 						TraceResult tr;
-						TraceLine(Vector(origin.x, origin.y, (origin.z + (pev->flags & FL_DUCKING) ? 4.0f : 10.0f)), enemyHead, true, false, GetEntity(), &tr);
+						TraceLine(Vector(origin.x, origin.y, (origin.z + (pev->flags & FL_DUCKING) ? 6.0f : 12.0f)), enemyHead, true, false, GetEntity(), &tr);
 
 						if (tr.flFraction == 1.0f)
 							m_isEnemyReachable = true;
@@ -5334,7 +5347,7 @@ void Bot::RunTask(void)
 			bool needMoveToTarget = false;
 			if (!GoalIsValid())
 				needMoveToTarget = true;
-			else if (GetCurrentTask()->data != destIndex)
+			else if (m_personality != PERSONALITY_CAREFUL && GetCurrentTask()->data != destIndex)
 			{
 				needMoveToTarget = true;
 				if (&m_navNode[0] != nullptr)
@@ -5349,7 +5362,7 @@ void Bot::RunTask(void)
 				}
 			}
 
-			if (needMoveToTarget && (!(pev->flags & FL_DUCKING) || m_damageTime + 1.0f < engine->GetTime() || !HasNextPath()))
+			if (needMoveToTarget && (!(pev->flags & FL_DUCKING) || m_damageTime + 0.5f < engine->GetTime() || !HasNextPath()))
 			{
 				DeleteSearchNodes();
 				m_prevGoalIndex = destIndex;
@@ -6741,11 +6754,12 @@ void Bot::BotAI(void)
 		if (!FNullEnt(m_avoid) && m_isStuck && IsValidWaypoint(m_currentWaypointIndex) && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_ONLYONE)
 			FindPath(m_currentWaypointIndex, FindWaypoint(false));
 
-		if ((m_moveSpeed <= -10 || m_moveSpeed >= 10 || m_strafeSpeed >= 10 || m_strafeSpeed <= -10) && m_lastCollTime < engine->GetTime())
+		float minSpeed = pev->flags & FL_DUCKING ? 4.0f : 10.0f;
+		if ((m_moveSpeed < -minSpeed || m_moveSpeed > minSpeed || m_strafeSpeed > minSpeed || m_strafeSpeed < -minSpeed) && m_lastCollTime < engine->GetTime())
 		{
 			if (m_damageTime >= engine->GetTime())
 			{
-				m_lastCollTime = m_damageTime + 1.0f;
+				m_lastCollTime = m_damageTime + 0.5f;
 				m_firstCollideTime = 0.0f;
 				m_isStuck = false;
 			}
@@ -6779,7 +6793,7 @@ void Bot::BotAI(void)
 		if (!m_isStuck) // not stuck?
 		{
 			// boosting improve
-			if (m_isZombieBot && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_DJUMP && IsOnFloor() && ((pev->origin - g_waypoint->GetPath(m_currentWaypointIndex)->origin).GetLength() <= 50.0f))
+			if (m_isZombieBot && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_DJUMP && IsOnFloor() && ((pev->origin - g_waypoint->GetPath(m_currentWaypointIndex)->origin).GetLengthSquared() <= SquaredF(50.0f)))
 				pev->button |= IN_DUCK;
 			else
 			{
@@ -7673,6 +7687,10 @@ void Bot::ReactOnSound(void)
 		return;
 
 	edict_t* player = nullptr;
+
+	// focus to nearest sound
+	float maxdist = FLT_MAX;
+
 	// loop through all enemy clients to check for hearable stuff
 	for (const auto& client : g_clients)
 	{
@@ -7691,8 +7709,6 @@ void Bot::ReactOnSound(void)
 		if (distance > SquaredF(hearingDistance) || hearingDistance >= 2048.0f || distance > SquaredF(m_maxhearrange))
 			continue;
 		
-		// focus to nearest sound.
-		float maxdist = FLT_MAX;
 		if (distance < maxdist)
 		{
 			player = client.ent;
@@ -7710,7 +7726,12 @@ void Bot::ReactOnSound(void)
 		m_heardSoundTime = engine->GetTime();
 		m_states |= STATE_HEARENEMY;
 
-		m_lookAt = GetEntityOrigin(player);
+		if (m_aimFlags & AIM_NAVPOINT)
+		{
+			m_aimStopTime = 0.0f;
+			m_canChooseAimDirection = false;
+			m_lookAt = GetEntityOrigin(player);
+		}
 
 		if (m_team != GetTeam(player) || GetGameMode() == MODE_DM)
 		{

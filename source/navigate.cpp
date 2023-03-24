@@ -443,11 +443,11 @@ bool Bot::DoWaypointNav(void)
 		}
 	}
 
-	float desiredDistance = 9.0f + m_frameInterval;
+	float desiredDistance = 9.0f;
 
 	// initialize the radius for a special waypoint type, where the wpt is considered to be reached
 	if (currentWaypoint->flags & WAYPOINT_JUMP || m_currentTravelFlags & PATHFLAG_JUMP)
-		desiredDistance = 9.0f + m_frameInterval;
+		desiredDistance = 9.0f;
 	else if (currentWaypoint->flags & WAYPOINT_LIFT)
 		desiredDistance = 48.0f;
 	else if (currentWaypoint->flags & WAYPOINT_LADDER)
@@ -455,10 +455,14 @@ bool Bot::DoWaypointNav(void)
 	else if (currentWaypoint->radius > 9.0f)
 		desiredDistance = currentWaypoint->radius;
 
+	desiredDistance += m_frameInterval + g_pGlobals->frametime;
+
 	float waypointDistance = 0.0f;
 
-	if (IsOnLadder() || currentWaypoint->flags & WAYPOINT_LADDER)
-		waypointDistance = ((pev->origin + pev->velocity * -m_frameInterval) - m_waypointOrigin).GetLengthSquared();
+	if (pev->flags & FL_DUCKING || currentWaypoint->flags & WAYPOINT_CROUCH)
+		waypointDistance = (pev->origin - m_waypointOrigin).GetLengthSquared();
+	else if (IsOnLadder() || currentWaypoint->flags & WAYPOINT_LADDER)
+		waypointDistance = ((pev->origin + pev->velocity * m_frameInterval) - m_waypointOrigin).GetLengthSquared();
 	else if (!IsOnFloor() && !IsInWater())
 		waypointDistance = ((pev->origin + pev->velocity * -m_frameInterval) - m_waypointOrigin).GetLengthSquared();
 	else if (currentWaypoint->flags & WAYPOINT_FALLRISK || currentWaypoint->flags & WAYPOINT_JUMP || m_currentTravelFlags & PATHFLAG_JUMP)
@@ -468,10 +472,10 @@ bool Bot::DoWaypointNav(void)
 
 	if (!IsOnLadder() && !(currentWaypoint->flags & WAYPOINT_LADDER) && !(currentWaypoint->flags & WAYPOINT_FALLRISK))
 	{
-		if (!FNullEnt(m_avoid))
+		if (!(currentWaypoint->flags & WAYPOINT_JUMP) && !FNullEnt(m_avoid))
 			desiredDistance *= 2.0f;
-		else
-			desiredDistance += SquaredF(MaxFloat(fabsf(pev->speed), 18.0f)) * m_frameInterval;
+		else if (desiredDistance < 64.0f)
+			desiredDistance += SquaredF(MaxFloat(fabsf(pev->speed - desiredDistance), 18.0f)) * m_frameInterval;
 	}
 
 	if (waypointDistance < SquaredF(desiredDistance))
@@ -2642,17 +2646,16 @@ void Bot::FacePosition(void)
 			m_lookAt.y += enemyVel.y * g_pGlobals->frametime;
 			m_lookAt.z += enemyVel.z * g_pGlobals->frametime;
 		}
-	}
 
-	auto taskID = GetCurrentTask()->taskID;
-	if (m_aimFlags & AIM_ENEMY && m_aimFlags & AIM_ENTITY && m_aimFlags & AIM_GRENADE && m_aimFlags & AIM_LASTENEMY || taskID == TASK_DESTROYBREAKABLE)
-	{
 		m_playerTargetTime = engine->GetTime();
 
 		// force press attack button for human bots in zombie mode
-		if (IsZombieMode() && !m_isReloading && !m_isSlowThink && !(pev->button & IN_ATTACK) && taskID != TASK_THROWFBGRENADE && taskID != TASK_THROWHEGRENADE && taskID != TASK_THROWSMGRENADE && taskID != TASK_THROWFLARE)
+		if (IsZombieMode() && !m_isReloading && !m_isSlowThink && !(pev->button & IN_ATTACK) && !(pev->oldbuttons & IN_ATTACK))
 			pev->button |= IN_ATTACK;
 	}
+
+	const float delta = engine->GetTime() - m_aimInterval;
+	m_aimInterval = engine->GetTime();
 
 	if (ebot_aimbot.GetInt() == 1 && pev->button & IN_ATTACK)
 	{
@@ -2668,7 +2671,7 @@ void Bot::FacePosition(void)
 		Vector direction = (m_lookAt - EyePosition()).ToAngles() + pev->punchangle;
 		direction.x = -direction.x; // invert for engine
 
-		float aimSpeed = ((m_skill * 0.054f) + 11.0f) * g_pGlobals->frametime;
+		float aimSpeed = ((m_skill * 0.054f) + 11.0f) * delta;
 
 		m_idealAngles.x += AngleNormalize(direction.x - m_idealAngles.x) * aimSpeed;
 		m_idealAngles.y += AngleNormalize(direction.y - m_idealAngles.y) * aimSpeed;
@@ -2708,37 +2711,33 @@ void Bot::FacePosition(void)
 	float angleDiffPitch = AngleNormalize(direction.x - m_idealAngles.x);
 	float angleDiffYaw = AngleNormalize(direction.y - m_idealAngles.y);
 
-	float lockn = 1.0f;
+	float lockn = m_frameInterval * 20.0f;
 	if (IsZombieMode() && !m_isZombieBot && (m_isEnemyReachable || ebot_aim_boost_in_zm.GetBool()))
 	{
 		accelerate *= 2.0f;
 		stiffness *= 2.0f;
 		damping *= 2.0f;
-		lockn = 10.0f;
+		lockn *= 2.0f;
 	}
 
 	if (angleDiffYaw <= lockn && angleDiffYaw >= -lockn)
 	{
 		m_lookYawVel = 0.0f;
-
-		// help bot for 100% weapon accurate
-		if (IsZombieMode() || m_numFriendsLeft == 0 || m_isLeader || m_isVIP || GetCurrentTask()->taskID == TASK_CAMP || (m_isSlowThink && ChanceOf(int((float(m_skill) * 0.2f) + 1))))
-			m_idealAngles.y = direction.y;
-
+		m_idealAngles.y = direction.y;
 		m_aimStopTime = AddTime(engine->RandomFloat(0.25f, 1.25f));
 	}
 	else
 	{
 		float accel = Clamp((stiffness * angleDiffYaw) - (damping * m_lookYawVel), -accelerate, accelerate);
 
-		m_lookYawVel += g_pGlobals->frametime * accel;
-		m_idealAngles.y += g_pGlobals->frametime * m_lookYawVel;
+		m_lookYawVel += delta * accel;
+		m_idealAngles.y += delta * m_lookYawVel;
 	}
 
 	float accel = Clamp(2.0f * stiffness * angleDiffPitch - (damping * m_lookPitchVel), -accelerate, accelerate);
 
-	m_lookPitchVel += g_pGlobals->frametime * accel;
-	m_idealAngles.x += g_pGlobals->frametime * m_lookPitchVel;
+	m_lookPitchVel += delta * accel;
+	m_idealAngles.x += delta * m_lookPitchVel;
 
 	if (m_idealAngles.x < -89.0f)
 		m_idealAngles.x = -89.0f;

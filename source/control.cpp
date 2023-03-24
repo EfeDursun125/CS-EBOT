@@ -1020,6 +1020,7 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 
 	m_lastThinkTime = engine->GetTime();
 	m_frameInterval = engine->GetTime();
+	m_aimInterval = engine->GetTime();
 
 	switch (personality)
 	{

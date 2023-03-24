@@ -1126,9 +1126,13 @@ void Bot::CombatFight(void)
 
 		bool NPCEnemy = false;
 		bool enemyIsZombie = true;
+		bool noEnemy = FNullEnt(m_enemy);
 
-		if (!FNullEnt(m_enemy))
+		static Vector enemyVel;
+
+		if (!noEnemy)
 		{
+			enemyVel = m_enemy->v.velocity;
 			NPCEnemy = !IsValidPlayer(m_enemy);
 			enemyIsZombie = IsZombieEntity(m_enemy);
 			SetLastEnemy(m_enemy);
@@ -1145,10 +1149,9 @@ void Bot::CombatFight(void)
 					baseDistance = -1.0f;
 			}
 
-			const Vector speedFactor = FNullEnt(m_enemy) ? m_enemyOrigin : m_enemyOrigin + m_enemy->v.velocity * ebot_zombie_speed_factor.GetFloat();
-
+			const Vector speedFactor = m_enemyOrigin + enemyVel * ebot_zombie_speed_factor.GetFloat();
 			const float distance = (myVec - speedFactor).GetLengthSquared();
-			if (m_isSlowThink && !FNullEnt(m_enemy) && distance <= SquaredF(768.0f) && m_enemy->v.health > 100 && ChanceOf(ebot_zp_use_grenade_percent.GetInt()) && m_enemy->v.velocity.GetLengthSquared() > SquaredF(10.0f))
+			if (m_isSlowThink && !noEnemy && distance <= SquaredF(768.0f) && m_enemy->v.health > 100 && ChanceOf(ebot_zp_use_grenade_percent.GetInt()) && m_enemy->v.velocity.GetLengthSquared() > SquaredF(10.0f))
 			{
 				if (m_skill >= 50)
 				{
