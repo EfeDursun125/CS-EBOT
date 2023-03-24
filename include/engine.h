@@ -1989,11 +1989,12 @@ struct edict_s
 #undef DLLEXPORT
 #ifdef _WIN32
 #define DLLEXPORT   __declspec(dllexport)
-#define C_DLLEXPORT      extern "C" DLLEXPORT
 #elif defined(linux)
 #define DLLEXPORT               /* */
 #define WINAPI                  /* */
 #endif
+
+#define C_DLLEXPORT      extern "C" DLLEXPORT
 
 #define META_INTERFACE_VERSION "5:13"
 
@@ -2605,16 +2606,6 @@ inline void SET_LOCALINFO(char* key, char* value)
 
 short FixedSigned16(float value, float scale);
 unsigned short FixedUnsigned16(float value, float scale);
-
-#undef DLLEXPORT
-#ifdef _WIN32
-#define DLLEXPORT   __declspec(dllexport)
-#elif defined(linux)
-#define DLLEXPORT               /* */
-#define WINAPI                  /* */
-#endif
-
-#define C_DLLEXPORT      extern "C" DLLEXPORT
 
 #include "stdarg.h"
 #include "runtime.h"
