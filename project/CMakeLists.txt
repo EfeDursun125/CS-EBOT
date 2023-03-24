@@ -5,9 +5,12 @@ project(EBOT)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_BUILD_TYPE Release)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m32 -std=c++11 -w -fvisibility=hidden -fno-exceptions -fno-rtti -Wno-parentheses -pipe -mtune=generic -fno-exceptions -fno-rtti -DPOSIX -DNDEBUG -pipe -O3 -march=native -funroll-loops -fomit-frame-pointer -fno-stack-protector -fvisibility=hidden -fvisibility-inlines-hidden -nostdinc++")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m32 -std=c++11 -w -fvisibility=hidden -fno-exceptions -fno-rtti -Wno-parentheses -pipe -mtune=generic -fno-exceptions -fno-rtti -DPOSIX -DNDEBUG=1 -pipe -O2 -march=native -funroll-loops -fomit-frame-pointer -fno-stack-protector -fvisibility=hidden -fvisibility-inlines-hidden -nostdinc++")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_CXX_FLAGS}")
-set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -m32 -lm -ldl -static-libgcc -static-libstdc++ -static")
+set(BUILD_SHARED_LIBS OFF)
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -m32 -lm -ldl -static-libgcc -static-libstdc++")
+set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES "")
+set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "")
 
 set(EBOT ebot)
 
@@ -29,3 +32,4 @@ source/basecode.cpp
 include_directories(../include)
 
 add_library(${EBOT} SHARED ${EBOT_SRC})
+target_link_libraries(${EBOT} ${CMAKE_DL_LIBS})
