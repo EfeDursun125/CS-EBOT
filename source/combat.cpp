@@ -26,7 +26,7 @@
 
 ConVar ebot_escape("ebot_zombie_escape_mode", "0");
 ConVar ebot_zp_use_grenade_percent("ebot_zm_use_grenade_percent", "10");
-ConVar ebot_zp_escape_distance("ebot_zm_escape_distance", "300");
+ConVar ebot_zp_escape_distance("ebot_zm_escape_distance", "320");
 ConVar ebot_zombie_speed_factor("ebot_zombie_speed_factor", "0.54");
 ConVar ebot_sb_mode("ebot_sb_mode", "0");
 
@@ -1091,6 +1091,8 @@ void Bot::CombatFight(void)
 			return;
 		}
 	}
+	else
+		return;
 
 	if (IsValidWaypoint(m_currentWaypointIndex) && (m_moveSpeed != 0.0f || m_strafeSpeed != 0.0f) && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_CROUCH)
 		pev->button |= IN_DUCK;
@@ -1111,10 +1113,7 @@ void Bot::CombatFight(void)
 		else if (!m_isSlowThink)
 			pev->button |= IN_ATTACK;
 
-		if (FNullEnt(m_enemy))
-			m_destOrigin = m_enemyOrigin;
-		else
-			m_destOrigin = m_enemyOrigin + m_enemy->v.velocity * ebot_zombie_speed_factor.GetFloat();
+		m_destOrigin = m_enemyOrigin + m_enemy->v.velocity * ebot_zombie_speed_factor.GetFloat();
 
 		if (!(pev->flags & FL_DUCKING))
 			m_waypointOrigin = m_destOrigin;
@@ -1124,21 +1123,12 @@ void Bot::CombatFight(void)
 		Vector tempDestOrigin = nullvec;
 		float tempMoveSpeed = -1.0f;
 
-		bool NPCEnemy = false;
-		bool enemyIsZombie = true;
-		bool noEnemy = FNullEnt(m_enemy);
+		const bool NPCEnemy = !IsValidPlayer(m_enemy);
+		const bool enemyIsZombie = IsZombieEntity(m_enemy);
 
-		static Vector enemyVel;
+		const Vector enemyVel = m_enemy->v.velocity;
+		float baseDistance = ebot_zp_escape_distance.GetFloat() + fabsf(m_enemy->v.speed);
 
-		if (!noEnemy)
-		{
-			enemyVel = m_enemy->v.velocity;
-			NPCEnemy = !IsValidPlayer(m_enemy);
-			enemyIsZombie = IsZombieEntity(m_enemy);
-			SetLastEnemy(m_enemy);
-		}
-
-		float baseDistance = SquaredF(ebot_zp_escape_distance.GetFloat());
 		Vector myVec = pev->origin + pev->velocity * m_frameInterval;
 
 		if (NPCEnemy || enemyIsZombie)
@@ -1149,9 +1139,9 @@ void Bot::CombatFight(void)
 					baseDistance = -1.0f;
 			}
 
-			const Vector speedFactor = m_enemyOrigin + enemyVel * ebot_zombie_speed_factor.GetFloat();
-			const float distance = (myVec - speedFactor).GetLengthSquared();
-			if (m_isSlowThink && !noEnemy && distance <= SquaredF(768.0f) && m_enemy->v.health > 100 && ChanceOf(ebot_zp_use_grenade_percent.GetInt()) && m_enemy->v.velocity.GetLengthSquared() > SquaredF(10.0f))
+			const Vector destOrigin = m_enemyOrigin + enemyVel * m_frameInterval;
+			const float distance = (myVec - destOrigin).GetLengthSquared();
+			if (m_isSlowThink && distance <= SquaredF(768.0f) && m_enemy->v.health > 100 && ChanceOf(ebot_zp_use_grenade_percent.GetInt()) && m_enemy->v.velocity.GetLengthSquared() > SquaredF(10.0f))
 			{
 				if (m_skill >= 50)
 				{
@@ -1169,22 +1159,13 @@ void Bot::CombatFight(void)
 				}
 			}
 
-			if (baseDistance > 0.0f)
+			if (baseDistance > 0.0f && distance <= SquaredF(baseDistance))
 			{
-				// better human escape ai
-				if (distance <= baseDistance)
-				{
-					DeleteSearchNodes();
-					tempDestOrigin = speedFactor;
-					tempMoveSpeed = -pev->maxspeed;
-				}
-				else if (!ebot_escape.GetBool())
-					tempMoveSpeed = 0.0f;
-			}
+				DeleteSearchNodes();
+				m_destOrigin = destOrigin;
+				m_moveSpeed = -pev->maxspeed;
 
-			if (tempDestOrigin != nullvec)
-			{
-				Vector directionOld = tempDestOrigin - (pev->origin + pev->velocity * m_frameInterval);
+				Vector directionOld = m_destOrigin - (pev->origin + pev->velocity * m_frameInterval);
 				Vector directionNormal = directionOld.Normalize();
 				Vector direction = directionNormal;
 				directionNormal.z = 0.0f;
@@ -1198,9 +1179,6 @@ void Bot::CombatFight(void)
 				if (pev->button & IN_DUCK)
 					pev->button &= ~IN_DUCK;
 			}
-
-			if (tempMoveSpeed != -1.0f)
-				m_moveSpeed = tempMoveSpeed;
 		}
 	}
 	else if (GetCurrentTask()->taskID != TASK_CAMP && GetCurrentTask()->taskID != TASK_SEEKCOVER && GetCurrentTask()->taskID != TASK_ESCAPEFROMBOMB)

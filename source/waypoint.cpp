@@ -2876,12 +2876,6 @@ float Waypoint::GetPathDistance(int srcIndex, int destIndex)
     if (srcIndex == destIndex)
         return 1.0f;
 
-    for (int i = 0; i < Const_MaxPathIndex; i++)
-    {
-        if (m_paths[srcIndex]->index[i] == destIndex)
-            return m_paths[srcIndex]->distances[i];
-    }
-
     return (m_paths[srcIndex]->origin - m_paths[destIndex]->origin).GetLengthSquared2D();
 }
 

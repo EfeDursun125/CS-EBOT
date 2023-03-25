@@ -2671,10 +2671,10 @@ bool Bot::ReactOnEnemy(void)
 {
 	// NO!
 	if (IsOnLadder())
-	{
-		m_isEnemyReachable = false;
-		goto last;
-	}
+		return m_isEnemyReachable = false;
+
+	if (FNullEnt(m_enemy))
+		return m_isEnemyReachable = false;
 
 	if (m_enemyReachableTimer < engine->GetTime())
 	{
@@ -2745,26 +2745,18 @@ bool Bot::ReactOnEnemy(void)
 					goto last;
 				}
 
-				const bool noEnemy = FNullEnt(m_enemy);
+				const Vector enemyVel = m_enemy->v.velocity;
+				const float enemySpeed = fabsf(m_enemy->v.speed);
 
-				static Vector enemyVel;
-				static float enemySpeed;
-				if (!noEnemy)
-				{
-					enemyVel = m_enemy->v.velocity;
-					enemySpeed = fabsf(m_enemy->v.speed);
-				}
-
-				const Vector enemyHead = noEnemy ? m_enemyOrigin : GetPlayerHeadOrigin(m_enemy);
+				const Vector enemyHead =GetPlayerHeadOrigin(m_enemy);
 				const Vector myVec = pev->origin + pev->velocity * m_frameInterval;
 
-				extern ConVar ebot_zombie_speed_factor;
-				const float enemyDistance = (myVec - (enemyHead + enemyVel * ebot_zombie_speed_factor.GetFloat())).GetLengthSquared();
+				const float enemyDistance = (myVec - (enemyHead + enemyVel * m_frameInterval)).GetLengthSquared();
 
 				extern ConVar ebot_zp_escape_distance;
 				const float escapeDist =  SquaredF(enemySpeed + ebot_zp_escape_distance.GetFloat());
 
-				if (pev->flags & FL_DUCKING && !noEnemy && m_enemy->v.flags & FL_DUCKING) // danger...
+				if (pev->flags & FL_DUCKING) // danger...
 				{
 					if (enemyDistance < escapeDist)
 					{
@@ -2797,7 +2789,7 @@ bool Bot::ReactOnEnemy(void)
 								const Vector origin = GetBottomOrigin(GetEntity());
 
 								TraceResult tr;
-								TraceLine(Vector(origin.x, origin.y, (origin.z + (pev->flags & FL_DUCKING) ? 5.0f : 10.0f)), enemyHead, true, true, GetEntity(), &tr);
+								TraceLine(Vector(origin.x, origin.y, (origin.z + (pev->flags & FL_DUCKING) ? 6.0f : 12.0f)), enemyHead, true, true, GetEntity(), &tr);
 
 								const auto enemyWaypoint = g_waypoint->GetPath(enemyIndex);
 								if (tr.flFraction == 1.0f)
@@ -2811,21 +2803,9 @@ bool Bot::ReactOnEnemy(void)
 
 					goto last;
 				}
-				else if (enemyDistance <= escapeDist)// human improve
+				else if (enemyDistance <= escapeDist)
 				{
-					if (m_currentTravelFlags & PATHFLAG_JUMP || currentWaypoint->flags & WAYPOINT_FALLRISK || currentWaypoint->flags & WAYPOINT_JUMP || (pev->flags & FL_DUCKING && currentWaypoint->flags & WAYPOINT_CROUCH))
-					{
-						const Vector origin = GetBottomOrigin(GetEntity());
-
-						TraceResult tr;
-						TraceLine(Vector(origin.x, origin.y, (origin.z + (pev->flags & FL_DUCKING) ? 6.0f : 12.0f)), enemyHead, true, false, GetEntity(), &tr);
-
-						if (tr.flFraction == 1.0f)
-							m_isEnemyReachable = true;
-					}
-					else
-						m_isEnemyReachable = true;
-
+					m_isEnemyReachable = true;
 					goto last;
 				}
 			}
@@ -5347,7 +5327,7 @@ void Bot::RunTask(void)
 			bool needMoveToTarget = false;
 			if (!GoalIsValid())
 				needMoveToTarget = true;
-			else if (m_personality != PERSONALITY_CAREFUL && GetCurrentTask()->data != destIndex)
+			else if (GetCurrentTask()->data != destIndex)
 			{
 				needMoveToTarget = true;
 				if (&m_navNode[0] != nullptr)
@@ -5939,11 +5919,17 @@ void Bot::RunTask(void)
 
 		// picking up items and stuff behaviour
 	case TASK_PICKUPITEM:
+		if (m_isZombieBot)
+		{
+			m_pickupItem = nullptr;
+			TaskComplete();
+			break;
+		}
+
 		if (FNullEnt(m_pickupItem))
 		{
 			m_pickupItem = nullptr;
 			TaskComplete();
-
 			break;
 		}
 
@@ -6517,6 +6503,10 @@ void Bot::DebugModeMsg(void)
 // this function gets called each frame and is the core of all bot ai. from here all other subroutines are called
 void Bot::BotAI(void)
 {
+	m_checkTerrain = true;
+	m_moveToGoal = true;
+	m_wantsToFire = false;
+
 	float movedDistance = 4.0f; // length of different vector (distance bot moved)
 	TraceResult tr;
 
@@ -6552,6 +6542,44 @@ void Bot::BotAI(void)
 	// do all sensing, calculate/filter all actions here
 	SetConditions();
 
+	Vector src, dest;
+
+	AvoidEntity();
+	m_isUsingGrenade = false;
+
+	RunTask(); // execute current task
+	ChooseAimDirection();
+
+	// the bots wants to fire at something?
+	if (m_wantsToFire && !m_isUsingGrenade && m_shootTime <= engine->GetTime())
+		FireWeapon(); // if bot didn't fire a bullet try again next frame
+
+	 // check for reloading
+	if (m_reloadCheckTime <= engine->GetTime())
+		CheckReload();
+
+	// set the reaction time (surprise momentum) different each frame according to skill
+	m_idealReactionTime = engine->RandomFloat(g_skillTab[m_skill / 20].minSurpriseTime, g_skillTab[m_skill / 20].maxSurpriseTime);
+
+	auto flag = g_waypoint->GetPath(m_currentWaypointIndex)->flags;
+	Vector directionOld;
+	
+	if (IsOnLadder() || flag & WAYPOINT_LADDER || flag & WAYPOINT_FALLRISK || flag & WAYPOINT_JUMP)
+		directionOld = m_destOrigin - pev->origin;
+	else
+		directionOld = (m_destOrigin + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval);
+
+	Vector directionNormal = directionOld.Normalize();
+	Vector direction = directionNormal;
+	directionNormal.z = 0.0f;
+
+	m_moveAngles = directionOld.ToAngles();
+	m_moveAngles.ClampAngles();
+	m_moveAngles.x *= -1.0f; // invert for engine
+
+	if (GetCurrentTask()->taskID == TASK_CAMP || GetCurrentTask()->taskID == TASK_DESTROYBREAKABLE)
+		SelectBestWeapon();
+
 	if (IsZombieMode())
 	{
 		if (m_isZombieBot)
@@ -6562,6 +6590,7 @@ void Bot::BotAI(void)
 			if (m_isEnemyReachable && !FNullEnt(m_enemy))
 			{
 				m_moveToGoal = false; // don't move to goal
+				m_checkTerrain = false;
 				m_navTimeset = engine->GetTime();
 				CombatFight();
 			}
@@ -6624,59 +6653,17 @@ void Bot::BotAI(void)
 
 			m_checkWeaponSwitch = false;
 		}
-	}
 
-	if (!IsOnLadder())
-	{
-		if (!FNullEnt(m_enemy) && GetCurrentTask()->taskID != TASK_CAMP)
+		if (!IsOnLadder())
 		{
-			m_moveToGoal = false; // don't move to goal
-			m_navTimeset = engine->GetTime();
-			CombatFight();
+			if (!FNullEnt(m_enemy) && GetCurrentTask()->taskID != TASK_CAMP)
+			{
+				m_moveToGoal = false; // don't move to goal
+				m_navTimeset = engine->GetTime();
+				CombatFight();
+			}
 		}
 	}
-
-	Vector src, dest;
-
-	m_checkTerrain = true;
-	m_moveToGoal = true;
-	m_wantsToFire = false;
-
-	AvoidEntity();
-	m_isUsingGrenade = false;
-
-	RunTask(); // execute current task
-	ChooseAimDirection();
-
-	// the bots wants to fire at something?
-	if (m_wantsToFire && !m_isUsingGrenade && m_shootTime <= engine->GetTime())
-		FireWeapon(); // if bot didn't fire a bullet try again next frame
-
-	 // check for reloading
-	if (m_reloadCheckTime <= engine->GetTime())
-		CheckReload();
-
-	// set the reaction time (surprise momentum) different each frame according to skill
-	m_idealReactionTime = engine->RandomFloat(g_skillTab[m_skill / 20].minSurpriseTime, g_skillTab[m_skill / 20].maxSurpriseTime);
-
-	auto flag = g_waypoint->GetPath(m_currentWaypointIndex)->flags;
-	Vector directionOld;
-	
-	if (IsOnLadder() || flag & WAYPOINT_LADDER || flag & WAYPOINT_FALLRISK || flag & WAYPOINT_JUMP)
-		directionOld = m_destOrigin - pev->origin;
-	else
-		directionOld = (m_destOrigin + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval);
-
-	Vector directionNormal = directionOld.Normalize();
-	Vector direction = directionNormal;
-	directionNormal.z = 0.0f;
-
-	m_moveAngles = directionOld.ToAngles();
-	m_moveAngles.ClampAngles();
-	m_moveAngles.x *= -1.0f; // invert for engine
-
-	if (GetCurrentTask()->taskID == TASK_CAMP || GetCurrentTask()->taskID == TASK_DESTROYBREAKABLE)
-		SelectBestWeapon();
 
 	// allowed to move to a destination position?
 	if (m_moveToGoal)

@@ -100,14 +100,6 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 		ServerPrint("You can input 'ebot wp menu' to make waypoint");
 		CenterPrint("No any waypoints for this map, Cannot Add E-BOT");
 		CenterPrint("You can input 'ebot wp menu' to make waypoint");
-
-		extern ConVar ebot_lockzbot;
-		if (ebot_lockzbot.GetBool())
-		{
-			ebot_lockzbot.SetInt(0);
-			ServerPrint("Z-BOT is locked, use ebot_lockzbot command for enable them.");
-		}
-
 		return -1;
 	}
 	else if (g_waypointsChanged) // don't allow creating bots with changed waypoints (distance tables are messed up)
@@ -332,6 +324,8 @@ void BotControl::Think(void)
 			bot->m_strafeSpeedForRunMove = bot->m_strafeSpeed;
 			bot->FacePosition();
 		}
+		else
+			bot->m_aimInterval = engine->GetTime();
 
 		bot->RunPlayerMovement(); // run the player movement 
 	}
@@ -1086,10 +1080,10 @@ Bot::~Bot(void)
 // this function initializes a bot after creation & at the start of each round
 void Bot::NewRound(void)
 {
-	if (ebot_random_join_quit.GetBool() && m_stayTime > 0.0f && m_stayTime < engine->GetTime())
+	if (ebot_random_join_quit.GetBool() && m_stayTime > 1.0f && m_stayTime < engine->GetTime())
 	{
-		return;
 		Kick();
+		return;
 	}
 
 	int i = 0;

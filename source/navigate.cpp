@@ -460,7 +460,7 @@ bool Bot::DoWaypointNav(void)
 	float waypointDistance = 0.0f;
 
 	if (pev->flags & FL_DUCKING || currentWaypoint->flags & WAYPOINT_CROUCH)
-		waypointDistance = (pev->origin - m_waypointOrigin).GetLengthSquared();
+		waypointDistance = (pev->origin - m_waypointOrigin).GetLengthSquared2D();
 	else if (IsOnLadder() || currentWaypoint->flags & WAYPOINT_LADDER)
 		waypointDistance = ((pev->origin + pev->velocity * m_frameInterval) - m_waypointOrigin).GetLengthSquared();
 	else if (!IsOnFloor() && !IsInWater())
@@ -475,7 +475,7 @@ bool Bot::DoWaypointNav(void)
 		if (!(currentWaypoint->flags & WAYPOINT_JUMP) && !FNullEnt(m_avoid))
 			desiredDistance *= 2.0f;
 		else if (desiredDistance < 64.0f)
-			desiredDistance += SquaredF(MaxFloat(fabsf(pev->speed - desiredDistance), 18.0f)) * m_frameInterval;
+			desiredDistance += MaxFloat(fabsf(fabsf(pev->speed) - desiredDistance), 18.0f) * m_frameInterval;
 	}
 
 	if (waypointDistance < SquaredF(desiredDistance))
@@ -671,8 +671,6 @@ inline const float GF_CostHuman(const int index, const int parent, const int tea
 		}
 	}
 
-	float baseCost = g_waypoint->GetPathDistance(index, team);
-	
 	int count = 0;
 	float totalDistance = 0.0f;
 	const Vector waypointOrigin = path->origin;
@@ -688,13 +686,15 @@ inline const float GF_CostHuman(const int index, const int parent, const int tea
 		totalDistance += distance;
 	}
 
-	if (count > 0)
+	if (count > 0 && totalDistance > 0.0f)
+	{
+		float baseCost = g_waypoint->GetPathDistance(index, parent);
 		baseCost *= count;
-
-	if (totalDistance > 0.0f)
 		baseCost += totalDistance;
+		return baseCost;
+	}
 
-	return baseCost;
+	return 1.0f;
 }
 
 inline const float GF_CostCareful(const int index, const int parent, const int team, const float gravity, const bool isZombie)
@@ -736,8 +736,6 @@ inline const float GF_CostCareful(const int index, const int parent, const int t
 		}
 	}
 
-	float baseCost = g_waypoint->GetPathDistance(index, team);
-
 	if (isZombie)
 	{
 		if (path->flags & WAYPOINT_DJUMP)
@@ -760,28 +758,14 @@ inline const float GF_CostCareful(const int index, const int parent, const int t
 			// don't count me
 			if (count <= 1)
 				return 65355.0f;
-			else
-				baseCost /= count;
+			
+			float baseCost = g_waypoint->GetPathDistance(index, parent);
+			baseCost /= count;
+			return baseCost;
 		}
 	}
 
-	if (path->flags & WAYPOINT_ONLYONE)
-	{
-		int count = 0;
-		for (const auto& client : g_clients)
-		{
-			if (client.index < 0)
-				continue;
-
-			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != team)
-				continue;
-
-			if ((client.origin - path->origin).GetLengthSquared() <= SquaredF(64.0f + path->radius))
-				65355.0f;
-		}
-	}
-
-	return baseCost;
+	return 1.0f;
 }
 
 inline const float GF_CostNormal(const int index, const int parent, const int team, const float gravity, const bool isZombie)
@@ -823,8 +807,6 @@ inline const float GF_CostNormal(const int index, const int parent, const int te
 		}
 	}
 
-	float baseCost = g_waypoint->GetPathDistance(index, team);
-
 	if (isZombie)
 	{
 		if (path->flags & WAYPOINT_DJUMP)
@@ -847,15 +829,17 @@ inline const float GF_CostNormal(const int index, const int parent, const int te
 			// don't count me
 			if (count <= 1)
 				return 65355.0f;
-			else
-				baseCost /= count;
+			
+			float baseCost = g_waypoint->GetPathDistance(index, parent);
+			baseCost /= count;
+			return baseCost;
 		}
 	}
 	
 	if (path->flags & WAYPOINT_LADDER)
-		baseCost *= 3.0f;
+		return g_waypoint->GetPathDistance(index, parent);
 	
-	return baseCost;
+	return 1.0f;
 }
 
 inline const float GF_CostRusher(const int index, const int parent, const int team, const float gravity, const bool isZombie)
@@ -897,12 +881,11 @@ inline const float GF_CostRusher(const int index, const int parent, const int te
 		}
 	}
 
-	const float baseCost = g_waypoint->GetPathDistance(index, team);
-
 	// rusher bots never wait for boosting
 	if (path->flags & WAYPOINT_DJUMP)
 		return 65355.0f;
 
+	const float baseCost = g_waypoint->GetPathDistance(index, team);
 	if (path->flags & WAYPOINT_CROUCH)
 		return baseCost;
 
@@ -951,28 +934,25 @@ inline const float GF_CostNoHostage(const int index, const int parent, const int
 	return baseCost;
 }
 
-inline const float HF_Mannhattan(const int start, const int goal)
-{
-	auto sPath = g_waypoint->GetPath(start)->origin;
-	auto gPath = g_waypoint->GetPath(goal)->origin;
-	return fabsf((sPath.x - gPath.x) + (sPath.y - gPath.y));
-}
-
 inline const float HF_Distance(int start, int goal)
 {
 	auto sPath = g_waypoint->GetPath(start)->origin;
 	auto gPath = g_waypoint->GetPath(goal)->origin;
-	return (sPath - gPath).GetLengthSquared2D();
+	return (sPath - gPath).GetLengthSquared();
 }
 
-inline const float HF_Cheby(const int start, const int goal)
+inline const float HF_Euclidean(const int start, const int goal)
 {
-	const auto sPath = g_waypoint->GetPath(start)->origin;
-	const auto gPath = g_waypoint->GetPath(goal)->origin;
-	const float x = fabsf(sPath.x - gPath.x);
-	const float y = fabsf(sPath.y - gPath.y);
-	const float xy = fabsf(x + y);
-	return Clamp(xy, x, y);
+	auto sPath = g_waypoint->GetPath(start)->origin;
+	auto gPath = g_waypoint->GetPath(goal)->origin;
+
+	float x = fabsf(sPath.x - gPath.x);
+	float y = fabsf(sPath.y - gPath.y);
+	float z = fabsf(sPath.z - gPath.z);
+
+	float euclidean = Q_rsqrt(powf(x, 2.0f) + powf(y, 2.0f) + powf(z, 2.0f));
+
+	return 1000.0f * (ceilf(euclidean) - euclidean);
 }
 
 // this function finds a path from srcIndex to destIndex
@@ -1018,12 +998,7 @@ void Bot::FindPath(int srcIndex, int destIndex)
 	const float (*gcalc) (int, int, int, float, bool) = nullptr;
 	const float (*hcalc) (int, int) = nullptr;
 
-	if (m_personality == PERSONALITY_CAREFUL)
-		hcalc = HF_Cheby;
-	else if (m_personality == PERSONALITY_RUSHER)
-		hcalc = HF_Mannhattan;
-	else
-		hcalc = HF_Distance;
+	hcalc = HF_Euclidean;
 
 	if (IsZombieMode() && ebot_zombies_as_path_cost.GetBool() && !m_isZombieBot)
 		gcalc = GF_CostHuman;
@@ -1190,7 +1165,7 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 
 	// put start node into open list
 	const auto srcWaypoint = &waypoints[srcIndex];
-	srcWaypoint->f = HF_Cheby(srcIndex, destIndex);
+	srcWaypoint->f = HF_Distance(srcIndex, destIndex);
 	srcWaypoint->state = State::Open;
 
 	PriorityQueue openList;
@@ -1260,7 +1235,7 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 					continue;
 			}
 
-			const float f = HF_Cheby(self, destIndex);
+			const float f = HF_Distance(self, destIndex);
 			const auto childWaypoint = &waypoints[self];
 			if (childWaypoint->state == State::New || childWaypoint->f > f)
 			{

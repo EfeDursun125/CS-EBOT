@@ -29,8 +29,6 @@ ConVar ebot_password("ebot_password", "ebot", VARTYPE_PASSWORD);
 ConVar ebot_password_key("ebot_password_key", "ebot_pass");
 
 ConVar ebot_version("ebot_version", PRODUCT_VERSION, VARTYPE_READONLY);
-
-ConVar ebot_lockzbot("ebot_lock_zbot", "1");
 ConVar ebot_showwp("ebot_show_waypoints", "0");
 
 ConVar ebot_analyze_create_goal_waypoints("ebot_analyze_starter_waypoints", "1");
@@ -2858,18 +2856,6 @@ void FrameThread(void)
 	if (g_bombPlanted)
 		g_waypoint->SetBombPosition();
 
-	if (ebot_lockzbot.GetBool())
-	{
-		if (CVAR_GET_FLOAT("bot_quota") > 0)
-		{
-			CVAR_SET_FLOAT("ebot_quota", CVAR_GET_FLOAT("bot_quota"));
-			ServerPrint("ebot_lockzbot is 1, you cannot add Z-Bot");
-			ServerPrint("You can input ebot_lockzbot for unlock Z-Bot");
-			ServerPrint("But, If you have use AMXX plugins or Zombie Mod, Its not a good choice");
-			CVAR_SET_FLOAT("bot_quota", 0);
-		}
-	}
-
 	secondTimer = AddTime(1.0f);
 }
 
@@ -2945,8 +2931,9 @@ int Spawn_Post(edict_t* ent)
 		ent->v.flags &= ~FL_WORLDBRUSH; // clear the FL_WORLDBRUSH flag out of transparent ents
 
 	// reset bot
-	if (g_botManager->GetBot(ent) != nullptr)
-		g_botManager->GetBot(ent)->NewRound();
+	auto bot = g_botManager->GetBot(ent);
+	if (bot != nullptr)
+		bot->NewRound();
 
 	RETURN_META_VALUE(MRES_IGNORED, 0);
 }
