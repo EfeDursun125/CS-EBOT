@@ -37,6 +37,7 @@
 #include <stdio.h>
 #include <memory.h>
 
+extern float Q_sqrt(float number);
 extern float Q_rsqrt(float number);
 
 #include <engine.h>
@@ -1232,6 +1233,7 @@ public:
 	void SetLastWinner(int winner) { m_lastWinner = winner; }
 
 	int GetIndex(edict_t* ent);
+	int GetIndex(int index);
 	Bot* GetBot(int index);
 	Bot* GetBot(edict_t* ent);
 	Bot* FindOneValidAliveBot(void);
@@ -1467,6 +1469,7 @@ extern bool IsAlive(edict_t* ent);
 extern bool IsInViewCone(Vector origin, edict_t* ent);
 extern bool IsWeaponShootingThroughWall(int id);
 extern bool IsValidBot(edict_t* ent);
+extern bool IsValidBot(int index);
 extern bool IsValidPlayer(edict_t* ent);
 extern bool OpenConfig(const char* fileName, char* errorIfNotExists, File* outFile);
 extern bool FindNearestPlayer(void** holder, edict_t* to, float searchDistance = 4096.0, bool sameTeam = false, bool needBot = false, bool needAlive = false, bool needDrawn = false);
