@@ -14,5 +14,3 @@ https://github.com/EfeDursun125/EBOT-WP
 5. Final Step:
    (For Windows) Add that line "win32 addons\ebot\dlls\ebot.dll" and save it.
    (For Linux) Add that line "linux addons\ebot\dlls\ebot.so" and save it.
-   
-Linux version is unoffical! not tested by me.
