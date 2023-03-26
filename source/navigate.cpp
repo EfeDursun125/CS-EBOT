@@ -950,7 +950,7 @@ inline const float HF_Euclidean(const int start, const int goal)
 	float y = fabsf(sPath.y - gPath.y);
 	float z = fabsf(sPath.z - gPath.z);
 
-	float euclidean = Q_rsqrt(powf(x, 2.0f) + powf(y, 2.0f) + powf(z, 2.0f));
+	float euclidean = Q_sqrt(powf(x, 2.0f) + powf(y, 2.0f) + powf(z, 2.0f));
 
 	return 1000.0f * (ceilf(euclidean) - euclidean);
 }

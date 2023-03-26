@@ -234,6 +234,18 @@ int BotControl::GetIndex(edict_t* ent)
 	return -1; // if no edict, return -1;
 }
 
+// this function returns index of bot (using own bot array)
+int BotControl::GetIndex(int index)
+{
+	if (index < 0 || index >= 32)
+		return -1;
+
+	if (m_bots[index] != nullptr)
+		return index;
+
+	return -1;
+}
+
 // this function finds a bot specified by index, and then returns pointer to it (using own bot array)
 Bot* BotControl::GetBot(int index)
 {
@@ -918,9 +930,6 @@ void BotControl::Free(void)
 // this function frees one bot selected by index (used on bot disconnect)
 void BotControl::Free(int index)
 {
-	if (ebot_save_bot_names.GetBool())
-		m_savedBotNames.Push(STRING(m_bots[index]->GetEntity()->v.netname));
-
 	m_bots[index]->m_stayTime = 0.0f;
 	delete m_bots[index];
 	m_bots[index] = nullptr;

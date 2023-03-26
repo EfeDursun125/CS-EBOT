@@ -2015,7 +2015,7 @@ void Bot::SetConditions(void)
 		// FIXME: it probably should be also team/map dependant
 		if (FNullEnt(m_enemy) && (g_timeRoundMid < engine->GetTime()) && !m_isUsingGrenade && m_personality != PERSONALITY_CAREFUL && m_currentWaypointIndex != g_waypoint->FindNearest(m_lastEnemyOrigin))
 		{
-			desireLevel = 4096.0f - ((1.0f - tempAgression) * Q_rsqrt(distance));
+			desireLevel = 4096.0f - ((1.0f - tempAgression) * Q_sqrt(distance));
 			desireLevel = (100 * desireLevel) / 4096.0f;
 			desireLevel -= retreatLevel;
 
@@ -3803,8 +3803,8 @@ void Bot::Think(void)
 		m_isZombieBot = IsZombieEntity(GetEntity());
 		m_team = GetTeam(GetEntity());
 		m_isAlive = IsAlive(GetEntity());
-		m_index = GetIndex();
 		m_isBomber = pev->weapons & (1 << WEAPON_C4);
+		m_index = GetIndex();
 
 		if (m_isZombieBot)
 		{
@@ -4005,7 +4005,7 @@ void Bot::CalculatePing(void)
 		if (client.index < 0)
 			continue;
 
-		if (IsValidBot(client.ent))
+		if (IsValidBot(client.index))
 			continue;
 
 		numHumans++;
@@ -7309,8 +7309,8 @@ Vector Bot::CheckToss(const Vector& start, Vector end)
 		return nullvec;
 
 	const float half = 0.5f * gravity;
-	float timeOne = Q_rsqrt((midPoint.z - start.z) / half);
-	float timeTwo = Q_rsqrt((midPoint.z - end.z) / half);
+	float timeOne = Q_sqrt((midPoint.z - start.z) / half);
+	float timeTwo = Q_sqrt((midPoint.z - end.z) / half);
 
 	if (timeOne < 0.1)
 		return nullvec;

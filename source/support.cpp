@@ -487,9 +487,6 @@ void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
 	// supply directly the whole string as if you were typing it in the bot's "console". It
 	// is supposed to work exactly like the pfnClientCommand (server-sided client command).
 
-	if (FNullEnt(fakeClient))
-		return; // reliability check
-
 	if (!IsValidBot(fakeClient))
 		return;
 
@@ -1092,7 +1089,7 @@ int GetGameMode(void)
 	return ebot_gamemod.GetInt();
 }
 
-float Q_rsqrt(float number)
+float Q_sqrt(float number)
 {
 	long i;
 	float x2, y;
@@ -1105,6 +1102,21 @@ float Q_rsqrt(float number)
 	y = y * (threehalfs - (x2 * y * y));
 	return y * number;
 }
+
+float Q_rsqrt(float number)
+{
+	long i;
+	float x2, y;
+	const float threehalfs = 1.5f;
+	x2 = number * 0.5f;
+	y = number;
+	i = *(long*)&y;
+	i = 0x5f3759df - (i >> 1);
+	y = *(float*)&i;
+	y = y * (threehalfs - (x2 * y * y));
+	return y;
+}
+
 
 float Clamp(float a, float b, float c)
 {
@@ -1366,10 +1378,15 @@ bool IsValidPlayer(edict_t* ent)
 
 bool IsValidBot(edict_t* ent)
 {
-	if (FNullEnt(ent))
-		return false;
+	if (g_botManager->GetIndex(ent) != -1)
+		return true;
 
-	if (g_botManager->GetBot(ent) != nullptr)
+	return false;
+}
+
+bool IsValidBot(int index)
+{
+	if (g_botManager->GetIndex(index) != -1)
 		return true;
 
 	return false;
