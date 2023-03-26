@@ -406,7 +406,7 @@ Vector Bot::GetAimPosition(void)
 {
 	// npc/entity
 	if (!IsValidPlayer(m_enemy))
-		return m_enemyOrigin;
+		return m_lastEnemyOrigin = m_enemyOrigin;
 
 	// get enemy position initially
 	Vector targetOrigin = m_enemy->v.origin;
