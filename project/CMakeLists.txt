@@ -7,12 +7,31 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "-w -m32 -O2 -fvisibility=hidden -fno-exceptions -fno-rtti -Wno-parentheses -pipe -mtune=generic -funroll-loops -fomit-frame-pointer -fno-stack-protector -fvisibility-inlines-hidden")
 set(CMAKE_CXX_LINK_FLAGS "-m32")
 
+# Set clang++ as the default C++ compiler if available
+find_program(CMAKE_CXX_COMPILER clang++)
+if(CMAKE_CXX_COMPILER)
+    message(STATUS "Found Clang++: ${CMAKE_CXX_COMPILER}")
+    set(CMAKE_CXX_COMPILER ${CMAKE_CXX_COMPILER})
+else()
+    message(STATUS "Clang++ not found, using default C++ compiler")
+endif()
+
+# Set clang as the default C compiler if available
+find_program(CMAKE_C_COMPILER clang)
+if(CMAKE_C_COMPILER)
+    message(STATUS "Found Clang: ${CMAKE_C_COMPILER}")
+    set(CMAKE_C_COMPILER ${CMAKE_C_COMPILER})
+else()
+    message(STATUS "Clang not found, using default C compiler")
+endif()
+
 # Set build type and library suffix
 set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_SHARED_LIBRARY_SUFFIX ".so")
 
 # Set linker flags for static linking
 set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++ -static")
+set(CMAKE_SHARED_LINKER_FLAGS "-static-libgcc -static-libstdc++ -static")
 
 # Set output directory for the library
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib)
