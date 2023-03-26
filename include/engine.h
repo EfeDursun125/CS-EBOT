@@ -1988,13 +1988,13 @@ struct edict_s
 
 #undef DLLEXPORT
 #ifdef _WIN32
-#define DLLEXPORT   __declspec(dllexport)
-#elif defined(linux)
-#define DLLEXPORT               /* */
+#define DLLEXPORT __declspec(dllexport)
+#else
+#define DLLEXPORT __attribute__((visibility("default")))
 #define WINAPI                  /* */
 #endif
 
-#define C_DLLEXPORT      extern "C" DLLEXPORT
+#define C_DLLEXPORT extern "C" DLLEXPORT
 
 #define META_INTERFACE_VERSION "5:13"
 
@@ -2040,8 +2040,6 @@ typedef struct
     DLL_FUNCTIONS* dllapi_table;
     NEW_DLL_FUNCTIONS* newapi_table;
 } gamedll_funcs_t;
-
-
 
 typedef struct
 {
