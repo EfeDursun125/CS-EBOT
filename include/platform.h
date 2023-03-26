@@ -26,10 +26,8 @@
 #define PLATFORM_INCLUDED
 
 // detects the build platform
-#if defined (__linux__) || defined (__debian__) || defined (__linux)
-#define PLATFORM_LINUX32
-#elif defined (__x86_64__) || defined (__amd64__)
-#define PLATFORM_LINUX64
+#if defined (__linux__) || defined (__debian__) || defined (__linux) || (__x86_64__) || defined (__amd64__)
+#define PLATFORM_LINUX
 #elif defined (_WIN32)
 #define PLATFORM_WIN32
 #endif
@@ -46,7 +44,7 @@
 // configure export macros
 #if defined (COMPILER_VISUALC) || defined (COMPILER_MINGW32)
 #define exportc extern "C" __declspec (dllexport)
-#elif defined (PLATFORM_LINUX32) || defined (PLATFORM_LINUX64) || defined (COMPILER_BORLAND)
+#elif defined (PLATFORM_LINUX) || defined (COMPILER_BORLAND)
 #define exportc extern "C" __attribute__((visibility("default")))
 #else
 #error "Can't configure export macros. Compiler unrecognized."
@@ -81,7 +79,7 @@ typedef int (*BlendAPI_t) (int, void**, void*, float(*)[3][4], float(*)[128][3][
 typedef void(__stdcall* FuncPointers_t) (enginefuncs_t*, globalvars_t*);
 typedef void (*EntityPtr_t) (entvars_t*);
 
-#elif defined (PLATFORM_LINUX32) || defined (PLATFORM_LINUX64)
+#elif defined (PLATFORM_LINUX)
 
 #include <unistd.h>
 #include <dlfcn.h>
@@ -91,7 +89,7 @@ typedef void (*EntityPtr_t) (entvars_t*);
 #define stricmp strcasecmp
 
 #define DLL_ENTRYPOINT __attribute__((destructor))  void _fini (void)
-#define DLL_DETACHING true
+#define DLL_DETACHING TRUE
 #define DLL_RETENTRY return
 #define DLL_GIVEFNPTRSTODLL extern "C" void __attribute__((visibility("default")))
 

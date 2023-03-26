@@ -17,11 +17,7 @@
 #define EXTRAOFFSET					0
 #endif
 
-#if !defined PLATFORM_LINUX64
-#define OFFSET_TEAM					114 + EXTRAOFFSET
-#else
-#define OFFSET_TEAM					139 + EXTRAOFFSET
-#endif
+#define OFFSET_TEAM 114 + EXTRAOFFSET
 
 // for when we care about how many bits we use
 typedef signed char int8;
@@ -1985,13 +1981,12 @@ struct edict_s
 #define WEAPON_SUIT         31
 #define __USE_GNU           1
 
-
 #undef DLLEXPORT
 #ifdef _WIN32
 #define DLLEXPORT __declspec(dllexport)
 #else
-#define DLLEXPORT __attribute__((visibility("default")))
-#define WINAPI                  /* */
+#define DLLEXPORT                 /* */
+#define WINAPI                    /* */
 #endif
 
 #define C_DLLEXPORT extern "C" DLLEXPORT
