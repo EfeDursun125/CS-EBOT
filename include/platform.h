@@ -47,7 +47,7 @@
 #if defined (COMPILER_VISUALC) || defined (COMPILER_MINGW32)
 #define exportc extern "C" __declspec (dllexport)
 #elif defined (PLATFORM_LINUX32) || defined (PLATFORM_LINUX64) || defined (COMPILER_BORLAND)
-#define exportc extern "C"
+#define exportc extern "C" __attribute__((visibility("default")))
 #else
 #error "Can't configure export macros. Compiler unrecognized."
 #endif
@@ -90,10 +90,10 @@ typedef void (*EntityPtr_t) (entvars_t*);
 
 #define stricmp strcasecmp
 
-#define DLL_ENTRYPOINT void _fini (void)
-#define DLL_DETACHING TRUE
+#define DLL_ENTRYPOINT __attribute__((destructor))  void _fini (void)
+#define DLL_DETACHING true
 #define DLL_RETENTRY return
-#define DLL_GIVEFNPTRSTODLL extern "C" void
+#define DLL_GIVEFNPTRSTODLL extern "C" void __attribute__((visibility("default")))
 
 typedef int (*EntityAPI_t) (DLL_FUNCTIONS*, int);
 typedef int (*NewEntityAPI_t) (NEW_DLL_FUNCTIONS*, int*);
