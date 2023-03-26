@@ -417,9 +417,8 @@ Vector Bot::GetAimPosition(void)
 	if ((m_visibility & VISIBILITY_BODY) && !UsesSniper() && !UsesPistol() && (distance > (m_difficulty == 4 ? SquaredF(2400.0f) : SquaredF(1200.0f))))
 		m_visibility &= ~VISIBILITY_HEAD;
 
-	// if we only suspect an enemy behind a wall take the worst skill
 	if ((m_states & STATE_HEARENEMY) && !(m_states & STATE_SEEINGENEMY))
-		targetOrigin = m_enemyOrigin;
+		targetOrigin = m_lastEnemyOrigin;
 	else
 	{
 		// now take in account different parts of enemy body

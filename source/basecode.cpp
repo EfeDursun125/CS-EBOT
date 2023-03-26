@@ -3745,7 +3745,7 @@ void Bot::ChooseAimDirection(void)
 			m_aimStopTime = 0.0f;
 			m_lookAt = m_destOrigin + pev->view_ofs;
 		}
-	    else if (m_seeEnemyTime + 4.0f > engine->GetTime())
+	    else if (!m_isZombieBot && m_seeEnemyTime + 4.0f > engine->GetTime())
 		{
 			if (m_skill > 50 && !FNullEnt(m_lastEnemy))
 				m_lookAt = GetEntityOrigin(m_lastEnemy);
@@ -5574,7 +5574,6 @@ void Bot::RunTask(void)
 		break;
 
 	case TASK_THROWSMGRENADE:
-
 		m_aimFlags |= AIM_GRENADE;
 		destination = m_throw;
 

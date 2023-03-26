@@ -859,12 +859,15 @@ void AutoLoadGameMode(void)
 				break;
 			}
 		}
+
+		goto lastly;
 	}
 
 	if (ebot_zp_delay_custom.GetFloat() > 0.0f)
 	{
 		SetGameMode(MODE_ZP);
-		g_DelayTimer = engine->GetTime() + ebot_zp_delay_custom.GetFloat();
+		g_DelayTimer = engine->GetTime() + ebot_zp_delay_custom.GetFloat() + 2.2f;
+		goto lastly;
 	}
 	else
 	{
@@ -896,19 +899,20 @@ void AutoLoadGameMode(void)
 					if (checkShowTextTime < 3 || GetGameMode() != MODE_ZP)
 						ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Mode (Plague/Escape) ***");
 
+					// zombie escape
+					if (g_mapType & MAP_ZE)
+					{
+						extern ConVar ebot_escape;
+						ebot_escape.SetInt(1);
+						ServerPrint("*** E-BOT Detected Zombie Escape Map: ebot_zombie_escape_mode is set to 1 ***");
+					}
+
 					SetGameMode(MODE_ZP);
 					g_DelayTimer = engine->GetTime() + delayTime;
+					goto lastly;
 				}
 			}
 		}
-	}
-
-	// zombie escape
-	if (g_mapType & MAP_ZE)
-	{
-		extern ConVar ebot_escape;
-		ebot_escape.SetInt(1);
-		ServerPrint("*** E-BOT Detected Zombie Escape Map: ebot_zombie_escape_mode is set to 1 ***");
 	}
 
 	// Base Builder
@@ -933,6 +937,7 @@ void AutoLoadGameMode(void)
 				SetGameMode(MODE_ZP);
 
 				g_DelayTimer = engine->GetTime() + delayTime;
+				goto lastly;
 			}
 		}
 	}
@@ -955,6 +960,8 @@ void AutoLoadGameMode(void)
 
 			SetGameMode(MODE_TDM);
 		}
+
+		goto lastly;
 	}
 
 	// Zombie Hell
@@ -968,6 +975,7 @@ void AutoLoadGameMode(void)
 
 		extern ConVar ebot_quota;
 		ebot_quota.SetInt(static_cast <int> (CVAR_GET_FLOAT("zh_zombie_maxslots")));
+		goto lastly;
 	}
 
 	// Biohazard
@@ -993,6 +1001,7 @@ void AutoLoadGameMode(void)
 				SetGameMode(MODE_ZP);
 
 				g_DelayTimer = engine->GetTime() + delayTime;
+				goto lastly;
 			}
 		}
 	}
@@ -1010,6 +1019,7 @@ void AutoLoadGameMode(void)
 					ServerPrint("*** E-BOT Auto Game Mode Setting: CSDM-DM ***");
 
 				SetGameMode(MODE_DM);
+				goto lastly;
 			}
 		}
 	}
@@ -1022,10 +1032,10 @@ void AutoLoadGameMode(void)
 			ServerPrint("*** E-BOT Auto Game Mode Setting: N/A ***");
 	}
 
+lastly:
 	if (GetGameMode() != MODE_BASE)
 		g_mapType |= MAP_DE;
 }
-
 // returns if weapon can pierce through a wall
 bool IsWeaponShootingThroughWall(int id)
 {

@@ -474,8 +474,8 @@ bool Bot::DoWaypointNav(void)
 	{
 		if (!(currentWaypoint->flags & WAYPOINT_JUMP) && !FNullEnt(m_avoid))
 			desiredDistance *= 2.0f;
-		else if (desiredDistance < 64.0f)
-			desiredDistance += MaxFloat(fabsf(fabsf(pev->speed) - desiredDistance), 18.0f) * m_frameInterval;
+		else if (desiredDistance <= 64.0f)
+			desiredDistance += MaxFloat(fabsf(fabsf(pev->speed) - desiredDistance), 27.0f) * m_frameInterval;
 	}
 
 	if (waypointDistance < SquaredF(desiredDistance))
