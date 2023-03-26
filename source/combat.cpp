@@ -408,10 +408,10 @@ Vector Bot::GetAimPosition(void)
 	if (!IsValidPlayer(m_enemy))
 		return m_enemyOrigin;
 
-	float distance = (m_enemyOrigin - pev->origin).GetLengthSquared();
-
 	// get enemy position initially
-	Vector targetOrigin = m_enemyOrigin;
+	Vector targetOrigin = m_enemy->v.origin;
+
+	float distance = (m_enemyOrigin - pev->origin).GetLengthSquared();
 
 	// do not aim at head, at long distance (only if not using sniper weapon)
 	if ((m_visibility & VISIBILITY_BODY) && !UsesSniper() && !UsesPistol() && (distance > (m_difficulty == 4 ? SquaredF(2400.0f) : SquaredF(1200.0f))))
@@ -419,7 +419,7 @@ Vector Bot::GetAimPosition(void)
 
 	// if we only suspect an enemy behind a wall take the worst skill
 	if ((m_states & STATE_HEARENEMY) && !(m_states & STATE_SEEINGENEMY))
-		targetOrigin += Vector(engine->RandomFloat(m_enemy->v.mins.x * 0.5f, m_enemy->v.maxs.x * 0.5f), engine->RandomFloat(m_enemy->v.mins.y * 0.5f, m_enemy->v.maxs.y * 0.5f), engine->RandomFloat(m_enemy->v.mins.z * 0.5f, m_enemy->v.maxs.z * 0.5f));
+		targetOrigin = m_enemyOrigin;
 	else
 	{
 		// now take in account different parts of enemy body
