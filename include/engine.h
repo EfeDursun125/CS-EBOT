@@ -8,16 +8,13 @@
 // detects the build platform
 #if defined (__linux__) || defined (__debian__) || defined (__linux)
 #define __linux__ 1
-
 #endif
 
 #if defined __linux__
-#define EXTRAOFFSET					5
+#define OFFSET_TEAM 119
 #else
-#define EXTRAOFFSET					0
+#define OFFSET_TEAM 114
 #endif
-
-#define OFFSET_TEAM 114 + EXTRAOFFSET
 
 // for when we care about how many bits we use
 typedef signed char int8;
@@ -2017,7 +2014,6 @@ typedef int (*GETENTITYAPI2_FN) (DLL_FUNCTIONS* pFunctionTable, int* interfaceVe
 typedef int (*GETNEWDLLFUNCTIONS_FN) (NEW_DLL_FUNCTIONS* pFunctionTable, int* interfaceVersion);
 typedef int (*GET_ENGINE_FUNCTIONS_FN) (enginefuncs_t* pengfuncsFromEngine, int* interfaceVersion);
 
-
 typedef struct
 {
     GETENTITYAPI_FN pfnGetEntityAPI;
@@ -2067,7 +2063,6 @@ typedef struct hudtextparms_s
     int channel;
 } hudtextparms_t;
 
-
 // Meta Utility Function table type.
 typedef struct meta_util_funcs_s
 {
@@ -2090,7 +2085,6 @@ typedef struct meta_util_funcs_s
     int (*pfnMakeRequestID) (plid_t plid);
     void (*pfnGetHookTables) (plid_t plid, enginefuncs_t** peng, DLL_FUNCTIONS** pdll, NEW_DLL_FUNCTIONS** pnewdll);
 } mutil_funcs_t;
-
 
 extern gamedll_funcs_t* gpGamedllFuncs;
 extern mutil_funcs_t* gpMetaUtilFuncs;
@@ -2201,7 +2195,6 @@ C_DLLEXPORT int GetEngineFunctions_Post(enginefuncs_t* pengfuncsFromEngine, int*
 // max buffer size for printed messages
 //#define MAX_LOGMSG_LEN  1024
 
-
 void inline UTIL_TraceLine(const Vector& start, const Vector& end, bool ignoreMonsters, bool ignoreGlass, edict_t* ignoreEntity, TraceResult* ptr)
 {
 
@@ -2257,8 +2250,6 @@ typedef struct
     void* pSaveData;
     vec3_t vecLandmarkOffset;
 } globalvars_t;
-
-
 
 #ifdef DEBUG
 #undef DEBUG
