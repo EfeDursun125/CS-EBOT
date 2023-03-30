@@ -910,6 +910,7 @@ private:
 	int FindGoal(void);
 	void FindItem(void);
 	void CheckCloseAvoidance(const Vector& dirNormal);
+	bool AllowPickupItem(void);
 
 	void GetCampDirection(Vector* dest);
 	int GetMessageQueue(void);
