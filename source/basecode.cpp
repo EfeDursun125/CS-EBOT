@@ -233,13 +233,6 @@ void Bot::ZombieModeAi(void)
 	if (!m_isSlowThink)
 		return;
 
-	extern ConVar ebot_random_join_quit;
-	if (ebot_random_join_quit.GetBool() && m_stayTime > 0.0f && m_stayTime < engine->GetTime() && ChanceOf(25))
-	{
-		Kick();
-		return;
-	}
-
 	edict_t* entity = nullptr;
 	if (FNullEnt(m_enemy) && FNullEnt(m_moveTargetEntity))
 	{
@@ -659,39 +652,48 @@ edict_t* Bot::FindButton(void)
 	return foundEntity;
 }
 
-void Bot::FindItem(void)
+bool Bot::AllowPickupItem(void)
 {
 	if (g_gameVersion != HALFLIFE)
 	{
 		if (m_isZombieBot)
-			return;
+			return false;
 
 		if (IsZombieMode() && m_currentWeapon != WEAPON_KNIFE) // if we're holding knife, mostly our guns dont have a ammo
-			return;
+			return false;
 
-		if (GetCurrentTask()->taskID == TASK_ESCAPEFROMBOMB)
-			return;
+		int taskID = GetCurrentTask()->taskID;
+		if (taskID == TASK_ESCAPEFROMBOMB)
+			return false;
 
-		if (GetCurrentTask()->taskID == TASK_PLANTBOMB)
-			return;
+		if (taskID == TASK_PLANTBOMB)
+			return false;
 
-		if (GetCurrentTask()->taskID == TASK_THROWHEGRENADE)
-			return;
+		if (taskID == TASK_THROWHEGRENADE)
+			return false;
 
-		if (GetCurrentTask()->taskID == TASK_THROWFBGRENADE)
-			return;
+		if (taskID == TASK_THROWFBGRENADE)
+			return false;
 
-		if (GetCurrentTask()->taskID == TASK_THROWSMGRENADE)
-			return;
+		if (taskID == TASK_THROWSMGRENADE)
+			return false;
 
-		if (GetCurrentTask()->taskID == TASK_DESTROYBREAKABLE)
-			return;
+		if (taskID == TASK_DESTROYBREAKABLE)
+			return false;
 	}
 
-	if (!FNullEnt(m_enemy))
-		return;
+	if (m_aimFlags & AIM_ENEMY || m_aimFlags & AIM_ENTITY)
+		return false;
 
 	if (IsOnLadder())
+		return false;
+
+	return true;
+}
+
+void Bot::FindItem(void)
+{
+	if (AllowPickupItem())
 	{
 		m_pickupItem = nullptr;
 		m_pickupType = PICKTYPE_NONE;
@@ -1898,19 +1900,6 @@ void Bot::SetConditions(void)
 	}
 	else if (m_heardSoundTime < engine->GetTime())
 		m_states &= ~STATE_HEARENEMY;
-
-	if (FNullEnt(m_enemy) && !FNullEnt(m_lastEnemy) && m_lastEnemyOrigin != nullvec && !IsZombieMode() && (pev->origin - m_lastEnemyOrigin).GetLengthSquared() < SquaredF(1600.0f))
-	{
-		TraceResult tr;
-		TraceLine(EyePosition(), m_lastEnemyOrigin, true, true, GetEntity(), &tr);
-
-		if ((tr.flFraction >= 0.2f || tr.pHit != g_worldEdict))
-		{
-			m_aimFlags |= AIM_PREDICTENEMY;
-			if (EntityIsVisible(m_lastEnemyOrigin))
-				m_aimFlags |= AIM_LASTENEMY;
-		}
-	}
 
 	CheckGrenadeThrow();
 
@@ -3582,40 +3571,6 @@ void Bot::ChooseAimDirection(void)
 		}
 	}
 
-	// check if last enemy vector valid
-	if (!IsZombieMode())
-	{
-		if (m_lastEnemyOrigin != nullvec)
-		{
-			if (FNullEnt(m_enemy) && (pev->origin - m_lastEnemyOrigin).GetLengthSquared() >= SquaredF(1600.0f) && m_seeEnemyTime + 7.0f < engine->GetTime())
-			{
-				TraceLine(EyePosition(), m_lastEnemyOrigin, true, true, GetEntity(), &tr);
-				if (!UsesSniper() || (tr.flFraction <= 0.2f && tr.pHit == g_hostEntity))
-				{
-					if ((m_aimFlags & (AIM_LASTENEMY | AIM_PREDICTENEMY)) && m_wantsToFire)
-						m_wantsToFire = false;
-
-					m_lastEnemyOrigin = nullvec;
-					m_aimFlags &= ~(AIM_LASTENEMY | AIM_PREDICTENEMY);
-
-					flags &= ~(AIM_LASTENEMY | AIM_PREDICTENEMY);
-				}
-			}
-		}
-		else
-		{
-			m_aimFlags &= ~(AIM_LASTENEMY | AIM_PREDICTENEMY);
-			flags &= ~(AIM_LASTENEMY | AIM_PREDICTENEMY);
-		}
-
-		// don't allow bot to look at danger positions under certain circumstances
-		if (!(flags & (AIM_GRENADE | AIM_ENEMY | AIM_ENTITY)))
-		{
-			if (IsOnLadder() || IsInWater() || (m_waypointFlags & WAYPOINT_LADDER) || (m_currentTravelFlags & PATHFLAG_JUMP))
-				flags &= ~(AIM_LASTENEMY | AIM_PREDICTENEMY);
-		}
-	}
-
 	if (flags & AIM_OVERRIDE)
 	{
 		m_aimStopTime = 0.0f;
@@ -3753,10 +3708,11 @@ void Bot::ChooseAimDirection(void)
 				m_lookAt = m_lastEnemyOrigin;
 			m_aimStopTime = 0.0f;
 		}
-		else if (HasNextPath())
-			m_lookAt = g_waypoint->GetPath(m_navNode->next->index)->origin + pev->view_ofs;
 		else
-			m_lookAt = m_destOrigin + pev->velocity + pev->view_ofs;
+		{
+			m_lookAt = m_destOrigin;
+			m_lookAt.z = EyePosition().z;
+		}
 	}
 
 	if (m_lookAt == nullvec)
@@ -4077,7 +4033,7 @@ void Bot::MoveAction(void)
 void Bot::TaskNormal(int i, int destIndex, Vector src)
 {
 	m_aimFlags |= AIM_NAVPOINT;
-	bool cwValid = IsValidWaypoint(m_currentWaypointIndex);
+	const bool cwValid = IsValidWaypoint(m_currentWaypointIndex);
 
 	if (IsZombieMode())
 	{
@@ -4130,14 +4086,9 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 
 		if (ebot_walkallow.GetBool() && engine->IsFootstepsOn() && m_moveSpeed != 0.0f && !(m_aimFlags & AIM_ENEMY) && (m_seeEnemyTime + 13.0f >= engine->GetTime() || m_heardSoundTime + 13.0f >= engine->GetTime() || (m_states & (STATE_HEARENEMY))) && !g_bombPlanted)
 		{
-			if (FNullEnt(m_enemy)) // don't walk if theres a enemy
-			{
-				m_moveSpeed = GetWalkSpeed();
-				if (m_currentWeapon == WEAPON_KNIFE)
-					SelectBestWeapon();
-			}
-			else
-				m_moveSpeed = pev->maxspeed;
+			m_moveSpeed = GetWalkSpeed();
+			if (m_currentWeapon == WEAPON_KNIFE)
+				SelectBestWeapon();
 		}
 
 		// bot hasn't seen anything in a long time and is asking his teammates to report in or sector clear
@@ -4335,7 +4286,7 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 		m_moveSpeed = pev->maxspeed;
 
 		// did we already decide about a goal before?
-		if (IsValidWaypoint(GetCurrentTask()->data) && !m_isBomber)
+		if (IsValidWaypoint(GetCurrentTask()->data))
 			destIndex = m_tasks->data;
 		else
 			destIndex = FindGoal();
@@ -4346,7 +4297,7 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 		m_tasks->data = destIndex;
 
 		// do pathfinding if it's not the current waypoint
-		if (IsValidWaypoint(destIndex) && m_currentWaypointIndex != destIndex && !HasNextPath())
+		if (m_currentWaypointIndex != destIndex && IsValidWaypoint(destIndex) && !HasNextPath())
 			FindPath(m_currentWaypointIndex, destIndex);
 	}
 }
@@ -5918,11 +5869,11 @@ void Bot::RunTask(void)
 
 		// picking up items and stuff behaviour
 	case TASK_PICKUPITEM:
-		if (m_isZombieBot)
+		if (AllowPickupItem())
 		{
 			m_pickupItem = nullptr;
-			TaskComplete();
-			break;
+			m_pickupType = PICKTYPE_NONE;
+			return;
 		}
 
 		if (FNullEnt(m_pickupItem))
@@ -7432,8 +7383,11 @@ void Bot::RunPlayerMovement(void)
 	// elapses, that bot will behave like a ghost : no movement, but bullets and players can
 	// pass through it. Then, when the next frame will begin, the stucking problem will arise !
 
-	m_msecVal = (engine->GetTime() - m_msecInterval) * 1000.0f;
+	m_msecVal = (engine->GetTime() - m_msecInterval) * (1000.0f + m_frameInterval + g_pGlobals->frametime);
 	m_msecInterval = engine->GetTime();
+
+	if (m_msecVal > 255.0f)
+		m_msecVal = 255.0f;
 
 	(*g_engfuncs.pfnRunPlayerMove) (GetEntity(), m_moveAnglesForRunMove, m_moveSpeedForRunMove, m_strafeSpeedForRunMove, 0.0f, static_cast <unsigned short> (pev->button), static_cast <uint8_t> (pev->impulse), static_cast <uint8_t> (m_msecVal));
 }

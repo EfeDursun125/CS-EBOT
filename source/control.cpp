@@ -1341,11 +1341,9 @@ void Bot::StartGame(void)
 	{
 		m_startAction = CMENU_IDLE;  // switch back to idle
 
-		if (ebot_forceteam.GetString()[0] == 'C' || ebot_forceteam.GetString()[0] == 'c' ||
-			ebot_forceteam.GetString()[0] == '2')
+		if (ebot_forceteam.GetString()[0] == 'C' || ebot_forceteam.GetString()[0] == 'c' || ebot_forceteam.GetString()[0] == '2')
 			m_wantedTeam = 2;
-		else if (ebot_forceteam.GetString()[0] == 'T' || ebot_forceteam.GetString()[0] == 't' ||
-			ebot_forceteam.GetString()[0] == '1') // 1 = T, 2 = CT
+		else if (ebot_forceteam.GetString()[0] == 'T' || ebot_forceteam.GetString()[0] == 't' || ebot_forceteam.GetString()[0] == '1') // 1 = T, 2 = CT
 			m_wantedTeam = 1;
 
 		if (m_wantedTeam != 1 && m_wantedTeam != 2)
@@ -1370,5 +1368,13 @@ void Bot::StartGame(void)
 		// check for greeting other players, since we connected
 		if (engine->RandomInt(1, 3) == 1)
 			ChatMessage(CHAT_HELLO);
+	}
+	else if (IsAlive(GetEntity())) // something is wrong...
+	{
+		if (engine->RandomInt(1, 3) == 1)
+			ChatMessage(CHAT_HELLO);
+
+		m_notStarted = false;
+		m_startAction = CMENU_IDLE;
 	}
 }

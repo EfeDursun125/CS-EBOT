@@ -411,38 +411,32 @@ Vector Bot::GetAimPosition(void)
 	// get enemy position initially
 	Vector targetOrigin = m_enemy->v.origin;
 
-	float distance = (m_enemyOrigin - pev->origin).GetLengthSquared();
+	float distance = (targetOrigin - pev->origin).GetLengthSquared();
 
 	// do not aim at head, at long distance (only if not using sniper weapon)
 	if ((m_visibility & VISIBILITY_BODY) && !UsesSniper() && !UsesPistol() && (distance > (m_difficulty == 4 ? SquaredF(2400.0f) : SquaredF(1200.0f))))
 		m_visibility &= ~VISIBILITY_HEAD;
 
-	if ((m_states & STATE_HEARENEMY) && !(m_states & STATE_SEEINGENEMY))
-		targetOrigin = m_lastEnemyOrigin;
-	else
+	// now take in account different parts of enemy body
+	if (m_visibility & (VISIBILITY_HEAD | VISIBILITY_BODY)) // visible head & body
 	{
-		// now take in account different parts of enemy body
-		if (m_visibility & (VISIBILITY_HEAD | VISIBILITY_BODY)) // visible head & body
-		{
-			// now check is our skill match to aim at head, else aim at enemy body
-			if (ChanceOf(m_skill) || UsesPistol())
-				targetOrigin = targetOrigin + m_enemy->v.view_ofs + Vector(0.0f, 0.0f, GetZOffset(distance));
-			else
-				targetOrigin = targetOrigin + Vector(0.0f, 0.0f, GetZOffset(distance));
-		}
-		else if (m_visibility & VISIBILITY_BODY) // visible only body
-			targetOrigin = targetOrigin + Vector(0.0f, 0.0f, GetZOffset(distance));
-		else if (m_visibility & VISIBILITY_OTHER) // random part of body is visible
-			targetOrigin = m_enemyOrigin;
-		else if (m_visibility & VISIBILITY_HEAD) // visible only head
+		// now check is our skill match to aim at head, else aim at enemy body
+		if (ChanceOf(m_skill) || UsesPistol())
 			targetOrigin = targetOrigin + m_enemy->v.view_ofs + Vector(0.0f, 0.0f, GetZOffset(distance));
-		else // something goes wrong, use last enemy origin
-			targetOrigin = m_lastEnemyOrigin;
-
-		m_lastEnemyOrigin = targetOrigin;
+		else
+			targetOrigin = targetOrigin + Vector(0.0f, 0.0f, GetZOffset(distance));
 	}
-
-	return m_enemyOrigin = m_lastEnemyOrigin = targetOrigin;
+	else if (m_visibility & VISIBILITY_BODY) // visible only body
+		targetOrigin = targetOrigin + Vector(0.0f, 0.0f, GetZOffset(distance));
+	else if (m_visibility & VISIBILITY_OTHER) // random part of body is visible
+		targetOrigin = m_enemy->v.origin - m_enemy->v.view_ofs;
+	else if (m_visibility & VISIBILITY_HEAD) // visible only head
+		targetOrigin = targetOrigin + m_enemy->v.view_ofs + Vector(0.0f, 0.0f, GetZOffset(distance));
+	else
+		targetOrigin = m_enemy->v.origin;
+	
+	m_lastEnemyOrigin = targetOrigin;
+	return targetOrigin;
 }
 
 float Bot::GetZOffset(float distance)
@@ -708,6 +702,7 @@ void Bot::FireWeapon(void)
 
 		selectIndex++;
 	}
+
 	selectId = selectTab[chosenWeaponIndex].id;
 
 	// if no available weapon...
@@ -1207,7 +1202,7 @@ void Bot::CombatFight(void)
 			}
 		}
 
-		if (m_isReloading || (m_isBomber && (engine->RandomFloat(1.0f, pev->health) <= 40.0f || !HasPrimaryWeapon())) || m_isVIP)
+		/*if (m_isReloading || (m_isBomber && (engine->RandomFloat(1.0f, pev->health) <= 40.0f || !HasPrimaryWeapon())) || m_isVIP)
 		{
 			const int seekindex = FindCoverWaypoint(99999.0f);
 			if (IsValidWaypoint(seekindex))
@@ -1215,35 +1210,16 @@ void Bot::CombatFight(void)
 			return;
 		}
 
-		float distance = ((pev->origin + pev->velocity * m_frameInterval) - m_lookAt).GetLengthSquared(); // how far away is the enemy scum?
+		
 		if (IsWeaponBadInDistance(m_currentWeapon, distance))
 		{
 			const int seekindex = FindCoverWaypoint(99999.0f);
 			if (IsValidWaypoint(seekindex))
 				PushTask(TASK_SEEKCOVER, TASKPRI_SEEKCOVER, seekindex, 12.0f, true);
 			return;
-		}
+		}*/
 
-		if (FNullEnt(m_enemy) && IsSniper())
-		{
-			m_moveSpeed = 0.0f;
-			m_strafeSpeed = 0.0f;
-			SelectBestWeapon();
-
-			if (UsesSniper() && m_zoomCheckTime < engine->GetTime())
-			{
-				if (distance > SquaredF(1500.0f) && pev->fov >= 40.0f)
-					pev->button |= IN_ATTACK2;
-				else if (distance > SquaredF(150.0f) && pev->fov >= 90.0f)
-					pev->button |= IN_ATTACK2;
-				else if (distance <= SquaredF(150.0f) && pev->fov < 90.0f)
-					pev->button |= IN_ATTACK2;
-				m_zoomCheckTime = engine->GetTime();
-			}
-
-			return;
-		}
-
+		const float distance = ((pev->origin + pev->velocity * m_frameInterval) - m_lookAt).GetLengthSquared(); // how far away is the enemy scum?
 		const int melee = g_gameVersion == HALFLIFE ? WEAPON_CROWBAR : WEAPON_KNIFE;
 		if (m_currentWeapon == melee && !FNullEnt(m_enemy))
 		{

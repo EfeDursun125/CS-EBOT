@@ -29,6 +29,7 @@ ConVar ebot_aim_boost_in_zm("ebot_zm_aim_boost", "1");
 ConVar ebot_zombies_as_path_cost("ebot_zombie_count_as_path_cost", "1");
 ConVar ebot_ping_affects_aim("ebot_ping_affects_aim", "0");
 ConVar ebot_aim_type("ebot_aim_type", "1");
+ConVar ebot_path_smoothing("ebot_path_smoothing", "1");
 
 int Bot::FindGoal(void)
 {
@@ -638,9 +639,6 @@ inline const float GF_CostHuman(const int index, const int parent, const int tea
 	if (path->flags & WAYPOINT_AVOID)
 		return 65355.0f;
 
-	if (path->flags & WAYPOINT_SPECIFICGRAVITY && (gravity * (1600.0f - 800.0f)) < path->campStartY)
-		return 65355.0f;
-
 	if (isZombie)
 	{
 		if (path->flags & WAYPOINT_HUMANONLY)
@@ -701,9 +699,6 @@ inline const float GF_CostCareful(const int index, const int parent, const int t
 {
 	const Path* path = g_waypoint->GetPath(index);
 	if (path->flags & WAYPOINT_AVOID)
-		return 65355.0f;
-
-	if (path->flags & WAYPOINT_SPECIFICGRAVITY && (gravity * (1600.0 - 800.0f)) < path->campStartY)
 		return 65355.0f;
 
 	if (isZombie)
@@ -772,9 +767,6 @@ inline const float GF_CostNormal(const int index, const int parent, const int te
 {
 	const Path* path = g_waypoint->GetPath(index);
 	if (path->flags & WAYPOINT_AVOID)
-		return 65355.0f;
-
-	if (path->flags & WAYPOINT_SPECIFICGRAVITY && (gravity * (1600.0f - 800.0f)) < path->campStartY)
 		return 65355.0f;
 
 	if (isZombie)
@@ -846,9 +838,6 @@ inline const float GF_CostRusher(const int index, const int parent, const int te
 {
 	const Path* path = g_waypoint->GetPath(index);
 	if (path->flags & WAYPOINT_AVOID)
-		return 65355.0f;
-
-	if (path->flags & WAYPOINT_SPECIFICGRAVITY && (gravity * (1600.0f - 800.0f)) < path->campStartY)
 		return 65355.0f;
 
 	if (isZombie)
@@ -941,20 +930,6 @@ inline const float HF_Distance(int start, int goal)
 	return (sPath - gPath).GetLengthSquared();
 }
 
-inline const float HF_Euclidean(const int start, const int goal)
-{
-	auto sPath = g_waypoint->GetPath(start)->origin;
-	auto gPath = g_waypoint->GetPath(goal)->origin;
-
-	float x = fabsf(sPath.x - gPath.x);
-	float y = fabsf(sPath.y - gPath.y);
-	float z = fabsf(sPath.z - gPath.z);
-
-	float euclidean = Q_sqrt(powf(x, 2.0f) + powf(y, 2.0f) + powf(z, 2.0f));
-
-	return 1000.0f * (ceilf(euclidean) - euclidean);
-}
-
 // this function finds a path from srcIndex to destIndex
 void Bot::FindPath(int srcIndex, int destIndex)
 {
@@ -963,6 +938,9 @@ void Bot::FindPath(int srcIndex, int destIndex)
 		FindShortestPath(srcIndex, destIndex);
 		return;
 	}
+
+	if (m_isBomber && HasNextPath())
+		return;
 
 	// if we're stuck, find nearest waypoint
 	if (!IsValidWaypoint(srcIndex))
@@ -981,10 +959,7 @@ void Bot::FindPath(int srcIndex, int destIndex)
 	}
 
 	if (!IsValidWaypoint(destIndex))
-	{
 		destIndex = g_waypoint->m_otherPoints.GetRandomElement();
-		AddLogEntry(LOG_ERROR, "Pathfinder destination path index not valid (%d)", destIndex);
-	}
 
 	AStar_t waypoints[Const_MaxWaypoints];
 	for (int i = 0; i < g_numWaypoints; i++)
@@ -998,7 +973,7 @@ void Bot::FindPath(int srcIndex, int destIndex)
 	const float (*gcalc) (int, int, int, float, bool) = nullptr;
 	const float (*hcalc) (int, int) = nullptr;
 
-	hcalc = HF_Euclidean;
+	hcalc = HF_Distance;
 
 	if (IsZombieMode() && ebot_zombies_as_path_cost.GetBool() && !m_isZombieBot)
 		gcalc = GF_CostHuman;
@@ -1086,11 +1061,17 @@ void Bot::FindPath(int srcIndex, int destIndex)
 			if (self == -1)
 				continue;
 
-			if (g_waypoint->GetPath(self)->flags & WAYPOINT_FALLCHECK)
+			int32 flags = g_waypoint->GetPath(self)->flags;
+			if (flags & WAYPOINT_FALLCHECK)
 			{
 				TraceResult tr;
 				TraceLine(g_waypoint->GetPath(self)->origin, g_waypoint->GetPath(self)->origin - Vector(0.0f, 0.0f, 60.0f), false, false, GetEntity(), &tr);
 				if (tr.flFraction == 1.0f)
+					continue;
+			}
+			else if (flags & WAYPOINT_SPECIFICGRAVITY)
+			{
+				if (pev->gravity * (1600.0f - 800.0f) < g_waypoint->GetPath(self)->campStartY)
 					continue;
 			}
 
@@ -1150,10 +1131,7 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 	}
 
 	if (!IsValidWaypoint(destIndex))
-	{
-		AddLogEntry(LOG_ERROR, "Pathfinder destination path index not valid (%d)", destIndex);
-		return;
-	}
+		destIndex = g_waypoint->m_otherPoints.GetRandomElement();
 
 	AStar_t waypoints[Const_MaxWaypoints];
 	for (int i = 0; i < g_numWaypoints; i++)
@@ -1227,11 +1205,17 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 			if (self == -1)
 				continue;
 
-			if (g_waypoint->GetPath(self)->flags & WAYPOINT_FALLCHECK)
+			int32 flags = g_waypoint->GetPath(self)->flags;
+			if (flags & WAYPOINT_FALLCHECK)
 			{
 				TraceResult tr;
 				TraceLine(g_waypoint->GetPath(self)->origin, g_waypoint->GetPath(self)->origin - Vector(0.0f, 0.0f, 60.0f), false, false, GetEntity(), &tr);
 				if (tr.flFraction == 1.0f)
+					continue;
+			}
+			else if (flags & WAYPOINT_SPECIFICGRAVITY)
+			{
+				if (pev->gravity * (1600.0f - 800.0f) < g_waypoint->GetPath(self)->campStartY)
 					continue;
 			}
 
@@ -1597,13 +1581,87 @@ void Bot::IgnoreCollisionShortly(void)
 	m_checkTerrain = false;
 }
 
+Vector Smooth(const Vector& one, const Vector& second)
+{
+	return (one + second) * 0.5f;
+}
+
+Vector SmoothMax(const Vector& one, const Vector& second, const Vector& third, const Vector& last)
+{
+	return (one + second + third + last) * 0.25f;
+}
+
+Vector SmoothMaxMax(const Vector& one, const Vector& second, const Vector& third, const Vector& last, const Vector& onemore)
+{
+	return (one + second + third + last + onemore) * 0.20f;
+}
+
 void Bot::SetWaypointOrigin(void)
 {
-	int myIndex = m_currentWaypointIndex;
-
+	const int myIndex = m_currentWaypointIndex;
+	const int32 myFlags = g_waypoint->GetPath(myIndex)->flags;
 	m_waypointOrigin = g_waypoint->GetPath(myIndex)->origin;
+	
+	if (ebot_path_smoothing.GetBool())
+	{
+		bool isSmooth = false;
+		if (IsOnLadder())
+		{
+			m_aimStopTime = 0.0f;
+			TraceResult tr;
+			TraceLine(Vector(pev->origin.x, pev->origin.y, pev->absmin.z), m_waypointOrigin, true, true, GetEntity(), &tr);
 
-	float radius = g_waypoint->GetPath(myIndex)->radius;
+			if (tr.flFraction < 1.0f)
+				m_waypointOrigin = m_waypointOrigin + (pev->origin - m_waypointOrigin) * 0.5f + Vector(0.0f, 0.0f, 32.0f);
+		}
+		else if (!(myFlags & WAYPOINT_JUMP) && !(myFlags & WAYPOINT_LADDER) && !(myFlags & WAYPOINT_FALLCHECK) && !(myFlags & WAYPOINT_FALLRISK) && &m_navNode[0] != nullptr)
+		{
+			if (m_navNode->next != nullptr)
+			{
+				if (m_navNode->next->next != nullptr)
+				{
+					const Vector& origin = g_waypoint->GetPath(m_navNode->next->index)->origin;
+					if (IsVisible(origin, GetEntity()))
+					{
+						const Vector& origin2 = g_waypoint->GetPath(m_navNode->next->next->index)->origin;
+						if (IsVisible(origin2, GetEntity()))
+						{
+							Vector origin3;
+							if (m_navNode->next->next->next != nullptr && IsVisible((origin3 = g_waypoint->GetPath(m_navNode->next->next->next->index)->origin), GetEntity()))
+							{
+								isSmooth = true;
+								m_waypointOrigin = SmoothMaxMax(m_prevOrigin, m_waypointOrigin, origin, origin2, origin3);
+							}
+							else
+							{
+								isSmooth = true;
+								m_waypointOrigin = SmoothMax(m_prevOrigin, m_waypointOrigin, origin, origin2);
+							}
+						}
+						else
+						{
+							isSmooth = true;
+							m_waypointOrigin = Smooth(m_waypointOrigin, origin);
+						}
+					}
+				}
+				else
+				{
+					const Vector& origin = g_waypoint->GetPath(m_navNode->next->index)->origin;
+					if (IsVisible(origin, GetEntity()))
+					{
+						isSmooth = true;
+						m_waypointOrigin = Smooth(m_waypointOrigin, origin);
+					}
+				}
+			}
+		}
+
+		if (isSmooth)
+			return;
+	}
+
+	const float radius = g_waypoint->GetPath(myIndex)->radius;
 	if (radius > 0)
 	{
 		MakeVectors(Vector(pev->angles.x, AngleNormalize(pev->angles.y + engine->RandomFloat(-90.0f, 90.0f)), 0.0f));
@@ -1636,16 +1694,6 @@ void Bot::SetWaypointOrigin(void)
 
 		if (sPoint == -1)
 			m_waypointOrigin = m_waypointOrigin + pev->view_ofs + g_pGlobals->v_forward;
-	}
-
-	if (IsOnLadder())
-	{
-		m_aimStopTime = 0.0f;
-		TraceResult tr;
-		TraceLine(Vector(pev->origin.x, pev->origin.y, pev->absmin.z), m_waypointOrigin, true, true, GetEntity(), &tr);
-
-		if (tr.flFraction < 1.0f)
-			m_waypointOrigin = m_waypointOrigin + (pev->origin - m_waypointOrigin) * 0.5f + Vector(0.0f, 0.0f, 32.0f);
 	}
 }
 
@@ -2834,7 +2882,7 @@ bool Bot::IsWaypointOccupied(int index)
 
 	for (const auto& bot : g_botManager->m_bots)
 	{
-		if (bot != nullptr && (bot->m_currentWaypointIndex == index || bot->m_prevWptIndex == index || bot->m_chosenGoalIndex == index || bot->GetCurrentTask()->taskID == index))
+		if (bot != nullptr && (bot->m_currentWaypointIndex == index || bot->m_prevWptIndex == index || bot->m_chosenGoalIndex == index || bot->GetCurrentTask()->data == index))
 			return true;
 	}
 

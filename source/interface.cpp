@@ -293,6 +293,23 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		}
 	}
 
+	else if (stricmp(arg0, "setgravity") == 0 || stricmp(arg0, "gravity") == 0)
+	{
+		if (IsNullString(arg1))
+			ClientPrint(ent, print_withtag, "Please specify gravity");
+		else
+		{
+			float gravity = fabsf(static_cast <float> (atof(arg1)));
+			ClientPrint(ent, print_withtag, "E-Bot gravity is set to %d%%", gravity);
+
+			for (const auto& bot : g_botManager->m_bots)
+			{
+				if (bot != nullptr)
+					bot->pev->gravity = gravity;
+			}
+		}
+	}
+
 	// displays main bot menu
 	else if (stricmp(arg0, "botmenu") == 0 || stricmp(arg0, "menu") == 0)
 		DisplayMenuToClient(ent, &g_menus[0]);
