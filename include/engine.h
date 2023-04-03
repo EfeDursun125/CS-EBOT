@@ -114,7 +114,7 @@ typedef void* HINSTANCE;
 // C functions for external declarations that call the appropriate C++ methods
 #ifndef EXPORT
 #ifdef _WIN32
-#define EXPORT   __declspec( dllexport )
+#define EXPORT __declspec( dllexport )
 #else
 #define EXPORT                  /* */
 #endif
@@ -2300,9 +2300,6 @@ typedef int EOFFSET;
 
 // In case it's not alread defined
 typedef int BOOL;
-
-// In case this ever changes
-#define M_PI 3.1415926
 
    //
    // Conversion among the three types of "entity", including identity-conversions.
