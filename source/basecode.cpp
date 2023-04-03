@@ -1199,12 +1199,13 @@ void Bot::PlayChatterMessage(ChatterMessage message)
 	SwitchChatterIcon(true);
 	g_audioTime = m_chatterTimer;
 
+	auto id = g_netMsg->GetId(NETMSG_SENDAUDIO);
 	for (const auto& client : g_clients)
 	{
 		if (!IsValidPlayer(client.ent) || client.team != m_team || IsValidBot(client.ent))
 			continue;
 
-		MESSAGE_BEGIN(MSG_ONE, g_netMsg->GetId(NETMSG_SENDAUDIO), nullptr, client.ent); // begin message
+		MESSAGE_BEGIN(MSG_ONE, id, nullptr, client.ent); // begin message
 		WRITE_BYTE(m_index);
 
 		if (!(pev->deadflag & DEAD_DEAD))
@@ -1246,6 +1247,7 @@ void Bot::CheckMessageQueue(void)
 
 		if (!m_inBuyZone)
 		{
+			m_buyState = 7;
 			m_buyingFinished = true;
 			break;
 		}
@@ -1490,8 +1492,7 @@ void Bot::PerformWeaponPurchase(void)
 				{
 					if (gunMode <= BuyWeaponMode(likeGunId[0]))
 					{
-						if ((BuyWeaponMode(likeGunId[1]) > BuyWeaponMode(likeGunId[0])) ||
-							(BuyWeaponMode(likeGunId[1]) == BuyWeaponMode(likeGunId[0]) && (engine->RandomInt(1, 2) == 2)))
+						if ((BuyWeaponMode(likeGunId[1]) > BuyWeaponMode(likeGunId[0])) || (BuyWeaponMode(likeGunId[1]) == BuyWeaponMode(likeGunId[0]) && (engine->RandomInt(1, 2) == 2)))
 							likeGunId[1] = likeGunId[0];
 
 						likeGunId[0] = selectedWeapon->id;
@@ -2700,9 +2701,14 @@ bool Bot::ReactOnEnemy(void)
 			// end of the path, before repathing check the distance if we can reach to enemy
 			if (!HasNextPath())
 			{
-				m_isEnemyReachable = enemyDistance <= SquaredF(512.0f);
-				if (m_isEnemyReachable)
+				TraceResult tr;
+				TraceHull(pev->origin, m_enemyOrigin, true, head_hull, GetEntity(), &tr);
+
+				if (tr.flFraction == 1.0f || (!FNullEnt(tr.pHit) && tr.pHit == m_enemy))
+				{
+					m_isEnemyReachable = true;
 					goto last;
+				}
 			}
 			else
 			{
@@ -4281,24 +4287,21 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 			}
 		}
 	}
-	else if (!GoalIsValid()) // no more nodes to follow - search new ones (or we have a momb)
+	else if (!HasNextPath()) // no more nodes to follow - search new ones (or we have a momb)
 	{
-		m_moveSpeed = pev->maxspeed;
+		destIndex = FindGoal();
 
-		// did we already decide about a goal before?
-		if (IsValidWaypoint(GetCurrentTask()->data))
-			destIndex = m_tasks->data;
-		else
-			destIndex = FindGoal();
+		if (IsValidWaypoint(destIndex))
+		{
+			m_prevGoalIndex = destIndex;
 
-		m_prevGoalIndex = destIndex;
+			// remember index
+			m_tasks->data = destIndex;
 
-		// remember index
-		m_tasks->data = destIndex;
-
-		// do pathfinding if it's not the current waypoint
-		if (m_currentWaypointIndex != destIndex && IsValidWaypoint(destIndex) && !HasNextPath())
-			FindPath(m_currentWaypointIndex, destIndex);
+			// do pathfinding if it's not the current waypoint
+			if (m_currentWaypointIndex != destIndex)
+				FindPath(m_currentWaypointIndex, destIndex);
+		}
 	}
 }
 
@@ -5787,35 +5790,14 @@ void Bot::RunTask(void)
 					pev->button |= IN_ATTACK2;
 			}
 
-			PushTask(TASK_PAUSE, TASKPRI_CAMP, -1, AddTime(10.0f), true);
+			PushTask(TASK_PAUSE, TASKPRI_CAMP, -1, AddTime(100.0f), true);
 		}
-		else if (!GoalIsValid())
+		else if (!HasNextPath())
 		{
 			if (m_numEnemiesLeft <= 0)
 				SelectKnife();
 
-			destIndex = -1;
-
-			DeleteSearchNodes();
-
-			float safeRadius = 2048.0f, minPathDistance = 4096.0f;
-			for (i = 0; i < g_numWaypoints; i++)
-			{
-				if ((g_waypoint->GetPath(i)->origin - g_waypoint->GetBombPosition()).GetLengthSquared() < SquaredF(safeRadius))
-					continue;
-
-				float pathDistance = g_waypoint->GetPathDistance(m_currentWaypointIndex, i);
-
-				if (minPathDistance > pathDistance)
-				{
-					minPathDistance = pathDistance;
-					destIndex = i;
-				}
-			}
-
-			if (IsValidWaypoint(destIndex))
-				destIndex = g_waypoint->FindFarest(pev->origin, safeRadius);
-
+			destIndex = g_waypoint->FindFarest(pev->origin, 2048.0f);
 			m_prevGoalIndex = destIndex;
 			m_tasks->data = destIndex;
 			FindPath(m_currentWaypointIndex, destIndex);
@@ -6519,13 +6501,12 @@ void Bot::BotAI(void)
 	else
 		directionOld = (m_destOrigin + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval);
 
-	Vector directionNormal = directionOld.Normalize();
+	Vector directionNormal = directionOld.Normalize2D();
 	Vector direction = directionNormal;
-	directionNormal.z = 0.0f;
 
 	m_moveAngles = directionOld.ToAngles();
 	m_moveAngles.ClampAngles();
-	m_moveAngles.x *= -1.0f; // invert for engine
+	m_moveAngles.x = -m_moveAngles.x; // invert for engine
 
 	if (GetCurrentTask()->taskID == TASK_CAMP || GetCurrentTask()->taskID == TASK_DESTROYBREAKABLE)
 		SelectBestWeapon();

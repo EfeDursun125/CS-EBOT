@@ -615,13 +615,10 @@ bool Bot::DoFirePause(float distance)//, FireDelay *fireDelay)
 	if (m_firePause > engine->GetTime())
 		return true;
 
-	if ((m_aimFlags & AIM_ENEMY) && m_enemyOrigin != nullvec)
-	{
-		if (IsEnemyProtectedByShield(m_enemy) && GetShootingConeDeviation(GetEntity(), &m_enemyOrigin) > 0.92f)
-			return true;
-	}
+	if (m_aimFlags & AIM_ENEMY && m_enemyOrigin != nullvec && IsEnemyProtectedByShield(m_enemy))
+		return true;
 
-	float angle = (fabsf(pev->punchangle.y) + fabsf(pev->punchangle.x)) * (Math::MATH_PI * 0.00277777777f);
+	const float angle = (fabsf(pev->punchangle.y) + fabsf(pev->punchangle.x)) * (Math::MATH_PI * 0.00277777777f);
 
 	// check if we need to compensate recoil
 	if (tanf(angle) * (distance + (distance * 0.25f)) > g_skillTab[m_skill / 20].recoilAmount)
@@ -678,7 +675,7 @@ void Bot::FireWeapon(void)
 
 	if (m_isZombieBot || ebot_knifemode.GetBool())
 		goto WeaponSelectEnd;
-	else if (!FNullEnt(enemy) && ChanceOf(m_skill) && !IsZombieEntity(enemy) && IsOnAttackDistance(enemy, 128.0f) && (enemy->v.health <= 30 || pev->health > enemy->v.health) && !IsOnLadder() && !IsGroupOfEnemies(pev->origin))
+	else if (!FNullEnt(enemy) && ChanceOf(m_skill) && !IsZombieEntity(enemy) && IsOnAttackDistance(enemy, 128.0f) && (enemy->v.health <= 30 || pev->health > enemy->v.health) && !IsOnLadder() && !IsGroupOfEnemies(enemy->v.origin))
 		goto WeaponSelectEnd;
 
 	// loop through all the weapons until terminator is found...
@@ -687,16 +684,22 @@ void Bot::FireWeapon(void)
 		// is the bot carrying this weapon?
 		if (weapons & (1 << selectTab[selectIndex].id))
 		{
+			const int id = selectTab[selectIndex].id;
+
+			// cannot be used in water...
+			if (pev->waterlevel == 3 && g_weaponDefs[id].flags & ITEM_FLAG_NOFIREUNDERWATER)
+				continue;
+
 			// is enough ammo available to fire AND check is better to use pistol in our current situation...
 			if (g_gameVersion == HALFLIFE)
 			{
 				if (selectIndex == WEAPON_SNARK || selectIndex == WEAPON_GAUSS ||selectIndex == WEAPON_EGON || (selectIndex == WEAPON_HANDGRENADE && distance > SquaredF(384.0f) && distance <= SquaredF(768.0f)) || (selectIndex == WEAPON_RPG && distance > SquaredF(320.0f)) || (selectIndex == WEAPON_CROSSBOW && distance > SquaredF(320.0f)))
 					chosenWeaponIndex = selectIndex;
-				else if (selectIndex != WEAPON_HANDGRENADE && selectIndex != WEAPON_RPG  && selectIndex != WEAPON_CROSSBOW && (m_ammoInClip[selectTab[selectIndex].id] > 0) && !IsWeaponBadInDistance(selectIndex, distance))
+				else if (selectIndex != WEAPON_HANDGRENADE && selectIndex != WEAPON_RPG  && selectIndex != WEAPON_CROSSBOW && (m_ammoInClip[id] > 0) && !IsWeaponBadInDistance(selectIndex, distance))
 						chosenWeaponIndex = selectIndex;
 
 			}
-			else if ((m_ammoInClip[selectTab[selectIndex].id] > 0) && !IsWeaponBadInDistance(selectIndex, distance))
+			else if ((m_ammoInClip[id] > 0) && !IsWeaponBadInDistance(selectIndex, distance))
 				chosenWeaponIndex = selectIndex;
 		}
 
@@ -713,7 +716,11 @@ void Bot::FireWeapon(void)
 		// loop through all the weapons until terminator is found...
 		while (selectTab[selectIndex].id)
 		{
-			int id = selectTab[selectIndex].id;
+			const int id = selectTab[selectIndex].id;
+
+			// cannot be used in water...
+			if (pev->waterlevel == 3 && g_weaponDefs[id].flags & ITEM_FLAG_NOFIREUNDERWATER)
+				continue;
 
 			// is the bot carrying this weapon?
 			if (weapons & (1 << id))
@@ -1025,9 +1032,9 @@ void Bot::FocusEnemy(void)
 	if (m_enemySurpriseTime > engine->GetTime())
 		return;
 
-	float distance = (m_lookAt - EyePosition()).GetLengthSquared();  // how far away is the enemy scum?
+	const float distance = (m_lookAt - pev->origin).GetLengthSquared();  // how far away is the enemy scum?
 
-	if (distance < SquaredF(128.0f))
+	if (distance <= SquaredF(128.0f))
 	{
 		if (m_currentWeapon == WEAPON_KNIFE)
 		{
@@ -1043,25 +1050,12 @@ void Bot::FocusEnemy(void)
 			m_wantsToFire = true;
 		else
 		{
-			float dot = GetShootingConeDeviation(GetEntity(), &m_enemyOrigin);
+			const float dot = GetShootingConeDeviation(GetEntity(), &m_lookAt);
 
-			if (dot < 0.90f)
-				m_wantsToFire = false;
+			if (dot >= 0.80f)
+				m_wantsToFire = true;
 			else
-			{
-				float enemyDot = GetShootingConeDeviation(m_enemy, &pev->origin);
-
-				// enemy faces bot?
-				if (enemyDot >= 0.90f)
-					m_wantsToFire = true;
-				else
-				{
-					if (dot > 0.99f)
-						m_wantsToFire = true;
-					else
-						m_wantsToFire = false;
-				}
-			}
+				m_wantsToFire = false;
 		}
 	}
 }
@@ -1732,7 +1726,7 @@ void Bot::SelectBestWeapon(void)
 			continue;
 		}
 
-		int id = selectTab[selectIndex].id;
+		const int id = selectTab[selectIndex].id;
 
 		// cannot be used in water...
 		if (pev->waterlevel == 3 && g_weaponDefs[id].flags & ITEM_FLAG_NOFIREUNDERWATER)
