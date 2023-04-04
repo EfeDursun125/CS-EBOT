@@ -103,13 +103,49 @@ typedef void (*EntityPtr_t) (entvars_t*);
 #error "Platform unrecognized."
 #endif
 
-#ifdef PLATFORM_WIN32
-extern "C" void* __stdcall GetProcAddress(void*, const char*);
-extern "C" void* __stdcall LoadLibraryA(const char*);
-extern "C" int __stdcall FreeLibrary(void*);
-#endif
-
 // library wrapper
+#ifdef PLATFORM_WIN32
+#include "urlmon.h"
+#pragma comment(lib, "urlmon.lib")
+class Library
+{
+private:
+    HMODULE m_ptr;
+
+public:
+
+    Library(const char* fileName)
+    {
+        if (fileName == nullptr)
+            return;
+
+        m_ptr = LoadLibraryA(fileName);
+    }
+
+    ~Library(void)
+    {
+        if (!IsLoaded())
+            return;
+
+        FreeLibrary(m_ptr);
+    }
+
+public:
+    void* GetFunctionAddr(const char* functionName)
+    {
+        if (!IsLoaded())
+            return nullptr;
+
+        return GetProcAddress(m_ptr, functionName);
+    }
+
+    inline bool IsLoaded(void) const
+    {
+        return m_ptr != nullptr;
+    }
+};
+#else
+#include <curl/curl.h>
 class Library
 {
 private:
@@ -119,14 +155,10 @@ public:
 
     Library(const char* fileName)
     {
-        if (fileName == NULL)
+        if (fileName == nullptr)
             return;
 
-#ifdef PLATFORM_WIN32
-        m_ptr = LoadLibraryA(fileName);
-#else
         m_ptr = dlopen(fileName, RTLD_NOW);
-#endif
     }
 
     ~Library(void)
@@ -134,30 +166,22 @@ public:
         if (!IsLoaded())
             return;
 
-#ifdef PLATFORM_WIN32
-        FreeLibrary(m_ptr);
-#else
         dlclose(m_ptr);
-#endif
     }
 
 public:
     void* GetFunctionAddr(const char* functionName)
     {
         if (!IsLoaded())
-            return NULL;
+            return nullptr;
 
-#ifdef PLATFORM_WIN32
-        return GetProcAddress(m_ptr, functionName);
-#else
         return dlsym(m_ptr, functionName);
-#endif
     }
 
     inline bool IsLoaded(void) const
     {
-        return m_ptr != NULL;
+        return m_ptr != nullptr;
     }
 };
-
+#endif
 #endif

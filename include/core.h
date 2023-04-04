@@ -1395,6 +1395,7 @@ public:
 	bool IsDuckVisible(int srcIndex, int destIndex);
 	void CalculateWayzone(int index);
 
+	bool Download(void);
 	bool Load(int mode = 0);
 	void Save(void);
 	void SaveOLD(void);
