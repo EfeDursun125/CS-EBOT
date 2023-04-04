@@ -1619,13 +1619,10 @@ bool Waypoint::Download(void)
     curl_global_init(CURL_GLOBAL_DEFAULT);
     curl = curl_easy_init();
 
-    string url = FormatBuffer("%s/%s.ewp", ebot_download_waypoints_from.GetString(), GetMapName());
-    string dest = (char*)CheckSubfolderFile();
-
     if (curl)
     {
-        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, dest.c_str());
+        curl_easy_setopt(curl, CURLOPT_URL, FormatBuffer("%s/%s.ewp", ebot_download_waypoints_from.GetString(), GetMapName()));
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, (char*)CheckSubfolderFile());
 
         res = curl_easy_perform(curl);
         if (res != CURLE_OK)
