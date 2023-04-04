@@ -2163,6 +2163,7 @@ void Bot::CheckTasksPriorities(void)
 
 				delete m_tasks;
 			}
+
 			m_tasks = next;
 		}
 	}
@@ -3646,8 +3647,6 @@ void Bot::ChooseAimDirection(void)
 			else
 				m_lookAt = m_camp;
 		}
-		else // forget an enemy far away
-			m_aimFlags &= ~AIM_PREDICTENEMY;
 	}
 	else if (flags & AIM_CAMP)
 	{
@@ -6518,7 +6517,7 @@ void Bot::BotAI(void)
 
 		if (!IsOnLadder())
 		{
-			if (m_isEnemyReachable && !FNullEnt(m_enemy))
+			if (m_isEnemyReachable && m_aimFlags & AIM_ENEMY)
 			{
 				m_moveToGoal = false; // don't move to goal
 				m_checkTerrain = false;
@@ -6587,12 +6586,22 @@ void Bot::BotAI(void)
 
 		if (!IsOnLadder())
 		{
-			if (!FNullEnt(m_enemy) && GetCurrentTask()->taskID != TASK_CAMP)
+			if (m_aimFlags & AIM_ENEMY && GetCurrentTask()->taskID != TASK_CAMP)
 			{
 				m_moveToGoal = false; // don't move to goal
 				m_navTimeset = engine->GetTime();
 				CombatFight();
 			}
+		}
+	}
+	else // for half life
+	{
+		if (m_aimFlags & AIM_ENEMY)
+		{
+			m_moveToGoal = false; // don't move to goal
+			m_checkTerrain = false;
+			m_navTimeset = engine->GetTime();
+			CombatFight();
 		}
 	}
 

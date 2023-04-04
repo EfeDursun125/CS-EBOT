@@ -1027,36 +1027,24 @@ bool Bot::IsWeaponBadInDistance(int weaponIndex, float distance)
 
 void Bot::FocusEnemy(void)
 {
-	m_lookAt = GetAimPosition();
-
 	if (m_enemySurpriseTime > engine->GetTime())
 		return;
 
-	const float distance = (m_lookAt - pev->origin).GetLengthSquared();  // how far away is the enemy scum?
+	m_lookAt = GetAimPosition();
 
-	if (distance <= SquaredF(128.0f))
+	if (m_currentWeapon == WEAPON_KNIFE)
 	{
-		if (m_currentWeapon == WEAPON_KNIFE)
-		{
-			if (IsOnAttackDistance(m_enemy, 64.0f))
-				m_wantsToFire = true;
-		}
-		else
+		if (IsOnAttackDistance(m_enemy, 72.0f))
 			m_wantsToFire = true;
+		else
+			m_wantsToFire = false;
 	}
 	else
 	{
-		if (m_currentWeapon == WEAPON_KNIFE)
+		if (GetShootingConeDeviation(GetEntity(), &m_lookAt) >= 0.80f)
 			m_wantsToFire = true;
 		else
-		{
-			const float dot = GetShootingConeDeviation(GetEntity(), &m_lookAt);
-
-			if (dot >= 0.80f)
-				m_wantsToFire = true;
-			else
-				m_wantsToFire = false;
-		}
+			m_wantsToFire = false;
 	}
 }
 
@@ -1196,7 +1184,7 @@ void Bot::CombatFight(void)
 			}
 		}
 
-		/*if (m_isReloading || (m_isBomber && (engine->RandomFloat(1.0f, pev->health) <= 40.0f || !HasPrimaryWeapon())) || m_isVIP)
+		if (m_isReloading || (m_isBomber && (engine->RandomFloat(1.0f, pev->health) <= 40.0f || !HasPrimaryWeapon())) || m_isVIP)
 		{
 			const int seekindex = FindCoverWaypoint(99999.0f);
 			if (IsValidWaypoint(seekindex))
@@ -1204,6 +1192,7 @@ void Bot::CombatFight(void)
 			return;
 		}
 
+		const float distance = ((pev->origin + pev->velocity * m_frameInterval) - m_lookAt).GetLengthSquared(); // how far away is the enemy scum?
 		
 		if (IsWeaponBadInDistance(m_currentWeapon, distance))
 		{
@@ -1211,9 +1200,8 @@ void Bot::CombatFight(void)
 			if (IsValidWaypoint(seekindex))
 				PushTask(TASK_SEEKCOVER, TASKPRI_SEEKCOVER, seekindex, 12.0f, true);
 			return;
-		}*/
+		}
 
-		const float distance = ((pev->origin + pev->velocity * m_frameInterval) - m_lookAt).GetLengthSquared(); // how far away is the enemy scum?
 		const int melee = g_gameVersion == HALFLIFE ? WEAPON_CROWBAR : WEAPON_KNIFE;
 		if (m_currentWeapon == melee && !FNullEnt(m_enemy))
 		{

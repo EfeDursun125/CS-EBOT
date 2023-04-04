@@ -34,6 +34,7 @@ ConVar ebot_analyze_create_camp_waypoints("ebot_analyze_create_camp_waypoints", 
 ConVar ebot_use_old_analyzer("ebot_use_old_analyzer", "0");
 ConVar ebot_analyzer_min_fps("ebot_analyzer_min_fps", "30.0");
 ConVar ebot_analyze_auto_start("ebot_analyze_auto_start", "1");
+ConVar ebot_download_waypoints_from("ebot_download_waypoints_from", "https://github.com/EfeDursun125/EBOT-WP/raw/main");
 
 // this function initialize the waypoint structures..
 void Waypoint::Initialize(void)
@@ -1605,6 +1606,44 @@ void Waypoint::InitTypes()
     }
 }
 
+bool Waypoint::Download(void)
+{
+#ifdef PLATFORM_WIN32
+    HRESULT hr = URLDownloadToFile(nullptr, FormatBuffer("%s/%s.ewp", ebot_download_waypoints_from.GetString(), GetMapName()), (char*)CheckSubfolderFile(), 0, nullptr);
+    if (SUCCEEDED(hr))
+        return true;
+#else
+    CURL* curl;
+    CURLcode res;
+
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    curl = curl_easy_init();
+
+    string url = FormatBuffer("%s/%s.ewp", ebot_download_waypoints_from.GetString(), GetMapName());
+    string dest = (char*)CheckSubfolderFile();
+
+    if (curl)
+    {
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, dest.c_str());
+
+        res = curl_easy_perform(curl);
+        if (res != CURLE_OK)
+        {
+            curl_easy_cleanup(curl);
+            curl_global_cleanup();
+            return false;
+        }
+
+        curl_easy_cleanup(curl);
+        return true;
+    }
+    
+    curl_global_cleanup();
+#endif
+    return false;
+}
+
 bool Waypoint::Load(int mode)
 {
     WaypointHeader header;
@@ -1622,7 +1661,7 @@ bool Waypoint::Load(int mode)
             {
                 m_badMapName = true;
 
-                sprintf(m_infoBuffer, "%s - hacked waypoint file, fileName doesn't match waypoint header information (mapname: '%s', header: '%s')", GetMapName(), GetMapName(), header.mapName);
+                sprintf(m_infoBuffer, "%s.ewp - hacked/broken waypoint file, fileName doesn't match waypoint header information (mapname: '%s', header: '%s')", GetMapName(), GetMapName(), header.mapName);
                 AddLogEntry(LOG_ERROR, m_infoBuffer);
 
                 fp.Close();
@@ -1647,7 +1686,7 @@ bool Waypoint::Load(int mode)
         }
         else
         {
-            sprintf(m_infoBuffer, "%s is not a ebot waypoint file (header found '%s' needed '%s'", GetMapName(), header.header, FH_WAYPOINT);
+            sprintf(m_infoBuffer, "%s.ewp is not a ebot waypoint file (header found '%s' needed '%s'", GetMapName(), header.header, FH_WAYPOINT);
             AddLogEntry(LOG_ERROR, m_infoBuffer);
             fp.Close();
             return false;
@@ -1659,6 +1698,11 @@ bool Waypoint::Load(int mode)
             sprintf(m_infoBuffer, "Using Waypoint File By: %s", header.author);
 
         fp.Close();
+    }
+    else if (Download())
+    {
+        Load();
+        sprintf(m_infoBuffer, "%s.ewp is downloaded from the internet", GetMapName());
     }
     else
     {
@@ -1673,7 +1717,7 @@ bool Waypoint::Load(int mode)
         }
         else
         {
-            sprintf(m_infoBuffer, "%s does not exist, pleasue use 'ebot wp analyze' for create waypoints! (dont forget using 'ebot wp analyzeoff' when finished)", GetMapName());
+            sprintf(m_infoBuffer, "%s.ewp does not exist, pleasue use 'ebot wp analyze' for create waypoints! (dont forget using 'ebot wp analyzeoff' when finished)", GetMapName());
             AddLogEntry(LOG_ERROR, m_infoBuffer);
         }
 
