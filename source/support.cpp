@@ -857,14 +857,16 @@ void AutoLoadGameMode(void)
 			}
 		}
 
-		goto lastly;
+		g_mapType |= MAP_DE;
+		return;
 	}
 
 	if (ebot_zp_delay_custom.GetFloat() > 0.0f)
 	{
 		SetGameMode(MODE_ZP);
 		g_DelayTimer = engine->GetTime() + ebot_zp_delay_custom.GetFloat() + 2.2f;
-		goto lastly;
+		g_mapType |= MAP_DE;
+		return;
 	}
 	else
 	{
@@ -906,7 +908,8 @@ void AutoLoadGameMode(void)
 
 					SetGameMode(MODE_ZP);
 					g_DelayTimer = engine->GetTime() + delayTime;
-					goto lastly;
+					g_mapType |= MAP_DE;
+					return;
 				}
 			}
 		}
@@ -934,7 +937,8 @@ void AutoLoadGameMode(void)
 				SetGameMode(MODE_ZP);
 
 				g_DelayTimer = engine->GetTime() + delayTime;
-				goto lastly;
+				g_mapType |= MAP_DE;
+				return;
 			}
 		}
 	}
@@ -958,7 +962,8 @@ void AutoLoadGameMode(void)
 			SetGameMode(MODE_TDM);
 		}
 
-		goto lastly;
+		g_mapType |= MAP_DE;
+		return;
 	}
 
 	// Zombie Hell
@@ -972,7 +977,8 @@ void AutoLoadGameMode(void)
 
 		extern ConVar ebot_quota;
 		ebot_quota.SetInt(static_cast <int> (CVAR_GET_FLOAT("zh_zombie_maxslots")));
-		goto lastly;
+		g_mapType |= MAP_DE;
+		return;
 	}
 
 	// Biohazard
@@ -998,7 +1004,8 @@ void AutoLoadGameMode(void)
 				SetGameMode(MODE_ZP);
 
 				g_DelayTimer = engine->GetTime() + delayTime;
-				goto lastly;
+				g_mapType |= MAP_DE;
+				return;
 			}
 		}
 	}
@@ -1016,7 +1023,8 @@ void AutoLoadGameMode(void)
 					ServerPrint("*** E-BOT Auto Game Mode Setting: CSDM-DM ***");
 
 				SetGameMode(MODE_DM);
-				goto lastly;
+				g_mapType |= MAP_DE;
+				return;
 			}
 		}
 	}
@@ -1027,12 +1035,6 @@ void AutoLoadGameMode(void)
 			ServerPrint("*** E-BOT Auto Game Mode Setting: Base Mode ***");
 		else
 			ServerPrint("*** E-BOT Auto Game Mode Setting: N/A ***");
-	}
-
-	{
-	lastly:
-		if (GetGameMode() != MODE_BASE)
-			g_mapType |= MAP_DE;
 	}
 }
 // returns if weapon can pierce through a wall
