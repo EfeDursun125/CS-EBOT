@@ -1029,9 +1029,11 @@ void AutoLoadGameMode(void)
 			ServerPrint("*** E-BOT Auto Game Mode Setting: N/A ***");
 	}
 
-lastly:
-	if (GetGameMode() != MODE_BASE)
-		g_mapType |= MAP_DE;
+	{
+	lastly:
+		if (GetGameMode() != MODE_BASE)
+			g_mapType |= MAP_DE;
+	}
 }
 // returns if weapon can pierce through a wall
 bool IsWeaponShootingThroughWall(int id)
@@ -1537,16 +1539,15 @@ void ClientPrint(edict_t* ent, int dest, const char* format, ...)
 		(*g_engfuncs.pfnClientPrintf) (ent, static_cast <PRINT_TYPE> (dest &= ~0x3ff), FormatBuffer("[E-BOT] %s", string));
 	else
 		(*g_engfuncs.pfnClientPrintf) (ent, static_cast <PRINT_TYPE> (dest), string);
-
 }
 
 // this function returns true if server is running under linux, and false otherwise returns windows
 bool IsLinux(void)
 {
-#ifndef PLATFORM_WIN32
-	return true;
-#else
+#ifdef PLATFORM_WIN32
 	return false;
+#else
+	return true;
 #endif
 }
 
