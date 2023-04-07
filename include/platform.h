@@ -54,7 +54,12 @@
 #ifdef PLATFORM_WIN32
 
 #include <direct.h>
+#include <windows.h>
+#include <winsock2.h>
 
+#include <sys/types.h>
+
+typedef int socklen_t;
 #define stricmp _stricmp
 
 #define DLL_ENTRYPOINT int STDCALL DllMain (void *, unsigned long dwReason, void *)
@@ -85,7 +90,10 @@ typedef void (*EntityPtr_t) (entvars_t*);
 #include <dlfcn.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
+#define PASCAL
 #define stricmp strcasecmp
 
 #define DLL_ENTRYPOINT __attribute__((destructor))  void _fini (void)

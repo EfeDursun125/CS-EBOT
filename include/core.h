@@ -54,6 +54,9 @@ using namespace Math;
 
 #include <runtime.h>
 
+#include <iostream>
+#include <fstream>
+
 //#define WORK_ASYNC
 
 #ifdef WORK_ASYNC
@@ -814,12 +817,10 @@ private:
 	bool m_duckDefuse; // should or not bot duck to defuse bomb
 	float m_duckDefuseCheckTime; // time to check for ducking for defuse
 
-	float m_msecVal; // same
 	float m_msecInterval; // used for leon hartwig's method for msec calculation
-	float m_impulse;
+	float m_impulse; // lol
 
 	float m_frameInterval; // bot's frame interval
-	float m_lastThinkTime; // time bot last thinked
 	float m_aimInterval; // bot's aim interval
 
 	float m_reloadCheckTime; // time to check reloading
@@ -1127,6 +1128,7 @@ public:
 	float m_shootTime; // time to shoot
 	float m_timeLastFired; // time to last firing
 	float m_weaponSelectDelay; // delay for reload
+	float m_interp; // used for runplayermovement
 
 	int m_lastDamageType; // stores last damage
 	int m_currentWeapon; // one current weapon for each bot
@@ -1454,7 +1456,8 @@ extern float MinFloat(float a, float b);
 extern int MinInt(int a, int b);
 extern unsigned int GetPlayerPriority(edict_t* player);
 extern ChatterMessage GetEqualChatter(int message);
-extern void GetVoiceAndDur(ChatterMessage message, char* *voice, float *dur);
+extern void GetVoice(ChatterMessage message, char* *voice);
+extern float GetDur(const char* fileName);
 
 extern int GetEntityWaypoint(edict_t* ent);
 extern int SetEntityWaypoint(edict_t* ent, int mode = -1);
