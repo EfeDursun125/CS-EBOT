@@ -1822,7 +1822,7 @@ void SoundAttachToThreat(edict_t* ent, const char* sample, float volume)
 	if (FNullEnt(ent) || IsNullString(sample))
 		return; // reliability check
 
-	Vector origin = GetEntityOrigin(ent);
+	const Vector& origin = GetEntityOrigin(ent);
 	int index = ENTINDEX(ent) - 1;
 
 	if (index < 0 || index >= engine->GetMaxClients())
@@ -2038,253 +2038,116 @@ ChatterMessage GetEqualChatter(int message)
 	return mine;
 }
 
-void GetVoiceAndDur(ChatterMessage message, char** voice, float* dur)
+void GetVoice(ChatterMessage message, char** voice)
 {
 	if (message == ChatterMessage::Yes)
 	{
-		int rV = engine->RandomInt(1, 12);
+		const int rV = engine->RandomInt(1, 12);
 		if (rV == 1)
-		{
 			*voice = "affirmative";
-			*dur = 0.0f;
-		}
 		else if (rV == 2)
-		{
 			*voice = "alright";
-			*dur = 0.0f;
-		}
 		else if (rV == 3)
-		{
 			*voice = "alright_lets_do_this";
-			*dur = 1.0f;
-		}
 		else if (rV == 4)
-		{
 			*voice = "alright2";
-			*dur = 0.0f;
-		}
 		else if (rV == 5)
-		{
 			*voice = "ok";
-			*dur = 0.0f;
-		}
 		else if (rV == 6)
-		{
 			*voice = "ok_sir_lets_go";
-			*dur = 1.0f;
-		}
 		else if (rV == 7)
-		{
 			*voice = "ok_cmdr_lets_go";
-			*dur = 1.0f;
-		}
 		else if (rV == 8)
-		{
 			*voice = "ok2";
-			*dur = 0.0f;
-		}
 		else if (rV == 9)
-		{
 			*voice = "roger";
-			*dur = 0.0f;
-		}
 		else if (rV == 10)
-		{
 			*voice = "roger_that";
-			*dur = 0.0f;
-		}
 		else if (rV == 11)
-		{
 			*voice = "yea_ok";
-			*dur = 0.0f;
-		}
 		else
-		{
 			*voice = "you_heard_the_man_lets_go";
-			*dur = 1.0f;
-		}
 	}
 	else if (message == ChatterMessage::No)
 	{
-		int rV = engine->RandomInt(1, 13);
+		const int rV = engine->RandomInt(1, 13);
 		if (rV == 1)
-		{
 			*voice = "ahh_negative";
-			*dur = 1.0f;
-		}
 		else if (rV == 2)
-		{
 			*voice = "negative";
-			*dur = 0.0f;
-		}
 		else if (rV == 3)
-		{
 			*voice = "negative2";
-			*dur = 1.0f;
-		}
 		else if (rV == 4)
-		{
 			*voice = "no";
-			*dur = 0.0f;
-		}
 		else if (rV == 5)
-		{
 			*voice = "ok";
-			*dur = 0.0f;
-		}
 		else if (rV == 6)
-		{
 			*voice = "no_sir";
-			*dur = 0.0f;
-		}
 		else if (rV == 7)
-		{
 			*voice = "no_thanks";
-			*dur = 0.0f;
-		}
 		else if (rV == 8)
-		{
 			*voice = "no2";
-			*dur = 0.0f;
-		}
 		else if (rV == 9)
-		{
 			*voice = "naa";
-			*dur = 0.0f;
-		}
 		else if (rV == 10)
-		{
 			*voice = "nnno_sir";
-			*dur = 0.1f;
-		}
 		else if (rV == 11)
-		{
 			*voice = "hes_broken";
-			*dur = 0.1f;
-		}
 		else if (rV == 12)
-		{
 			*voice = "i_dont_think_so";
-			*dur = 0.0f;
-		}
 		else
-		{
 			*voice = "noo";
-			*dur = 0.0f;
-		}
 	}
 	else if (message == ChatterMessage::SeeksEnemy)
 	{
-		int rV = engine->RandomInt(1, 15);
+		const int rV = engine->RandomInt(1, 15);
 		if (rV == 1)
-		{
 			*voice = "help";
-			*dur = 0.0f;
-		}
 		else if (rV == 2)
-		{
 			*voice = "need_help";
-			*dur = 0.0f;
-		}
 		else if (rV == 3)
-		{
 			*voice = "need_help2";
-			*dur = 0.0f;
-		}
 		else if (rV == 4)
-		{
 			*voice = "taking_fire_need_assistance2";
-			*dur = 1.0f;
-		}
 		else if (rV == 5)
-		{
 			*voice = "engaging_enemies";
-			*dur = 0.8f;
-		}
 		else if (rV == 6)
-		{
 			*voice = "attacking";
-			*dur = 0.0f;
-		}
 		else if (rV == 7)
-		{
 			*voice = "attacking_enemies";
-			*dur = 1.0f;
-		}
 		else if (rV == 8)
-		{
 			*voice = "a_bunch_of_them";
-			*dur = 0.0f;
-		}
 		else if (rV == 9)
-		{
 			*voice = "im_pinned_down";
-			*dur = 0.25f;
-		}
 		else if (rV == 10)
-		{
 			*voice = "im_in_trouble";
-			*dur = 1.0f;
-		}
 		else if (rV == 11)
-		{
 			*voice = "in_combat";
-			*dur = 0.0f;
-		}
 		else if (rV == 12)
-		{
 			*voice = "in_combat2";
-			*dur = 0.0f;
-		}
 		else if (rV == 13)
-		{
 			*voice = "target_acquired";
-			*dur = 0.0f;
-		}
 		else if (rV == 14)
-		{
 			*voice = "target_spotted";
-			*dur = 0.0f;
-		}
 		else
-		{
 			*voice = "i_see_our_target";
-			*dur = 1.0f;
-		}
 	}
 	else if (message == ChatterMessage::Clear)
 	{
-		int rV = engine->RandomInt(1, 17);
+		const int rV = engine->RandomInt(1, 17);
 		if (rV == 1)
-		{
 			*voice = "clear";
-			*dur = 0.0f;
-		}
 		else if (rV == 2)
-		{
 			*voice = "clear2";
-			*dur = 0.0f;
-		}
 		else if (rV == 3)
-		{
 			*voice = "clear3";
-			*dur = 0.0f;
-		}
 		else if (rV == 4)
-		{
 			*voice = "clear4";
-			*dur = 1.0f;
-		}
 		else if (rV == 5)
-		{
 			*voice = "where_are_you_hiding";
-			*dur = 2.0f;
-		}
 		else if (rV == 6)
 		{
 			*voice = "where_could_they_be";
-			*dur = 0.0f;
-			
 			for (const auto& otherBot : g_botManager->m_bots)
 			{
 				if (otherBot != nullptr)
@@ -2294,8 +2157,6 @@ void GetVoiceAndDur(ChatterMessage message, char** voice, float* dur)
 		else if (rV == 7)
 		{
 			*voice = "where_is_it";
-			*dur = 0.4f;
-
 			for (const auto& otherBot : g_botManager->m_bots)
 			{
 				if (otherBot != nullptr)
@@ -2303,20 +2164,12 @@ void GetVoiceAndDur(ChatterMessage message, char** voice, float* dur)
 			}
 		}
 		else if (rV == 8)
-		{
 			*voice = "area_clear";
-			*dur = 0.0f;
-		}
 		else if (rV == 9)
-		{
 			*voice = "area_secure";
-			*dur = 0.0f;
-		}
 		else if (rV == 10)
 		{
 			*voice = "anyone_see_anything";
-			*dur = 1.0f;
-			
 			for (const auto& otherBot : g_botManager->m_bots)
 			{
 				if (otherBot != nullptr)
@@ -2324,40 +2177,20 @@ void GetVoiceAndDur(ChatterMessage message, char** voice, float* dur)
 			}
 		}
 		else if (rV == 11)
-		{
 			*voice = "all_clear_here";
-			*dur = 1.0f;
-		}
 		else if (rV == 12)
-		{
 			*voice = "all_quiet";
-			*dur = 1.0f;
-		}
 		else if (rV == 13)
-		{
 			*voice = "nothing";
-			*dur = 0.7f;
-		}
 		else if (rV == 14)
-		{
 			*voice = "nothing_happening_over_here";
-			*dur = 1.0f;
-		}
 		else if (rV == 15)
-		{
 			*voice = "nothing_here";
-			*dur = 0.0f;
-		}
 		else if (rV == 16)
-		{
 			*voice = "nothing_moving_over_here";
-			*dur = 1.0f;
-		}
 		else
 		{
 			*voice = "anyone_see_them";
-			*dur = 0.0f;
-
 			for (const auto& otherBot : g_botManager->m_bots)
 			{
 				if (otherBot != nullptr)
@@ -2367,70 +2200,66 @@ void GetVoiceAndDur(ChatterMessage message, char** voice, float* dur)
 	}
 	else if (message == ChatterMessage::CoverMe)
 	{
-		int rV = engine->RandomInt(1, 2);
+		const int rV = engine->RandomInt(1, 2);
 		if (rV == 1)
-		{
 			*voice = "cover_me";
-			*dur = 0.0f;
-		}
 		else
-		{
 			*voice = "cover_me2";
-			*dur = 0.0f;
-		}
 	}
 	else if (message == ChatterMessage::Happy)
 	{
-		int rV = engine->RandomInt(1, 10);
+		const int rV = engine->RandomInt(1, 10);
 		if (rV == 1)
-		{
 			*voice = "yea_baby";
-			*dur = 0.0f;
-		}
 		else if (rV == 2)
-		{
 			*voice = "whos_the_man";
-			*dur = 0.0f;
-		}
 		else if (rV == 3)
-		{
 			*voice = "who_wants_some_more";
-			*dur = 1.0f;
-		}
 		else if (rV == 4)
-		{
 			*voice = "yikes";
-			*dur = 0.0f;
-		}
 		else if (rV == 5)
-		{
 			*voice = "yesss";
-			*dur = 1.0f;
-		}
 		else if (rV == 6)
-		{
 			*voice = "yesss2";
-			*dur = 0.0f;
-		}
 		else if (rV == 7)
-		{
 			*voice = "whoo";
-			*dur = 0.0f;
-		}
 		else if (rV == 8)
-		{
 			*voice = "i_am_dangerous";
-			*dur = 1.0f;
-		}
 		else if (rV == 9)
-		{
 			*voice = "i_am_on_fire";
-			*dur = 1.0f;
-		}
 		else
-		{
 			*voice = "whoo2";
-			*dur = 0.5f;
-		}
 	}
+}
+
+float GetDur(const char* fileName)
+{
+	const int BYTES_PER_SAMPLE = 2;
+	const int CHANNELS = 2;
+	const int BITS_PER_BYTE = 8;
+	const int SAMPLE_RATE_INDEX = 24;
+	const int SAMPLE_RATE_SIZE = 4;
+	const int DATA_SIZE_INDEX = 40;
+	const int DATA_SIZE_SIZE = 4;
+
+	string fileNameString = "";
+	fileNameString += fileName;
+
+	ifstream file(fileNameString, ios::binary);
+
+	if (!file.is_open())
+		return -1.0f;
+
+	char buffer[4];
+
+	file.seekg(SAMPLE_RATE_INDEX, std::ios::beg);
+	file.read(buffer, SAMPLE_RATE_SIZE);
+	const int sampleRate = *reinterpret_cast<int*>(buffer);
+
+	file.seekg(DATA_SIZE_INDEX, std::ios::beg);
+	file.read(buffer, DATA_SIZE_SIZE);
+	const int dataSize = *reinterpret_cast<int*>(buffer);
+
+	file.close();
+	return static_cast<float>((dataSize) / (sampleRate * CHANNELS * BYTES_PER_SAMPLE * BITS_PER_BYTE)) + 1.0f;
 }

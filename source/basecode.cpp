@@ -49,6 +49,8 @@ ConVar ebot_breakable_health_limit("ebot_breakable_health_limit", "3000.0");
 
 ConVar ebot_chatter_path("ebot_chatter_path", "radio/bot");
 
+ConVar ebot_think_fps("ebot_think_fps", "20.0");
+
 // this function get the current message from the bots message queue
 int Bot::GetMessageQueue(void)
 {
@@ -1187,19 +1189,19 @@ void Bot::PlayChatterMessage(ChatterMessage message)
 		return;
 
 	char* voice = "nothing";
-	float dur = -1.0f;
-	GetVoiceAndDur(message, &voice, &dur);
-
+	GetVoice(message, &voice);
+	
+	const char* path = FormatBuffer("%s/sound/%s/%s.wav", GetModName(), ebot_chatter_path.GetString(), voice);
+	const float dur = GetDur(path);
 	if (dur == -1.0f)
 		return;
 
-	dur += 1.0f;
 	m_chatterTimer = engine->GetTime() + dur;
 
 	SwitchChatterIcon(true);
 	g_audioTime = m_chatterTimer;
 
-	auto id = g_netMsg->GetId(NETMSG_SENDAUDIO);
+	const auto id = g_netMsg->GetId(NETMSG_SENDAUDIO);
 	for (const auto& client : g_clients)
 	{
 		if (!IsValidPlayer(client.ent) || client.team != m_team || IsValidBot(client.ent))
@@ -1228,7 +1230,7 @@ void Bot::CheckMessageQueue(void)
 		return;
 
 	// get message from stack
-	auto state = GetMessageQueue();
+	const auto state = GetMessageQueue();
 
 	// nothing to do?
 	if (state == CMENU_IDLE || (state == CMENU_RADIO && (GetGameMode() == MODE_DM || g_gameVersion == HALFLIFE)))
@@ -1943,7 +1945,6 @@ void Bot::SetConditions(void)
 		else
 		{
 			float distance = (SquaredF(500.0f) - (GetEntityOrigin(m_pickupItem) - pev->origin).GetLengthSquared()) * 0.2f;
-
 			if (distance > SquaredF(60.0f))
 				distance = SquaredF(60.0f);
 
@@ -3734,9 +3735,6 @@ void Bot::Think(void)
 
 	m_canChooseAimDirection = true;
 
-	m_frameInterval = engine->GetTime() - m_lastThinkTime;
-	m_lastThinkTime = engine->GetTime();
-
 	if (m_slowthinktimer < engine->GetTime())
 	{
 		m_isSlowThink = true;
@@ -3912,6 +3910,9 @@ void Bot::Think(void)
 		MoveAction();
 		DebugModeMsg();
 	}
+
+	RunPlayerMovement();
+	m_thinkTimer = AddTime(1.0f / ebot_think_fps.GetFloat());
 }
 
 void Bot::SecondThink(void)
@@ -7324,12 +7325,12 @@ Vector Bot::CheckBombAudible(void)
 	if (!g_bombPlanted || (GetCurrentTask()->taskID == TASK_ESCAPEFROMBOMB))
 		return nullvec; // reliability check
 
-	Vector bombOrigin = g_waypoint->GetBombPosition();
+	const Vector bombOrigin = g_waypoint->GetBombPosition();
 
 	if (m_skill > 90)
 		return bombOrigin;
 
-	float timeElapsed = ((engine->GetTime() - g_timeBombPlanted) / engine->GetC4TimerTime()) * 100.0f;
+	const float timeElapsed = ((engine->GetTime() - g_timeBombPlanted) / engine->GetC4TimerTime()) * 100.0f;
 	float desiredRadius = 768.0f;
 
 	// start the manual calculations
@@ -7373,13 +7374,11 @@ void Bot::RunPlayerMovement(void)
 	// elapses, that bot will behave like a ghost : no movement, but bullets and players can
 	// pass through it. Then, when the next frame will begin, the stucking problem will arise !
 
-	m_msecVal = (engine->GetTime() - m_msecInterval) * (1000.0f + m_frameInterval + g_pGlobals->frametime);
+	m_frameInterval = engine->GetTime() - m_msecInterval;
+	uint8_t msecVal = static_cast <uint8> ((engine->GetTime() - m_msecInterval) * 1000.0f);
 	m_msecInterval = engine->GetTime();
 
-	if (m_msecVal > 255.0f)
-		m_msecVal = 255.0f;
-
-	(*g_engfuncs.pfnRunPlayerMove) (GetEntity(), m_moveAnglesForRunMove, m_moveSpeedForRunMove, m_strafeSpeedForRunMove, 0.0f, static_cast <unsigned short> (pev->button), static_cast <uint8_t> (pev->impulse), static_cast <uint8_t> (m_msecVal));
+	g_engfuncs.pfnRunPlayerMove (pev->pContainingEntity, m_moveAnglesForRunMove, m_moveSpeedForRunMove, m_strafeSpeedForRunMove, 0.0f, static_cast <unsigned short> (pev->button), pev->impulse, msecVal);
 }
 
 // this function checks burst mode, and switch it depending distance to to enemy

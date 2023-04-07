@@ -44,8 +44,6 @@ ConVar ebot_random_join_quit("ebot_random_join_quit", "0");
 ConVar ebot_stay_min("ebot_stay_min", "120"); // 2 minutes
 ConVar ebot_stay_max("ebot_stay_max", "3600"); // 1 hours
 
-ConVar ebot_think_fps("ebot_think_fps", "20.0");
-
 // this is a bot manager class constructor
 BotControl::BotControl(void)
 {
@@ -324,22 +322,27 @@ void BotControl::Think(void)
 		if (bot == nullptr)
 			continue;
 
-		if (bot->m_thinkTimer < engine->GetTime() && bot->m_lastThinkTime < engine->GetTime())
-		{
+		if (bot->m_thinkTimer < engine->GetTime())
 			bot->Think();
-			bot->m_thinkTimer = AddTime(1.0f / ebot_think_fps.GetFloat());
-		}
 		else if (bot->m_isAlive)
 		{
-			bot->m_moveAnglesForRunMove = bot->m_moveAngles;
-			bot->m_moveSpeedForRunMove = bot->m_moveSpeed;
-			bot->m_strafeSpeedForRunMove = bot->m_strafeSpeed;
-			bot->FacePosition();
+			//if (bot->m_interp < engine->GetTime())
+			{
+				bot->m_moveAnglesForRunMove = bot->m_moveAngles;
+				bot->m_moveSpeedForRunMove = bot->m_moveSpeed;
+				bot->m_strafeSpeedForRunMove = bot->m_strafeSpeed;
+				bot->FacePosition();
+			}
 		}
 		else
 			bot->m_aimInterval = engine->GetTime();
 
-		bot->RunPlayerMovement(); // run the player movement 
+		// simulate bots at 100 fps
+		/*if (bot->m_interp < engine->GetTime())
+		{
+			bot->RunPlayerMovement();
+			bot->m_interp = AddTime(0.01f);
+		}*/
 	}
 }
 
@@ -1011,7 +1014,6 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 
 	// initialize msec value
 	m_msecInterval = engine->GetTime();
-	m_msecVal = g_pGlobals->frametime * 1000.0f;
 
 	// assign how talkative this bot will be
 	m_sayTextBuffer.chatDelay = engine->RandomFloat(3.8f, 10.0f);
@@ -1021,7 +1023,6 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	m_skill = skill;
 	m_weaponBurstMode = BURST_DISABLED;
 
-	m_lastThinkTime = engine->GetTime();
 	m_frameInterval = engine->GetTime();
 	m_aimInterval = engine->GetTime();
 
