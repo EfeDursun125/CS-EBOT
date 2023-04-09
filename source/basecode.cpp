@@ -49,8 +49,6 @@ ConVar ebot_breakable_health_limit("ebot_breakable_health_limit", "3000.0");
 
 ConVar ebot_chatter_path("ebot_chatter_path", "radio/bot");
 
-ConVar ebot_think_fps("ebot_think_fps", "20.0");
-
 // this function get the current message from the bots message queue
 int Bot::GetMessageQueue(void)
 {
@@ -3716,8 +3714,16 @@ void Bot::ChooseAimDirection(void)
 		}
 		else
 		{
-			m_lookAt = m_destOrigin;
-			m_lookAt.z = EyePosition().z;
+			extern ConVar ebot_path_smoothing;
+			if (ebot_path_smoothing.GetBool())
+			{
+				m_lookAt = m_destOrigin;
+				m_lookAt.z = EyePosition().z;
+			}
+			else if (HasNextPath())
+				m_lookAt = g_waypoint->GetPath(m_navNode->next->index)->origin + pev->view_ofs;
+			else
+				m_lookAt = m_destOrigin + pev->view_ofs;
 		}
 	}
 
@@ -3732,7 +3738,7 @@ void Bot::Think(void)
 	pev->button = 0;
 	m_moveSpeed = 0.0f;
 	m_strafeSpeed = 0.0f;
-
+	m_verticalSpeed = 0.0f;
 	m_canChooseAimDirection = true;
 
 	if (m_slowthinktimer < engine->GetTime())
@@ -3762,7 +3768,7 @@ void Bot::Think(void)
 		m_isZombieBot = IsZombieEntity(GetEntity());
 		m_team = GetTeam(GetEntity());
 		m_isAlive = IsAlive(GetEntity());
-		m_isBomber = pev->weapons & (1 << WEAPON_C4);
+		m_isBomber = !!(pev->weapons & (1 << WEAPON_C4));
 		m_index = GetIndex();
 
 		if (m_isZombieBot)
@@ -3911,8 +3917,8 @@ void Bot::Think(void)
 		DebugModeMsg();
 	}
 
-	RunPlayerMovement();
-	m_thinkTimer = AddTime(1.0f / ebot_think_fps.GetFloat());
+	m_frameInterval = engine->GetTime() - (m_thinkTimer - 0.05f);
+	m_thinkTimer = AddTime(0.05f);
 }
 
 void Bot::SecondThink(void)
@@ -4152,6 +4158,12 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 	{
 		TaskComplete();
 		m_prevGoalIndex = -1;
+
+		if (m_isBomber && g_waypoint->GetPath(m_cachedWaypointIndex)->flags & WAYPOINT_GOAL)
+		{
+			PushTask(TASK_PLANTBOMB, TASKPRI_PLANTBOMB, -1, engine->GetTime() + 10.0f, false);
+			return;
+		}
 
 		// spray logo sometimes if allowed to do so
 		if (m_timeLogoSpray < engine->GetTime() && ebot_spraypaints.GetBool() && ChanceOf(50) && m_moveSpeed > GetWalkSpeed())
@@ -5120,7 +5132,7 @@ void Bot::RunTask(void)
 			if (m_numEnemiesLeft <= 0)
 				SelectKnife();
 
-			if (((m_entity - pev->origin).GetLengthSquared2D()) <= SquaredF(60.0f))
+			if (((m_entity - pev->origin).GetLengthSquared2D()) <= SquaredF(66.0f))
 			{
 				m_moveToGoal = false;
 				m_checkTerrain = false;
@@ -5139,6 +5151,7 @@ void Bot::RunTask(void)
 					MDLL_Use(m_pickupItem, GetEntity());
 				else
 					pev->button |= IN_USE;
+				g_bombDefusing = true;
 
 				RadioMessage(Radio_CoverMe);
 			}
@@ -6673,7 +6686,7 @@ void Bot::BotAI(void)
 		}
 	}
 
-	if (m_checkTerrain)
+	if (m_checkTerrain && !m_hasProgressBar)
 	{
 		m_isStuck = false;
 		CheckCloseAvoidance(directionNormal);
@@ -7374,11 +7387,18 @@ void Bot::RunPlayerMovement(void)
 	// elapses, that bot will behave like a ghost : no movement, but bullets and players can
 	// pass through it. Then, when the next frame will begin, the stucking problem will arise !
 
-	m_frameInterval = engine->GetTime() - m_msecInterval;
-	uint8_t msecVal = static_cast <uint8> ((engine->GetTime() - m_msecInterval) * 1000.0f);
+	int iNewMsec = int((engine->GetTime() - m_msecInterval) * 1000);
+	if (iNewMsec > 255)
+		iNewMsec = 255;
+
+	byte adjustedMSec = byte(iNewMsec);
+
 	m_msecInterval = engine->GetTime();
 
-	g_engfuncs.pfnRunPlayerMove (pev->pContainingEntity, m_moveAnglesForRunMove, m_moveSpeedForRunMove, m_strafeSpeedForRunMove, 0.0f, static_cast <unsigned short> (pev->button), pev->impulse, msecVal);
+	if (pev->flags & FL_FROZEN)
+		adjustedMSec = 0;
+
+	PLAYER_RUN_MOVE(pev->pContainingEntity, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, static_cast <unsigned short> (pev->button), pev->impulse, adjustedMSec);
 }
 
 // this function checks burst mode, and switch it depending distance to to enemy
@@ -7743,8 +7763,12 @@ bool Bot::IsBombDefusing(Vector bombOrigin)
 	if (!g_bombPlanted)
 		return false;
 
+	// easier way
+	if (g_bombDefusing)
+		return true;
+
 	bool defusingInProgress = false;
-	constexpr float distanceToBomb = 140.0f * 140.0f;
+	const float distanceToBomb = SquaredF(140.0f);
 
 	for (const auto& client : g_clients)
 	{
@@ -7763,7 +7787,7 @@ bool Bot::IsBombDefusing(Vector bombOrigin)
 				continue; // skip other mess
 
 			// if close enough, mark as progressing
-			if (bombDistance < distanceToBomb && (bot->GetCurrentTask()->taskID == TASK_DEFUSEBOMB || bot->m_hasProgressBar))
+			if (bombDistance <= distanceToBomb && (bot->GetCurrentTask()->taskID == TASK_DEFUSEBOMB || bot->m_hasProgressBar))
 			{
 				defusingInProgress = true;
 				break;
@@ -7776,7 +7800,7 @@ bool Bot::IsBombDefusing(Vector bombOrigin)
 		if (client.team == m_team)
 		{
 			// if close enough, mark as progressing
-			if (bombDistance < distanceToBomb && ((client.ent->v.button | client.ent->v.oldbuttons) & IN_USE))
+			if (bombDistance <= distanceToBomb && ((client.ent->v.button | client.ent->v.oldbuttons) & IN_USE))
 			{
 				defusingInProgress = true;
 				break;

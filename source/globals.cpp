@@ -30,6 +30,7 @@ bool g_isMetamod = false;
 bool g_roundEnded = true;
 bool g_botsCanPause = false;
 bool g_bombPlanted = false;
+bool g_bombDefusing = false;
 bool g_bombSayString = false;
 bool g_editNoclip = false;
 bool g_isFakeCommand = false;
@@ -41,6 +42,7 @@ bool g_leaderChoosen[2] = { false, false };
 bool g_analyzewaypoints = false;
 bool g_analyzeputrequirescrouch = false;
 bool g_expanded[Const_MaxWaypoints];
+bool g_optimized[Const_MaxWaypoints];
 
 bool g_sgdWaypoint = false;
 bool g_sautoWaypoint = false;

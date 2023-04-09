@@ -322,27 +322,21 @@ void BotControl::Think(void)
 		if (bot == nullptr)
 			continue;
 
+		// 20 fps
 		if (bot->m_thinkTimer < engine->GetTime())
 			bot->Think();
-		else if (bot->m_isAlive)
-		{
-			//if (bot->m_interp < engine->GetTime())
-			{
-				bot->m_moveAnglesForRunMove = bot->m_moveAngles;
-				bot->m_moveSpeedForRunMove = bot->m_moveSpeed;
-				bot->m_strafeSpeedForRunMove = bot->m_strafeSpeed;
-				bot->FacePosition();
-			}
-		}
-		else
-			bot->m_aimInterval = engine->GetTime();
 
-		// simulate bots at 100 fps
-		/*if (bot->m_interp < engine->GetTime())
+		// 40 fps
+		if (bot->m_interp < engine->GetTime())
 		{
+			if (bot->m_isAlive)
+				bot->FacePosition();
+			else
+				bot->m_aimInterval = engine->GetTime();
+
 			bot->RunPlayerMovement();
-			bot->m_interp = AddTime(0.01f);
-		}*/
+			bot->m_interp = AddTime(0.025f);
+		}
 	}
 }
 
@@ -971,12 +965,12 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	}
 	else
 	{
-		SET_CLIENT_KEYVALUE(clientIndex, buffer, "rate", "3500.000000");
-		SET_CLIENT_KEYVALUE(clientIndex, buffer, "cl_updaterate", "20");
+		SET_CLIENT_KEYVALUE(clientIndex, buffer, "rate", "25000.000000");
+		SET_CLIENT_KEYVALUE(clientIndex, buffer, "cl_updaterate", "66");
 		SET_CLIENT_KEYVALUE(clientIndex, buffer, "cl_lw", "1");
 		SET_CLIENT_KEYVALUE(clientIndex, buffer, "cl_lc", "1");
 		SET_CLIENT_KEYVALUE(clientIndex, buffer, "tracker", "0");
-		SET_CLIENT_KEYVALUE(clientIndex, buffer, "cl_dlmax", "128");
+		SET_CLIENT_KEYVALUE(clientIndex, buffer, "cl_dlmax", "512");
 		SET_CLIENT_KEYVALUE(clientIndex, buffer, "lefthand", "1");
 		SET_CLIENT_KEYVALUE(clientIndex, buffer, "friends", "0");
 		SET_CLIENT_KEYVALUE(clientIndex, buffer, "dm", "0");

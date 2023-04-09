@@ -2005,15 +2005,19 @@ unsigned int GetPlayerPriority(edict_t* player)
 	return 1;
 }
 
-inline float NormalizeAnglePositive(float angle)
+float DotProduct(const Vector& a, const Vector& b)
 {
-	while (angle < 0.0f)
-		angle += 360.0f;
+	return (a.x * b.x + a.y * b.y + a.z * b.z);
+}
 
-	while (angle >= 360.0f)
-		angle -= 360.0f;
+float DotProduct2D(const Vector& a, const Vector& b)
+{
+	return (a.x * b.x + a.y * b.y);
+}
 
-	return angle;
+Vector CrossProduct(const Vector& a, const Vector& b)
+{
+	return Vector(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
 }
 
 ChatterMessage GetEqualChatter(int message)

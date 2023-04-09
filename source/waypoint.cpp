@@ -34,7 +34,9 @@ ConVar ebot_analyze_create_camp_waypoints("ebot_analyze_create_camp_waypoints", 
 ConVar ebot_use_old_analyzer("ebot_use_old_analyzer", "0");
 ConVar ebot_analyzer_min_fps("ebot_analyzer_min_fps", "30.0");
 ConVar ebot_analyze_auto_start("ebot_analyze_auto_start", "1");
+ConVar ebot_download_waypoints("ebot_download_waypoints", "1");
 ConVar ebot_download_waypoints_from("ebot_download_waypoints_from", "https://github.com/EfeDursun125/EBOT-WP/raw/main");
+ConVar ebot_analyze_optimize_waypoints("ebot_analyze_optimize_waypoints", "1");
 
 // this function initialize the waypoint structures..
 void Waypoint::Initialize(void)
@@ -145,6 +147,55 @@ void CreateWaypoint(Vector WayVec, Vector Next, float range, float goalDist)
                     }
                 }
             }
+        }
+    }
+}
+
+Vector SmoothOrigin(const Vector& one, const Vector& second, const Vector& third, const Vector& last, const Vector& onemore, const Vector& whynot, const Vector& bitmore, const Vector& onelastpls)
+{
+    return (one + second + third + last + onemore + whynot + bitmore + onelastpls) * 0.125f;
+}
+
+void OptimizeWaypoints(void)
+{
+    if (g_numWaypoints <= 0)
+        return;
+
+    if (!ebot_analyze_optimize_waypoints.GetBool())
+        return;
+
+    // no optimizations
+    for (int i = 0; i < (Const_MaxWaypoints - 1); i++)
+        g_optimized[i] = false;
+
+    for (int i = 0; i < g_numWaypoints; i++)
+    {
+        if (g_optimized[i])
+            continue;
+
+        auto current = g_waypoint->GetPath(i);
+        Array <int> indexes;
+        indexes.Push(i);
+
+        for (int j = 0; j < Const_MaxPathIndex; j++)
+        {
+            auto path = g_waypoint->GetPath(i);
+            if (path->index[j] != -1 && !g_optimized[path->index[j]] && indexes.GetElementNumber() < 8 && current->origin.z == path->origin.z)
+                indexes.Push(path->index[j]);
+        }
+
+        if (indexes.GetElementNumber() == 8)
+        {
+            const Vector smooth = SmoothOrigin(g_waypoint->GetPath(indexes.GetAt(0))->origin, g_waypoint->GetPath(indexes.GetAt(1))->origin, g_waypoint->GetPath(indexes.GetAt(2))->origin, g_waypoint->GetPath(indexes.GetAt(3))->origin, g_waypoint->GetPath(indexes.GetAt(4))->origin, g_waypoint->GetPath(indexes.GetAt(5))->origin, g_waypoint->GetPath(indexes.GetAt(6))->origin, g_waypoint->GetPath(indexes.GetAt(7))->origin);
+            g_waypoint->DeleteByIndex(indexes.GetAt(0));
+            g_waypoint->DeleteByIndex(indexes.GetAt(1));
+            g_waypoint->DeleteByIndex(indexes.GetAt(2));
+            g_waypoint->DeleteByIndex(indexes.GetAt(3));
+            g_waypoint->DeleteByIndex(indexes.GetAt(4));
+            g_waypoint->DeleteByIndex(indexes.GetAt(5));
+            g_waypoint->DeleteByIndex(indexes.GetAt(6));
+            g_waypoint->DeleteByIndex(indexes.GetAt(7));
+            g_waypoint->Add(-1, smooth);
         }
     }
 }
@@ -269,6 +320,7 @@ void AnalyzeThread(void)
             g_analyzewaypoints = false;
             g_waypointOn = false;
             g_waypoint->AnalyzeDeleteUselessWaypoints();
+            OptimizeWaypoints();
             g_waypoint->Save();
             g_waypoint->Load();
             ServerCommand("exec addons/ebot/ebot.cfg");
@@ -1086,6 +1138,7 @@ void Waypoint::Add(int flags, Vector waypointOrigin)
 
     PlaySound(g_hostEntity, "weapons/xbow_hit1.wav");
     CalculateWayzone(index); // calculate the wayzone of this waypoint
+    g_optimized[index] = true;
 }
 
 void Waypoint::Delete(void)
@@ -1696,7 +1749,7 @@ bool Waypoint::Load(int mode)
 
         fp.Close();
     }
-    else if (Download())
+    else if (ebot_download_waypoints.GetBool() && Download())
     {
         Load();
         sprintf(m_infoBuffer, "%s.ewp is downloaded from the internet", GetMapName());

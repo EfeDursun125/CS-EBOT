@@ -29,7 +29,7 @@ ConVar ebot_aim_boost_in_zm("ebot_zm_aim_boost", "1");
 ConVar ebot_zombies_as_path_cost("ebot_zombie_count_as_path_cost", "1");
 ConVar ebot_ping_affects_aim("ebot_ping_affects_aim", "0");
 ConVar ebot_aim_type("ebot_aim_type", "1");
-ConVar ebot_path_smoothing("ebot_path_smoothing", "1");
+ConVar ebot_path_smoothing("ebot_path_smoothing", "0");
 
 int Bot::FindGoal(void)
 {
@@ -961,6 +961,9 @@ void Bot::FindPath(int srcIndex, int destIndex)
 	if (!IsValidWaypoint(destIndex))
 		destIndex = g_waypoint->m_otherPoints.GetRandomElement();
 
+	if (srcIndex == destIndex)
+		return;
+
 	AStar_t waypoints[Const_MaxWaypoints];
 	for (int i = 0; i < g_numWaypoints; i++)
 	{
@@ -1132,6 +1135,9 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 
 	if (!IsValidWaypoint(destIndex))
 		destIndex = g_waypoint->m_otherPoints.GetRandomElement();
+
+	if (srcIndex == destIndex)
+		return;
 
 	AStar_t waypoints[Const_MaxWaypoints];
 	for (int i = 0; i < g_numWaypoints; i++)

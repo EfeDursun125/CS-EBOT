@@ -2870,6 +2870,7 @@ void FrameThread(void)
 	LoadEntityData();
 	JustAStuff();
 
+	g_bombDefusing = false;
 	if (g_bombPlanted)
 		g_waypoint->SetBombPosition();
 
