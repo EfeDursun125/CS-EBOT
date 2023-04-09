@@ -28,6 +28,7 @@
 extern float m_randomJoinTime;
 
 extern bool g_bombPlanted;
+extern bool g_bombDefusing;
 extern bool g_bombSayString;
 extern bool g_roundEnded;
 extern bool g_waypointOn;
@@ -41,6 +42,7 @@ extern bool g_leaderChoosen[2];
 extern bool g_analyzewaypoints;
 extern bool g_analyzeputrequirescrouch;
 extern bool g_expanded[Const_MaxWaypoints];
+extern bool g_optimized[Const_MaxWaypoints];
 
 extern bool g_sgdWaypoint;
 extern bool g_sautoWaypoint;

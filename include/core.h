@@ -719,6 +719,7 @@ private:
 
 	float m_moveSpeed; // current speed forward/backward
 	float m_strafeSpeed; // current speed sideways
+	float m_verticalSpeed; // current vertical speed
 	float m_tempstrafeSpeed; // temp speed sideways
 	float m_minSpeed; // minimum speed in normal mode
 	float m_oldCombatDesire; // holds old desire for filtering
@@ -1458,6 +1459,9 @@ extern unsigned int GetPlayerPriority(edict_t* player);
 extern ChatterMessage GetEqualChatter(int message);
 extern void GetVoice(ChatterMessage message, char* *voice);
 extern float GetDur(const char* fileName);
+extern float DotProduct(const Vector& a, const Vector& b);
+extern float DotProduct2D(const Vector& a, const Vector& b);
+extern Vector CrossProduct(const Vector& a, const Vector& b);
 
 extern int GetEntityWaypoint(edict_t* ent);
 extern int SetEntityWaypoint(edict_t* ent, int mode = -1);

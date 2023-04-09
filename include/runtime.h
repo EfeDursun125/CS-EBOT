@@ -646,6 +646,23 @@ public:
         return Vector(x * length, y * length, 0.0f);
     }
 
+    inline float NormalizeInPlace()
+    {
+        float flLen = GetLength();
+        if (flLen > 0.0)
+        {
+            x = (1 / flLen * x);
+            y = (1 / flLen * y);
+        }
+        else
+        {
+            x = 1.0;
+            y = 0.0;
+        }
+
+        return flLen;
+    }
+
     //
     // Function: IsNull
     //

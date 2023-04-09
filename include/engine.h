@@ -266,11 +266,6 @@ public:
     float x, y;
 };
 
-inline float DotProduct(const Vector2D& a, const Vector2D& b)
-{
-    return (a.x * b.x + a.y * b.y);
-}
-
 inline Vector2D operator* (float fl, const Vector2D& v)
 {
     return v * fl;
@@ -389,16 +384,6 @@ public:
 inline Vector operator* (float fl, const Vector& v)
 {
     return v * fl;
-}
-
-inline float DotProduct(const Vector& a, const Vector& b)
-{
-    return (a.x * b.x + a.y * b.y + a.z * b.z);
-}
-
-inline Vector CrossProduct(const Vector& a, const Vector& b)
-{
-    return Vector(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
 }
 #else
 #include "runtime.h"
@@ -1308,6 +1293,7 @@ typedef struct
 } CDStatus;
 
 typedef uint32 CRC32_t;
+typedef unsigned char byte;
 
 // Engine hands this to DLLs for functionality callbacks
 typedef struct enginefuncs_s
@@ -1417,7 +1403,7 @@ typedef struct enginefuncs_s
     void (*pfnSetClientMaxspeed) (const edict_t* pentEdict, float fNewMaxspeed);
     edict_t* (*pfnCreateFakeClient) (const char* netname);       // returns null if fake client can't be created
     //
-    void (*pfnRunPlayerMove) (edict_t* fakeclient, const float* viewangles, float forwardmove, float sidemove, float upmove, unsigned short buttons, int impulse, uint8_t msec);
+    void (*pfnRunPlayerMove) (edict_t* fakeclient, const float* viewangles, float forwardmove, float sidemove, float upmove, unsigned short buttons, int impulse, byte msec);
     //
     int (*pfnNumberOfEntities) (void);
     char* (*pfnGetInfoKeyBuffer) (edict_t* e);  // passing in null gets the serverinfo
@@ -1703,6 +1689,7 @@ inline void MESSAGE_BEGIN(int msg_dest, int msg_type, const float* pOrigin = nul
 #define IS_MAP_VALID         (*g_engfuncs.pfnIsMapValid)
 #define NUMBER_OF_ENTITIES   (*g_engfuncs.pfnNumberOfEntities)
 #define IS_DEDICATED_SERVER  (*g_engfuncs.pfnIsDedicatedServer)
+#define PLAYER_RUN_MOVE		 (*g_engfuncs.pfnRunPlayerMove)
 #define PRECACHE_EVENT       (*g_engfuncs.pfnPrecacheEvent)
 #define PLAYBACK_EVENT_FULL  (*g_engfuncs.pfnPlaybackEvent)
 #define ENGINE_SET_PVS       (*g_engfuncs.pfnSetFatPVS)
