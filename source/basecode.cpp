@@ -7391,7 +7391,7 @@ void Bot::RunPlayerMovement(void)
 	if (iNewMsec > 255)
 		iNewMsec = 255;
 
-	byte adjustedMSec = byte(iNewMsec);
+	byte adjustedMSec = byte(iNewMsec - int(m_frameInterval));
 
 	m_msecInterval = engine->GetTime();
 

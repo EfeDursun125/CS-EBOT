@@ -322,13 +322,13 @@ void BotControl::Think(void)
 		if (bot == nullptr)
 			continue;
 
-		// 20 fps
-		if (bot->m_thinkTimer < engine->GetTime())
-			bot->Think();
-
 		// 40 fps
 		if (bot->m_interp < engine->GetTime())
 		{
+			// 20 fps
+			if (bot->m_thinkTimer < engine->GetTime())
+				bot->Think();
+
 			if (bot->m_isAlive)
 				bot->FacePosition();
 			else

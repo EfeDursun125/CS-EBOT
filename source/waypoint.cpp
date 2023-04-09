@@ -179,9 +179,8 @@ void OptimizeWaypoints(void)
 
         for (int j = 0; j < Const_MaxPathIndex; j++)
         {
-            auto path = g_waypoint->GetPath(i);
-            if (path->index[j] != -1 && !g_optimized[path->index[j]] && indexes.GetElementNumber() < 8 && current->origin.z == path->origin.z)
-                indexes.Push(path->index[j]);
+            if (current->index[j] != -1 && !g_optimized[current->index[j]] && indexes.GetElementNumber() < 8 && current->origin.z == g_waypoint->GetPath(current->index[j])->origin.z)
+                indexes.Push(current->index[j]);
         }
 
         if (indexes.GetElementNumber() == 8)
