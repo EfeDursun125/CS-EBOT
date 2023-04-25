@@ -3828,7 +3828,7 @@ void Bot::Think(void)
 			if (m_buyingFinished && !(pev->maxspeed < 10.0f && GetCurrentTask()->taskID != TASK_PLANTBOMB && GetCurrentTask()->taskID != TASK_DEFUSEBOMB) && !ebot_stopbots.GetBool())
 				botMovement = true;
 
-			if (m_randomattacktimer < engine->GetTime() && !engine->IsFriendlyFireOn() && !HasHostage()) // simulate players with random knife attacks
+			if (botMovement && m_randomattacktimer < engine->GetTime() && !engine->IsFriendlyFireOn() && !HasHostage()) // simulate players with random knife attacks
 			{
 				if (m_isStuck && m_personality != PERSONALITY_CAREFUL)
 				{
@@ -3860,12 +3860,14 @@ void Bot::Think(void)
 	if (botMovement && m_isAlive)
 	{
 		BotAI();
+		FacePosition();
 		MoveAction();
 		DebugModeMsg();
 	}
+	else
+		m_aimInterval = engine->GetTime();
 
 	m_frameInterval = 0.03333333333f;
-	//m_thinkTimer = AddTime(0.06666666666f);
 }
 
 void Bot::SecondThink(void)

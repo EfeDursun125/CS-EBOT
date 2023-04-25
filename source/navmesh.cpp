@@ -322,11 +322,8 @@ void NavMesh::ExpandNavArea(NavArea* area, const float radius)
         return;
 
     const float units = 0.5f;
-
-    // düþme veya zýplama için
     const float maxHeight = 44.0f;
 
-    // Her bir köþe için ayrý ayrý kontrol et
     for (float dist = units; dist <= radius; dist += units)
     {
         for (int i = 0; i < 4; i++)
@@ -334,7 +331,6 @@ void NavMesh::ExpandNavArea(NavArea* area, const float radius)
             const Vector& corner = area->corners[i];
             const Vector& temp = GetWalkablePosition((corner + (corner - GetCenter(area)).Normalize() * dist) + Vector(0.0f, 0.0f, maxHeight * 0.5f), g_hostEntity, true, maxHeight);
 
-            // sonsuz düþüþ
             if (temp == nullvec)
                 continue;
 
@@ -343,7 +339,6 @@ void NavMesh::ExpandNavArea(NavArea* area, const float radius)
             {
                 C++;
 
-                // Köþeyi geniþletmek için yeni bir nokta oluþtur
                 Vector newCorner;
 
                 if (C == 2)
@@ -359,7 +354,6 @@ void NavMesh::ExpandNavArea(NavArea* area, const float radius)
 
                 newCorner.z = temp.z;
 
-                // duvara çarpýyor, dur
                 if (!IsWalkableTraceLineClear(corner + Vector(0.0f, 0.0f, 10.0f), newCorner + Vector(0.0f, 0.0f, 10.0f)))
                     continue;
 
@@ -381,7 +375,6 @@ void NavMesh::ExpandNavArea(NavArea* area, const float radius)
 
                 bool stop = false;
 
-                // oluþturulan noktanýn çevresindeki NavArea'larý kontrol et
                 for (int j = 0; j < 4; j++)
                 {
                     if (i == j)
@@ -389,7 +382,6 @@ void NavMesh::ExpandNavArea(NavArea* area, const float radius)
 
                     const Vector& otherCorners = area->corners[j];
 
-                    // duvara çarpýyor, dur
                     if (!IsWalkableTraceLineClear(newCorner + Vector(0.0f, 0.0f, 10.0f), otherCorners + Vector(0.0f, 0.0f, 10.0f)))
                     {
                         stop = true;
@@ -403,7 +395,6 @@ void NavMesh::ExpandNavArea(NavArea* area, const float radius)
                     }
                 }
 
-                // yeni nokta çevresinde bir çarpýþma olmadýðýndan, köþeyi geniþlet
                 if (!stop)
                     area->corners[i] = newCorner;
             }

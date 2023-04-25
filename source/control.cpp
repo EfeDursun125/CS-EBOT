@@ -321,12 +321,6 @@ void BotControl::Think(void)
 			continue;
 
 		bot->Think();
-
-		if (bot->m_isAlive)
-			bot->FacePosition();
-		else
-			bot->m_aimInterval = engine->GetTime();
-
 		bot->RunPlayerMovement();
 	}
 }

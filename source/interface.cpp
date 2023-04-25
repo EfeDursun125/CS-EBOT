@@ -2864,7 +2864,7 @@ void SetPing(edict_t* to)
 	static int sending;
 
 	// missing from sdk
-	const int SVC_PINGS = 17;
+	static const int SVC_PINGS = 17;
 
 	for (const auto& bot : g_botManager->m_bots)
 	{
