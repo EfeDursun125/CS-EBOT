@@ -1742,7 +1742,6 @@ inline void MESSAGE_BEGIN(int msg_dest, int msg_type, const float* pOrigin = nul
 #define TRUE (!FALSE)
 typedef unsigned long ULONG;
 typedef uint8_t BYTE;
-typedef int BOOL;
 
 #define MAX_PATH PATH_MAX
 #include <limits.h>
@@ -2090,12 +2089,8 @@ typedef int (*META_ATTACH_FN) (PLUG_LOADTIME now, metamod_funcs_t* pFunctionTabl
 C_DLLEXPORT int Meta_Detach(PLUG_LOADTIME now, PL_UNLOAD_REASON reason);
 typedef int (*META_DETACH_FN) (PLUG_LOADTIME now, PL_UNLOAD_REASON reason);
 
-C_DLLEXPORT int GetEntityAPI_Post(DLL_FUNCTIONS* pFunctionTable, int interfaceVersion);
-C_DLLEXPORT int GetEntityAPI2_Post(DLL_FUNCTIONS* pFunctionTable, int* interfaceVersion);
-
 C_DLLEXPORT int GetNewDLLFunctions_Post(NEW_DLL_FUNCTIONS* pNewFunctionTable, int* interfaceVersion);
 C_DLLEXPORT int GetEngineFunctions(enginefuncs_t* pengfuncsFromEngine, int* interfaceVersion);
-C_DLLEXPORT int GetEngineFunctions_Post(enginefuncs_t* pengfuncsFromEngine, int* interfaceVersion);
 
 #define MDLL_FUNC   gpGamedllFuncs->dllapi_table
 
@@ -2285,9 +2280,6 @@ inline edict_t* FIND_ENTITY_BY_TARGET(edict_t* entStart, const char* pszName)
    // More explicit than "int"
 typedef int EOFFSET;
 
-// In case it's not alread defined
-typedef int BOOL;
-
    //
    // Conversion among the three types of "entity", including identity-conversions.
    //
@@ -2347,11 +2339,11 @@ inline void MESSAGE_BEGIN(int msg_dest, int msg_type, const float* pOrigin, entv
 
 // Testing the three types of "entity" for nullity
 #define eoNullEntity 0
-inline BOOL FNullEnt(EOFFSET eoffset)
+inline bool FNullEnt(EOFFSET eoffset)
 {
     return eoffset == 0;
 }
-inline BOOL FNullEnt(entvars_t* pev)
+inline bool FNullEnt(entvars_t* pev)
 {
     return pev == nullptr || FNullEnt(OFFSET(pev));
 }
@@ -2362,7 +2354,7 @@ inline int FNullEnt(const edict_t* pent)
 
 // Testing strings for nullity
 #define iStringNull 0
-inline BOOL FStringNull(int iString)
+inline bool FStringNull(int iString)
 {
     return iString == iStringNull;
 }
@@ -2381,18 +2373,18 @@ inline BOOL FStringNull(int iString)
 extern inline bool IsNullString(const char*);
 
 // Misc useful
-inline BOOL FStrEq(const char* sz1, const char* sz2)
+inline bool FStrEq(const char* sz1, const char* sz2)
 {
     if (!sz1 || !sz2)
         return 0;             // safety check
 
     return (strcmp(sz1, sz2) == 0);
 }
-inline BOOL FClassnameIs(edict_t* pent, const char* szClassname)
+inline bool FClassnameIs(edict_t* pent, const char* szClassname)
 {
     return FStrEq(STRING(VARS(pent)->classname), szClassname);
 }
-inline BOOL FClassnameIs(entvars_t* pev, const char* szClassname)
+inline bool FClassnameIs(entvars_t* pev, const char* szClassname)
 {
     return FStrEq(STRING(pev->classname), szClassname);
 }
@@ -2518,10 +2510,8 @@ inline void STOP_SOUND(edict_t* entity, int channel, const char* sample)
 #define mkdir _mkdir
 #endif
 
-   // macro to handle memory allocation fails
-#define TerminateOnMalloc() AddLogEntry (LOG_FATAL, "Memory Allocation Fail!\nFile: %s (Line: %d)", __FILE__, __LINE__)
+// macro to handle memory allocation fails
 #define InternalAssert(expr) if(!(expr)) { AddLogEntry (LOG_ERROR, "Assertion Fail! (Expression: %s, File: %s, Line: %d)", #expr, __FILE__, __LINE__); }
-
 
 #define GET_INFOKEYBUFFER   (*g_engfuncs.pfnGetInfoKeyBuffer)
 #define INFOKEY_VALUE      (*g_engfuncs.pfnInfoKeyValue)

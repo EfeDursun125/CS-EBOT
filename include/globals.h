@@ -32,6 +32,7 @@ extern bool g_bombDefusing;
 extern bool g_bombSayString;
 extern bool g_roundEnded;
 extern bool g_waypointOn;
+extern bool g_navmeshOn;
 extern bool g_waypointsChanged;
 extern bool g_autoWaypoint;
 extern bool g_botsCanPause;
@@ -40,9 +41,10 @@ extern bool g_isMetamod;
 extern bool g_isFakeCommand;
 extern bool g_leaderChoosen[2];
 extern bool g_analyzewaypoints;
+extern bool g_analyzenavmesh;
 extern bool g_analyzeputrequirescrouch;
 extern bool g_expanded[Const_MaxWaypoints];
-extern bool g_optimized[Const_MaxWaypoints];
+extern bool g_isUsingNAV;
 
 extern bool g_sgdWaypoint;
 extern bool g_sautoWaypoint;
@@ -64,9 +66,10 @@ extern float g_DelayTimer;
 
 extern int g_mapType;
 extern int g_numWaypoints;
+extern int g_numNavAreas;
 extern int g_gameVersion;
 extern int g_fakeArgc;
-extern unsigned short g_killHistory;
+extern int bot_conntimes;
 
 extern int g_normalWeaponPrefs[Const_NumWeapons];
 extern int g_rusherWeaponPrefs[Const_NumWeapons];
@@ -97,7 +100,7 @@ extern WeaponSelect g_weaponSelect[Const_NumWeapons + 1];
 extern WeaponSelect g_weaponSelectHL[Const_NumWeaponsHL + 1];
 extern WeaponProperty g_weaponDefs[Const_MaxWeapons + 1];
 
-extern Clients g_clients[32];
+extern Clients g_clients[33];
 extern MenuText g_menus[28];
 extern SkillDef g_skillTab[6];
 extern Task g_taskFilters[];

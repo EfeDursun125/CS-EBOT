@@ -56,7 +56,6 @@
 #include <direct.h>
 #include <windows.h>
 #include <winsock2.h>
-
 #include <sys/types.h>
 
 typedef int socklen_t;

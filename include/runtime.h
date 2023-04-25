@@ -1366,6 +1366,9 @@ public:
     //
     T& GetRandomElement(void) const
     {
+        if (m_itemCount <= 1)
+            return m_elements[0];
+
 #if defined (_WIN32)
         return m_elements[(*g_engfuncs.pfnRandomLong) (0, m_itemCount - 1)];
 #else

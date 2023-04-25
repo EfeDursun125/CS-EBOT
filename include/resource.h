@@ -26,25 +26,12 @@
 #ifndef RESOURCE_INCLUDED
 #define RESOURCE_INCLUDED
 
-// This is test version?
-// #define PRODUCT_DEV_VERSION
-
-#if defined(PRODUCT_DEV_VERSION)
-#define PRODUCT_DEV_VERSION_FORTEST "(PRV)"
-//#define PRODUCT_DEV_VERSION_FORTEST "(DEV)"
-//#define PRODUCT_DEV_VERSION_FORTEST "(Preview-2)"
-// Dev Version Date
-#define PV_VERSION_YEAR 2017
-#define PV_VERSION_MON 2
-#define PV_VERSION_DAY 10
-#else
 #define PRODUCT_DEV_VERSION_FORTEST ""
-#endif
 
 // E-BOT Version
-#define PRODUCT_VERSION_DWORD 1,07,20230326,8 // yyyy/mm/dd
-#define PRODUCT_VERSION "1.07"
-#define PRODUCT_VERSION_F 1.07
+#define PRODUCT_VERSION_DWORD 108,20230326,9 // yyyy/mm/dd
+#define PRODUCT_VERSION "1.08"
+#define PRODUCT_VERSION_F 1.08
 
 // general product information
 #define PRODUCT_NAME "E-BOT"
