@@ -400,12 +400,14 @@ bool Bot::DoWaypointNav(void)
 
 			if (m_desiredVelocity == nullvec || m_desiredVelocity == -1)
 			{
-				pev->velocity.x = (m_waypointOrigin.x - (pev->origin.x + pev->velocity.x * (m_frameInterval * 2.0f))) * (2.0f + fabsf((pev->maxspeed * 0.004) - pev->gravity));
-				pev->velocity.y = (m_waypointOrigin.y - (pev->origin.y + pev->velocity.y * (m_frameInterval * 2.0f))) * (2.0f + fabsf((pev->maxspeed * 0.004) - pev->gravity));
+				const float timeToReachWaypoint = Q_sqrt(powf(m_waypointOrigin.x - pev->origin.x, 2.0f) + powf(m_waypointOrigin.y - pev->origin.y, 2.0f)) / pev->maxspeed;
+				pev->velocity.x = (m_waypointOrigin.x - pev->origin.x) / timeToReachWaypoint;
+				pev->velocity.y = (m_waypointOrigin.y - pev->origin.y) / timeToReachWaypoint;
+				pev->velocity.z = 2.0f * (m_waypointOrigin.z - pev->origin.z - 0.5 * pev->gravity * powf(timeToReachWaypoint, 2.0f)) / timeToReachWaypoint;
 
-				// poor bots can't jump :(
-				if (pev->gravity >= 0.88f)
-					pev->velocity.z *= (0.11f + pev->gravity + m_frameInterval);
+				const float limit = (pev->maxspeed * 1.25);
+				if (pev->velocity.z > limit)
+					pev->velocity.z = limit;
 			}
 			else
 				pev->velocity = m_desiredVelocity + m_desiredVelocity * 0.05f;
@@ -1644,6 +1646,8 @@ void Bot::FindPath(int srcIndex, int destIndex)
 	const float (*hcalc) (int, int) = nullptr;
 
 	hcalc = HF_Distance;
+	if (hcalc == nullptr)
+		return;
 
 	if (IsZombieMode() && ebot_zombies_as_path_cost.GetBool() && !m_isZombieBot)
 		gcalc = GF_CostHuman;
@@ -1665,6 +1669,9 @@ void Bot::FindPath(int srcIndex, int destIndex)
 		gcalc = GF_CostRusher;
 	else
 		gcalc = GF_CostNormal;
+
+	if (hcalc == nullptr)
+		return;
 
 	// put start node into open list
 	const auto srcWaypoint = &waypoints[srcIndex];

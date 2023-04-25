@@ -3828,7 +3828,8 @@ void Bot::Think(void)
 			if (m_buyingFinished && !(pev->maxspeed < 10.0f && GetCurrentTask()->taskID != TASK_PLANTBOMB && GetCurrentTask()->taskID != TASK_DEFUSEBOMB) && !ebot_stopbots.GetBool())
 				botMovement = true;
 
-			if (botMovement && m_randomattacktimer < engine->GetTime() && !engine->IsFriendlyFireOn() && !HasHostage()) // simulate players with random knife attacks
+			extern ConVar ebot_ignore_enemies;
+			if (botMovement && !ebot_ignore_enemies.GetBool() && m_randomattacktimer < engine->GetTime() && !engine->IsFriendlyFireOn() && !HasHostage()) // simulate players with random knife attacks
 			{
 				if (m_isStuck && m_personality != PERSONALITY_CAREFUL)
 				{
@@ -7385,7 +7386,7 @@ void Bot::CheckSilencer(void)
 {
 	if ((m_currentWeapon == WEAPON_USP && m_skill < 90) || m_currentWeapon == WEAPON_M4A1 && !HasShield())
 	{
-		int random = (m_personality == PERSONALITY_RUSHER ? 33 : m_personality == PERSONALITY_CAREFUL ? 99 : 66);
+		const int random = (m_personality == PERSONALITY_RUSHER ? 33 : m_personality == PERSONALITY_CAREFUL ? 99 : 66);
 
 		// aggressive bots don't like the silencer
 		if (ChanceOf(m_currentWeapon == WEAPON_USP ? random / 3 : random))

@@ -2,6 +2,7 @@
 #include <compress.h>
 #include <vector>
 #include <xmmintrin.h>
+#include <emmintrin.h>
 
 void NavMesh::Initialize(void)
 {

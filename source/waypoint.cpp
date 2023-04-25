@@ -28,7 +28,7 @@
 ConVar ebot_analyze_distance("ebot_analyze_distance", "40");
 ConVar ebot_analyze_disable_fall_connections("ebot_analyze_disable_fall_connections", "0");
 ConVar ebot_analyze_wall_check_distance("ebot_analyze_wall_check_distance", "24");
-ConVar ebot_analyze_max_jump_height("ebot_analyze_max_jump_height", "44");
+ConVar ebot_analyze_max_jump_height("ebot_analyze_max_jump_height", "62");
 ConVar ebot_analyze_goal_check_distance("ebot_analyze_goal_check_distance", "200");
 ConVar ebot_analyze_create_camp_waypoints("ebot_analyze_create_camp_waypoints", "1");
 ConVar ebot_use_old_analyzer("ebot_use_old_analyzer", "0");
@@ -60,10 +60,8 @@ void Waypoint::Initialize(void)
 
 void CreateWaypoint(Vector WayVec, Vector Next, float range, float goalDist)
 {
-    Next.z += 19.0f;
     TraceResult tr;
     TraceHull(Next, Next, NO_BOTH, HULL_HEAD, g_hostEntity, &tr);
-    Next.z -= 19.0f;
 
     range *= 0.75f;
     if (tr.flFraction == 1.0f || IsBreakable(tr.pHit))
@@ -79,7 +77,7 @@ void CreateWaypoint(Vector WayVec, Vector Next, float range, float goalDist)
             {
                 bool isBreakable = IsBreakable(tr.pHit);
                 Vector TargetPosition = tr2.vecEndPos;
-                TargetPosition.z = TargetPosition.z + 19.0f;// +36.0f;
+                TargetPosition.z += 19.0f;// +36.0f;
 
                 const int endindex = g_waypoint->FindNearestInCircle(TargetPosition, range);
 
@@ -146,12 +144,14 @@ void CreateWaypoint(Vector WayVec, Vector Next, float range, float goalDist)
                         if ((g_waypoint->IsNodeReachable(targetOrigin, g_analyzeputrequirescrouch ? Vector(TargetPosition.x, TargetPosition.y, (TargetPosition.z - 18.0f)) : TargetPosition) &&
                             g_waypoint->IsNodeReachable(g_analyzeputrequirescrouch ? Vector(TargetPosition.x, TargetPosition.y, (TargetPosition.z - 18.0f)) : TargetPosition, targetOrigin))
                             || (g_waypoint->IsNodeReachableWithJump(targetOrigin, g_analyzeputrequirescrouch ? Vector(TargetPosition.x, TargetPosition.y, (TargetPosition.z - 18.0f)) : TargetPosition, -1) && g_waypoint->IsNodeReachableWithJump(targetOrigin, g_analyzeputrequirescrouch ? Vector(TargetPosition.x, TargetPosition.y, (TargetPosition.z - 18.0f)) : TargetPosition, -1)))
-                            g_waypoint->Add(isBreakable ? 1 : -1, g_analyzeputrequirescrouch ? Vector(TargetPosition.x, TargetPosition.y, (TargetPosition.z - 9.0f)) : TargetPosition);
+                            g_waypoint->Add(isBreakable ? 1 : -1, g_analyzeputrequirescrouch ? Vector(TargetPosition.x, TargetPosition.y, (TargetPosition.z - 17.5f)) : TargetPosition);
                     }
                 }
             }
         }
     }
+    else if (!FNullEnt(g_hostEntity))
+        engine->DrawLine(g_hostEntity, Next - Vector(0.0f, 0.0f, 35.0f), Next + Vector(0.0f, 0.0f, 35.0f), Color(255, 0, 0, 255), 7, 0, 0, 10);
 }
 
 void AnalyzeThread(void)
@@ -313,12 +313,32 @@ void Waypoint::Analyze(void)
 
 void Waypoint::AnalyzeDeleteUselessWaypoints(void)
 {
-    int connections;
     int i, j;
 
     for (i = 0; i < g_numWaypoints; i++)
     {
-        connections = 0;
+        for (j = 0; j < Const_MaxPathIndex; j++)
+        {
+            const int index = m_paths[i]->index[j];
+            if (index != -1)
+            {
+                if (m_paths[i]->connectionFlags[j] & PATHFLAG_JUMP)
+                    continue;
+
+                if (!(m_paths[i]->flags & WAYPOINT_CROUCH) && m_paths[i]->origin.z != m_paths[index]->origin.z)
+                    continue;
+
+                TraceResult tr;
+                TraceHull(m_paths[i]->origin, m_paths[index]->origin, NO_BOTH, HULL_HEAD, g_hostEntity, &tr);
+                if (tr.flFraction != 1.0f)
+                    DeletePathByIndex(i, index);
+            }
+        }
+    }
+
+    for (i = 0; i < g_numWaypoints; i++)
+    {
+        int connections = 0;
 
         for (j = 0; j < Const_MaxPathIndex; j++)
         {
@@ -328,15 +348,11 @@ void Waypoint::AnalyzeDeleteUselessWaypoints(void)
                     DeleteByIndex(i);
 
                 connections++;
-                break;
             }
         }
 
         if (connections == 0)
-        {
-            if (!IsConnected(i))
-                DeleteByIndex(i);
-        }
+            DeleteByIndex(i);
 
         if (m_paths[i]->pathNumber != i)
             DeleteByIndex(i);
@@ -351,6 +367,9 @@ void Waypoint::AnalyzeDeleteUselessWaypoints(void)
                     DeleteByIndex(i);
             }
         }
+
+        if (!IsConnected(i))
+            DeleteByIndex(i);
     }
 
     CenterPrint("Waypoints are saved!");
@@ -1284,12 +1303,9 @@ void Waypoint::SetRadius(int radius)
 // this function checks if waypoint A has a connection to waypoint B
 bool Waypoint::IsConnected(int pointA, int pointB)
 {
-    if (pointA == -1 || pointB == -1)
-        return false;
-
-    for (const auto& connection : m_paths[pointA]->index)
+    for (int i = 0; i < Const_MaxPathIndex; i++)
     {
-        if (connection == pointB)
+        if (m_paths[pointA]->index[i] == pointB)
             return true;
     }
 
@@ -1410,6 +1426,55 @@ void Waypoint::DeletePath(void)
             return;
         }
     }
+
+    int index = 0;
+    for (index = 0; index < Const_MaxPathIndex; index++)
+    {
+        if (m_paths[nodeFrom]->index[index] == nodeTo)
+        {
+            g_waypointsChanged = true;
+
+            m_paths[nodeFrom]->index[index] = -1; // unassign this path
+            m_paths[nodeFrom]->connectionFlags[index] = 0;
+            m_paths[nodeFrom]->connectionVelocity[index] = nullvec;
+            m_paths[nodeFrom]->distances[index] = 0;
+
+            PlaySound(g_hostEntity, "weapons/mine_activate.wav");
+            return;
+        }
+    }
+
+    // not found this way ? check for incoming connections then
+    index = nodeFrom;
+    nodeFrom = nodeTo;
+    nodeTo = index;
+
+    for (index = 0; index < Const_MaxPathIndex; index++)
+    {
+        if (m_paths[nodeFrom]->index[index] == nodeTo)
+        {
+            g_waypointsChanged = true;
+
+            m_paths[nodeFrom]->index[index] = -1; // unassign this path
+            m_paths[nodeFrom]->connectionFlags[index] = 0;
+            m_paths[nodeFrom]->connectionVelocity[index] = nullvec;
+            m_paths[nodeFrom]->distances[index] = 0;
+
+            PlaySound(g_hostEntity, "weapons/mine_activate.wav");
+            return;
+        }
+    }
+
+    CenterPrint("There is already no path on this waypoint");
+}
+
+void Waypoint::DeletePathByIndex(int nodeFrom, int nodeTo)
+{
+    if (!IsValidWaypoint(nodeFrom))
+        return;
+
+    if (!IsValidWaypoint(nodeTo))
+        return;
 
     int index = 0;
     for (index = 0; index < Const_MaxPathIndex; index++)
@@ -1931,7 +1996,7 @@ bool Waypoint::Reachable(edict_t* entity, const int index)
     }
 
     TraceResult tr;
-    TraceHull(src, dest, true, human_hull, entity, &tr);
+    TraceHull(src, dest, true, head_hull, entity, &tr);
     if (tr.flFraction == 1.0f)
         return true;
 
@@ -1941,17 +2006,15 @@ bool Waypoint::Reachable(edict_t* entity, const int index)
 bool Waypoint::IsNodeReachable(const Vector src, const Vector destination)
 {
     float distance = (destination - src).GetLengthSquared();
-    if ((destination.z - src.z) >= 45.0f)
-        return false;
 
     // is the destination not close enough?
     if (distance > SquaredF(g_autoPathDistance))
         return false;
 
-    TraceResult tr{};
+    TraceResult tr;
 
     // check if we go through a func_illusionary, in which case return false
-    TraceHull(src, destination, true, head_hull, g_hostEntity, &tr);
+    TraceHull(src, destination, NO_BOTH, HULL_HEAD, g_hostEntity, &tr);
 
     if (tr.pHit && strcmp("func_illusionary", STRING(tr.pHit->v.classname)) == 0)
         return false; // don't add pathnodes through func_illusionaries
@@ -2029,9 +2092,6 @@ bool Waypoint::IsNodeReachable(const Vector src, const Vector destination)
 bool Waypoint::IsNodeReachableWithJump(const Vector src, const Vector destination, const int flags)
 {
     if (flags > 0)
-        return false;
-
-    if ((destination.z - src.z) >= ebot_analyze_max_jump_height.GetFloat())
         return false;
 
     TraceResult tr{};
@@ -2460,8 +2520,7 @@ void Waypoint::ShowWaypointMsg(void)
     float nearestDistance = FLT_MAX;
     int nearestIndex = -1;
 
-    // now iterate through all waypoints in a map, and draw required ones
-    for (int i = 0; i < g_numWaypoints; i++)
+    auto update = [&](int i)
     {
         float distance = (m_paths[i]->origin - GetEntityOrigin(g_hostEntity)).GetLengthSquared();
 
@@ -2593,6 +2652,19 @@ void Waypoint::ShowWaypointMsg(void)
             else if (m_waypointDisplayTime[i] + 2.0f > engine->GetTime()) // what???
                 m_waypointDisplayTime[i] = 0.0f;
         }
+    };
+
+    // now iterate through all waypoints in a map, and draw required ones
+    const int random = engine->RandomInt(1, 2);
+    if (random == 1)
+    {
+        for (int i = 0; i < g_numWaypoints; i++)
+            update(i);
+    }
+    else
+    {
+        for (int i = (g_numWaypoints - 1); i > 0; i--)
+            update(i);
     }
 
     if (nearestIndex == -1)
