@@ -1097,7 +1097,6 @@ public:
 	edict_t* m_trackingEdict; // pointer to last tracked player when camping/hiding
 
 	float m_timeNextTracking; // time waypoint index for tracking player is recalculated
-	float m_thinkTimer; // think timer interval
 	float m_firePause; // time to pause firing
 	float m_shootTime; // time to shoot
 	float m_timeLastFired; // time to last firing
