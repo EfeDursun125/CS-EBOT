@@ -1358,6 +1358,7 @@ public:
 	void InitializeVisibility(void);
 	void CreatePath(char dir);
 	void DeletePath(void);
+	void DeletePathByIndex(int nodeFrom, int nodeTo);
 	void CacheWaypoint(void);
 
 	void DeleteFlags(void);
