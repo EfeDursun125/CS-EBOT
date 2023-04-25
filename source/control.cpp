@@ -92,7 +92,7 @@ void BotControl::CallGameEntity(entvars_t* vars)
 int BotControl::CreateBot(String name, int skill, int personality, int team, int member)
 {
 	edict_t* bot = nullptr;
-	if (g_numWaypoints < 1) // don't allow creating bots with no waypoints loaded
+	if (g_numWaypoints < 1 && g_numNavAreas < 1) // don't allow creating bots with no waypoints loaded
 	{
 		ServerPrint("No any waypoints for this map, Cannot Add E-BOT");
 		ServerPrint("You can input 'ebot wp menu' to make waypoint");
@@ -201,17 +201,19 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 		return -2;
 	}
 
-	int index = ENTINDEX(bot) - 1;
-
+	const int index = ENTINDEX(bot) - 1;
 	InternalAssert(index >= 0 && index <= 32); // check index
 	InternalAssert(m_bots[index] == nullptr); // check bot slot
 
 	m_bots[index] = new Bot(bot, skill, personality, team, member);
-
-	if (m_bots == nullptr)
+	if (m_bots[index] == nullptr)
+	{
+		AddLogEntry(LOG_MEMORY, "unexpected memory error");
 		return -1;
+	}
 
 	ServerPrint("Connecting E-Bot - %s | Skill %d", GetEntityName(bot), skill);
+	m_bots[index]->m_index = m_bots[index]->GetIndex();
 
 	return index;
 }
@@ -293,7 +295,7 @@ void BotControl::DoJoinQuitStuff(void)
 
 	// add one more
 	if (engine->RandomInt(1, GetHumansNum()) <= 2);
-		g_botManager->AddRandom();
+	g_botManager->AddRandom();
 
 	g_botManager->AddRandom();
 
@@ -313,30 +315,19 @@ void BotControl::Think(void)
 {
 	g_botManager->DoJoinQuitStuff();
 
-	extern ConVar ebot_stopbots;
-	if (ebot_stopbots.GetBool())
-		return;
-
 	for (const auto& bot : m_bots)
 	{
 		if (bot == nullptr)
 			continue;
 
-		// 40 fps
-		if (bot->m_interp < engine->GetTime())
-		{
-			// 20 fps
-			if (bot->m_thinkTimer < engine->GetTime())
-				bot->Think();
+		bot->Think();
 
-			if (bot->m_isAlive)
-				bot->FacePosition();
-			else
-				bot->m_aimInterval = engine->GetTime();
+		if (bot->m_isAlive)
+			bot->FacePosition();
+		else
+			bot->m_aimInterval = engine->GetTime();
 
-			bot->RunPlayerMovement();
-			bot->m_interp = AddTime(0.025f);
-		}
+		bot->RunPlayerMovement();
 	}
 }
 
@@ -508,7 +499,7 @@ void BotControl::MaintainBotQuota(void)
 		{
 			m_creationTab.RemoveAll(); // something wrong with waypoints, reset tab of creation
 			ebot_quota.SetInt(0); // reset quota
-			
+
 			ChartPrint("[E-BOT] You can input [ebot sgdwp on] make the new waypoints.");
 		}
 		else if (resultOfCall == -2)
@@ -529,10 +520,10 @@ void BotControl::MaintainBotQuota(void)
 		int botNumber = GetBotsNum();
 		int maxClients = engine->GetMaxClients();
 		int desiredBotCount = ebot_quota.GetInt();
-		
+
 		if (ebot_autovacate.GetBool())
 			desiredBotCount = MinInt(desiredBotCount, maxClients - (GetHumansNum() + 1));
-		
+
 		if (botNumber > desiredBotCount)
 		{
 			RemoveRandom();
@@ -851,7 +842,7 @@ Bot* BotControl::GetHighestSkillBot(int team)
 	// search bots in this team
 	for (const auto& bot : m_bots)
 	{
-		if (highFragBot != nullptr && highFragBot->m_team == team)
+		if (highFragBot != nullptr && (team == TEAM_COUNT || highFragBot->m_team == team))
 		{
 			if (highFragBot->m_skill > bestSkill)
 			{
@@ -1059,12 +1050,14 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	m_wantedTeam = team;
 	m_wantedClass = member;
 
+	stay_time = 60.0f * RANDOM_FLOAT(30.0f, 160.0f);
+	m_connectTime = engine->GetTime() - stay_time * RANDOM_FLOAT(0.2f, 0.8f);
+
 	NewRound();
 }
 
 Bot::~Bot(void)
 {
-	// SwitchChatterIcon (false); // crash on CTRL+C'ing win32 console hlds
 	DeleteSearchNodes();
 	ResetTasks();
 
@@ -1100,7 +1093,6 @@ void Bot::NewRound(void)
 	m_currentWaypointIndex = -1;
 	m_currentTravelFlags = 0;
 	m_desiredVelocity = nullvec;
-	m_destOrigin = nullvec;
 	m_prevGoalIndex = -1;
 	m_chosenGoalIndex = -1;
 	m_myMeshWaypoint = -1;
@@ -1109,7 +1101,9 @@ void Bot::NewRound(void)
 	m_duckDefuse = false;
 	m_duckDefuseCheckTime = 0.0f;
 
-	m_prevWptIndex = -1;
+	m_prevWptIndex[0] = -1;
+	m_prevWptIndex[1] = -1;
+	m_prevWptIndex[2] = -1;
 
 	m_navTimeset = engine->GetTime();
 
@@ -1244,7 +1238,7 @@ void Bot::NewRound(void)
 
 	m_actMessageIndex = 0;
 	m_pushMessageIndex = 0;
-	
+
 	SetEntityWaypoint(GetEntity(), -2);
 
 	// and put buying into its message queue
@@ -1371,5 +1365,10 @@ void Bot::StartGame(void)
 
 		m_notStarted = false;
 		m_startAction = CMENU_IDLE;
+	}
+	else
+	{
+		m_notStarted = true;
+		m_startAction = engine->RandomInt(1, 2) == 1 ? CMENU_TEAM : CMENU_CLASS;
 	}
 }

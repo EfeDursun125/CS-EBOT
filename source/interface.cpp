@@ -33,7 +33,8 @@ ConVar ebot_showwp("ebot_show_waypoints", "0");
 
 ConVar ebot_analyze_create_goal_waypoints("ebot_analyze_starter_waypoints", "1");
 
-float secondTimer = 0.0f;
+float secondTimer;
+float updateTimer;
 
 void ebotVersionMSG(edict_t* entity = nullptr)
 {
@@ -336,6 +337,82 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		}
 	}
 
+	else if (stricmp(arg0, "nav") == 0 || stricmp(arg0, "navmesh") == 0 || stricmp(arg0, "navigation") == 0)
+	{
+		if (IsDedicatedServer() || FNullEnt(g_hostEntity))
+			return 2;
+
+		if (stricmp(arg1, "analyze") == 0)
+		{
+			g_analyzenavmesh = true;
+			ServerPrint("NavMesh Analyzing On");
+			ServerCommand("ebot nav on");
+
+			// no expand
+			for (int i = 0; i < Const_MaxWaypoints; i++)
+				g_expanded[i] = false;
+		}
+		else if (stricmp(arg1, "analyzeoff") == 0)
+		{
+			g_analyzenavmesh = false;
+			ServerPrint("NavMesh Analyzing Off");
+			ServerCommand("ebot nav off");
+		}
+		else if (stricmp(arg1, "create") == 0)
+		{
+			const Vector aimPos = g_navmesh->GetAimPosition();
+			if (aimPos != nullvec)
+			{
+				g_navmeshOn = true;
+				g_navmesh->CreateArea(aimPos);
+				ServerCommand("ebot wp mdl on");
+			}
+		}
+		else if (stricmp(arg1, "delete") == 0)
+		{
+			g_navmeshOn = true;
+
+			const Vector aimPos = g_navmesh->GetAimPosition();
+			g_navmesh->DeleteArea(g_navmesh->GetNearestNavArea(aimPos));
+
+			ServerCommand("ebot wp mdl on");
+		}
+		else if (stricmp(arg1, "on") == 0)
+		{
+			g_navmeshOn = true;
+			ServerPrint("NavMesh Editing Enabled");
+			ServerCommand("ebot wp mdl on");
+		}
+		else if (stricmp(arg1, "noclip") == 0)
+		{
+			if (g_editNoclip)
+			{
+				g_hostEntity->v.movetype = MOVETYPE_WALK;
+				ServerPrint("Noclip Cheat Disabled");
+			}
+			else
+			{
+				g_hostEntity->v.movetype = MOVETYPE_NOCLIP;
+				ServerPrint("Noclip Cheat Enabled");
+			}
+
+			g_editNoclip ^= true; // switch on/off (XOR it!)
+		}
+		else if (stricmp(arg1, "off") == 0)
+		{
+			g_navmeshOn = false;
+			g_editNoclip = false;
+			g_hostEntity->v.movetype = MOVETYPE_WALK;
+
+			ServerPrint("NavMesh Editing Disabled");
+			ServerCommand("ebot wp mdl off");
+		}
+		else if (stricmp(arg1, "save") == 0)
+			g_navmesh->SaveNav();
+		else if (stricmp(arg1, "load") == 0)
+			g_navmesh->LoadNav();
+	}
+
 	// waypoint manimupulation (really obsolete, can be edited through menu) (supported only on listen server)
 	else if (stricmp(arg0, "waypoint") == 0 || stricmp(arg0, "wp") == 0 || stricmp(arg0, "wpt") == 0)
 	{
@@ -373,7 +450,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		}
 
 		else if (stricmp(arg1, "on") == 0)
-		{;
+		{
 			g_waypointOn = true;
 			ServerPrint("Waypoint Editing Enabled");
 
@@ -637,14 +714,14 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		// display status
 		ServerPrint("Auto-Waypoint %s", g_autoWaypoint ? "Enabled" : "Disabled");
 	}
-	
+
 	else if (stricmp(arg0, "sgdwaypoint") == 0 || stricmp(arg0, "sgdwp") == 0)
 	{
 		if (IsDedicatedServer() || FNullEnt(g_hostEntity))
 			return 2;
 		g_waypoint->SgdWp_Set(arg1);
 	}
-		return 0; // command is not handled by bot
+	return 0; // command is not handled by bot
 
 	return 1; // command was handled by bot
 }
@@ -723,13 +800,13 @@ void LoadEntityData(void)
 			SetEntityWaypoint(entity);
 	}
 
-	for (int i = 0; i <= engine->GetMaxClients(); i++)
+	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
 		entity = INDEXENT(i);
 
 		if (FNullEnt(entity) || (!(entity->v.flags & FL_CLIENT) && !(entity->v.flags & FL_FAKECLIENT)))
 		{
-			g_clients[i].flags &= ~(CFLAG_USED | CFLAG_ALIVE);
+			g_clients[i].flags = 0;
 			g_clients[i].ent = nullptr;
 			g_clients[i].origin = nullvec;
 			g_clients[i].wpIndex = -1;
@@ -830,7 +907,7 @@ void InitConfig(void)
 	KwChat replyKey;
 	int chatType = -1;
 
-	#define SKIP_COMMENTS() if ((line[0] == '/') || (line[0] == '\r') || (line[0] == '\n') || (line[0] == 0) || (line[0] == ' ') || (line[0] == '\t')) continue;
+#define SKIP_COMMENTS() if ((line[0] == '/') || (line[0] == '\r') || (line[0] == '\n') || (line[0] == 0) || (line[0] == ' ') || (line[0] == '\t')) continue;
 
 	if (!g_botNames.IsEmpty())
 	{
@@ -1162,6 +1239,12 @@ void GameDLLInit(void)
 	if (!g_isMetamod)
 		RegisterCommand("meta", CommandHandler_NotMM);
 
+#ifdef WORK_ASYNC
+	async(launch::async, DetectCSVersion);
+#else
+	DetectCSVersion();
+#endif
+
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
 
@@ -1281,13 +1364,19 @@ int Spawn(edict_t* ent)
 		}
 	}
 
+	// solves the bots unable to see through certain types of glass bug.
+	if (ent->v.rendermode == kRenderTransTexture)
+		ent->v.flags &= ~FL_WORLDBRUSH; // clear the FL_WORLDBRUSH flag out of transparent ents
+
+	// reset bot
+	auto bot = g_botManager->GetBot(ent);
+	if (bot != nullptr)
+		bot->NewRound();
+
 	if (g_isMetamod)
 		RETURN_META_VALUE(MRES_IGNORED, 0);
 
 	const int result = (*g_functionTable.pfnSpawn) (ent); // get result
-
-	if (ent->v.rendermode == kRenderTransTexture)
-		ent->v.flags &= ~FL_WORLDBRUSH; // clear the FL_WORLDBRUSH flag out of transparent ents
 
 	return result;
 }
@@ -2633,7 +2722,7 @@ void ClientCommand(edict_t* ent)
 					}
 				}
 			}
-			
+
 			if (g_clients[clientIndex].team == 0 || g_clients[clientIndex].team == 1)
 				g_lastRadioTime[g_clients[clientIndex].team] = engine->GetTime();
 		}
@@ -2648,6 +2737,28 @@ void ClientCommand(edict_t* ent)
 	(*g_functionTable.pfnClientCommand) (ent);
 }
 
+void SetNeg(void)
+{
+	// now you will understand why g_clients set to 33 and not 32
+	// define -1 as not valid player, so if something goes wrong game not gonna crash
+	g_clients[-1].flags = 0;
+	g_clients[-1].ent = nullptr;
+	g_clients[-1].origin = nullvec;
+	g_clients[-1].wpIndex = -1;
+	g_clients[-1].wpIndex2 = -1;
+	g_clients[-1].getWpOrigin = nullvec;
+	g_clients[-1].getWPTime = 0.0f;
+	g_clients[-1].index = -1;
+	g_clients[-1].team = TEAM_COUNT;
+}
+
+#ifdef WORK_ASYNC
+void ThreadedVis(void)
+{
+	g_waypoint->InitializeVisibility();
+}
+#endif
+
 void ServerActivate(edict_t* pentEdictList, int edictCount, int clientMax)
 {
 	// this function is called when the server has fully loaded and is about to manifest itself
@@ -2656,10 +2767,12 @@ void ServerActivate(edict_t* pentEdictList, int edictCount, int clientMax)
 	// perfect place for doing initialization stuff for our bots, such as reading the BSP data,
 	// loading the bot profiles, and drawing the world map (ie, filling the navigation hashtable).
 	// Once this function has been called, the server can be considered as "running".
-	
+
+	SetNeg();
+
 	// initialize all config files
 #ifdef WORK_ASYNC
-	async(launch::async, InitConfig); 
+	async(launch::async, InitConfig);
 #else
 	InitConfig();
 #endif
@@ -2678,6 +2791,15 @@ void ServerActivate(edict_t* pentEdictList, int edictCount, int clientMax)
 	}
 
 	g_botManager->InitQuota();
+
+	secondTimer = 0.0f;
+	updateTimer = 0.0f;
+
+#ifdef WORK_ASYNC
+	async(launch::async, ThreadedVis);
+#else
+	g_waypoint->InitializeVisibility();
+#endif
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -2700,6 +2822,7 @@ void ServerDeactivate(void)
 	// the loading of new bots and the new BSP data parsing there.
 
 	secondTimer = 0.0f;
+	updateTimer = 0.0f;
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -2741,7 +2864,7 @@ void SetPing(edict_t* to)
 	static int sending;
 
 	// missing from sdk
-	static const int SVC_PINGS = 17;
+	const int SVC_PINGS = 17;
 
 	for (const auto& bot : g_botManager->m_bots)
 	{
@@ -2842,7 +2965,20 @@ void JustAStuff(void)
 	}
 	else if (!FNullEnt(g_hostEntity))
 	{
-		if (g_waypointOn)
+		if (g_navmeshOn)
+		{
+			for (const auto& bot : g_botManager->m_bots)
+			{
+				if (bot != nullptr)
+				{
+					g_botManager->RemoveAll();
+					break;
+				}
+			}
+
+			g_navmesh->DrawNavArea();
+		}
+		else if (g_waypointOn)
 		{
 			for (const auto& bot : g_botManager->m_bots)
 			{
@@ -2874,8 +3010,20 @@ void FrameThread(void)
 	if (g_bombPlanted)
 		g_waypoint->SetBombPosition();
 
-	secondTimer = AddTime(1.0f);
+	float ut = 1.0f;
+
+	if (g_navmeshOn && !g_analyzenavmesh)
+		ut = 0.05f;
+
+	secondTimer = AddTime(ut);
 }
+
+#ifdef WORK_ASYNC
+void ThreadedThink(void)
+{
+	g_botManager->Think();
+}
+#endif
 
 void StartFrame(void)
 {
@@ -2897,112 +3045,30 @@ void StartFrame(void)
 	}
 	else
 	{
-		if (g_analyzewaypoints)
+		if (g_analyzenavmesh)
+			g_navmesh->Analyze();
+		else if (g_analyzewaypoints)
 			g_waypoint->Analyze();
+		else // keep bot number up to date
+			g_botManager->MaintainBotQuota();
+	}
 
-		// keep bot number up to date
-		g_botManager->MaintainBotQuota();
+	if (updateTimer < engine->GetTime())
+	{
+#ifdef WORK_ASYNC
+		async(launch::async, ThreadedThink);
+#else
+		g_botManager->Think();
+#endif
+
+		if (g_gameVersion != CSVER_VERYOLD && g_gameVersion != CSVER_XASH)
+			updateTimer = AddTime(0.03333333333f);
 	}
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
 
 	(*g_functionTable.pfnStartFrame) ();
-}
-
-#ifdef WORK_ASYNC
-void ThreadedThink(void)
-{
-	g_botManager->Think();
-}
-#endif
-
-void StartFrame_Post(void)
-{
-	// this function starts a video frame. It is called once per video frame by the engine. If
-	// you run Half-Life at 90 fps, this function will then be called 90 times per second. By
-	// placing a hook on it, we have a good place to do things that should be done continuously
-	// during the game, for example making the bots think (yes, because no Think() function exists
-	// for the bots by the MOD side, remember).  Post version called only by metamod.
-
-	// **** AI EXECUTION STARTS ****
-#ifdef WORK_ASYNC
-	async(launch::async, ThreadedThink);
-#else
-	g_botManager->Think();
-#endif
-	// **** AI EXECUTION FINISH ****
-
-	RETURN_META(MRES_IGNORED);
-}
-
-int Spawn_Post(edict_t* ent)
-{
-	// this function asks the game DLL to spawn (i.e, give a physical existence in the virtual
-	// world, in other words to 'display') the entity pointed to by ent in the game. The
-	// Spawn() function is one of the functions any entity is supposed to have in the game DLL,
-	// and any MOD is supposed to implement one for each of its entities. Post version called
-	// only by metamod.
-
-	// solves the bots unable to see through certain types of glass bug.
-	if (ent->v.rendermode == kRenderTransTexture)
-		ent->v.flags &= ~FL_WORLDBRUSH; // clear the FL_WORLDBRUSH flag out of transparent ents
-
-	// reset bot
-	auto bot = g_botManager->GetBot(ent);
-	if (bot != nullptr)
-		bot->NewRound();
-
-	RETURN_META_VALUE(MRES_IGNORED, 0);
-}
-
-#ifdef WORK_ASYNC
-void ThreadedVis(void)
-{
-	g_waypoint->InitializeVisibility();
-}
-#endif
-
-void ServerActivate_Post(edict_t* /*pentEdictList*/, int /*edictCount*/, int /*clientMax*/)
-{
-	// this function is called when the server has fully loaded and is about to manifest itself
-	// on the network as such. Since a mapchange is actually a server shutdown followed by a
-	// restart, this function is also called when a new map is being loaded. Hence it's the
-	// perfect place for doing initialization stuff for our bots, such as reading the BSP data,
-	// loading the bot profiles, and drawing the world map (ie, filling the navigation hashtable).
-	// Once this function has been called, the server can be considered as "running". Post version
-	// called only by metamod.
-
-	secondTimer = 0.0f;
-
-#ifdef WORK_ASYNC
-	async(launch::async, ThreadedVis);
-#else
-	g_waypoint->InitializeVisibility();
-#endif
-
-	RETURN_META(MRES_IGNORED);
-}
-
-void GameDLLInit_Post(void)
-{
-	// this function is a one-time call, and appears to be the second function called in the
-	// DLL after FuncPointers_t() has been called. Its purpose is to tell the MOD DLL to
-	// initialize the game before the engine actually hooks into it with its video frames and
-	// clients connecting. Note that it is a different step than the *server* initialization.
-	// This one is called once, and only once, when the game process boots up before the first
-	// server is enabled. Here is a good place to do our own game session initialization, and
-	// to register by the engine side the server commands we need to administrate our bots. Post
-	// version, called only by metamod.
-
-	// determine version of currently running cs
-#ifdef WORK_ASYNC
-	async(launch::async, DetectCSVersion); 
-#else
-	DetectCSVersion();
-#endif
-
-	RETURN_META(MRES_IGNORED);
 }
 
 void pfnChangeLevel(char* s1, char* s2)
@@ -3124,9 +3190,6 @@ void pfnMessageBegin(int msgDest, int msgType, const float* origin, edict_t* ed)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_BARTIME, GET_USER_MSG_ID(PLID, "BarTime", nullptr));
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SENDAUDIO, GET_USER_MSG_ID(PLID, "SendAudio", nullptr));
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SAYTEXT, GET_USER_MSG_ID(PLID, "SayText", nullptr));
-
-		if (g_gameVersion != CSVER_VERYOLD)
-			NetworkMsg::GetObjectPtr()->SetId(NETMSG_BOTVOICE, GET_USER_MSG_ID(PLID, "BotVoice", nullptr));
 	}
 	NetworkMsg::GetObjectPtr()->Reset();
 
@@ -3409,14 +3472,6 @@ void pfnSetClientMaxspeed(const edict_t* ent, float newMaxspeed)
 		(*g_engfuncs.pfnSetClientMaxspeed) (ent, newMaxspeed);
 }
 
-int pfnRegUserMsg_Post(const char* name, int size)
-{
-	if (g_isMetamod)
-		RETURN_META_VALUE(MRES_IGNORED, 0);
-
-	return REG_USER_MSG(name, size);
-}
-
 int pfnRegUserMsg(const char* name, int size)
 {
 	// this function registers a "user message" by the engine side. User messages are network
@@ -3551,28 +3606,6 @@ exportc int GetEntityAPI2(DLL_FUNCTIONS* functionTable, int* /*interfaceVersion*
 	return true;
 }
 
-exportc int GetEntityAPI2_Post(DLL_FUNCTIONS* functionTable, int* /*interfaceVersion*/)
-{
-	// this function is called right after FuncPointers_t() by the engine in the game DLL (or
-	// what it BELIEVES to be the game DLL), in order to copy the list of MOD functions that can
-	// be called by the engine, into a memory block pointed to by the functionTable pointer
-	// that is passed into this function (explanation comes straight from botman). This allows
-	// the Half-Life engine to call these MOD DLL functions when it needs to spawn an entity,
-	// connect or disconnect a player, call Think() functions, Touch() functions, or Use()
-	// functions, etc. The bot DLL passes its OWN list of these functions back to the Half-Life
-	// engine, and then calls the MOD DLL's version of GetEntityAPI to get the REAL gamedll
-	// functions this time (to use in the bot code). Post version, called only by metamod.
-
-	memset(functionTable, 0, sizeof(DLL_FUNCTIONS));
-
-	functionTable->pfnSpawn = Spawn_Post;
-	functionTable->pfnServerActivate = ServerActivate_Post;
-	functionTable->pfnStartFrame = StartFrame_Post;
-	functionTable->pfnGameInit = GameDLLInit_Post;
-
-	return true;
-}
-
 exportc int GetNewDLLFunctions(NEW_DLL_FUNCTIONS* functionTable, int* interfaceVersion)
 {
 	// it appears that an extra function table has been added in the engine to gamedll interface
@@ -3591,16 +3624,6 @@ exportc int GetNewDLLFunctions(NEW_DLL_FUNCTIONS* functionTable, int* interfaceV
 	}
 
 	gameDLLFunc.newapi_table = functionTable;
-	return true;
-}
-
-exportc int GetEngineFunctions_Post(enginefuncs_t* functionTable, int* /*interfaceVersion*/)
-{
-	if (g_isMetamod)
-		memset(functionTable, 0, sizeof(enginefuncs_t));
-
-	functionTable->pfnRegUserMsg = pfnRegUserMsg_Post;
-
 	return true;
 }
 
@@ -3840,6 +3863,9 @@ DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* 
 		return;
 
 	GetEngineFunctions(functionTable, nullptr);
+
+	if (g_engfuncs.pfnCVarGetPointer("host_ver") != nullptr)
+		g_gameVersion = CSVER_XASH;
 
 	// give the engine functions to the other DLL...
 	(*g_funcPointers) (functionTable, pGlobals);

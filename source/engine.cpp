@@ -139,41 +139,66 @@ void Engine::BuildGlobalVectors(const Vector& on)
 
 bool Engine::IsFootstepsOn(void)
 {
+    if (m_gameVars[GVAR_FOOTSTEPS] == nullptr)
+        return true;
+
     return m_gameVars[GVAR_FOOTSTEPS]->value > 0;
 }
 
 float Engine::GetC4TimerTime(void)
 {
+    if (m_gameVars[GVAR_C4TIMER] == nullptr)
+        return 35.0f;
+
     return m_gameVars[GVAR_C4TIMER]->value;
 }
 
 float Engine::GetBuyTime(void)
 {
+    if (m_gameVars[GVAR_BUYTIME] == nullptr)
+        return 15.0f;
+
     return m_gameVars[GVAR_BUYTIME]->value;
 }
 
 float Engine::GetRoundTime(void)
 {
+    // we have no idea
+    if (m_gameVars[GVAR_ROUNDTIME] == nullptr)
+        return engine->RandomFloat(120.0f, 300.0f);
+
     return m_gameVars[GVAR_ROUNDTIME]->value;
 }
 
 float Engine::GetFreezeTime(void)
 {
+    if (m_gameVars[GVAR_FREEZETIME] == nullptr)
+        return 1.0f;
+
     return m_gameVars[GVAR_FREEZETIME]->value;
 }
 
 int Engine::GetGravity(void)
 {
+    if (m_gameVars[GVAR_GRAVITY] == nullptr)
+        return 800;
+
     return static_cast <int> (m_gameVars[GVAR_GRAVITY]->value);
 }
 
 int Engine::GetDeveloperLevel(void)
 {
+    if (m_gameVars[GVAR_DEVELOPER] == nullptr)
+        return 0;
+
     return static_cast <int> (m_gameVars[GVAR_DEVELOPER]->value);
 }
 
 bool Engine::IsFriendlyFireOn(void)
 {
+    if (m_gameVars[GVAR_FRIENDLYFIRE] == nullptr)
+        return false;
+
     return m_gameVars[GVAR_FRIENDLYFIRE]->value > 0;
 }
 
@@ -363,8 +388,10 @@ void Engine::IssueBotCommand(edict_t* ent, const char* fmt, ...)
                 index++;
             }
             else
+            {
                 while (index < i - start && m_arguments[index] != ' ')
                     index++;
+            }
 
             m_argumentCount++;
         }
@@ -386,7 +413,6 @@ void Engine::IssueBotCommand(edict_t* ent, const char* fmt, ...)
 float Client::GetShootingConeDeviation(const Vector& pos) const
 {
     engine->BuildGlobalVectors(GetViewAngles());
-
     return g_pGlobals->v_forward | (pos - GetHeadOrigin()).Normalize();
 }
 
@@ -399,7 +425,6 @@ bool Client::IsInViewCone(const Vector& pos) const
 bool Client::IsVisible(const Vector& pos) const
 {
     Tracer trace(GetHeadOrigin(), pos, NO_BOTH, m_ent);
-
     return !(trace.Fire() != 1.0);
 }
 
@@ -423,7 +448,6 @@ void Client::Maintain(const Entity& ent)
     if (ent.IsPlayer())
     {
         m_ent = ent;
-
         m_safeOrigin = ent.GetOrigin();
         m_flags |= ent.IsAlive() ? CLIENT_VALID | CLIENT_ALIVE : CLIENT_VALID;
     }

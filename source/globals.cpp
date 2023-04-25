@@ -35,14 +35,16 @@ bool g_bombSayString = false;
 bool g_editNoclip = false;
 bool g_isFakeCommand = false;
 bool g_waypointOn = false;
+bool g_navmeshOn = false;
 bool g_waypointsChanged = true;
 bool g_autoWaypoint = false;
 bool g_bLearnJumpWaypoint = false;
 bool g_leaderChoosen[2] = { false, false };
 bool g_analyzewaypoints = false;
+bool g_analyzenavmesh = false;
 bool g_analyzeputrequirescrouch = false;
 bool g_expanded[Const_MaxWaypoints];
-bool g_optimized[Const_MaxWaypoints];
+bool g_isUsingNAV = false;
 
 bool g_sgdWaypoint = false;
 bool g_sautoWaypoint = false;
@@ -68,10 +70,11 @@ int g_lastRadio[2];
 int g_storeAddbotVars[4];
 int g_radioSelect[32];
 int g_fakeArgc = 0;
+int bot_conntimes = 0;
 int g_gameVersion = CSVER_CSTRIKE;
+int g_numNavAreas = 0;
 int g_numWaypoints = 0;
 int g_mapType = 0;
-unsigned short g_killHistory = 0;
 
 int g_modelIndexLaser = 0;
 int g_modelIndexArrow = 0;
@@ -104,8 +107,10 @@ BlendAPI_t g_serverBlendingAPI = nullptr;
 FuncPointers_t g_funcPointers = nullptr;
 
 enginefuncs_t g_engfuncs;
-Clients g_clients[32];
 WeaponProperty g_weaponDefs[Const_MaxWeapons + 1];
+
+// max players is 32
+Clients g_clients[33];
 
 edict_t* g_worldEdict = nullptr;
 edict_t* g_hostEntity = nullptr;
@@ -146,11 +151,11 @@ metamod_funcs_t gMetaFunctionTable =
    nullptr, // pfnEntityAPI_t ()
    nullptr, // pfnEntityAPI_t_Post ()
    GetEntityAPI2, // pfnEntityAPI_t2 ()
-   GetEntityAPI2_Post, // pfnEntityAPI_t2_Post ()
+   nullptr, // pfnEntityAPI_t2_Post ()
    nullptr, // pfnGetNewDLLFunctions ()
    nullptr, // pfnGetNewDLLFunctions_Post ()
    GetEngineFunctions, // pfnGetEngineFunctions ()
-   GetEngineFunctions_Post, // pfnGetEngineFunctions_Post ()
+   nullptr, // pfnGetEngineFunctions_Post ()
 };
 
 // metamod plugin information

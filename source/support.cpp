@@ -150,10 +150,10 @@ bool IsVisible(const Vector& origin, edict_t* ent)
 }
 
 // return walkable position on ground
-Vector GetWalkablePosition(const Vector& origin, edict_t* ent, bool returnNullVec)
+Vector GetWalkablePosition(const Vector& origin, edict_t* ent, bool returnNullVec, float height)
 {
 	TraceResult tr;
-	TraceLine(origin, Vector(origin.x, origin.y, -999999.0f), true, false, ent, &tr);
+	TraceLine(origin, Vector(origin.x, origin.y, -height), true, false, ent, &tr);
 
 	if (tr.flFraction != 1.0f)
 		return tr.vecEndPos; // walkable ground
@@ -162,45 +162,6 @@ Vector GetWalkablePosition(const Vector& origin, edict_t* ent, bool returnNullVe
 		return nullvec; // return nullvector for check if we can't hit the ground
 	else
 		return origin; // return original origin, we cant hit to ground
-}
-
-// same with GetWalkablePosition but gets nearest walkable position
-Vector GetNearestWalkablePosition(const Vector& origin, edict_t* ent, bool returnNullVec)
-{
-	TraceResult tr;
-	TraceLine(origin, Vector(origin.x, origin.y, -999999.0f), true, false, ent, &tr);
-
-	Vector BestOrigin = origin;
-
-	Vector FirstOrigin;
-	Vector SecondOrigin;
-
-	if (tr.flFraction != 1.0f)
-		FirstOrigin = tr.vecEndPos; // walkable ground?
-	else
-		FirstOrigin = nullvec;
-
-	if (g_numWaypoints > 0)
-		SecondOrigin = g_waypoint->GetPath(g_waypoint->FindNearest(origin))->origin; // get nearest waypoint for walk
-	else
-		SecondOrigin = nullvec;
-
-	if (FirstOrigin == nullvec)
-		BestOrigin = SecondOrigin;
-	else if (SecondOrigin == nullvec)
-		BestOrigin = FirstOrigin;
-	else
-	{
-		if ((origin - FirstOrigin).GetLengthSquared() < (origin - SecondOrigin).GetLengthSquared())
-			BestOrigin = FirstOrigin;
-		else
-			BestOrigin = SecondOrigin;
-	}
-
-	if (!returnNullVec && BestOrigin == nullvec)
-		BestOrigin = origin;
-
-	return BestOrigin;
 }
 
 // this expanded function returns the vector origin of a bounded entity, assuming that any
@@ -1391,6 +1352,49 @@ bool IsValidBot(int index)
 	return false;
 }
 
+bool IsEntityWalkable(edict_t* ent)
+{
+	if (FNullEnt(ent))
+		return false;
+
+	if (FClassnameIs(ent, "func_door") || FClassnameIs(ent, "func_door_rotating"))
+		return true;
+	else if (FClassnameIs(ent, "func_breakable") && ent->v.takedamage == DAMAGE_YES)
+		return true;
+
+	return false;
+}
+
+bool IsWalkableTraceLineClear(const Vector from, const Vector to)
+{
+	TraceResult result;
+	edict_t* pEntIgnore = nullptr;
+	Vector useFrom = from;
+
+	while (true)
+	{
+		TraceLine(useFrom, to, true, pEntIgnore, &result);
+
+		// if we hit a walkable entity, try again
+		if (result.flFraction != 1.0f && IsEntityWalkable(result.pHit))
+		{
+			pEntIgnore = result.pHit;
+
+			// start from just beyond where we hit to avoid infinite loops
+			Vector dir = to - from;
+			dir.NormalizeInPlace();
+			useFrom = result.vecEndPos + 5.0f * dir;
+		}
+		else
+			break;
+	}
+
+	if (result.flFraction == 1.0f)
+		return true;
+
+	return false;
+}
+
 // return true if server is dedicated server, false otherwise
 bool IsDedicatedServer(void)
 {
@@ -1641,20 +1645,22 @@ void CheckWelcomeMessage(void)
 
 void DetectCSVersion(void)
 {
-	uint8_t* detection = nullptr;
 	const char* const infoBuffer = "Game Registered: %s (0x%d)";
+	if (g_engfuncs.pfnCVarGetPointer("host_ver") != nullptr)
+		g_gameVersion |= CSVER_XASH;
 
 	// switch version returned by dll loader
-	switch (g_gameVersion)
-	{
-		// counter-strike 1.x, WON ofcourse
-	case CSVER_VERYOLD:
+	if (g_gameVersion == CSVER_XASH)
+		ServerPrint(infoBuffer, "Xash Engine", sizeof(Bot));
+	else if (g_gameVersion == CSVER_VERYOLD)
 		ServerPrint(infoBuffer, "CS 1.x (WON)", sizeof(Bot));
-		break;
-
-		// counter-strike 1.6 or higher (plus detects for non-steam versions of 1.5)
-	case CSVER_CSTRIKE:
-		detection = (*g_engfuncs.pfnLoadFileForMe) ("events/galil.sc", nullptr);
+	else if (g_gameVersion == CSVER_CZERO)
+		ServerPrint(infoBuffer, "CS: CZ (Steam)", sizeof(Bot));
+	else if (g_gameVersion == HALFLIFE)
+		ServerPrint(infoBuffer, "Half-Life", sizeof(Bot));
+	else if (g_gameVersion == CSVER_CSTRIKE)
+	{
+		uint8_t* detection = (*g_engfuncs.pfnLoadFileForMe) ("events/galil.sc", nullptr);
 
 		if (detection != nullptr)
 		{
@@ -1670,15 +1676,6 @@ void DetectCSVersion(void)
 		// if we have loaded the file free it
 		if (detection != nullptr)
 			(*g_engfuncs.pfnFreeFile) (detection);
-		break;
-
-		// counter-strike cz
-	case CSVER_CZERO:
-		ServerPrint(infoBuffer, "CS CZ (Steam)", sizeof(Bot));
-		break;
-	case HALFLIFE:
-		ServerPrint(infoBuffer, "Half-Life", sizeof(Bot));
-		break;
 	}
 
 	engine->GetGameConVarsPointers(); // !!! TODO !!!
@@ -1719,6 +1716,11 @@ void AddLogEntry(int logLevel, const char* format, ...)
 
 	case LOG_FATAL:
 		strcpy(levelString, "Critical: ");
+		break;
+
+	case LOG_MEMORY:
+		strcpy(levelString, "Memory Error: ");
+		ServerPrint("unexpected memory error");
 		break;
 	}
 
@@ -2018,252 +2020,4 @@ float DotProduct2D(const Vector& a, const Vector& b)
 Vector CrossProduct(const Vector& a, const Vector& b)
 {
 	return Vector(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
-}
-
-ChatterMessage GetEqualChatter(int message)
-{
-	ChatterMessage mine = ChatterMessage::Nothing;
-
-	if (message == Radio_Affirmative)
-		mine = ChatterMessage::Yes;
-	else if (message == Radio_Negative)
-		mine = ChatterMessage::No;
-	else if (message == Radio_EnemySpotted)
-		mine = ChatterMessage::SeeksEnemy;
-	else if (message == Radio_NeedBackup)
-		mine = ChatterMessage::SeeksEnemy;
-	else if (message == Radio_TakingFire)
-		mine = ChatterMessage::SeeksEnemy;
-	else if (message == Radio_CoverMe)
-		mine = ChatterMessage::CoverMe;
-	else if (message == Radio_SectorClear)
-		mine = ChatterMessage::Clear;
-
-	return mine;
-}
-
-void GetVoice(ChatterMessage message, char** voice)
-{
-	if (message == ChatterMessage::Yes)
-	{
-		const int rV = engine->RandomInt(1, 12);
-		if (rV == 1)
-			*voice = "affirmative";
-		else if (rV == 2)
-			*voice = "alright";
-		else if (rV == 3)
-			*voice = "alright_lets_do_this";
-		else if (rV == 4)
-			*voice = "alright2";
-		else if (rV == 5)
-			*voice = "ok";
-		else if (rV == 6)
-			*voice = "ok_sir_lets_go";
-		else if (rV == 7)
-			*voice = "ok_cmdr_lets_go";
-		else if (rV == 8)
-			*voice = "ok2";
-		else if (rV == 9)
-			*voice = "roger";
-		else if (rV == 10)
-			*voice = "roger_that";
-		else if (rV == 11)
-			*voice = "yea_ok";
-		else
-			*voice = "you_heard_the_man_lets_go";
-	}
-	else if (message == ChatterMessage::No)
-	{
-		const int rV = engine->RandomInt(1, 13);
-		if (rV == 1)
-			*voice = "ahh_negative";
-		else if (rV == 2)
-			*voice = "negative";
-		else if (rV == 3)
-			*voice = "negative2";
-		else if (rV == 4)
-			*voice = "no";
-		else if (rV == 5)
-			*voice = "ok";
-		else if (rV == 6)
-			*voice = "no_sir";
-		else if (rV == 7)
-			*voice = "no_thanks";
-		else if (rV == 8)
-			*voice = "no2";
-		else if (rV == 9)
-			*voice = "naa";
-		else if (rV == 10)
-			*voice = "nnno_sir";
-		else if (rV == 11)
-			*voice = "hes_broken";
-		else if (rV == 12)
-			*voice = "i_dont_think_so";
-		else
-			*voice = "noo";
-	}
-	else if (message == ChatterMessage::SeeksEnemy)
-	{
-		const int rV = engine->RandomInt(1, 15);
-		if (rV == 1)
-			*voice = "help";
-		else if (rV == 2)
-			*voice = "need_help";
-		else if (rV == 3)
-			*voice = "need_help2";
-		else if (rV == 4)
-			*voice = "taking_fire_need_assistance2";
-		else if (rV == 5)
-			*voice = "engaging_enemies";
-		else if (rV == 6)
-			*voice = "attacking";
-		else if (rV == 7)
-			*voice = "attacking_enemies";
-		else if (rV == 8)
-			*voice = "a_bunch_of_them";
-		else if (rV == 9)
-			*voice = "im_pinned_down";
-		else if (rV == 10)
-			*voice = "im_in_trouble";
-		else if (rV == 11)
-			*voice = "in_combat";
-		else if (rV == 12)
-			*voice = "in_combat2";
-		else if (rV == 13)
-			*voice = "target_acquired";
-		else if (rV == 14)
-			*voice = "target_spotted";
-		else
-			*voice = "i_see_our_target";
-	}
-	else if (message == ChatterMessage::Clear)
-	{
-		const int rV = engine->RandomInt(1, 17);
-		if (rV == 1)
-			*voice = "clear";
-		else if (rV == 2)
-			*voice = "clear2";
-		else if (rV == 3)
-			*voice = "clear3";
-		else if (rV == 4)
-			*voice = "clear4";
-		else if (rV == 5)
-			*voice = "where_are_you_hiding";
-		else if (rV == 6)
-		{
-			*voice = "where_could_they_be";
-			for (const auto& otherBot : g_botManager->m_bots)
-			{
-				if (otherBot != nullptr)
-					otherBot->m_radioOrder = Radio_ReportTeam;
-			}
-		}
-		else if (rV == 7)
-		{
-			*voice = "where_is_it";
-			for (const auto& otherBot : g_botManager->m_bots)
-			{
-				if (otherBot != nullptr)
-					otherBot->m_radioOrder = Radio_ReportTeam;
-			}
-		}
-		else if (rV == 8)
-			*voice = "area_clear";
-		else if (rV == 9)
-			*voice = "area_secure";
-		else if (rV == 10)
-		{
-			*voice = "anyone_see_anything";
-			for (const auto& otherBot : g_botManager->m_bots)
-			{
-				if (otherBot != nullptr)
-					otherBot->m_radioOrder = Radio_ReportTeam;
-			}
-		}
-		else if (rV == 11)
-			*voice = "all_clear_here";
-		else if (rV == 12)
-			*voice = "all_quiet";
-		else if (rV == 13)
-			*voice = "nothing";
-		else if (rV == 14)
-			*voice = "nothing_happening_over_here";
-		else if (rV == 15)
-			*voice = "nothing_here";
-		else if (rV == 16)
-			*voice = "nothing_moving_over_here";
-		else
-		{
-			*voice = "anyone_see_them";
-			for (const auto& otherBot : g_botManager->m_bots)
-			{
-				if (otherBot != nullptr)
-					otherBot->m_radioOrder = Radio_ReportTeam;
-			}
-		}
-	}
-	else if (message == ChatterMessage::CoverMe)
-	{
-		const int rV = engine->RandomInt(1, 2);
-		if (rV == 1)
-			*voice = "cover_me";
-		else
-			*voice = "cover_me2";
-	}
-	else if (message == ChatterMessage::Happy)
-	{
-		const int rV = engine->RandomInt(1, 10);
-		if (rV == 1)
-			*voice = "yea_baby";
-		else if (rV == 2)
-			*voice = "whos_the_man";
-		else if (rV == 3)
-			*voice = "who_wants_some_more";
-		else if (rV == 4)
-			*voice = "yikes";
-		else if (rV == 5)
-			*voice = "yesss";
-		else if (rV == 6)
-			*voice = "yesss2";
-		else if (rV == 7)
-			*voice = "whoo";
-		else if (rV == 8)
-			*voice = "i_am_dangerous";
-		else if (rV == 9)
-			*voice = "i_am_on_fire";
-		else
-			*voice = "whoo2";
-	}
-}
-
-float GetDur(const char* fileName)
-{
-	const int BYTES_PER_SAMPLE = 2;
-	const int CHANNELS = 2;
-	const int BITS_PER_BYTE = 8;
-	const int SAMPLE_RATE_INDEX = 24;
-	const int SAMPLE_RATE_SIZE = 4;
-	const int DATA_SIZE_INDEX = 40;
-	const int DATA_SIZE_SIZE = 4;
-
-	string fileNameString = "";
-	fileNameString += fileName;
-
-	ifstream file(fileNameString, ios::binary);
-
-	if (!file.is_open())
-		return -1.0f;
-
-	char buffer[4];
-
-	file.seekg(SAMPLE_RATE_INDEX, std::ios::beg);
-	file.read(buffer, SAMPLE_RATE_SIZE);
-	const int sampleRate = *reinterpret_cast<int*>(buffer);
-
-	file.seekg(DATA_SIZE_INDEX, std::ios::beg);
-	file.read(buffer, DATA_SIZE_SIZE);
-	const int dataSize = *reinterpret_cast<int*>(buffer);
-
-	file.close();
-	return static_cast<float>((dataSize) / (sampleRate * CHANNELS * BYTES_PER_SAMPLE * BITS_PER_BYTE)) + 1.0f;
 }

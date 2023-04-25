@@ -411,29 +411,27 @@ Vector Bot::GetAimPosition(void)
 	// get enemy position initially
 	Vector targetOrigin = m_enemy->v.origin;
 
-	float distance = (targetOrigin - pev->origin).GetLengthSquared();
+	const float distance = (targetOrigin - pev->origin).GetLengthSquared();
 
 	// do not aim at head, at long distance (only if not using sniper weapon)
-	if ((m_visibility & VISIBILITY_BODY) && !UsesSniper() && !UsesPistol() && (distance > (m_difficulty == 4 ? SquaredF(2400.0f) : SquaredF(1200.0f))))
+	if ((m_visibility & VISIBILITY_BODY) && !UsesSniper() && !UsesPistol() && (distance > (m_difficulty == 4 ? SquaredF(2560.0f) : SquaredF(1280.0f))))
 		m_visibility &= ~VISIBILITY_HEAD;
 
 	// now take in account different parts of enemy body
 	if (m_visibility & (VISIBILITY_HEAD | VISIBILITY_BODY)) // visible head & body
 	{
 		// now check is our skill match to aim at head, else aim at enemy body
-		if (ChanceOf(m_skill) || UsesPistol())
-			targetOrigin = targetOrigin + m_enemy->v.view_ofs + Vector(0.0f, 0.0f, GetZOffset(distance));
+		if (IsZombieMode() || ChanceOf(m_skill) || UsesPistol())
+			targetOrigin += m_enemy->v.view_ofs + Vector(0.0f, 0.0f, GetZOffset(distance));
 		else
-			targetOrigin = targetOrigin + Vector(0.0f, 0.0f, GetZOffset(distance));
+			targetOrigin += Vector(0.0f, 0.0f, GetZOffset(distance));
 	}
-	else if (m_visibility & VISIBILITY_BODY) // visible only body
-		targetOrigin = targetOrigin + Vector(0.0f, 0.0f, GetZOffset(distance));
-	else if (m_visibility & VISIBILITY_OTHER) // random part of body is visible
-		targetOrigin = m_enemy->v.origin - m_enemy->v.view_ofs;
 	else if (m_visibility & VISIBILITY_HEAD) // visible only head
-		targetOrigin = targetOrigin + m_enemy->v.view_ofs + Vector(0.0f, 0.0f, GetZOffset(distance));
-	else
-		targetOrigin = m_enemy->v.origin;
+		targetOrigin += m_enemy->v.view_ofs + Vector(0.0f, 0.0f, GetZOffset(distance));
+	else if (m_visibility & VISIBILITY_BODY) // visible only body
+		targetOrigin += Vector(0.0f, 0.0f, GetZOffset(distance));
+	else if (m_visibility & VISIBILITY_OTHER) // random part of body is visible
+		targetOrigin -= m_enemy->v.view_ofs;
 	
 	m_lastEnemyOrigin = targetOrigin;
 	return targetOrigin;
@@ -441,7 +439,7 @@ Vector Bot::GetAimPosition(void)
 
 float Bot::GetZOffset(float distance)
 {
-	if (m_difficulty < 2)
+	if (m_difficulty < 1)
 		return -6.0f;
 
 	bool sniper = UsesSniper();
@@ -458,7 +456,7 @@ float Bot::GetZOffset(float distance)
 
 	float result = 6.0f;
 
-	if (distance < SquaredF(2800.0f) && distance > DoubleBurstDistance)
+	if (distance <= SquaredF(2800.0f) && distance > DoubleBurstDistance)
 	{
 		if (sniper) result = 3.5f;
 		else if (zoomableRifle) result = 4.5f;
@@ -1192,8 +1190,7 @@ void Bot::CombatFight(void)
 			return;
 		}
 
-		const float distance = ((pev->origin + pev->velocity * m_frameInterval) - m_lookAt).GetLengthSquared(); // how far away is the enemy scum?
-		
+		const float distance = ((pev->origin + pev->velocity * m_frameInterval) - m_lookAt).GetLengthSquared();
 		if (IsWeaponBadInDistance(m_currentWeapon, distance))
 		{
 			const int seekindex = FindCoverWaypoint(99999.0f);
@@ -1203,26 +1200,41 @@ void Bot::CombatFight(void)
 		}
 
 		const int melee = g_gameVersion == HALFLIFE ? WEAPON_CROWBAR : WEAPON_KNIFE;
-		if (m_currentWeapon == melee && !FNullEnt(m_enemy))
+		if (m_currentWeapon == melee)
 		{
 			if (distance > SquaredF(128.0f))
 			{
+				m_destOrigin = m_enemyOrigin;
+				m_moveSpeed = pev->maxspeed;
+			}
+			else
+			{
 				if (!(g_mapType & MAP_KA) && engine->RandomFloat(1.0f, pev->health) <= 20.0f)
 				{
-					const int seekindex = FindCoverWaypoint(99999.0f);
+					const int seekindex = FindCoverWaypoint(999999.0f);
 					if (IsValidWaypoint(seekindex))
+					{
 						PushTask(TASK_SEEKCOVER, TASKPRI_SEEKCOVER, seekindex, 8.0f, true);
+						return;
+					}
 				}
 
 				if (!HasNextPath())
 				{
-					const int nearest = g_waypoint->FindNearest(m_enemyOrigin, 99999999.0f, -1, m_enemy);
+					const int nearest = g_waypoint->FindNearest(m_enemyOrigin, 999999.0f, -1, m_enemy);
 					if (IsValidWaypoint(nearest))
 						FindShortestPath(m_currentWaypointIndex, nearest);
+					else
+					{
+						m_destOrigin = m_enemyOrigin;
+						m_moveSpeed = pev->maxspeed;
+					}
 				}
-
-				return;
+				else
+					m_moveToGoal = true;
 			}
+
+			return;
 		}
 		else
 		{
@@ -1250,16 +1262,13 @@ void Bot::CombatFight(void)
 		m_currentWaypointIndex = -1;
 
 		int approach;
-		if (m_currentWeapon == melee) // knife?
-			approach = 100;
-		else if (!(m_states & STATE_SEEINGENEMY)) // if suspecting enemy stand still
+		if (!(m_states & STATE_SEEINGENEMY)) // if suspecting enemy stand still
 			approach = 49;
 		else if (m_isReloading || m_isVIP) // if reloading or vip back off
 			approach = 29;
 		else
 		{
 			approach = static_cast <int> (pev->health * m_agressionLevel);
-
 			if (UsesSniper() && approach > 49)
 				approach = 49;
 		}
@@ -1268,9 +1277,7 @@ void Bot::CombatFight(void)
 		if (approach < 30 && !g_bombPlanted && (::IsInViewCone(m_enemyOrigin, GetEntity()) || m_isVIP))
 		{
 			m_moveSpeed = -pev->maxspeed;
-			GetCurrentTask()->taskID = TASK_FIGHTENEMY;
-			GetCurrentTask()->canContinue = true;
-			GetCurrentTask()->desire = TASKPRI_FIGHTENEMY + 1.0f;
+			PushTask(TASK_SEEKCOVER, TASKPRI_SEEKCOVER, -1, 0.0f, true);
 		}
 		else if (m_currentWeapon != melee) // if enemy cant see us, we never move
 			m_moveSpeed = 0.0f;
@@ -1383,7 +1390,7 @@ void Bot::CombatFight(void)
 		{
 			const Vector& src = pev->origin - Vector(0, 0, 18.0f);
 			if ((m_visibility & (VISIBILITY_HEAD | VISIBILITY_BODY)) && (FNullEnt(m_enemy) || (m_enemy->v.weapons != WEAPON_KNIFE && IsVisible(src, m_enemy))))
-				m_duckTime = engine->GetTime() + m_frameInterval;
+				m_duckTime = engine->GetTime() + (m_frameInterval * 2.0f);
 
 			m_moveSpeed = 0.0f;
 			m_strafeSpeed = 0.0f;
