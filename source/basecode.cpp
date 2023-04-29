@@ -4760,12 +4760,6 @@ void Bot::RunTask(void)
 			}
 		}
 
-		// half the reaction time if camping because you're more aware of enemies if camping
-		if (IsZombieMode())
-			m_idealReactionTime = 0.0f;
-		else
-			m_idealReactionTime = (engine->RandomFloat(g_skillTab[m_skill / 20].minSurpriseTime, g_skillTab[m_skill / 20].maxSurpriseTime)) * 0.5f;
-
 		if (m_nextCampDirTime < engine->GetTime())
 		{
 			m_nextCampDirTime = engine->GetTime() + engine->RandomFloat(2.5f, 5.0f);
@@ -4850,8 +4844,6 @@ void Bot::RunTask(void)
 
 		ResetCollideState();
 
-		m_idealReactionTime *= 0.5f;
-
 		m_navTimeset = engine->GetTime();
 		m_timeCamping = engine->GetTime();
 
@@ -4880,9 +4872,6 @@ void Bot::RunTask(void)
 		m_aimFlags |= AIM_LASTENEMY;
 		m_checkTerrain = false;
 		m_moveToGoal = false;
-
-		// half the reaction time if camping
-		m_idealReactionTime = (engine->RandomFloat(g_skillTab[m_skill / 20].minSurpriseTime, g_skillTab[m_skill / 20].maxSurpriseTime)) * 0.5f;
 
 		m_navTimeset = engine->GetTime();
 		m_moveSpeed = 0;
@@ -6408,14 +6397,6 @@ void Bot::BotAI(void)
 	float movedDistance = 4.0f; // length of different vector (distance bot moved)
 	TraceResult tr;
 
-	// warning: the following timers aren't frame independent so it varies on slower/faster computers
-
-	// increase reaction time
-	m_actualReactionTime += 0.2f;
-
-	if (m_actualReactionTime > m_idealReactionTime)
-		m_actualReactionTime = m_idealReactionTime;
-
 	// bot could be blinded by flashbang or smoke, recover from it
 	m_viewDistance += 3.0f;
 
@@ -6455,9 +6436,6 @@ void Bot::BotAI(void)
 	// check for reloading
 	if (m_reloadCheckTime <= engine->GetTime())
 		CheckReload();
-
-	// set the reaction time (surprise momentum) different each frame according to skill
-	m_idealReactionTime = engine->RandomFloat(g_skillTab[m_skill / 20].minSurpriseTime, g_skillTab[m_skill / 20].maxSurpriseTime);
 
 	auto flag = g_waypoint->GetPath(m_currentWaypointIndex)->flags;
 	Vector directionOld;

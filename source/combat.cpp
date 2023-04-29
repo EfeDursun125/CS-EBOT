@@ -355,7 +355,6 @@ bool Bot::LookupEnemy(void)
 		if (targetEntity == m_enemy)
 		{
 			m_seeEnemyTime = engine->GetTime();
-			m_actualReactionTime = 0.0f;
 			SetLastEnemy(targetEntity);
 
 			return true;
@@ -365,13 +364,6 @@ bool Bot::LookupEnemy(void)
 			RadioMessage(Radio_EnemySpotted);
 
 		m_targetEntity = nullptr;
-
-		if (ChanceOf(m_skill))
-			m_enemySurpriseTime = engine->GetTime() + (m_actualReactionTime * 0.33333333333f);
-		else
-			m_enemySurpriseTime = engine->GetTime() + m_actualReactionTime;
-
-		m_actualReactionTime = 0.0f;
 
 		SetEnemy(targetEntity);
 		SetLastEnemy(m_enemy);
@@ -1025,9 +1017,6 @@ bool Bot::IsWeaponBadInDistance(int weaponIndex, float distance)
 
 void Bot::FocusEnemy(void)
 {
-	if (m_enemySurpriseTime > engine->GetTime())
-		return;
-
 	m_lookAt = GetAimPosition();
 
 	if (m_currentWeapon == WEAPON_KNIFE)

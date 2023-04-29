@@ -274,6 +274,19 @@ void AnalyzeThread(void)
             g_analyzewaypoints = false;
             g_waypointOn = false;
             g_waypoint->AnalyzeDeleteUselessWaypoints();
+            
+            for (int i = 0; i < g_numWaypoints; i++)
+            {
+                auto origin = g_waypoint->GetPath(i)->origin;
+                origin.z -= 35.0f;
+                auto nav = g_navmesh->GetNearestNavArea(origin);
+
+                if (nav != nullptr && (g_navmesh->GetClosestPosition(nav, origin) - origin).GetLengthSquared2D() <= SquaredF(4.0f))
+                    continue;
+
+                auto nav2 = g_navmesh->CreateArea(origin);
+            }
+
             g_waypoint->Save();
             g_waypoint->Load();
             ServerCommand("exec addons/ebot/ebot.cfg");

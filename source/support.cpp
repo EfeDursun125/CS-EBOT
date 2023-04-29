@@ -1557,6 +1557,50 @@ bool IsLinux(void)
 #endif
 }
 
+edict_t* FindEntityInSphere(edict_t* pStartEntity, const Vector& vecCenter, const float flRadius)
+{
+	edict_t* ent = nullptr;
+	float squaredDistance = SquaredF(flRadius);
+
+	for (; pInfo; pInfo = pInfo->m_pNext)
+	for (int i = 0; i < g_numWaypoints; i++)
+	{
+		const float distance = (ent->v.origin - vecCenter).GetLengthSquared();
+		if (distance < squaredDistance)
+		{
+			ent = i;
+			squaredDistance = distance;
+		}
+	}
+
+	return ent;
+
+	const CEntInfo* pInfo = pStartEntity ? GetEntInfoPtr(pStartEntity->GetRefEHandle())->m_pNext : FirstEntInfo();
+
+	for (; pInfo; pInfo = pInfo->m_pNext)
+	{
+		CBaseEntity* ent = (CBaseEntity*)pInfo->m_pEntity;
+		if (!ent)
+		{
+			DevWarning("NULL entity in global entity list!\n");
+			continue;
+		}
+
+		if (!ent->edict())
+			continue;
+
+		Vector vecRelativeCenter;
+		ent->CollisionProp()->WorldToCollisionSpace(vecCenter, &vecRelativeCenter);
+		if (!IsBoxIntersectingSphere(ent->CollisionProp()->OBBMins(), ent->CollisionProp()->OBBMaxs(), vecRelativeCenter, flRadius))
+			continue;
+
+		return ent;
+	}
+
+	// nothing found
+	return nullptr;
+}
+
 // this function asks the engine to execute a server command
 void ServerCommand(const char* format, ...)
 {

@@ -213,16 +213,16 @@ void NavMesh::DisconnectArea(NavArea* start, NavArea* goal)
     }
 }
 
-void NavMesh::CreateArea(const Vector origin)
+NavArea* NavMesh::CreateArea(const Vector origin)
 {
     if (origin == nullvec)
-        return;
+        return nullptr;
 
     int index = -1;
     NavArea* area = nullptr;
 
     if (g_numNavAreas >= Const_MaxWaypoints)
-        return;
+        return nullptr;
 
     index = g_numNavAreas;
 
@@ -230,14 +230,14 @@ void NavMesh::CreateArea(const Vector origin)
     if (m_area[index] == nullptr)
     {
         AddLogEntry(LOG_MEMORY, "unexpected memory error");
-        return;
+        return nullptr;
     }
 
     area = m_area[index];
     if (area == nullptr)
     {
         AddLogEntry(LOG_MEMORY, "unexpected memory error");
-        return;
+        return nullptr;
     }
 
     area->index = index;
@@ -260,7 +260,7 @@ void NavMesh::CreateArea(const Vector origin)
         if (m_area[j] == area)
             continue;
 
-        if (DoNavAreasIntersect(area, m_area[j], 0.15f))
+        if (IsWalkableTraceLineClear(GetCenter(area), GetCenter(m_area[j])) ? DoNavAreasIntersect(area, m_area[j], 0.33f) : DoNavAreasIntersect(area, m_area[j], 0.15f))
         {
             ConnectArea(area, m_area[j]);
 
@@ -270,6 +270,7 @@ void NavMesh::CreateArea(const Vector origin)
     }
 
     PlaySound(g_hostEntity, "weapons/xbow_hit1.wav");
+    return area;
 }
 
 void NavMesh::DeleteArea(NavArea* area)
@@ -323,7 +324,7 @@ void NavMesh::ExpandNavArea(NavArea* area, const float radius)
         return;
 
     const float units = 0.5f;
-    const float maxHeight = 44.0f;
+    const float maxHeight = 62.0f;
 
     for (float dist = units; dist <= radius; dist += units)
     {
@@ -399,6 +400,59 @@ void NavMesh::ExpandNavArea(NavArea* area, const float radius)
                 if (!stop)
                     area->corners[i] = newCorner;
             }
+        }
+    }
+}
+
+void NavMesh::OptimizeNavMesh(void)
+{
+    for (int i = 0; i < g_numNavAreas; i++)
+    {
+        auto area = GetNavArea(i);
+        if (area == nullptr)
+            continue;
+
+        Array<NavArea*> mergeList;
+        mergeList.Push(area);
+
+        for (int j = 0; j < area->connections.GetElementNumber(); j++)
+        {
+            auto newArea = area->connections[j];
+            if (newArea == nullptr)
+                continue;
+
+            bool hit = false;
+            for (int m = 0; m < 4; m++)
+            {
+                if (hit)
+                    break;
+
+                for (int k = 0; k < 4; k++)
+                {
+                    if (!IsWalkableTraceLineClear(area->corners[m], newArea->corners[j]))
+                    {
+                        hit = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!hit)
+                mergeList.Push(newArea);
+        }
+
+        Vector corner1, corner2;
+        GetFarthestCorners(area, corner1, corner2);
+
+        for (int j = 0; j < mergeList.GetElementNumber(); j++)
+        {
+            NavArea* target;
+            mergeList.GetAt(j, target);
+
+            if (target == nullptr)
+                continue;
+
+            // köþelerin mesafesini al ve area'dan en uzak 2 köþeyi area'nýn köþesi yap sonra target'i sil
         }
     }
 }
@@ -756,6 +810,9 @@ void NavMesh::SaveNav(void)
 
 NavArea* NavMesh::GetNavArea(int id)
 {
+    if (id < 0 || id > g_numNavAreas)
+        return m_area[id];
+
     return m_area[id];
 }
 
