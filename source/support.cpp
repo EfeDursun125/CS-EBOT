@@ -1054,30 +1054,6 @@ int GetGameMode(void)
 	return ebot_gamemod.GetInt();
 }
 
-float Q_sqrt(float number)
-{
-	long i;
-	float x2, y;
-	x2 = number * 0.5f;
-	y = number;
-	i = *(long*)&y;
-	i = 0x5f3759df - (i >> 1);
-	y = *(float*)&i;
-	return y * number;
-}
-
-float Q_rsqrt(float number)
-{
-	long i;
-	float x2, y;
-	x2 = number * 0.5f;
-	y = number;
-	i = *(long*)&y;
-	i = 0x5f3759df - (i >> 1);
-	y = *(float*)&i;
-	return y;
-}
-
 float Clamp(float a, float b, float c)
 {
 	return (a > c ? c : (a < b ? b : a));
@@ -1557,48 +1533,28 @@ bool IsLinux(void)
 #endif
 }
 
-edict_t* FindEntityInSphere(edict_t* pStartEntity, const Vector& vecCenter, const float flRadius)
+edict_t* FindEntityInSphere(edict_t* startEnt, const Vector& vecCenter, const float flRadius)
 {
 	edict_t* ent = nullptr;
 	float squaredDistance = SquaredF(flRadius);
+	const int start = FNullEnt(startEnt) ? 0 : ENTINDEX(startEnt);
 
-	for (; pInfo; pInfo = pInfo->m_pNext)
-	for (int i = 0; i < g_numWaypoints; i++)
+	for (int i = start; i < entityNum; i++)
 	{
-		const float distance = (ent->v.origin - vecCenter).GetLengthSquared();
-		if (distance < squaredDistance)
-		{
-			ent = i;
-			squaredDistance = distance;
-		}
+		if (g_entityId[i] == -1)
+			continue;
+
+		auto newEnt = INDEXENT(g_entityId[i]);
+		if (FNullEnt(newEnt))
+			continue;
+
+		if ((newEnt->v.origin - vecCenter).GetLengthSquared() > squaredDistance)
+			continue;
+
+		return newEnt;
 	}
 
 	return ent;
-
-	const CEntInfo* pInfo = pStartEntity ? GetEntInfoPtr(pStartEntity->GetRefEHandle())->m_pNext : FirstEntInfo();
-
-	for (; pInfo; pInfo = pInfo->m_pNext)
-	{
-		CBaseEntity* ent = (CBaseEntity*)pInfo->m_pEntity;
-		if (!ent)
-		{
-			DevWarning("NULL entity in global entity list!\n");
-			continue;
-		}
-
-		if (!ent->edict())
-			continue;
-
-		Vector vecRelativeCenter;
-		ent->CollisionProp()->WorldToCollisionSpace(vecCenter, &vecRelativeCenter);
-		if (!IsBoxIntersectingSphere(ent->CollisionProp()->OBBMins(), ent->CollisionProp()->OBBMaxs(), vecRelativeCenter, flRadius))
-			continue;
-
-		return ent;
-	}
-
-	// nothing found
-	return nullptr;
 }
 
 // this function asks the engine to execute a server command
@@ -1832,7 +1788,7 @@ bool FindNearestPlayer(void** pvHolder, edict_t* to, float searchDistance, bool 
 
 	const Vector toOrigin = GetEntityOrigin(to);
 
-	while (!FNullEnt(ent = FIND_ENTITY_IN_SPHERE(ent, toOrigin, searchDistance)))
+	while (!FNullEnt(ent = FindEntityInSphere(ent, toOrigin, searchDistance)))
 	{
 		if (FNullEnt(ent) || !IsValidPlayer(ent) || to == ent)
 			continue; // skip invalid players

@@ -23,7 +23,6 @@
 //
 
 #include <core.h>
-#include <map>
 
 ConVar ebot_quota("ebot_quota", "10");
 ConVar ebot_forceteam("ebot_force_team", "any");
@@ -224,53 +223,8 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 		return -1;
 	}
 
-	bool profileFound = false;
 	auto ebotName = GetEntityName(bot);
-
-	map<string, string> settings;
-	string line, key, value;
-
-	ifstream file("config.cfg");
-	if (file.is_open())
-	{
-		while (getline(file, line))
-		{
-			if (line.empty() || line[0] == '#')
-				continue;
-
-			size_t pos = line.find("=");
-			key = line.substr(0, pos);
-			value = line.substr(pos + 1);
-			settings[key] = value;
-		}
-
-		file.close();
-
-		cout << "WEAPONS: " << settings["WEAPONS"] << endl;
-		cout << "PERSONALITY: " << settings["PERSONALITY"] << endl;
-
-		if (settings["PERSONALITY"] >= PERSONALITY_NORMAL)
-			m_bots[index]->m_personality = values.personality;
-	}
-
-	BotProfile values;
-	File fp(CheckSubfolderFile(botName), "rb");
-
-	if (fp.IsValid())
-	{
-		fp.Read(&values, sizeof(values));
-		profileFound = true;
-	}
-
-	if (profileFound)
-	{
-		ServerPrint("Connecting E-Bot - %s | Skill %d | Specific Profile Found!", ebotName, skill);
-
-		
-	}
-	else
-		ServerPrint("Connecting E-Bot - %s | Skill %d", ebotName, skill);
-
+	ServerPrint("Connecting E-Bot - %s | Skill %d", ebotName, skill);
 	m_bots[index]->m_index = m_bots[index]->GetIndex();
 
 	return index;
@@ -1407,17 +1361,12 @@ void Bot::StartGame(void)
 		if (engine->RandomInt(1, 3) == 1)
 			ChatMessage(CHAT_HELLO);
 	}
-	else if (IsAlive(GetEntity())) // something is wrong...
+	else if ((m_team == TEAM_COUNTER || m_team == TEAM_TERRORIST) && IsAlive(GetEntity())) // something is wrong...
 	{
 		if (engine->RandomInt(1, 3) == 1)
 			ChatMessage(CHAT_HELLO);
 
 		m_notStarted = false;
 		m_startAction = CMENU_IDLE;
-	}
-	else
-	{
-		m_notStarted = true;
-		m_startAction = engine->RandomInt(1, 2) == 1 ? CMENU_TEAM : CMENU_CLASS;
 	}
 }

@@ -161,10 +161,7 @@ bool Bot::IsEnemyViewable(edict_t* entity, bool setEnemy, bool checkOnly)
 		return seeEntity;
 
 	if (setEnemy)
-	{
-		m_enemyOrigin = entityOrigin;
 		m_visibility = visibility;
-	}
 
 	if (seeEntity)
 	{
@@ -634,7 +631,7 @@ edict_t* Bot::FindButton(void)
 	edict_t* searchEntity = nullptr, * foundEntity = nullptr;
 
 	// find the nearest button which can open our target
-	while (!FNullEnt(searchEntity = FIND_ENTITY_IN_SPHERE(searchEntity, pev->origin, 512.0f)))
+	while (!FNullEnt(searchEntity = FindEntityInSphere(searchEntity, pev->origin, 512.0f)))
 	{
 		if (strncmp("func_button", STRING(searchEntity->v.classname), 11) == 0 || strncmp("func_rot_button", STRING(searchEntity->v.classname), 15) == 0)
 		{
@@ -702,7 +699,7 @@ void Bot::FindItem(void)
 
 	if (!FNullEnt(m_pickupItem))
 	{
-		while (!FNullEnt(ent = FIND_ENTITY_IN_SPHERE(ent, pev->origin, 512.0f)))
+		while (!FNullEnt(ent = FindEntityInSphere(ent, pev->origin, 512.0f)))
 		{
 			if (ent != m_pickupItem || (ent->v.effects & EF_NODRAW) || IsValidPlayer(ent->v.owner))
 				continue; // someone owns this weapon or it hasn't re spawned yet
@@ -724,7 +721,7 @@ void Bot::FindItem(void)
 
 	float minDistance = SquaredF(512.0f);
 
-	while (!FNullEnt(ent = FIND_ENTITY_IN_SPHERE(ent, pev->origin, 512.0f)))
+	while (!FNullEnt(ent = FindEntityInSphere(ent, pev->origin, 512.0f)))
 	{
 		pickupType = PICKTYPE_NONE;
 		if ((ent->v.effects & EF_NODRAW) || ent == m_itemIgnore)
@@ -819,7 +816,7 @@ void Bot::FindItem(void)
 				if (g_entityId[i] == -1 || g_entityAction[i] != 3)
 					continue;
 
-				if (m_team != g_entityTeam[i] || (g_entityTeam[i] != TEAM_COUNTER && g_entityTeam[i] != TEAM_TERRORIST))
+				if (g_entityTeam[i] != 0 && m_team != g_entityTeam[i])
 					continue;
 
 				if (ent != INDEXENT(g_entityId[i]))
@@ -1928,7 +1925,7 @@ void Bot::SetConditions(void)
 		// FIXME: it probably should be also team/map dependant
 		if (FNullEnt(m_enemy) && (g_timeRoundMid < engine->GetTime()) && !m_isUsingGrenade && m_personality != PERSONALITY_CAREFUL && m_currentWaypointIndex != g_waypoint->FindNearest(m_lastEnemyOrigin))
 		{
-			desireLevel = 4096.0f - ((1.0f - tempAgression) * Q_sqrt(distance));
+			desireLevel = 4096.0f - ((1.0f - tempAgression) * squareRoot(distance));
 			desireLevel = (100 * desireLevel) / 4096.0f;
 			desireLevel -= retreatLevel;
 
@@ -7204,8 +7201,8 @@ Vector Bot::CheckToss(const Vector& start, Vector end)
 		return nullvec;
 
 	const float half = 0.5f * gravity;
-	float timeOne = Q_sqrt((midPoint.z - start.z) / half);
-	float timeTwo = Q_sqrt((midPoint.z - end.z) / half);
+	float timeOne = squareRoot((midPoint.z - start.z) / half);
+	float timeTwo = squareRoot((midPoint.z - end.z) / half);
 
 	if (timeOne < 0.1)
 		return nullvec;
@@ -7640,7 +7637,7 @@ void Bot::ReactOnSound(void)
 				else
 				{
 					// if bot had an enemy but the heard one is nearer, take it instead
-					float distance = (m_lastEnemyOrigin - pev->origin).GetLengthSquared();
+					const float distance = (m_lastEnemyOrigin - pev->origin).GetLengthSquared();
 					if (distance <= (GetEntityOrigin(player) - pev->origin).GetLengthSquared() && m_seeEnemyTime + 2.0f < engine->GetTime())
 						return;
 

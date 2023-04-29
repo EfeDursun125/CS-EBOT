@@ -400,10 +400,10 @@ bool Bot::DoWaypointNav(void)
 
 			if (m_desiredVelocity == nullvec || m_desiredVelocity == -1)
 			{
-				const float timeToReachWaypoint = Q_sqrt(powf(m_waypointOrigin.x - pev->origin.x, 2.0f) + powf(m_waypointOrigin.y - pev->origin.y, 2.0f)) / pev->maxspeed;
+				const float timeToReachWaypoint = squareRoot(power(m_waypointOrigin.x - pev->origin.x, 2.0f) + power(m_waypointOrigin.y - pev->origin.y, 2.0f)) / pev->maxspeed;
 				pev->velocity.x = (m_waypointOrigin.x - pev->origin.x) / timeToReachWaypoint;
 				pev->velocity.y = (m_waypointOrigin.y - pev->origin.y) / timeToReachWaypoint;
-				pev->velocity.z = 2.0f * (m_waypointOrigin.z - pev->origin.z - 0.5f * pev->gravity * powf(timeToReachWaypoint, 2.0f)) / timeToReachWaypoint;
+				pev->velocity.z = 2.0f * (m_waypointOrigin.z - pev->origin.z - 0.5f * pev->gravity * power(timeToReachWaypoint, 2.0f)) / timeToReachWaypoint;
 
 				const float limit = (pev->maxspeed * 1.25f);
 				if (pev->velocity.z > limit)
@@ -2073,7 +2073,6 @@ void Bot::SetEnemy(edict_t* entity)
 	if (FNullEnt(entity))
 	{
 		m_enemy = nullptr;
-		m_enemyOrigin = nullvec;
 		return;
 	}
 

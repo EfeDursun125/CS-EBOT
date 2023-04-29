@@ -168,7 +168,7 @@ float EuclideanDistance(const Vector start, const Vector goal)
     const float x = fabsf(start.x - goal.x);
     const float y = fabsf(start.y - goal.y);
     const float z = fabsf(start.z - goal.z);
-    const float euclidean = Q_rsqrt(powf(x, 2.0f) + powf(y, 2.0f) + powf(z, 2.0f));
+    const float euclidean = squareRoot(power(x, 2.0f) + power(y, 2.0f) + power(z, 2.0f));
     return 1000.0f * (ceilf(euclidean) - euclidean);
 }
 
@@ -406,7 +406,7 @@ void NavMesh::ExpandNavArea(NavArea* area, const float radius)
 
 void NavMesh::OptimizeNavMesh(void)
 {
-    for (int i = 0; i < g_numNavAreas; i++)
+    /*for (int i = 0; i < g_numNavAreas; i++)
     {
         auto area = GetNavArea(i);
         if (area == nullptr)
@@ -451,10 +451,8 @@ void NavMesh::OptimizeNavMesh(void)
 
             if (target == nullptr)
                 continue;
-
-            // köþelerin mesafesini al ve area'dan en uzak 2 köþeyi area'nýn köþesi yap sonra target'i sil
         }
-    }
+    }*/
 }
 
 // this function returns the squared distance between a point and a line segment

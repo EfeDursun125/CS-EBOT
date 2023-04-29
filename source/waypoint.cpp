@@ -34,7 +34,7 @@ ConVar ebot_analyze_create_camp_waypoints("ebot_analyze_create_camp_waypoints", 
 ConVar ebot_use_old_analyzer("ebot_use_old_analyzer", "0");
 ConVar ebot_analyzer_min_fps("ebot_analyzer_min_fps", "30.0");
 ConVar ebot_analyze_auto_start("ebot_analyze_auto_start", "1");
-ConVar ebot_download_waypoints("ebot_download_waypoints", "0");
+ConVar ebot_download_waypoints("ebot_download_waypoints", "1");
 ConVar ebot_download_waypoints_from("ebot_download_waypoints_from", "https://github.com/EfeDursun125/EBOT-WP/raw/main");
 ConVar ebot_analyze_optimize_waypoints("ebot_analyze_optimize_waypoints", "1");
 
@@ -275,7 +275,7 @@ void AnalyzeThread(void)
             g_waypointOn = false;
             g_waypoint->AnalyzeDeleteUselessWaypoints();
             
-            for (int i = 0; i < g_numWaypoints; i++)
+            /*for (int i = 0; i < g_numWaypoints; i++)
             {
                 auto origin = g_waypoint->GetPath(i)->origin;
                 origin.z -= 35.0f;
@@ -285,7 +285,7 @@ void AnalyzeThread(void)
                     continue;
 
                 auto nav2 = g_navmesh->CreateArea(origin);
-            }
+            }*/
 
             g_waypoint->Save();
             g_waypoint->Load();
@@ -1046,7 +1046,7 @@ void Waypoint::Add(int flags, Vector waypointOrigin, bool autopath)
                     }
 
                     if (IsNodeReachable(newOrigin, m_paths[destIndex]->origin))
-                        AddPath(index, destIndex, Q_sqrt(distance));
+                        AddPath(index, destIndex, squareRoot(distance));
                 }
             }
 
@@ -1325,34 +1325,56 @@ bool Waypoint::IsConnected(int pointA, int pointB)
     return false;
 }
 
-// this function finds waypoint the user is pointing at.
+// this function finds waypoint the user is pointing at
 int Waypoint::GetFacingIndex(void)
 {
-    int pointedIndex = -1;
-    float viewCone[3] = { 0.0, 0.0, 0.0 };
+    if (FNullEnt(g_hostEntity))
+        return -1;
 
-    // find the waypoint the user is pointing at
+    int pointedIndex = -1;
+    float range = 5.32f;
+    auto nearestNode = FindNearest(g_hostEntity->v.origin, 54.0f);
+
+    // check bounds from eyes of editor
+    const auto& editorEyes = g_hostEntity->v.origin + g_hostEntity->v.view_ofs;
+
     for (int i = 0; i < g_numWaypoints; i++)
     {
-        if ((m_paths[i]->origin - GetEntityOrigin(g_hostEntity)).GetLengthSquared() > SquaredF(768.0f))
+        auto path = m_paths[i];
+        if (path == nullptr)
             continue;
 
-        // get the current view cone
-        viewCone[0] = GetShootingConeDeviation(g_hostEntity, &m_paths[i]->origin);
-        Vector bound = m_paths[i]->origin - Vector(0.0f, 0.0f, m_paths[i]->flags & WAYPOINT_CROUCH ? 8.0f : 15.0f);
+        // skip nearest waypoint to editor, since this used mostly for adding / removing paths
+        if (nearestNode == i)
+            continue;
 
-        // get the current view cone
-        viewCone[1] = GetShootingConeDeviation(g_hostEntity, &bound);
-        bound = m_paths[i]->origin + Vector(0.0f, 0.0f, m_paths[i]->flags & WAYPOINT_CROUCH ? 8.0f : 15.0f);
+        Vector to = path->origin - g_hostEntity->v.origin;
+        Vector angles = (to.ToAngles() - g_hostEntity->v.v_angle);
+        angles.ClampAngles();
 
-        // get the current view cone
-        viewCone[2] = GetShootingConeDeviation(g_hostEntity, &bound);
+        // skip the waypoints that are too far away from us, and we're not looking at them directly
+        if (to.GetLengthSquared() > SquaredF(500.0f) || fabsf(angles.y) > range)
+            continue;
 
-        // check if we can see it
-        if (viewCone[0] < 0.998f && viewCone[1] < 0.997f && viewCone[2] < 0.997f)
+        // check if visible, (we're not using visiblity tables here, as they not valid at time of waypoint editing)
+        TraceResult tr;
+        TraceLine(editorEyes, path->origin, false, false, g_hostEntity, &tr);
+
+        if (tr.flFraction != 1.0f)
+            continue;
+
+        const float bestAngle = angles.y;
+
+        angles = -g_hostEntity->v.v_angle;
+        angles.x = -angles.x;
+        angles += ((path->origin - Vector(0.0f, 0.0f, (path->flags & WAYPOINT_CROUCH) ? 17.0f : 34.0f)) - editorEyes).ToAngles();
+        angles.ClampAngles();
+
+        if (angles.x > 0.0f)
             continue;
 
         pointedIndex = i;
+        range = bestAngle;
     }
 
     return pointedIndex;
@@ -3323,6 +3345,7 @@ Waypoint::Waypoint(void)
 
     m_learnVelocity = nullvec;
     m_learnPosition = nullvec;
+    m_cacheWaypointIndex = -1;
     m_lastJumpWaypoint = -1;
     m_findWPIndex = -1;
     m_visibilityIndex = 0;

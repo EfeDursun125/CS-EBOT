@@ -152,8 +152,6 @@ void Bot::ResetCheckEnemy()
 bool Bot::LookupEnemy(void)
 {
 	m_visibility = 0;
-	m_enemyOrigin = nullvec;
-
 	if (m_blindTime > engine->GetTime())
 		return false;
 
@@ -281,7 +279,6 @@ bool Bot::LookupEnemy(void)
 		}
 		else if (IsShootableThruObstacle(m_enemy))
 		{
-			m_enemyOrigin = GetEntityOrigin(m_enemy);
 			m_visibility = VISIBILITY_BODY;
 			return true;
 		}
@@ -398,16 +395,15 @@ Vector Bot::GetAimPosition(void)
 {
 	// npc/entity
 	if (!IsValidPlayer(m_enemy))
-		return m_lastEnemyOrigin = m_enemyOrigin;
+	{
+		m_wantsToFire = true;
+		return m_lastEnemyOrigin = m_enemyOrigin = GetEntityOrigin(m_enemy);
+	}
 
 	// get enemy position initially
 	Vector targetOrigin = m_enemy->v.origin;
 
 	const float distance = (targetOrigin - pev->origin).GetLengthSquared();
-
-	// do not aim at head, at long distance (only if not using sniper weapon)
-	if ((m_visibility & VISIBILITY_BODY) && !UsesSniper() && !UsesPistol() && (distance > (m_difficulty == 4 ? SquaredF(2560.0f) : SquaredF(1280.0f))))
-		m_visibility &= ~VISIBILITY_HEAD;
 
 	// now take in account different parts of enemy body
 	if (m_visibility & (VISIBILITY_HEAD | VISIBILITY_BODY)) // visible head & body
@@ -426,6 +422,7 @@ Vector Bot::GetAimPosition(void)
 		targetOrigin -= m_enemy->v.view_ofs;
 	
 	m_lastEnemyOrigin = targetOrigin;
+	m_enemyOrigin = targetOrigin;
 	return targetOrigin;
 }
 
@@ -479,7 +476,7 @@ float Bot::GetZOffset(float distance)
 		else if (shotgun) result = -5.0f;
 	}
 
-	return -result;
+	return result;
 }
 
 // bot can't hurt teammates, if friendly fire is not enabled...
@@ -611,7 +608,7 @@ bool Bot::DoFirePause(float distance)//, FireDelay *fireDelay)
 	const float angle = (fabsf(pev->punchangle.y) + fabsf(pev->punchangle.x)) * (Math::MATH_PI * 0.00277777777f);
 
 	// check if we need to compensate recoil
-	if (tanf(angle) * (distance + (distance * 0.25f)) > g_skillTab[m_skill / 20].recoilAmount)
+	if (tanf_sse(angle) * (distance + (distance * 0.25f)) > g_skillTab[m_skill / 20].recoilAmount)
 	{
 		if (m_firePause < (engine->GetTime() - 0.4))
 			m_firePause = engine->GetTime() + engine->RandomFloat(0.4f, (0.4f + 1.2f * ((100 - m_skill)) * 0.01f));
@@ -1025,14 +1022,9 @@ void Bot::FocusEnemy(void)
 			m_wantsToFire = true;
 		else
 			m_wantsToFire = false;
-	}
-	else
-	{
-		if (GetShootingConeDeviation(GetEntity(), &m_lookAt) >= 0.80f)
-			m_wantsToFire = true;
-		else
-			m_wantsToFire = false;
-	}
+	} // when we start firing stop checks
+	else if (!m_wantsToFire && GetShootingConeDeviation(GetEntity(), &m_lookAt) >= 0.80f)
+		m_wantsToFire = true;
 }
 
 void Bot::CombatFight(void)
@@ -1067,7 +1059,7 @@ void Bot::CombatFight(void)
 
 		if (m_isSlowThink && !(pev->flags & FL_DUCKING) && engine->RandomInt(1, 2) == 1 && !IsOnLadder() && pev->speed >= pev->maxspeed)
 		{
-			int random = engine->RandomInt(1, 3);
+			const int random = engine->RandomInt(1, 3);
 			if (random == 1)
 				pev->button |= IN_JUMP;
 			else if (random == 2)
@@ -1083,32 +1075,23 @@ void Bot::CombatFight(void)
 	}
 	else if (IsZombieMode()) // human ai
 	{
-		Vector tempDestOrigin = nullvec;
-		float tempMoveSpeed = -1.0f;
-
 		const bool NPCEnemy = !IsValidPlayer(m_enemy);
 		const bool enemyIsZombie = IsZombieEntity(m_enemy);
-
-		const Vector enemyVel = m_enemy->v.velocity;
-		float baseDistance = ebot_zp_escape_distance.GetFloat() + fabsf(m_enemy->v.speed);
-
-		Vector myVec = pev->origin + pev->velocity * m_frameInterval;
+		bool escape = true;
 
 		if (NPCEnemy || enemyIsZombie)
 		{
 			if (m_currentWeapon == WEAPON_KNIFE)
 			{
-				if (!(::IsInViewCone(myVec, m_enemy) && !NPCEnemy))
-					baseDistance = -1.0f;
+				if (!(::IsInViewCone(pev->origin + pev->velocity * m_frameInterval, m_enemy) && !NPCEnemy))
+					escape = false;
 			}
 
-			const Vector destOrigin = m_enemyOrigin + enemyVel * m_frameInterval;
-			const float distance = (myVec - destOrigin).GetLengthSquared();
-			if (m_isSlowThink && distance <= SquaredF(768.0f) && m_enemy->v.health > 100 && ChanceOf(ebot_zp_use_grenade_percent.GetInt()) && m_enemy->v.velocity.GetLengthSquared() > SquaredF(10.0f))
+			if (m_isSlowThink && !NPCEnemy && m_enemy->v.health > 100 && ChanceOf(ebot_zp_use_grenade_percent.GetInt()) && m_enemy->v.velocity.GetLengthSquared() > SquaredF(10.0f))
 			{
 				if (m_skill >= 50)
 				{
-					if (pev->weapons & (1 << WEAPON_FBGRENADE) && (m_enemy->v.speed >= m_enemy->v.maxspeed || distance <= SquaredF(384.0f)))
+					if (pev->weapons & (1 << WEAPON_FBGRENADE) && (m_enemy->v.speed >= m_enemy->v.maxspeed || (pev->origin - m_enemyOrigin).GetLengthSquared() <= SquaredF(384.0f)))
 						ThrowFrostNade();
 					else
 						ThrowFireNade();
@@ -1122,26 +1105,27 @@ void Bot::CombatFight(void)
 				}
 			}
 
-			if (baseDistance > 0.0f && distance <= SquaredF(baseDistance))
-			{
-				DeleteSearchNodes();
-				m_destOrigin = destOrigin;
+			DeleteSearchNodes();
+			m_destOrigin = m_enemy->v.origin + pev->velocity * -m_frameInterval;
+
+			if (escape)
 				m_moveSpeed = -pev->maxspeed;
+			else
+				m_moveSpeed = pev->maxspeed;
 
-				Vector directionOld = m_destOrigin - (pev->origin + pev->velocity * m_frameInterval);
-				Vector directionNormal = directionOld.Normalize();
-				Vector direction = directionNormal;
-				directionNormal.z = 0.0f;
-				SetStrafeSpeed(directionNormal, pev->maxspeed);
+			Vector directionOld = m_destOrigin - (pev->origin + pev->velocity * m_frameInterval);
+			Vector directionNormal = directionOld.Normalize();
+			Vector direction = directionNormal;
+			directionNormal.z = 0.0f;
+			SetStrafeSpeed(directionNormal, pev->maxspeed);
 
-				m_moveAngles = directionOld.ToAngles();
+			m_moveAngles = directionOld.ToAngles();
 
-				m_moveAngles.ClampAngles();
-				m_moveAngles.x *= -1.0f; // invert for engine
+			m_moveAngles.ClampAngles();
+			m_moveAngles.x *= -1.0f; // invert for engine
 
-				if (pev->button & IN_DUCK)
-					pev->button &= ~IN_DUCK;
-			}
+			if (pev->button & IN_DUCK)
+				pev->button &= ~IN_DUCK;
 		}
 	}
 	else if (GetCurrentTask()->taskID != TASK_CAMP && GetCurrentTask()->taskID != TASK_SEEKCOVER && GetCurrentTask()->taskID != TASK_ESCAPEFROMBOMB)

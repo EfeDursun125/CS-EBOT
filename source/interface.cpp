@@ -771,6 +771,7 @@ void CheckEntityAction(void)
 			sprintf(action, "Need Avoid");
 		else if (g_entityAction[i] == 3)
 			sprintf(action, "Pick Up");
+
 		sprintf(team, (g_entityTeam[i] == TEAM_COUNTER) ? "CT" : (g_entityTeam[i] == TEAM_TERRORIST) ? "TR" : "Team-%d", g_entityTeam[i]);
 
 		workEntityWork++;
@@ -784,7 +785,7 @@ void LoadEntityData(void)
 {
 	edict_t* entity;
 
-	for (int i = engine->GetMaxClients() + 1; i < entityNum; i++)
+	for (int i = 0; i < entityNum; i++)
 	{
 		if (g_entityId[i] == -1)
 			continue;
@@ -2871,27 +2872,28 @@ void SetPing(edict_t* to)
 		if (bot == nullptr)
 			continue;
 
+		const int index = bot->GetIndex();
 		switch (sending)
 		{
 		case 0:
 		{
 			// start a new message
 			MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_PINGS, nullptr, to);
-			WRITE_BYTE((bot->m_pingOffset[sending] * 64) + (1 + 2 * bot->m_index));
+			WRITE_BYTE((bot->m_pingOffset[sending] * 64) + (1 + 2 * index));
 			WRITE_SHORT(bot->m_ping[sending]);
 			sending++;
 		}
 		case 1:
 		{
 			// append additional data
-			WRITE_BYTE((bot->m_pingOffset[sending] * 128) + (2 + 4 * bot->m_index));
+			WRITE_BYTE((bot->m_pingOffset[sending] * 128) + (2 + 4 * index));
 			WRITE_SHORT(bot->m_ping[sending]);
 			sending++;
 		}
 		case 2:
 		{
 			// append additional data and end message
-			WRITE_BYTE(4 + 8 * bot->m_index);
+			WRITE_BYTE(4 + 8 * index);
 			WRITE_SHORT(bot->m_ping[sending]);
 			WRITE_BYTE(0);
 			MESSAGE_END();
@@ -3014,6 +3016,13 @@ void FrameThread(void)
 
 	if (g_navmeshOn && !g_analyzenavmesh)
 		ut = 0.05f;
+
+	if (g_gameVersion == CSVER_XASH)
+	{
+		const auto simulate = g_engfuncs.pfnCVarGetPointer("sv_forcesimulating");
+		if (simulate != nullptr && simulate->value != 1.0f)
+			g_engfuncs.pfnCVarSetFloat("sv_forcesimulating", 1.0f);
+	}
 
 	secondTimer = AddTime(ut);
 }
