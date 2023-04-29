@@ -383,7 +383,7 @@ enum WaypointFlag
 	WAYPOINT_COUNTER = (1 << 30)  // it's a specific ct point
 };
 
-enum NavMeshFlag
+enum NavAreaFlag
 {
 	NAV_JUMP = (1 << 1),
 	NAV_CROUCH = (1 << 2),
@@ -430,6 +430,13 @@ enum class LiftState
 	LookingButtonInside,
 	TravelingBy,
 	Leaving
+};
+
+struct BotProfile
+{
+	int favoriteWeapons[26];
+	Personality personality;
+	int campChance;
 };
 
 // bot known file 
@@ -1074,9 +1081,6 @@ public:
 	edict_t* m_moveTargetEntity; // target entity for move
 
 	float m_seeEnemyTime; // time bot sees enemy
-	float m_enemySurpriseTime; // time of surprise
-	float m_idealReactionTime; // time of base reaction
-	float m_actualReactionTime; // time of current reaction time
 	float m_radiotimer; // a timer for radio call
 	float m_randomattacktimer; // a timer for make bots random attack with knife like humans
 	float m_itaimstart; // aim start time
@@ -1101,7 +1105,6 @@ public:
 	float m_shootTime; // time to shoot
 	float m_timeLastFired; // time to last firing
 	float m_weaponSelectDelay; // delay for reload
-	float m_interp; // used for runplayermovement
 
 	int m_lastDamageType; // stores last damage
 	int m_currentWeapon; // one current weapon for each bot
@@ -1428,11 +1431,12 @@ public:
 	void DrawNavArea(void);
 	void Analyze(void);
 
-	void CreateArea(const Vector origin);
+	NavArea* CreateArea(const Vector origin);
 	void CreateAreaAuto(const Vector start, const Vector goal);
 	void DeleteArea(NavArea* area);
 	void ConnectArea(NavArea* start, NavArea* end);
 	void DisconnectArea(NavArea* start, NavArea* end);
+	void OptimizeNavMesh(void);
 
 	NavArea* GetNavArea(int id);
 	NavArea* GetNearestNavArea(const Vector origin);
