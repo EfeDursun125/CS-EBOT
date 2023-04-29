@@ -248,7 +248,7 @@ public:
 
     inline float Length(void) const
     {
-        return Q_sqrt(x * x + y * y);
+        return squareRoot(x * x + y * y);
     }
 
     inline Vector2D Normalize(void) const

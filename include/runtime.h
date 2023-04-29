@@ -554,7 +554,7 @@ public:
     //
     inline float GetLength(void) const
     {
-        return Q_sqrt(x * x + y * y + z * z);
+        return squareRoot(x * x + y * y + z * z);
     }
 
     //
@@ -570,7 +570,7 @@ public:
     //
     inline float GetLength2D(void) const
     {
-        return Q_sqrt(x * x + y * y);
+        return squareRoot(x * x + y * y);
     }
 
     //
@@ -628,7 +628,7 @@ public:
     //
     inline Vector Normalize(void) const
     {
-        const float length = Q_rsqrt(x * x + y * y + z * z) + Math::MATH_FLEPSILON;
+        const float length = rsqrtf(x * x + y * y + z * z) + Math::MATH_FLEPSILON;
         return Vector(x * length, y * length, z * length);
     }
 
@@ -642,7 +642,7 @@ public:
     //
     inline Vector Normalize2D(void) const
     {
-        const float length = Q_rsqrt(x * x + y * y) + Math::MATH_FLEPSILON;
+        const float length = rsqrtf(x * x + y * y) + Math::MATH_FLEPSILON;
         return Vector(x * length, y * length, 0.0f);
     }
 

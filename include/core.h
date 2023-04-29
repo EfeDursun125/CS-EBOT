@@ -36,14 +36,11 @@
 
 #include <stdio.h>
 #include <memory.h>
-
-extern float Q_sqrt(float number);
-extern float Q_rsqrt(float number);
+#include <cmath.h>
 
 using namespace std;
 
 #include <engine.h>
-#include <learn.h>
 
 using namespace Math;
 
@@ -1479,6 +1476,7 @@ extern float GetDur(const char* fileName);
 extern float DotProduct(const Vector& a, const Vector& b);
 extern float DotProduct2D(const Vector& a, const Vector& b);
 extern Vector CrossProduct(const Vector& a, const Vector& b);
+extern edict_t* FindEntityInSphere(edict_t* startEnt, const Vector& vecCenter, const float flRadius);
 
 extern int GetEntityWaypoint(edict_t* ent);
 extern int SetEntityWaypoint(edict_t* ent, int mode = -1);
