@@ -393,6 +393,13 @@ bool Bot::LookupEnemy(void)
 
 Vector Bot::GetAimPosition(void)
 {
+	// not even visible?
+	if (m_visibility == 0)
+	{
+		m_wantsToFire = true;
+		return m_enemyOrigin;
+	}
+
 	// npc/entity
 	if (!IsValidPlayer(m_enemy))
 	{
@@ -419,31 +426,29 @@ Vector Bot::GetAimPosition(void)
 	else if (m_visibility & VISIBILITY_BODY) // visible only body
 		targetOrigin += Vector(0.0f, 0.0f, GetZOffset(distance));
 	else if (m_visibility & VISIBILITY_OTHER) // random part of body is visible
-		targetOrigin -= m_enemy->v.view_ofs;
-	
-	m_lastEnemyOrigin = targetOrigin;
-	m_enemyOrigin = targetOrigin;
+		targetOrigin = m_enemyOrigin;
+
 	return targetOrigin;
 }
 
 float Bot::GetZOffset(float distance)
 {
 	if (m_difficulty < 1)
-		return -6.0f;
+		return -4.0f;
 
-	bool sniper = UsesSniper();
-	bool pistol = UsesPistol();
-	bool rifle = UsesRifle();
+	const bool sniper = UsesSniper();
+	const bool pistol = UsesPistol();
+	const bool rifle = UsesRifle();
 
-	bool zoomableRifle = UsesZoomableRifle();
-	bool submachine = UsesSubmachineGun();
-	bool shotgun = (m_currentWeapon == WEAPON_XM1014 || m_currentWeapon == WEAPON_M3);
-	bool m249 = m_currentWeapon == WEAPON_M249;
+	const bool zoomableRifle = UsesZoomableRifle();
+	const bool submachine = UsesSubmachineGun();
+	const bool shotgun = (m_currentWeapon == WEAPON_XM1014 || m_currentWeapon == WEAPON_M3);
+	const bool m249 = m_currentWeapon == WEAPON_M249;
 
 	const float BurstDistance = SquaredF(300.0f);
 	const float DoubleBurstDistance = BurstDistance * 2.0f;
 
-	float result = 6.0f;
+	float result = 4.0f;
 
 	if (distance <= SquaredF(2800.0f) && distance > DoubleBurstDistance)
 	{
@@ -468,12 +473,12 @@ float Bot::GetZOffset(float distance)
 	else if (distance < BurstDistance)
 	{
 		if (sniper) result = 4.5f;
-		else if (zoomableRifle) result = -5.0f;
+		else if (zoomableRifle) result = 5.0f;
 		else if (pistol) result = 4.5f;
-		else if (submachine) result = -4.5f;
-		else if (rifle) result = -4.5f;
-		else if (m249) result = -6.0f;
-		else if (shotgun) result = -5.0f;
+		else if (submachine) result = 4.5f;
+		else if (rifle) result = 4.5f;
+		else if (m249) result = 6.0f;
+		else if (shotgun) result = 5.0f;
 	}
 
 	return result;
@@ -511,7 +516,7 @@ bool Bot::IsFriendInLineOfFire(float distance)
 
 	for (const auto& client : g_clients)
 	{
-		if (client.index < 0)
+		if (client.index < 0 || client.ent == nullptr)
 			continue;
 
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != m_team || client.ent == GetEntity())
@@ -608,7 +613,7 @@ bool Bot::DoFirePause(float distance)//, FireDelay *fireDelay)
 	const float angle = (fabsf(pev->punchangle.y) + fabsf(pev->punchangle.x)) * (Math::MATH_PI * 0.00277777777f);
 
 	// check if we need to compensate recoil
-	if (tanf_sse(angle) * (distance + (distance * 0.25f)) > g_skillTab[m_skill / 20].recoilAmount)
+	if (tanf(angle) * (distance + (distance * 0.25f)) > g_skillTab[m_skill / 20].recoilAmount)
 	{
 		if (m_firePause < (engine->GetTime() - 0.4))
 			m_firePause = engine->GetTime() + engine->RandomFloat(0.4f, (0.4f + 1.2f * ((100 - m_skill)) * 0.01f));
@@ -1047,7 +1052,11 @@ void Bot::CombatFight(void)
 		}
 	}
 	else
+	{
+		m_moveSpeed = 0.0f;
+		m_strafeSpeed = 0.0f;
 		return;
+	}
 
 	if (IsValidWaypoint(m_currentWaypointIndex) && (m_moveSpeed != 0.0f || m_strafeSpeed != 0.0f) && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_CROUCH)
 		pev->button |= IN_DUCK;

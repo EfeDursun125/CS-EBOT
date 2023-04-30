@@ -106,43 +106,89 @@ bool Bot::IsInViewCone(Vector origin)
 	return ::IsInViewCone(origin, GetEntity());
 }
 
-bool Bot::CheckVisibility(edict_t* targetEntity, Vector* origin, uint8_t* bodyPart)
+bool Bot::CheckVisibility(edict_t* targetEntity)
 {
+	m_visibility = 0;
 	if (FNullEnt(targetEntity))
 		return false;
 
 	TraceResult tr;
-	*bodyPart = 0;
+	Vector eyes = EyePosition();
 
-	Vector botHead = EyePosition();
-	if (pev->flags & FL_DUCKING)
-		botHead += (VEC_HULL_MIN - VEC_DUCK_HULL_MIN);
+	Vector spot = targetEntity->v.origin;
+	edict_t* self = pev->pContainingEntity;
 
 	bool ignoreGlass = true;
 
 	// zombies can't hit from the glass...
-	if (m_isZombieBot || (m_currentWeapon == WEAPON_KNIFE && !HasPrimaryWeapon()))
+	if (m_isZombieBot)
 		ignoreGlass = false;
 
-	if (IsValidPlayer(targetEntity))
+	TraceLine(eyes, spot, true, ignoreGlass, self, &tr);
+
+	if (tr.flFraction >= 1.0f || tr.pHit == targetEntity)
 	{
-		Vector headOrigin = GetPlayerHeadOrigin(targetEntity);
-		TraceLine(botHead, headOrigin, true, ignoreGlass, GetEntity(), &tr);
-		if (tr.pHit == targetEntity || tr.flFraction >= 1.0f)
-		{
-			*bodyPart |= VISIBILITY_HEAD;
-			*origin = headOrigin;
-		}
+		m_visibility |= VISIBILITY_BODY;
+		m_enemyOrigin = tr.vecEndPos;
 	}
 
-	TraceLine(pev->origin, GetEntityOrigin(targetEntity), true, ignoreGlass, GetEntity(), &tr);
-	if (tr.pHit == targetEntity || tr.flFraction >= 1.0f)
+	// check top of head
+	spot.z += 25.0f;
+	TraceLine(eyes, spot, true, ignoreGlass, self, &tr);
+
+	if (tr.flFraction >= 1.0f || tr.pHit == targetEntity)
 	{
-		*bodyPart |= VISIBILITY_BODY;
-		*origin = tr.vecEndPos;
+		m_visibility |= VISIBILITY_HEAD;
+		m_enemyOrigin = tr.vecEndPos;
 	}
 
-	return (*bodyPart != 0);
+	if (m_visibility != 0)
+		return true;
+
+	constexpr auto standFeet = 34.0f;
+	constexpr auto crouchFeet = 14.0f;
+
+	if (targetEntity->v.flags & FL_DUCKING)
+		spot.z = targetEntity->v.origin.z - crouchFeet;
+	else
+		spot.z = targetEntity->v.origin.z - standFeet;
+
+	TraceLine(eyes, spot, true, ignoreGlass, self, &tr);
+
+	if (tr.flFraction >= 1.0f || tr.pHit == targetEntity)
+	{
+		m_visibility |= VISIBILITY_OTHER;
+		m_enemyOrigin = tr.vecEndPos;
+		return true;
+	}
+
+	const float edgeOffset = 13.0f;
+	Vector dir = (targetEntity->v.origin - pev->origin).Normalize2D();
+
+	Vector perp(-dir.y, dir.x, 0.0f);
+	spot = targetEntity->v.origin + Vector(perp.x * edgeOffset, perp.y * edgeOffset, 0);
+
+	TraceLine(eyes, spot, true, ignoreGlass, self, &tr);
+
+	if (tr.flFraction >= 1.0f || tr.pHit == targetEntity)
+	{
+		m_visibility |= VISIBILITY_OTHER;
+		m_enemyOrigin = tr.vecEndPos;
+
+		return true;
+	}
+
+	spot = targetEntity->v.origin - Vector(perp.x * edgeOffset, perp.y * edgeOffset, 0);
+	TraceLine(eyes, spot, true, ignoreGlass, self, &tr);
+
+	if (tr.flFraction >= 1.0f || tr.pHit == targetEntity)
+	{
+		m_visibility |= VISIBILITY_OTHER;
+		m_enemyOrigin = tr.vecEndPos;
+		return true;
+	}
+
+	return false;
 }
 
 bool Bot::IsEnemyViewable(edict_t* entity, bool setEnemy, bool checkOnly)
@@ -153,15 +199,9 @@ bool Bot::IsEnemyViewable(edict_t* entity, bool setEnemy, bool checkOnly)
 	if (IsNotAttackLab(entity))
 		return false;
 
-	Vector entityOrigin;
-	uint8_t visibility;
-	bool seeEntity = CheckVisibility(entity, &entityOrigin, &visibility);
-
+	bool seeEntity = CheckVisibility(entity);
 	if (checkOnly)
 		return seeEntity;
-
-	if (setEnemy)
-		m_visibility = visibility;
 
 	if (seeEntity)
 	{
@@ -3200,7 +3240,6 @@ void Bot::CheckRadioCommands(void)
 						{
 							nearestDistance = curDist;
 							m_lastEnemy = client.ent;
-							m_lastEnemyOrigin = client.origin + pev->view_ofs;
 						}
 					}
 				}
@@ -3383,7 +3422,6 @@ void Bot::CheckRadioCommands(void)
 						{
 							nearestDistance = dist;
 							m_lastEnemy = client.ent;
-							m_lastEnemyOrigin = client.origin + pev->view_ofs;
 						}
 					}
 				}
@@ -4105,8 +4143,6 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 	{
 		TaskComplete();
 		m_prevGoalIndex = -1;
-
-		
 
 		// spray logo sometimes if allowed to do so
 		if (m_timeLogoSpray < engine->GetTime() && ebot_spraypaints.GetBool() && ChanceOf(50) && m_moveSpeed > GetWalkSpeed())

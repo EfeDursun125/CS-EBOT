@@ -2773,7 +2773,7 @@ void Waypoint::ShowWaypointMsg(void)
         }
 
         // draw the radius circle
-        Vector origin = (path->flags & WAYPOINT_CROUCH) ? path->origin : path->origin - Vector(0, 0, 18);
+        Vector origin = (path->flags & WAYPOINT_CROUCH) ? path->origin : path->origin - Vector(0, 0, 18.0f);
 
         // if radius is nonzero, draw a square
         if (path->radius > 0.0f)
