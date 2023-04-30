@@ -871,7 +871,7 @@ private:
 
 	bool IsInViewCone(Vector origin);
 	void ReactOnSound(void);
-	bool CheckVisibility(edict_t* targetEntity, Vector* origin, uint8_t* bodyPart);
+	bool CheckVisibility(edict_t* targetEntity);
 	bool IsEnemyViewable(edict_t* player, bool setEnemy = false, bool checkOnly = false);
 
 	void CheckGrenadeThrow(void);
