@@ -110,14 +110,14 @@ char* HumanizeName(char* name)
     strcpy(outputName, name); // copy name to new buffer
 
     // drop tag marks, 80 percent of time
-    if (engine->RandomInt(1, 100) < 80)
+    if (RandomInt(1, 100) < 80)
         StripTags(outputName);
     else
         strtrim(outputName);
 
     // sometimes switch name to lower characters
     // note: since we're using russian names written in english, we reduce this shit to 6 percent
-    if (engine->RandomInt(1, 100) <= 6)
+    if (RandomInt(1, 100) <= 6)
     {
         for (int i = 0; i < static_cast <int> (strlen(outputName)); i++)
             outputName[i] = static_cast <char> (tolower(outputName[i])); // to lower case
@@ -164,6 +164,9 @@ void Bot::PrepareChatMessage(char* text)
                     if (client.index < 0)
                         continue;
 
+                    if (client.ent == nullptr)
+                        continue;
+
                     if (!(client.flags & CFLAG_USED) || client.ent == GetEntity())
                         continue;
 
@@ -208,6 +211,9 @@ void Bot::PrepareChatMessage(char* text)
                     if (client.index < 0)
                         continue;
 
+                    if (client.ent == nullptr)
+                        continue;
+
                     if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || (client.team != m_team) || (client.ent == GetEntity()))
                         continue;
 
@@ -231,6 +237,9 @@ void Bot::PrepareChatMessage(char* text)
                     for (const auto& client : g_clients)
                     {
                         if (client.index < 0)
+                            continue;
+
+                        if (client.ent == nullptr)
                             continue;
 
                         if (!(client.flags & CFLAG_USED) || (client.team != m_team) || (client.ent == GetEntity()))
@@ -259,6 +268,9 @@ void Bot::PrepareChatMessage(char* text)
                     if (client.index < 0)
                         continue;
 
+                    if (client.ent == nullptr)
+                        continue;
+
                     if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || (client.team == m_team) || (client.ent == GetEntity()))
                         continue;
 
@@ -281,6 +293,9 @@ void Bot::PrepareChatMessage(char* text)
                         if (client.index < 0)
                             continue;
 
+                        if (client.ent == nullptr)
+                            continue;
+
                         if (!(client.flags & CFLAG_USED) || (client.team == m_team) || (client.ent == GetEntity()))
                             continue;
 
@@ -301,14 +316,14 @@ void Bot::PrepareChatMessage(char* text)
             {
                 if (g_gameVersion == CSVER_CZERO)
                 {
-                    if (engine->RandomInt(1, 100) < 30)
+                    if (RandomInt(1, 100) < 30)
                         strcat(m_tempStrings, "CZ");
                     else
                         strcat(m_tempStrings, "Condition Zero");
                 }
                 else if ((g_gameVersion == CSVER_CSTRIKE) || (g_gameVersion == CSVER_VERYOLD))
                 {
-                    if (engine->RandomInt(1, 100) < 30)
+                    if (RandomInt(1, 100) < 30)
                         strcat(m_tempStrings, "CS");
                     else
                         strcat(m_tempStrings, "Counter-Strike");
@@ -434,6 +449,9 @@ void Bot::ChatSay(bool teamSay, const char* text, ...)
     for (const auto& client : g_clients)
     {
         if (client.index < 0)
+            continue;
+
+        if (client.ent == nullptr)
             continue;
 
         if (!(client.flags & CFLAG_USED) || client.ent == GetEntity())

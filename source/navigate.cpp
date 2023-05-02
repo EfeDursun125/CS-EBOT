@@ -25,10 +25,8 @@
 #include <core.h>
 
 ConVar ebot_aimbot("ebot_aimbot", "0");
-ConVar ebot_aim_boost_in_zm("ebot_zm_aim_boost", "1");
 ConVar ebot_zombies_as_path_cost("ebot_zombie_count_as_path_cost", "1");
-ConVar ebot_ping_affects_aim("ebot_ping_affects_aim", "0");
-ConVar ebot_aim_type("ebot_aim_type", "2");
+ConVar ebot_aim_type("ebot_aim_type", "1");
 ConVar ebot_path_smoothing("ebot_path_smoothing", "0");
 
 int Bot::FindGoal(void)
@@ -38,7 +36,7 @@ int Bot::FindGoal(void)
 		if (m_isZombieBot)
 		{
 			if (g_waypoint->m_terrorPoints.IsEmpty())
-				return m_chosenGoalIndex = engine->RandomInt(0, g_numWaypoints - 1);
+				return m_chosenGoalIndex = RandomInt(0, g_numWaypoints - 1);
 
 			Array <int> Important;
 			for (int i = 0; i < g_waypoint->m_terrorPoints.GetElementNumber(); i++)
@@ -130,7 +128,7 @@ int Bot::FindGoal(void)
 			return m_chosenGoalIndex;
 		}
 		else
-			return m_chosenGoalIndex = engine->RandomInt(0, g_numWaypoints - 1);
+			return m_chosenGoalIndex = RandomInt(0, g_numWaypoints - 1);
 	}
 	else if (GetGameMode() == MODE_BASE)
 	{
@@ -290,7 +288,7 @@ int Bot::FindGoal(void)
 				}
 				else
 				{
-					if (!g_waypoint->m_ctPoints.IsEmpty() && engine->RandomInt(1, 2) == 1)
+					if (!g_waypoint->m_ctPoints.IsEmpty() && RandomInt(1, 2) == 1)
 						return m_chosenGoalIndex = g_waypoint->m_ctPoints.GetRandomElement();
 					else if (!g_waypoint->m_goalPoints.IsEmpty())
 						return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
@@ -298,7 +296,7 @@ int Bot::FindGoal(void)
 			}
 			else
 			{
-				if (!g_waypoint->m_rescuePoints.IsEmpty() && (ohShit || engine->RandomInt(1, 11) == 1))
+				if (!g_waypoint->m_rescuePoints.IsEmpty() && (ohShit || RandomInt(1, 11) == 1))
 					return m_chosenGoalIndex = g_waypoint->m_rescuePoints.GetRandomElement();
 				else if (!g_waypoint->m_goalPoints.IsEmpty())
 					return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
@@ -312,7 +310,7 @@ int Bot::FindGoal(void)
 					return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
 				else
 				{
-					if (!g_waypoint->m_goalPoints.IsEmpty() && engine->RandomInt(1, 2) == 1)
+					if (!g_waypoint->m_goalPoints.IsEmpty() && RandomInt(1, 2) == 1)
 						return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
 					else if (!g_waypoint->m_ctPoints.IsEmpty())
 						return m_chosenGoalIndex = g_waypoint->m_ctPoints.GetRandomElement();
@@ -320,7 +318,7 @@ int Bot::FindGoal(void)
 			}
 			else
 			{
-				if (!g_waypoint->m_goalPoints.IsEmpty() && engine->RandomInt(1, 11) == 1)
+				if (!g_waypoint->m_goalPoints.IsEmpty() && RandomInt(1, 11) == 1)
 					return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
 				else if (!g_waypoint->m_terrorPoints.IsEmpty())
 					return m_chosenGoalIndex = g_waypoint->m_terrorPoints.GetRandomElement();
@@ -342,7 +340,7 @@ int Bot::FindGoal(void)
 	if (!g_waypoint->m_otherPoints.IsEmpty())
 		return m_chosenGoalIndex = g_waypoint->m_otherPoints.GetRandomElement();
 
-	return m_chosenGoalIndex = engine->RandomInt(0, g_numWaypoints - 1);
+	return m_chosenGoalIndex = RandomInt(0, g_numWaypoints - 1);
 }
 
 bool Bot::GoalIsValid(void)
@@ -408,10 +406,10 @@ bool Bot::DoWaypointNav(void)
 				else
 					waypointOrigin.z -= 36.0f;
 
-				const float timeToReachWaypoint = squareRoot(power(waypointOrigin.x - myOrigin.x, 2.0f) + power(waypointOrigin.y - myOrigin.y, 2.0f)) / pev->maxspeed;
+				const float timeToReachWaypoint = Q_sqrt(powf(waypointOrigin.x - myOrigin.x, 2.0f) + powf(waypointOrigin.y - myOrigin.y, 2.0f)) / pev->maxspeed;
 				pev->velocity.x = (waypointOrigin.x - myOrigin.x) / timeToReachWaypoint;
 				pev->velocity.y = (waypointOrigin.y - myOrigin.y) / timeToReachWaypoint;
-				pev->velocity.z = 2.0f * (waypointOrigin.z - myOrigin.z - 0.5f * pev->gravity * power(timeToReachWaypoint, 2.0f)) / timeToReachWaypoint;
+				pev->velocity.z = 2.0f * (waypointOrigin.z - myOrigin.z - 0.5f * pev->gravity * powf(timeToReachWaypoint, 2.0f)) / timeToReachWaypoint;
 
 				const float limit = (pev->maxspeed * 1.25f);
 				if (pev->velocity.z > limit)
@@ -447,7 +445,7 @@ bool Bot::DoWaypointNav(void)
 		// special detection if someone is using the ladder (to prevent to have bots-towers on ladders)
 		for (const auto& client : g_clients)
 		{
-			if (client.ent == nullptr || !(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || (client.ent->v.movetype != MOVETYPE_FLY) || client.index == m_index)
+			if (client.index < 0 || client.ent == nullptr || !(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || (client.ent->v.movetype != MOVETYPE_FLY) || client.index == m_index)
 				continue;
 
 			TraceResult tr;
@@ -1186,6 +1184,9 @@ inline const float GF_CostHuman(const int index, const int parent, const int tea
 			if (client.index < 0)
 				continue;
 
+			if (client.ent == nullptr)
+				continue;
+
 			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || team != client.team)
 				continue;
 
@@ -1248,6 +1249,9 @@ inline const float GF_CostCareful(const int index, const int parent, const int t
 			if (client.index < 0)
 				continue;
 
+			if (client.ent == nullptr)
+				continue;
+
 			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || team != client.team)
 				continue;
 
@@ -1265,6 +1269,9 @@ inline const float GF_CostCareful(const int index, const int parent, const int t
 			for (const auto& client : g_clients)
 			{
 				if (client.index < 0)
+					continue;
+
+				if (client.ent == nullptr)
 					continue;
 
 				if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != team)
@@ -1316,10 +1323,13 @@ inline const float GF_CostNormal(const int index, const int parent, const int te
 			if (client.index < 0)
 				continue;
 
+			if (client.ent == nullptr)
+				continue;
+
 			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || team != client.team)
 				continue;
 
-			float distance = (client.origin - path->origin).GetLengthSquared();
+			const float distance = (client.origin - path->origin).GetLengthSquared();
 			if (distance <= SquaredF(path->radius + 64.0f))
 				return 65355.0f;
 		}
@@ -1333,6 +1343,9 @@ inline const float GF_CostNormal(const int index, const int parent, const int te
 			for (const auto& client : g_clients)
 			{
 				if (client.index < 0)
+					continue;
+
+				if (client.ent == nullptr)
 					continue;
 
 				if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != team)
@@ -1387,10 +1400,13 @@ inline const float GF_CostRusher(const int index, const int parent, const int te
 			if (client.index < 0)
 				continue;
 
+			if (client.ent == nullptr)
+				continue;
+
 			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || team != client.team)
 				continue;
 
-			float distance = (client.origin - path->origin).GetLengthSquared();
+			const float distance = (client.origin - path->origin).GetLengthSquared();
 			if (distance <= SquaredF(path->radius + 64.0f))
 				return 65355.0f;
 		}
@@ -1482,7 +1498,7 @@ void Bot::FindPathNavMesh(NavArea* start, NavArea* dest)
 	}
 
 	if (dest == nullptr)
-		dest = g_navmesh->GetNavArea(engine->RandomInt(1, g_numNavAreas - 1));
+		dest = g_navmesh->GetNavArea(RandomInt(1, g_numNavAreas - 1));
 
 	if (start == dest)
 		return;
@@ -2236,9 +2252,9 @@ int Bot::FindWaypoint(bool skipLag)
 
 	// choice from found
 	if (IsValidWaypoint(lessIndex[2]))
-		index = engine->RandomInt(0, 2);
+		index = RandomInt(0, 2);
 	else if (IsValidWaypoint(lessIndex[1]))
-		index = engine->RandomInt(0, 1);
+		index = RandomInt(0, 1);
 	else if (IsValidWaypoint(lessIndex[0])) 
 		index = 0;
 
@@ -2443,7 +2459,7 @@ int Bot::ChooseBombWaypoint(void)
 	// this function finds the best goal (bomb) waypoint for CTs when searching for a planted bomb.
 
 	if (g_waypoint->m_goalPoints.IsEmpty())
-		return engine->RandomInt(0, g_numWaypoints - 1); // reliability check
+		return RandomInt(0, g_numWaypoints - 1); // reliability check
 
 	Vector bombOrigin = CheckBombAudible();
 
@@ -2493,7 +2509,7 @@ int Bot::FindDefendWaypoint(Vector origin)
 
 	// no camp waypoints
 	if (g_waypoint->m_campPoints.IsEmpty())
-		return engine->RandomInt(0, g_numWaypoints - 1);
+		return RandomInt(0, g_numWaypoints - 1);
 
 	// invalid index
 	if (!IsValidWaypoint(m_currentWaypointIndex))
@@ -2733,7 +2749,7 @@ bool Bot::HeadTowardWaypoint(void)
 				}
 				else if (g_botsCanPause && !IsOnLadder() && !IsInWater() && !m_currentTravelFlags && IsOnFloor())
 				{
-					if (engine->RandomInt(1, 100) > (m_skill + engine->RandomInt(1, 20)))
+					if (RandomInt(1, 100) > (m_skill + RandomInt(1, 20)))
 					{
 						m_minSpeed = GetWalkSpeed();
 						if (m_currentWeapon == WEAPON_KNIFE)
@@ -3206,6 +3222,10 @@ void Bot::CheckCloseAvoidance(const Vector& dirNormal)
 		if (client.index < 0)
 			continue;
 
+		// valid ???
+		if (client.ent == nullptr)
+			continue;
+
 		// need only good meat
 		if (!(client.flags & CFLAG_USED))
 			continue;
@@ -3343,40 +3363,8 @@ int Bot::GetCampAimingWaypoint(void)
 void Bot::FacePosition(void)
 {
 	// predict enemy
-	if (m_aimFlags & AIM_ENEMY && !FNullEnt(m_enemy))
+	if (m_aimFlags & AIM_ENEMY)
 	{
-		extern ConVar ebot_ping;
-		if (ebot_ping.GetBool() && ebot_ping_affects_aim.GetBool())
-		{
-			if (m_trackTime < engine->GetTime())
-			{
-				m_tempAim = m_lookAt;
-				m_tempVel = m_enemy->v.velocity;
-				m_trackTime = AddTime(float(m_ping[2]) * 0.0025f);
-			}
-			else
-			{
-				m_tempAim.x += m_tempVel.x * g_pGlobals->frametime;
-				m_tempAim.y += m_tempVel.y * g_pGlobals->frametime;
-
-				// careful only
-				if (m_personality == PERSONALITY_CAREFUL)
-					m_tempAim.z += m_tempVel.z * g_pGlobals->frametime;
-			}
-
-			// set position
-			m_lookAt = m_tempAim;
-		}
-		else
-		{
-			Vector enemyVel = m_enemy->v.velocity;
-			m_lookAt.x += enemyVel.x * g_pGlobals->frametime;
-			m_lookAt.y += enemyVel.y * g_pGlobals->frametime;
-			m_lookAt.z += enemyVel.z * g_pGlobals->frametime;
-		}
-
-		m_playerTargetTime = engine->GetTime();
-
 		// force press attack button for human bots in zombie mode
 		if (IsZombieMode() && !m_isReloading && !m_isSlowThink && !(pev->button & IN_ATTACK) && !(pev->oldbuttons & IN_ATTACK))
 			pev->button |= IN_ATTACK;
@@ -3449,7 +3437,7 @@ void Bot::FacePosition(void)
 
 	float lockn = (m_skill + 50.0f) * delta;
 
-	if (IsZombieMode() && !m_isZombieBot && (m_isEnemyReachable || ebot_aim_boost_in_zm.GetBool()))
+	if (IsZombieMode() && !m_isZombieBot && m_isEnemyReachable)
 	{
 		accelerate *= 2.0f;
 		stiffness *= 2.0f;
@@ -3607,7 +3595,7 @@ bool Bot::IsWaypointOccupied(int index, bool needZeroVelocity)
 
 	for (const auto& client : g_clients)
 	{
-		if (client.ent == nullptr || !(client.flags & (CFLAG_USED | CFLAG_ALIVE)) || client.team != m_team || client.ent == GetEntity())
+		if (client.index < 0 || client.ent == nullptr || !(client.flags & (CFLAG_USED | CFLAG_ALIVE)) || client.team != m_team || client.ent == GetEntity())
 			continue;
 
 		// do not check clients far away from us

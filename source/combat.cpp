@@ -44,6 +44,9 @@ int Bot::GetNearbyFriendsNearPosition(Vector origin, float radius)
 		if (client.index < 0)
 			continue;
 
+		if (client.ent == nullptr)
+			continue;
+
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != m_team || client.ent == GetEntity())
 			continue;
 
@@ -63,6 +66,9 @@ int Bot::GetNearbyEnemiesNearPosition(Vector origin, float radius)
 	for (const auto& client : g_clients)
 	{
 		if (client.index < 0)
+			continue;
+
+		if (client.ent == nullptr)
 			continue;
 
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team == m_team)
@@ -92,6 +98,9 @@ void Bot::ResetCheckEnemy()
 	for (const auto& client : g_clients)
 	{
 		if (client.index < 0)
+			continue;
+
+		if (client.ent == nullptr)
 			continue;
 
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team == m_team)
@@ -516,7 +525,10 @@ bool Bot::IsFriendInLineOfFire(float distance)
 
 	for (const auto& client : g_clients)
 	{
-		if (client.index < 0 || client.ent == nullptr)
+		if (client.index < 0)
+			continue;
+
+		if (client.ent == nullptr)
 			continue;
 
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != m_team || client.ent == GetEntity())
@@ -840,8 +852,8 @@ WeaponSelectEnd:
 	else
 	{
 		const float baseDelay = delay[chosenWeaponIndex].primaryBaseDelay;
-		const float minDelay = delay[chosenWeaponIndex].primaryMinDelay[abs((m_skill / engine->RandomInt(15, 20)) - 5)];
-		const float maxDelay = delay[chosenWeaponIndex].primaryMaxDelay[abs((m_skill / engine->RandomInt(20, 30)) - 5)];
+		const float minDelay = delay[chosenWeaponIndex].primaryMinDelay[abs((m_skill / RandomInt(15, 20)) - 5)];
+		const float maxDelay = delay[chosenWeaponIndex].primaryMaxDelay[abs((m_skill / RandomInt(20, 30)) - 5)];
 
 		if (DoFirePause(distance))//, &delay[chosenWeaponIndex]))
 			return;
@@ -967,7 +979,7 @@ bool Bot::KnifeAttack(float attackDistance)
 				pev->button |= IN_ATTACK;
 			else if (kaMode == 2)
 				pev->button |= IN_ATTACK2;
-			else if (engine->RandomInt(1, 10) < 3 || HasShield())
+			else if (RandomInt(1, 10) < 3 || HasShield())
 				pev->button |= IN_ATTACK;
 			else
 				pev->button |= IN_ATTACK2;
@@ -995,7 +1007,7 @@ bool Bot::IsWeaponBadInDistance(int weaponIndex, float distance)
 	}
 	else
 	{
-		int weaponID = g_weaponSelect[weaponIndex].id;
+		const int weaponID = g_weaponSelect[weaponIndex].id;
 		if (weaponID == WEAPON_KNIFE)
 			return false;
 
@@ -1055,6 +1067,8 @@ void Bot::CombatFight(void)
 	{
 		m_moveSpeed = 0.0f;
 		m_strafeSpeed = 0.0f;
+		if (IsValidWaypoint(m_cachedWaypointIndex))
+			ChangeWptIndex(m_cachedWaypointIndex);
 		return;
 	}
 
@@ -1066,9 +1080,9 @@ void Bot::CombatFight(void)
 		DeleteSearchNodes();
 		m_moveSpeed = pev->maxspeed;
 
-		if (m_isSlowThink && !(pev->flags & FL_DUCKING) && engine->RandomInt(1, 2) == 1 && !IsOnLadder() && pev->speed >= pev->maxspeed)
+		if (m_isSlowThink && !(pev->flags & FL_DUCKING) && RandomInt(1, 2) == 1 && !IsOnLadder() && pev->speed >= pev->maxspeed)
 		{
-			const int random = engine->RandomInt(1, 3);
+			const int random = RandomInt(1, 3);
 			if (random == 1)
 				pev->button |= IN_JUMP;
 			else if (random == 2)
@@ -1107,7 +1121,7 @@ void Bot::CombatFight(void)
 				}
 				else
 				{
-					if (pev->weapons & (1 << WEAPON_FBGRENADE) && engine->RandomInt(1, 2) == 1)
+					if (pev->weapons & (1 << WEAPON_FBGRENADE) && RandomInt(1, 2) == 1)
 						ThrowFrostNade();
 					else
 						ThrowFireNade();
@@ -1164,23 +1178,7 @@ void Bot::CombatFight(void)
 			}
 		}
 
-		if (m_isReloading || (m_isBomber && (engine->RandomFloat(1.0f, pev->health) <= 40.0f || !HasPrimaryWeapon())) || m_isVIP)
-		{
-			const int seekindex = FindCoverWaypoint(99999.0f);
-			if (IsValidWaypoint(seekindex))
-				PushTask(TASK_SEEKCOVER, TASKPRI_SEEKCOVER, seekindex, 4.0f, true);
-			return;
-		}
-
 		const float distance = ((pev->origin + pev->velocity * m_frameInterval) - m_lookAt).GetLengthSquared();
-		if (IsWeaponBadInDistance(m_currentWeapon, distance))
-		{
-			const int seekindex = FindCoverWaypoint(99999.0f);
-			if (IsValidWaypoint(seekindex))
-				PushTask(TASK_SEEKCOVER, TASKPRI_SEEKCOVER, seekindex, 12.0f, true);
-			return;
-		}
-
 		const int melee = g_gameVersion == HALFLIFE ? WEAPON_CROWBAR : WEAPON_KNIFE;
 		if (m_currentWeapon == melee)
 		{
@@ -1231,7 +1229,7 @@ void Bot::CombatFight(void)
 		{
 			if (m_currentWeapon == WEAPON_MP5_HL && distance > SquaredF(300.0f) && distance <= SquaredF(800.0f))
 			{
-				if (!(pev->oldbuttons & IN_ATTACK2) && !m_isSlowThink && engine->RandomInt(1, 3) == 1)
+				if (!(pev->oldbuttons & IN_ATTACK2) && !m_isSlowThink && RandomInt(1, 3) == 1)
 					pev->button |= IN_ATTACK2;
 			}
 			else if (m_currentWeapon == WEAPON_CROWBAR && m_personality != PERSONALITY_CAREFUL)
@@ -1814,6 +1812,9 @@ void Bot::CommandTeam(void)
 		if (client.index < 0)
 			continue;
 
+		if (client.ent == nullptr)
+			continue;
+
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != m_team || client.ent == GetEntity())
 			continue;
 
@@ -1864,6 +1865,9 @@ bool Bot::IsGroupOfEnemies(Vector location, int numEnemies, float radius)
 		if (client.index < 0)
 			continue;
 
+		if (client.ent == nullptr)
+			continue;
+
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team == m_team)
 			continue;
 
@@ -1909,7 +1913,7 @@ void Bot::CheckReload(void)
 		}
 
 		int weaponIndex = -1;
-		int maxClip = CheckMaxClip(weapons, &weaponIndex);
+		const int maxClip = CheckMaxClip(weapons, &weaponIndex);
 
 		if (m_ammoInClip[weaponIndex] < maxClip * 0.8f && g_weaponDefs[weaponIndex].ammo1 != -1 && g_weaponDefs[weaponIndex].ammo1 < 32 && m_ammo[g_weaponDefs[weaponIndex].ammo1] > 0)
 		{

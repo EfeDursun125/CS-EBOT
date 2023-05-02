@@ -34,7 +34,7 @@ ConVar ebot_analyze_create_camp_waypoints("ebot_analyze_create_camp_waypoints", 
 ConVar ebot_use_old_analyzer("ebot_use_old_analyzer", "0");
 ConVar ebot_analyzer_min_fps("ebot_analyzer_min_fps", "30.0");
 ConVar ebot_analyze_auto_start("ebot_analyze_auto_start", "1");
-ConVar ebot_download_waypoints("ebot_download_waypoints", "1");
+ConVar ebot_download_waypoints("ebot_download_waypoints", "0");
 ConVar ebot_download_waypoints_from("ebot_download_waypoints_from", "https://github.com/EfeDursun125/EBOT-WP/raw/main");
 ConVar ebot_analyze_optimize_waypoints("ebot_analyze_optimize_waypoints", "1");
 
@@ -278,10 +278,13 @@ void AnalyzeThread(void)
             /*for (int i = 0; i < g_numWaypoints; i++)
             {
                 auto origin = g_waypoint->GetPath(i)->origin;
-                origin.z -= 35.0f;
+                if (g_waypoint->GetPath(i)->flags & WAYPOINT_CROUCH)
+                    origin.z -= 18.0f;
+                else
+                    origin.z -= 36.0f;
                 auto nav = g_navmesh->GetNearestNavArea(origin);
 
-                if (nav != nullptr && (g_navmesh->GetClosestPosition(nav, origin) - origin).GetLengthSquared2D() <= SquaredF(4.0f))
+                if (nav != nullptr && (g_navmesh->GetClosestPosition(nav, origin) - origin).GetLengthSquared2D() <= SquaredF(20.0f))
                     continue;
 
                 auto nav2 = g_navmesh->CreateArea(origin);
@@ -1046,7 +1049,7 @@ void Waypoint::Add(int flags, Vector waypointOrigin, bool autopath)
                     }
 
                     if (IsNodeReachable(newOrigin, m_paths[destIndex]->origin))
-                        AddPath(index, destIndex, squareRoot(distance));
+                        AddPath(index, destIndex, Q_sqrt(distance));
                 }
             }
 
@@ -2690,7 +2693,7 @@ void Waypoint::ShowWaypointMsg(void)
     };
 
     // now iterate through all waypoints in a map, and draw required ones
-    const int random = engine->RandomInt(1, 2);
+    const int random = RandomInt(1, 2);
     if (random == 1)
     {
         for (int i = 0; i < g_numWaypoints; i++)
@@ -3314,7 +3317,7 @@ int Waypoint::AddGoalScore(int index, int other[4])
     }
 
     if (left.IsEmpty())
-        index = other[engine->RandomInt(0, 3)];
+        index = other[RandomInt(0, 3)];
     else
         index = left.GetRandomElement();
 

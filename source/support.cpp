@@ -122,6 +122,21 @@ float GetShootingConeDeviation(edict_t* ent, Vector* position)
 	return g_pGlobals->v_forward | dir;
 }
 
+float DotProduct(const Vector& a, const Vector& b)
+{
+	return (a.x * b.x + a.y * b.y + a.z * b.z);
+}
+
+float DotProduct2D(const Vector& a, const Vector& b)
+{
+	return (a.x * b.x + a.y * b.y);
+}
+
+Vector CrossProduct(const Vector& a, const Vector& b)
+{
+	return Vector(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
+}
+
 bool IsInViewCone(Vector origin, edict_t* ent)
 {
 	if (FNullEnt(ent))
@@ -695,6 +710,12 @@ void RoundInit(void)
 
 	for (const auto& client : g_clients)
 	{
+		if (client.index < 0)
+			continue;
+
+		if (client.ent == nullptr)
+			continue;
+
 		if (g_botManager->GetBot(client.index) != nullptr)
 			g_botManager->GetBot(client.index)->NewRound();
 
@@ -1036,11 +1057,6 @@ bool IsDeathmatchMode(void)
 	return (ebot_gamemod.GetInt() == MODE_DM || ebot_gamemod.GetInt() == MODE_TDM);
 }
 
-bool ChanceOf(int number)
-{
-	return engine->RandomInt(1, 100) <= number;
-}
-
 bool IsValidWaypoint(int index)
 {
 	if (index < 0 || index > g_numWaypoints)
@@ -1052,36 +1068,6 @@ bool IsValidWaypoint(int index)
 int GetGameMode(void)
 {
 	return ebot_gamemod.GetInt();
-}
-
-float Clamp(float a, float b, float c)
-{
-	return (a > c ? c : (a < b ? b : a));
-}
-
-float SquaredF(float a)
-{
-	return a * a;
-}
-
-float AddTime(float a)
-{
-	return g_pGlobals->time + a;
-}
-
-float MaxFloat(float a, float b)
-{
-	return a > b ? a : b;
-}
-
-float MinFloat(float a, float b)
-{
-	return a < b ? a : b;
-}
-
-int MinInt(int a, int b)
-{
-	return a < b ? a : b;
 }
 
 bool IsBreakable(edict_t* ent)
@@ -1413,9 +1399,9 @@ void HudMessage(edict_t* ent, bool toCenter, const Color& rgb, char* format, ...
 	WRITE_BYTE(static_cast <int> (rgb.green));
 	WRITE_BYTE(static_cast <int> (rgb.blue));
 	WRITE_BYTE(0);
-	WRITE_BYTE(engine->RandomInt(230, 255));
-	WRITE_BYTE(engine->RandomInt(230, 255));
-	WRITE_BYTE(engine->RandomInt(230, 255));
+	WRITE_BYTE(RandomInt(230, 255));
+	WRITE_BYTE(RandomInt(230, 255));
+	WRITE_BYTE(RandomInt(230, 255));
 	WRITE_BYTE(200);
 	WRITE_SHORT(FixedUnsigned16(0.0078125, 1 << 8));
 	WRITE_SHORT(FixedUnsigned16(2, 1 << 8));
@@ -1541,14 +1527,11 @@ edict_t* FindEntityInSphere(edict_t* startEnt, const Vector& vecCenter, const fl
 
 	for (int i = start; i < entityNum; i++)
 	{
-		if (g_entityId[i] == -1)
-			continue;
-
-		auto newEnt = INDEXENT(g_entityId[i]);
+		auto newEnt = INDEXENT(i);
 		if (FNullEnt(newEnt))
 			continue;
 
-		if ((newEnt->v.origin - vecCenter).GetLengthSquared() > squaredDistance)
+		if ((GetEntityOrigin(newEnt) - vecCenter).GetLengthSquared() > squaredDistance)
 			continue;
 
 		return newEnt;
@@ -1783,25 +1766,30 @@ void MOD_AddLogEntry(int mod, char* format)
 // be filled with bot pointer, else with edict pointer(!).
 bool FindNearestPlayer(void** pvHolder, edict_t* to, float searchDistance, bool sameTeam, bool needBot, bool isAlive, bool needDrawn)
 {
-	edict_t* ent = nullptr, * survive = nullptr; // pointer to temporaly & survive entity
+	edict_t* survive = nullptr; // pointer to temporaly & survive entity
 	float nearestPlayer = FLT_MAX; // nearest player
 
 	const Vector toOrigin = GetEntityOrigin(to);
 
-	while (!FNullEnt(ent = FindEntityInSphere(ent, toOrigin, searchDistance)))
+	for (const auto& client : g_clients)
 	{
-		if (FNullEnt(ent) || !IsValidPlayer(ent) || to == ent)
-			continue; // skip invalid players
+		if (client.index < 0)
+			continue;
 
-		if ((sameTeam && GetTeam(ent) != GetTeam(to)) || (isAlive && !IsAlive(ent)) || (needBot && !IsValidBot(ent)) || (needDrawn && (ent->v.effects & EF_NODRAW)))
+		if (client.ent == nullptr)
+			continue;
+
+		if (client.ent == client.ent)
+			continue;
+
+		if ((sameTeam && client.team != GetTeam(to)) || (isAlive && !IsAlive(client.ent)) || (needBot && !IsValidBot(client.index)) || (needDrawn && (client.ent->v.effects & EF_NODRAW)))
 			continue; // filter players with parameters
 
-		float distance = (GetEntityOrigin(ent) - toOrigin).GetLengthSquared();
-
+		const float distance = (client.origin - toOrigin).GetLengthSquared();
 		if (distance < nearestPlayer)
 		{
 			nearestPlayer = distance;
-			survive = ent;
+			survive = client.ent;
 		}
 	}
 
@@ -1837,10 +1825,13 @@ void SoundAttachToThreat(edict_t* ent, const char* sample, float volume)
 			if (client.index < 0)
 				continue;
 
+			if (client.ent == nullptr)
+				continue;
+
 			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE))
 				continue;
 
-			float distance = (client.origin - origin).GetLengthSquared();
+			const float distance = (client.origin - origin).GetLengthSquared();
 
 			// now find nearest player
 			if (distance < nearestDistance)
@@ -1981,7 +1972,7 @@ unsigned int GetPlayerPriority(edict_t* player)
 		return lowestPriority;
 
 	// human players have highest priority
-	auto bot = g_botManager->GetBot(player);
+	const auto bot = g_botManager->GetBot(player);
 	if (bot != nullptr)
 	{
 		// bots doing something important for the current scenario have high priority
@@ -1998,26 +1989,11 @@ unsigned int GetPlayerPriority(edict_t* player)
 		}
 
 		// get my index
-		int index = bot->m_index + 3;
+		const int index = bot->m_index + 3;
 
 		// everyone else is ranked by their unique ID (which cannot be zero)
 		return index;
 	}
 
 	return 1;
-}
-
-float DotProduct(const Vector& a, const Vector& b)
-{
-	return (a.x * b.x + a.y * b.y + a.z * b.z);
-}
-
-float DotProduct2D(const Vector& a, const Vector& b)
-{
-	return (a.x * b.x + a.y * b.y);
-}
-
-Vector CrossProduct(const Vector& a, const Vector& b)
-{
-	return Vector(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
 }

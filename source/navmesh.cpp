@@ -168,7 +168,7 @@ float EuclideanDistance(const Vector start, const Vector goal)
     const float x = fabsf(start.x - goal.x);
     const float y = fabsf(start.y - goal.y);
     const float z = fabsf(start.z - goal.z);
-    const float euclidean = squareRoot(power(x, 2.0f) + power(y, 2.0f) + power(z, 2.0f));
+    const float euclidean = Q_sqrt(powf(x, 2.0f) + powf(y, 2.0f) + powf(z, 2.0f));
     return 1000.0f * (ceilf(euclidean) - euclidean);
 }
 
@@ -364,8 +364,8 @@ void NavMesh::ExpandNavArea(NavArea* area, const float radius)
                 {
                     if (m_area[j] == area)
                         continue;
-
-                    if (DoNavAreasIntersect(area, m_area[j]))
+                    
+                    if (DoNavAreasIntersect(area, m_area[j]))//(GetClosestPosition(m_area[j], newCorner) - newCorner).GetLengthSquared2D() <= SquaredF(10.0f))
                     {
                         intersect = true;
                         break;
@@ -406,11 +406,30 @@ void NavMesh::ExpandNavArea(NavArea* area, const float radius)
 
 void NavMesh::OptimizeNavMesh(void)
 {
-    /*for (int i = 0; i < g_numNavAreas; i++)
+    for (int i = 0; i < g_numNavAreas; i++)
     {
         auto area = GetNavArea(i);
         if (area == nullptr)
             continue;
+
+        for (int j = 0; j < g_numNavAreas; j++)
+        {
+            auto newArea = GetNavArea(j);
+            if (newArea == nullptr)
+                continue;
+
+            if (DoNavAreasIntersect(area, newArea, 0.01f))
+            {
+                const float size1 = GetNavAreaSize(area);
+                const float size2 = GetNavAreaSize(newArea);
+                if (size1 < size2)
+                    DeleteArea(area);
+                else
+                    DeleteArea(newArea);
+            }
+        }
+
+        /*
 
         Array<NavArea*> mergeList;
         mergeList.Push(area);
@@ -451,8 +470,20 @@ void NavMesh::OptimizeNavMesh(void)
 
             if (target == nullptr)
                 continue;
-        }
-    }*/
+        }*/
+    }
+}
+
+float NavMesh::GetNavAreaSize(const NavArea* area)
+{
+    if (area == nullptr)
+        return 0.0f;
+
+    float totalSize = 0.0f;
+    for (int i = 0; i < 4; i++)
+        totalSize += (area->corners[i] - ((area->corners[0] + area->corners[1] + area->corners[2] + area->corners[3]) * 0.25f)).GetLengthSquared2D();
+
+    return Q_sqrt(totalSize);
 }
 
 // this function returns the squared distance between a point and a line segment
@@ -580,7 +611,7 @@ NavArea* NavMesh::GetNearestNavArea(const Vector origin)
     return area;
 }
 
-Vector NavMesh::GetCenter(NavArea* area)
+Vector NavMesh::GetCenter(const NavArea* area)
 {
     if (area == nullptr)
         return nullvec;
@@ -594,7 +625,7 @@ Vector NavMesh::GetCornerPosition(NavArea* area, int corner)
         return nullvec;
 
     if (corner < 0 || corner > 3)
-        corner = engine->RandomInt(0, 3);
+        corner = RandomInt(0, 3);
 
     return area->corners[corner];
 }

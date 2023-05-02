@@ -37,14 +37,6 @@ float Engine::RandomFloat(float low, float high)
     return RANDOM_FLOAT(low, high);
 }
 
-int Engine::RandomInt(int low, int high)
-{
-    if (low >= high)
-        return low;
-
-    return RANDOM_LONG(low, high);
-}
-
 void Engine::RegisterVariable(const char* variable, const char* value, VarType varType, ConVar* self)
 {
     VarPair newVariable;
@@ -273,6 +265,9 @@ void Engine::MaintainClients(void)
     for (const auto& client : g_clients)
     {
         if (client.index < 0)
+            continue;
+
+        if (client.ent == nullptr)
             continue;
 
         m_clients[client.index].Maintain(g_engfuncs.pfnPEntityOfEntIndex(client.index));

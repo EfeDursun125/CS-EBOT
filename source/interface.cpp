@@ -118,10 +118,13 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 			if (client.index < 0)
 				continue;
 
+			if (client.ent == nullptr)
+				continue;
+
 			if (!(client.flags & CFLAG_USED))
 				continue;
 
-			if (IsValidBot(client.ent))
+			if (IsValidBot(client.index))
 				FakeClientCommand(client.ent, "chooseteam; menuselect %d; menuselect 5", GetTeam(client.ent) == TEAM_COUNTER ? 1 : 2);
 			else
 				(*g_engfuncs.pfnClientCommand) (client.ent, "chooseteam; menuselect %d", GetTeam(client.ent) == TEAM_COUNTER ? 1 : 2);
@@ -208,7 +211,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 #endif
 			"+---------------------------------------------------------------------------------+\n";
 
-		HudMessage(ent, true, Color(engine->RandomInt(33, 255), engine->RandomInt(33, 255), engine->RandomInt(33, 255)), aboutData);
+		HudMessage(ent, true, Color(RandomInt(33, 255), RandomInt(33, 255), RandomInt(33, 255)), aboutData);
 	}
 
 	// displays version information
@@ -333,7 +336,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		if (stricmp(arg0, "randgen") == 0)
 		{
 			for (int i = 0; i < 500; i++)
-				ServerPrintNoTag("Result Range[0 - 100]: %d", engine->RandomInt(0, 100));
+				ServerPrintNoTag("Result Range[0 - 100]: %d", RandomInt(0, 100));
 		}
 	}
 
@@ -2359,23 +2362,23 @@ void ClientCommand(edict_t* ent)
 				switch (selection)
 				{
 				case 1:
-					g_storeAddbotVars[0] = engine->RandomInt(0, 20);
+					g_storeAddbotVars[0] = RandomInt(0, 20);
 					break;
 
 				case 2:
-					g_storeAddbotVars[0] = engine->RandomInt(20, 40);
+					g_storeAddbotVars[0] = RandomInt(20, 40);
 					break;
 
 				case 3:
-					g_storeAddbotVars[0] = engine->RandomInt(40, 60);
+					g_storeAddbotVars[0] = RandomInt(40, 60);
 					break;
 
 				case 4:
-					g_storeAddbotVars[0] = engine->RandomInt(60, 80);
+					g_storeAddbotVars[0] = RandomInt(60, 80);
 					break;
 
 				case 5:
-					g_storeAddbotVars[0] = engine->RandomInt(80, 99);
+					g_storeAddbotVars[0] = RandomInt(80, 99);
 					break;
 
 				case 6:
@@ -2872,7 +2875,7 @@ void SetPing(edict_t* to)
 		if (bot == nullptr)
 			continue;
 
-		const int index = bot->GetIndex();
+		const int index = bot->m_index;
 		switch (sending)
 		{
 		case 0:
@@ -2934,6 +2937,9 @@ void JustAStuff(void)
 		for (const auto& client : g_clients)
 		{
 			if (client.index < 0)
+				continue;
+
+			if (client.ent == nullptr)
 				continue;
 
 			edict_t* player = client.ent;
