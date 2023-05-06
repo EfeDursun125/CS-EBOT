@@ -12,4 +12,4 @@ https://github.com/EfeDursun125/EBOT-WP
 3. Put ebot folder to "cstrike\addons"
 4. Open "cstrike\addons\metamod\plugins.ini"
 5. (For Windows) Add that line "win32 addons\ebot\dlls\ebot.dll" and save it.
-6. (For Linux) Add that line "linux addons\ebot\dlls\ebot.so" and save it.
+6. (For Linux) Add that line "linux addons/ebot/dlls/ebot.so" and save it.
