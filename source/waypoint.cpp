@@ -37,6 +37,7 @@ ConVar ebot_analyze_auto_start("ebot_analyze_auto_start", "1");
 ConVar ebot_download_waypoints("ebot_download_waypoints", "0");
 ConVar ebot_download_waypoints_from("ebot_download_waypoints_from", "https://github.com/EfeDursun125/EBOT-WP/raw/main");
 ConVar ebot_analyze_optimize_waypoints("ebot_analyze_optimize_waypoints", "1");
+ConVar ebot_waypoint_size("ebot_waypoint_size", "7");
 
 // this function initialize the waypoint structures..
 void Waypoint::Initialize(void)
@@ -169,7 +170,7 @@ void AnalyzeThread(void)
 
             HudMessage(g_hostEntity, true, Color(100, 100, 255), message);
         }
-        else if (!IsDedicatedServer()) // let the player join first...
+        else if (!IsDedicatedServer() && engine->GetTime() <= 10.0f) // let the player join first...
             return;
 
         static float magicTimer;
@@ -282,13 +283,20 @@ void AnalyzeThread(void)
                     origin.z -= 18.0f;
                 else
                     origin.z -= 36.0f;
-                auto nav = g_navmesh->GetNearestNavArea(origin);
 
-                if (nav != nullptr && (g_navmesh->GetClosestPosition(nav, origin) - origin).GetLengthSquared2D() <= SquaredF(20.0f))
+                g_navmesh->CreateArea(origin);
+            }
+
+            for (int i = 0; i < g_numNavAreas; i++)
+            {
+                auto area = g_navmesh->GetNavArea(i);
+                if (area == nullptr)
                     continue;
 
-                auto nav2 = g_navmesh->CreateArea(origin);
-            }*/
+                g_navmesh->ExpandNavArea(area, 20.0f);
+            }
+
+            g_navmesh->OptimizeNavMesh();*/
 
             g_waypoint->Save();
             g_waypoint->Load();
@@ -1049,7 +1057,7 @@ void Waypoint::Add(int flags, Vector waypointOrigin, bool autopath)
                     }
 
                     if (IsNodeReachable(newOrigin, m_paths[destIndex]->origin))
-                        AddPath(index, destIndex, Q_sqrt(distance));
+                        AddPath(index, destIndex, csqrt(distance));
                 }
             }
 
@@ -1955,9 +1963,27 @@ void Waypoint::SaveOLD(void)
                 // check if we got a valid connection
                 if (m_paths[i]->index[x] != -1 && (m_paths[i]->connectionFlags[x] & PATHFLAG_JUMP))
                 {
-                    m_paths[i]->connectionVelocity[x].x = (m_paths[m_paths[i]->index[x]]->origin.x - m_paths[i]->origin.x) * 2.0f;
-                    m_paths[i]->connectionVelocity[x].y = (m_paths[m_paths[i]->index[x]]->origin.y - m_paths[i]->origin.y) * 2.0f;
-                    m_paths[i]->connectionVelocity[x].z = (m_paths[m_paths[i]->index[x]]->origin.z - m_paths[i]->origin.z) * 2.0f;
+                    Vector myOrigin = m_paths[i]->origin;
+                    Vector waypointOrigin = m_paths[m_paths[i]->index[x]]->origin;
+
+                    if (m_paths[m_paths[i]->index[x]]->flags & WAYPOINT_CROUCH)
+                        waypointOrigin.z -= 18.0f;
+                    else
+                        waypointOrigin.z -= 36.0f;
+
+                    if (m_paths[i]->flags & WAYPOINT_CROUCH)
+                        myOrigin.z -= 18.0f;
+                    else
+                        myOrigin.z -= 36.0f;
+
+                    const float timeToReachWaypoint = csqrt(powf(waypointOrigin.x - myOrigin.x, 2.0f) + powf(waypointOrigin.y - myOrigin.y, 2.0f)) / 250.0f;
+                    m_paths[i]->connectionVelocity[x].x = (waypointOrigin.x - myOrigin.x) / timeToReachWaypoint;
+                    m_paths[i]->connectionVelocity[x].y = (waypointOrigin.y - myOrigin.y) / timeToReachWaypoint;
+                    m_paths[i]->connectionVelocity[x].z = 2.0f * (waypointOrigin.z - myOrigin.z - 0.5f * 1.0f * powf(timeToReachWaypoint, 2.0f)) / timeToReachWaypoint;
+
+                    const float limit = (250.0f * 1.25f);
+                    if (m_paths[i]->connectionVelocity[x].z > limit)
+                        m_paths[i]->connectionVelocity[x].z = limit;
                 }
             }
         }
@@ -2668,11 +2694,11 @@ void Waypoint::ShowWaypointMsg(void)
 
                 // draw node without additional flags
                 if (nodeFlagColor.red == -1)
-                    engine->DrawLine(g_hostEntity, m_paths[i]->origin - Vector(0.0f, 0.0f, nodeHalfHeight), m_paths[i]->origin + Vector(0.0f, 0.0f, nodeHalfHeight), nodeColor, 7, 0, 0, 10);
+                    engine->DrawLine(g_hostEntity, m_paths[i]->origin - Vector(0.0f, 0.0f, nodeHalfHeight), m_paths[i]->origin + Vector(0.0f, 0.0f, nodeHalfHeight), nodeColor, ebot_waypoint_size.GetFloat(), 0, 0, 10);
                 else // draw node with flags
                 {
-                    engine->DrawLine(g_hostEntity, m_paths[i]->origin - Vector(0.0f, 0.0f, nodeHalfHeight), m_paths[i]->origin - Vector(0.0f, 0.0f, nodeHalfHeight - nodeHeight * 0.75f), nodeColor, 7, 0, 0, 10); // draw basic path
-                    engine->DrawLine(g_hostEntity, m_paths[i]->origin - Vector(0.0f, 0.0f, nodeHalfHeight - nodeHeight * 0.75f), m_paths[i]->origin + Vector(0.0f, 0.0f, nodeHalfHeight), nodeFlagColor, 7, 0, 0, 10); // draw additional path
+                    engine->DrawLine(g_hostEntity, m_paths[i]->origin - Vector(0.0f, 0.0f, nodeHalfHeight), m_paths[i]->origin - Vector(0.0f, 0.0f, nodeHalfHeight - nodeHeight * 0.75f), nodeColor, ebot_waypoint_size.GetFloat(), 0, 0, 10); // draw basic path
+                    engine->DrawLine(g_hostEntity, m_paths[i]->origin - Vector(0.0f, 0.0f, nodeHalfHeight - nodeHeight * 0.75f), m_paths[i]->origin + Vector(0.0f, 0.0f, nodeHalfHeight), nodeFlagColor, ebot_waypoint_size.GetFloat(), 0, 0, 10); // draw additional path
                 }
 
                 if (m_paths[i]->flags & WAYPOINT_FALLCHECK || m_paths[i]->flags & WAYPOINT_WAITUNTIL)
@@ -2680,9 +2706,9 @@ void Waypoint::ShowWaypointMsg(void)
                     TraceResult tr;
                     TraceLine(m_paths[i]->origin, m_paths[i]->origin - Vector(0.0f, 0.0f, 60.0f), false, false, g_hostEntity, &tr);
                     if (tr.flFraction == 1.0f)
-                        engine->DrawLine(g_hostEntity, m_paths[i]->origin, m_paths[i]->origin - Vector(0.0f, 0.0f, 60.0f), Color(255, 0, 0, 255), 6, 0, 0, 10);
+                        engine->DrawLine(g_hostEntity, m_paths[i]->origin, m_paths[i]->origin - Vector(0.0f, 0.0f, 60.0f), Color(255, 0, 0, 255), ebot_waypoint_size.GetFloat() - 1.0f, 0, 0, 10);
                     else
-                        engine->DrawLine(g_hostEntity, m_paths[i]->origin, m_paths[i]->origin - Vector(0.0f, 0.0f, 60.0f), Color(0, 0, 255, 255), 6, 0, 0, 10);
+                        engine->DrawLine(g_hostEntity, m_paths[i]->origin, m_paths[i]->origin - Vector(0.0f, 0.0f, 60.0f), Color(0, 0, 255, 255), ebot_waypoint_size.GetFloat() - 1.0f, 0, 0, 10);
                 }
 
                 m_waypointDisplayTime[i] = engine->GetTime();
@@ -2693,7 +2719,7 @@ void Waypoint::ShowWaypointMsg(void)
     };
 
     // now iterate through all waypoints in a map, and draw required ones
-    const int random = RandomInt(1, 2);
+    const int random = CRandomInt(1, 2);
     if (random == 1)
     {
         for (int i = 0; i < g_numWaypoints; i++)
@@ -3317,7 +3343,7 @@ int Waypoint::AddGoalScore(int index, int other[4])
     }
 
     if (left.IsEmpty())
-        index = other[RandomInt(0, 3)];
+        index = other[CRandomInt(0, 3)];
     else
         index = left.GetRandomElement();
 

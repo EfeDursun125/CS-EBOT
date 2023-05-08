@@ -102,7 +102,7 @@ short FixedSigned16(float value, float scale)
 	return static_cast <short> (output);
 }
 
-bool IsAlive(edict_t* ent)
+bool IsAlive(const edict_t* ent)
 {
 	if (FNullEnt(ent))
 		return false; // reliability check
@@ -110,7 +110,7 @@ bool IsAlive(edict_t* ent)
 	return (ent->v.deadflag == DEAD_NO) && (ent->v.health > 0) && (ent->v.movetype != MOVETYPE_NOCLIP);
 }
 
-float GetShootingConeDeviation(edict_t* ent, Vector* position)
+float GetShootingConeDeviation(edict_t* ent, const Vector* position)
 {
 	if (FNullEnt(ent))
 		return 0.0f;
@@ -137,14 +137,14 @@ Vector CrossProduct(const Vector& a, const Vector& b)
 	return Vector(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
 }
 
-bool IsInViewCone(Vector origin, edict_t* ent)
+bool IsInViewCone(const Vector& origin, edict_t* ent)
 {
 	if (FNullEnt(ent))
 		return true;
 
 	MakeVectors(ent->v.v_angle);
 
-	if (((origin - (GetEntityOrigin(ent) + ent->v.view_ofs)).Normalize() | g_pGlobals->v_forward) >= cosf(((ent->v.fov > 0 ? ent->v.fov : 90.0f) * 0.5f) * (Math::MATH_PI * 0.00555555555f)))
+	if (((origin - (GetEntityOrigin(ent) + ent->v.view_ofs)).Normalize() | g_pGlobals->v_forward) >= cosf(((ent->v.fov > 0 ? ent->v.fov : 90.0f) * 0.5f) * 0.0174532925f))
 		return true;
 
 	return false;
@@ -1129,8 +1129,6 @@ int GetTeam(edict_t* ent)
 	else
 		player_team = *((int*)ent->pvPrivateData + OFFSET_TEAM) - 1;
 
-	g_clients[client].team = player_team;
-
 	return player_team;
 }
 
@@ -1399,9 +1397,9 @@ void HudMessage(edict_t* ent, bool toCenter, const Color& rgb, char* format, ...
 	WRITE_BYTE(static_cast <int> (rgb.green));
 	WRITE_BYTE(static_cast <int> (rgb.blue));
 	WRITE_BYTE(0);
-	WRITE_BYTE(RandomInt(230, 255));
-	WRITE_BYTE(RandomInt(230, 255));
-	WRITE_BYTE(RandomInt(230, 255));
+	WRITE_BYTE(CRandomInt(230, 255));
+	WRITE_BYTE(CRandomInt(230, 255));
+	WRITE_BYTE(CRandomInt(230, 255));
 	WRITE_BYTE(200);
 	WRITE_SHORT(FixedUnsigned16(0.0078125, 1 << 8));
 	WRITE_SHORT(FixedUnsigned16(2, 1 << 8));

@@ -110,14 +110,14 @@ char* HumanizeName(char* name)
     strcpy(outputName, name); // copy name to new buffer
 
     // drop tag marks, 80 percent of time
-    if (RandomInt(1, 100) < 80)
+    if (CRandomInt(1, 100) < 80)
         StripTags(outputName);
     else
         strtrim(outputName);
 
     // sometimes switch name to lower characters
     // note: since we're using russian names written in english, we reduce this shit to 6 percent
-    if (RandomInt(1, 100) <= 6)
+    if (CRandomInt(1, 100) <= 6)
     {
         for (int i = 0; i < static_cast <int> (strlen(outputName)); i++)
             outputName[i] = static_cast <char> (tolower(outputName[i])); // to lower case
@@ -316,14 +316,14 @@ void Bot::PrepareChatMessage(char* text)
             {
                 if (g_gameVersion == CSVER_CZERO)
                 {
-                    if (RandomInt(1, 100) < 30)
+                    if (CRandomInt(1, 100) < 30)
                         strcat(m_tempStrings, "CZ");
                     else
                         strcat(m_tempStrings, "Condition Zero");
                 }
                 else if ((g_gameVersion == CSVER_CSTRIKE) || (g_gameVersion == CSVER_VERYOLD))
                 {
-                    if (RandomInt(1, 100) < 30)
+                    if (CRandomInt(1, 100) < 30)
                         strcat(m_tempStrings, "CS");
                     else
                         strcat(m_tempStrings, "Counter-Strike");
@@ -419,15 +419,15 @@ bool Bot::RepliesToPlayer(void)
 
 void Bot::ChatSay(bool teamSay, const char* text, ...)
 {
+    // humanize chat
+    if (m_lastChatEnt == GetEntity())
+        return;
+
     if (IsNullString(text))
         return;
 
     // block looping same message.
     if (!IsNullString(m_lastStrings) && m_lastStrings == text)
-        return;
-
-    // humanize chat
-    if (m_lastChatEnt == GetEntity())
         return;
 
     char botName[80];
@@ -446,6 +446,7 @@ void Bot::ChatSay(bool teamSay, const char* text, ...)
 
     strcpy(botName, GetEntityName(GetEntity()));
 
+    const int index = g_netMsg->GetId(NETMSG_SAYTEXT);
     for (const auto& client : g_clients)
     {
         if (client.index < 0)
@@ -475,7 +476,7 @@ void Bot::ChatSay(bool teamSay, const char* text, ...)
         m_lastStrings[160] = *text;
         m_lastChatEnt = GetEntity();
 
-        MESSAGE_BEGIN(MSG_ONE, g_netMsg->GetId(NETMSG_SAYTEXT), nullptr, client.ent);
+        MESSAGE_BEGIN(MSG_ONE, index, nullptr, client.ent);
         WRITE_BYTE(m_index);
         WRITE_STRING(tempMessage);
         MESSAGE_END();

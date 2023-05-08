@@ -1,4 +1,9 @@
-﻿#include <core.h>
+﻿//
+// Custom Math For EBot
+//
+
+#include <core.h>
+#include <xmmintrin.h>
 
 int g_seed;
 inline int frand()
@@ -7,38 +12,24 @@ inline int frand()
 	return (g_seed >> 16) & 0x7FFF;
 }
 
-int RandomInt(int min, int max)
+int CRandomInt(int min, int max)
 {
-	if (min == max)
+	/*if (min == max)
 		return min;
 	else if (min > max)
-		return frand() % (min - max + 1) + max;
+		return frand() % (min - max + 1) + max;*/
 
 	return frand() % (max - min + 1) + min;
 }
 
-float Q_sqrt(float number)
+float csqrt(float number)
 {
-	long i;
-	float x2, y;
-	x2 = number * 0.5f;
-	y = number;
-	i = *(long*)&y;
-	i = 0x5f3759df - (i >> 1);
-	y = *(float*)&i;
-	return y * number;
+	return _mm_cvtss_f32(_mm_rsqrt_ss(_mm_load_ss(&number)));;
 }
 
-float Q_rsqrt(float number)
+float crsqrt(float number)
 {
-	long i;
-	float x2, y;
-	x2 = number * 0.5f;
-	y = number;
-	i = *(long*)&y;
-	i = 0x5f3759df - (i >> 1);
-	y = *(float*)&i;
-	return y;
+	return _mm_cvtss_f32(_mm_rsqrt_ss(_mm_load_ss(&number)));;
 }
 
 float Clamp(float a, float b, float c)
@@ -73,5 +64,5 @@ int MinInt(int a, int b)
 
 bool ChanceOf(int number)
 {
-	return RandomInt(1, 100) <= number;
+	return CRandomInt(1, 100) <= number;
 }

@@ -122,28 +122,28 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 		if (ebot_difficulty.GetInt() >= 4)
 			skill = 100;
 		else if (ebot_difficulty.GetInt() == 3)
-			skill = RandomInt(79, 99);
+			skill = CRandomInt(79, 99);
 		else if (ebot_difficulty.GetInt() == 2)
-			skill = RandomInt(50, 79);
+			skill = CRandomInt(50, 79);
 		else if (ebot_difficulty.GetInt() == 1)
-			skill = RandomInt(30, 50);
+			skill = CRandomInt(30, 50);
 		else if (ebot_difficulty.GetInt() == 0)
-			skill = RandomInt(1, 30);
+			skill = CRandomInt(1, 30);
 		else
 		{
 			int maxSkill = ebot_maxskill.GetInt();
 			int minSkill = (ebot_minskill.GetInt() == 0) ? 1 : ebot_minskill.GetInt();
 
 			if (maxSkill <= 100 && minSkill > 0)
-				skill = RandomInt(minSkill, maxSkill);
+				skill = CRandomInt(minSkill, maxSkill);
 			else
-				skill = RandomInt(0, 100);
+				skill = CRandomInt(0, 100);
 		}
 	}
 
 	if (personality < 0 || personality > 2)
 	{
-		int randomPrecent = RandomInt(1, 3);
+		int randomPrecent = CRandomInt(1, 3);
 
 		if (randomPrecent == 1)
 			personality = PERSONALITY_NORMAL;
@@ -193,7 +193,7 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 			}
 		}
 		else
-			sprintf(outputName, "e-bot %i", RandomInt(1, 9999)); // just pick ugly random name
+			sprintf(outputName, "e-bot %i", CRandomInt(1, 9999)); // just pick ugly random name
 	}
 	else
 		sprintf(outputName, "%s", (char*)name);
@@ -306,7 +306,7 @@ void BotControl::DoJoinQuitStuff(void)
 		return;
 
 	// add one more
-	if (RandomInt(1, GetHumansNum()) <= 2);
+	if (CRandomInt(1, GetHumansNum()) <= 2);
 	g_botManager->AddRandom();
 
 	g_botManager->AddRandom();
@@ -599,15 +599,15 @@ void BotControl::FillServer(int selection, int personality, int skill, int numTo
 		int randomizedSkill = 0;
 
 		if (skill >= 0 && skill <= 20)
-			randomizedSkill = RandomInt(0, 20);
+			randomizedSkill = CRandomInt(0, 20);
 		else if (skill >= 20 && skill <= 40)
-			randomizedSkill = RandomInt(20, 40);
+			randomizedSkill = CRandomInt(20, 40);
 		else if (skill >= 40 && skill <= 60)
-			randomizedSkill = RandomInt(40, 60);
+			randomizedSkill = CRandomInt(40, 60);
 		else if (skill >= 60 && skill <= 80)
-			randomizedSkill = RandomInt(60, 80);
+			randomizedSkill = CRandomInt(60, 80);
 		else if (skill >= 80 && skill <= 99)
-			randomizedSkill = RandomInt(80, 99);
+			randomizedSkill = CRandomInt(80, 99);
 		else if (skill == 100)
 			randomizedSkill = skill;
 
@@ -967,8 +967,8 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	if (g_gameVersion == HALFLIFE)
 	{
 		char c_topcolor[4], c_bottomcolor[4];
-		sprintf(c_topcolor, "%d", RandomInt(1, 254));
-		sprintf(c_bottomcolor, "%d", RandomInt(1, 254));
+		sprintf(c_topcolor, "%d", CRandomInt(1, 254));
+		sprintf(c_bottomcolor, "%d", CRandomInt(1, 254));
 		SET_CLIENT_KEYVALUE(clientIndex, buffer, "topcolor", c_topcolor);
 		SET_CLIENT_KEYVALUE(clientIndex, buffer, "bottomcolor", c_bottomcolor);
 	}
@@ -990,7 +990,7 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 		SET_CLIENT_KEYVALUE(clientIndex, buffer, "*bot", "1");
 
 	rejectReason[0] = 0; // reset the reject reason template string
-	MDLL_ClientConnect(bot, "E-BOT", FormatBuffer("%d.%d.%d.%d", RandomInt(1, 255), RandomInt(1, 255), RandomInt(1, 255), RandomInt(1, 255)), rejectReason);
+	MDLL_ClientConnect(bot, "E-BOT", FormatBuffer("%d.%d.%d.%d", CRandomInt(1, 255), CRandomInt(1, 255), CRandomInt(1, 255), CRandomInt(1, 255)), rejectReason);
 
 	// should be set after client connect
 	if (ebot_display_avatar.GetBool() && !g_botManager->m_avatars.IsEmpty())
@@ -1009,18 +1009,18 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	// initialize all the variables for this bot...
 	m_notStarted = true;  // hasn't joined game yet
 	m_difficulty = ebot_difficulty.GetInt(); // set difficulty
-	m_basePingLevel = RandomInt(11, 111);
+	m_basePingLevel = CRandomInt(11, 111);
 
 	m_startAction = CMENU_IDLE;
 	m_moneyAmount = 0;
-	m_logotypeIndex = RandomInt(0, 5);
+	m_logotypeIndex = CRandomInt(0, 5);
 
 	// initialize msec value
 	m_msecInterval = engine->GetTime();
 
 	// assign how talkative this bot will be
 	m_sayTextBuffer.chatDelay = engine->RandomFloat(3.8f, 10.0f);
-	m_sayTextBuffer.chatProbability = RandomInt(1, 100);
+	m_sayTextBuffer.chatProbability = CRandomInt(1, 100);
 
 	m_isAlive = false;
 	m_skill = skill;
@@ -1054,7 +1054,7 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	memset(&m_ammo, 0, sizeof(m_ammo));
 
 	m_currentWeapon = 0; // current weapon is not assigned at start
-	m_voicePitch = RandomInt(80, 120); // assign voice pitch
+	m_voicePitch = CRandomInt(80, 120); // assign voice pitch
 
 	m_agressionLevel = m_baseAgressionLevel;
 	m_fearLevel = m_baseFearLevel;
@@ -1276,7 +1276,7 @@ void Bot::NewRound(void)
 	m_maxhearrange = float(m_skill * engine->RandomFloat(7.0f, 15.0f));
 	m_moveSpeed = pev->maxspeed;
 
-	m_tempstrafeSpeed = RandomInt(1, 2) == 1 ? pev->maxspeed : -pev->maxspeed;
+	m_tempstrafeSpeed = CRandomInt(1, 2) == 1 ? pev->maxspeed : -pev->maxspeed;
 }
 
 // this function kills a bot (not just using ClientKill, but like the CSBot does)
@@ -1332,7 +1332,7 @@ void Bot::StartGame(void)
 {
 	if (g_gameVersion == HALFLIFE)
 	{
-		if (RandomInt(1, 3) == 1)
+		if (CRandomInt(1, 3) == 1)
 			ChatMessage(CHAT_HELLO);
 
 		m_notStarted = false;
@@ -1361,7 +1361,7 @@ void Bot::StartGame(void)
 		m_startAction = CMENU_IDLE;  // switch back to idle
 
 		int maxChoice = g_gameVersion == CSVER_CZERO ? 5 : 4;
-		m_wantedClass = RandomInt(1, maxChoice);
+		m_wantedClass = CRandomInt(1, maxChoice);
 
 		// select the class the bot wishes to use...
 		FakeClientCommand(GetEntity(), "menuselect %d", m_wantedClass);
@@ -1370,12 +1370,12 @@ void Bot::StartGame(void)
 		m_notStarted = false;
 
 		// check for greeting other players, since we connected
-		if (RandomInt(1, 3) == 1)
+		if (CRandomInt(1, 3) == 1)
 			ChatMessage(CHAT_HELLO);
 	}
 	else if ((m_team == TEAM_COUNTER || m_team == TEAM_TERRORIST) && IsAlive(GetEntity())) // something is wrong...
 	{
-		if (RandomInt(1, 3) == 1)
+		if (CRandomInt(1, 3) == 1)
 			ChatMessage(CHAT_HELLO);
 
 		m_notStarted = false;

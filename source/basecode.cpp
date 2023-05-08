@@ -50,7 +50,7 @@ ConVar ebot_breakable_health_limit("ebot_breakable_health_limit", "3000.0");
 // this function get the current message from the bots message queue
 int Bot::GetMessageQueue(void)
 {
-	int message = m_messageQueue[m_actMessageIndex++];
+	const int message = m_messageQueue[m_actMessageIndex++];
 	m_actMessageIndex &= 0x1f; // wraparound
 	return message;
 }
@@ -85,10 +85,10 @@ void Bot::PushMessageQueue(int message)
 	m_pushMessageIndex &= 0x1f; // wraparound
 }
 
-float Bot::InFieldOfView(Vector destination)
+float Bot::InFieldOfView(const Vector& destination)
 {
-	float entityAngle = AngleMod(destination.ToYaw()); // find yaw angle from source to destination...
-	float viewAngle = AngleMod(pev->v_angle.y); // get bot's current view angle...
+	const float entityAngle = AngleMod(destination.ToYaw()); // find yaw angle from source to destination...
+	const float viewAngle = AngleMod(pev->v_angle.y); // get bot's current view angle...
 
 	// return the absolute value of angle to destination entity
 	// zero degrees means straight ahead, 45 degrees to the left or
@@ -101,7 +101,7 @@ float Bot::InFieldOfView(Vector destination)
 	return absoluteAngle;
 }
 
-bool Bot::IsInViewCone(Vector origin)
+bool Bot::IsInViewCone(const Vector& origin)
 {
 	return ::IsInViewCone(origin, GetEntity());
 }
@@ -1013,7 +1013,7 @@ void Bot::FindItem(void)
 				m_itemIgnore = ent;
 				allowPickup = false;
 
-				if (m_skill > 80 && RandomInt(0, 100) < 90)
+				if (m_skill > 80 && CRandomInt(0, 100) < 90)
 				{
 					int index = FindDefendWaypoint(entityOrigin);
 
@@ -1456,7 +1456,7 @@ void Bot::PerformWeaponPurchase(void)
 				{
 					if (gunMode <= BuyWeaponMode(likeGunId[0]))
 					{
-						if ((BuyWeaponMode(likeGunId[1]) > BuyWeaponMode(likeGunId[0])) || (BuyWeaponMode(likeGunId[1]) == BuyWeaponMode(likeGunId[0]) && (RandomInt(1, 2) == 2)))
+						if ((BuyWeaponMode(likeGunId[1]) > BuyWeaponMode(likeGunId[0])) || (BuyWeaponMode(likeGunId[1]) == BuyWeaponMode(likeGunId[0]) && (CRandomInt(1, 2) == 2)))
 							likeGunId[1] = likeGunId[0];
 
 						likeGunId[0] = selectedWeapon->id;
@@ -1479,7 +1479,7 @@ void Bot::PerformWeaponPurchase(void)
 				WeaponSelect* buyWeapon = &g_weaponSelect[0];
 				int weaponId = likeGunId[0];
 				if (likeGunId[1] != 0)
-					weaponId = likeGunId[(RandomInt(1, 7) > 3) ? 0 : 1];
+					weaponId = likeGunId[(CRandomInt(1, 7) > 3) ? 0 : 1];
 
 				for (int i = 0; i < Const_NumWeapons; i++)
 				{
@@ -1506,7 +1506,7 @@ void Bot::PerformWeaponPurchase(void)
 		break;
 
 	case 1:
-		if (pev->armorvalue < RandomInt(40, 80) && (g_botManager->EconomicsValid(m_team) || HasPrimaryWeapon()))
+		if (pev->armorvalue < CRandomInt(40, 80) && (g_botManager->EconomicsValid(m_team) || HasPrimaryWeapon()))
 		{
 			if (m_moneyAmount > 1500 && !IsRestricted(WEAPON_KEVHELM))
 				FakeClientCommand(GetEntity(), "buyequip;menuselect 2");
@@ -1516,7 +1516,7 @@ void Bot::PerformWeaponPurchase(void)
 		break;
 
 	case 2:
-		if ((HasPrimaryWeapon() && m_moneyAmount > RandomInt(6000, 9000)))
+		if ((HasPrimaryWeapon() && m_moneyAmount > CRandomInt(6000, 9000)))
 		{
 			int likeGunId = 0;
 			int loadTime = 0;
@@ -1600,11 +1600,11 @@ void Bot::PerformWeaponPurchase(void)
 			FakeClientCommand(GetEntity(), "menuselect 8");
 		}
 
-		if (RandomInt(1, 2) == 1)
+		if (CRandomInt(1, 2) == 1)
 		{
 			FakeClientCommand(GetEntity(), "buy;menuselect 1");
 
-			if (RandomInt(1, 2) == 1)
+			if (CRandomInt(1, 2) == 1)
 				FakeClientCommand(GetEntity(), "menuselect 4");
 			else
 				FakeClientCommand(GetEntity(), "menuselect 5");
@@ -1652,7 +1652,7 @@ void Bot::PerformWeaponPurchase(void)
 
 	case 6:
 		for (int i = 0; i <= 5; i++)
-			FakeClientCommand(GetEntity(), "buyammo%d", RandomInt(1, 2)); // simulate human
+			FakeClientCommand(GetEntity(), "buyammo%d", CRandomInt(1, 2)); // simulate human
 
 		if (ChanceOf(m_skill))
 			FakeClientCommand(GetEntity(), "buy;menuselect 7");
@@ -1872,7 +1872,7 @@ void Bot::SetConditions(void)
 	if (m_itemCheckTime < engine->GetTime() || !FNullEnt(m_pickupItem))
 	{
 		FindItem();
-		m_itemCheckTime = engine->GetTime() + g_gameVersion == HALFLIFE ? 1.0f : RandomInt(2.0f, 4.0f);
+		m_itemCheckTime = engine->GetTime() + g_gameVersion == HALFLIFE ? 1.0f : CRandomInt(2.0f, 4.0f);
 	}
 
 	float tempFear = m_fearLevel;
@@ -1968,7 +1968,7 @@ void Bot::SetConditions(void)
 		// FIXME: it probably should be also team/map dependant
 		if (FNullEnt(m_enemy) && (g_timeRoundMid < engine->GetTime()) && !m_isUsingGrenade && m_personality != PERSONALITY_CAREFUL && m_currentWaypointIndex != g_waypoint->FindNearest(m_lastEnemyOrigin))
 		{
-			desireLevel = 4096.0f - ((1.0f - tempAgression) * Q_sqrt(distance));
+			desireLevel = 4096.0f - ((1.0f - tempAgression) * csqrt(distance));
 			desireLevel = (100 * desireLevel) / 4096.0f;
 			desireLevel -= retreatLevel;
 
@@ -3779,10 +3779,10 @@ void Bot::Think(void)
 
 		// at least walk randomly
 		if (!IsZombieMode() && !IsValidWaypoint(GetCurrentTask()->data))
-			m_chosenGoalIndex = RandomInt(0, g_numWaypoints - 1);
+			m_chosenGoalIndex = CRandomInt(0, g_numWaypoints - 1);
 
 		if (m_slowthinktimer < engine->GetTime())
-			m_slowthinktimer = engine->GetTime() + RandomInt(0.9f, 1.1f);
+			m_slowthinktimer = engine->GetTime() + CRandomInt(0.9f, 1.1f);
 
 		CalculatePing();
 	}
@@ -3835,7 +3835,7 @@ void Bot::Think(void)
 				}
 
 				// clear the used line buffer every now and then
-				if (m_sayTextBuffer.lastUsedSentences.GetElementNumber() > RandomInt(4, 6))
+				if (m_sayTextBuffer.lastUsedSentences.GetElementNumber() > CRandomInt(4, 6))
 					m_sayTextBuffer.lastUsedSentences.RemoveAll();
 			}
 		}
@@ -3891,7 +3891,7 @@ void Bot::Think(void)
 
 				if (m_currentWeapon == WEAPON_KNIFE)
 				{
-					if (RandomInt(1, 3) == 1)
+					if (CRandomInt(1, 3) == 1)
 						pev->button |= IN_ATTACK;
 					else
 						pev->button |= IN_ATTACK2;
@@ -3985,7 +3985,7 @@ void Bot::CalculatePing(void)
 		PLAYER_CNX_STATS(client.ent, &ping, &loss);
 
 		if (ping <= 0 || ping > 150)
-			ping = RandomInt(5, 50);
+			ping = CRandomInt(5, 50);
 
 		averagePing += ping;
 	}
@@ -3993,14 +3993,14 @@ void Bot::CalculatePing(void)
 	if (numHumans > 0)
 		averagePing /= numHumans;
 	else
-		averagePing = RandomInt(30, 60);
+		averagePing = CRandomInt(30, 60);
 
-	int botPing = m_basePingLevel + RandomInt(averagePing - averagePing * 0.2f, averagePing + averagePing * 0.2f) + RandomInt(m_difficulty + 3, m_difficulty + 6);
+	int botPing = m_basePingLevel + CRandomInt(averagePing - averagePing * 0.2f, averagePing + averagePing * 0.2f) + CRandomInt(m_difficulty + 3, m_difficulty + 6);
 
 	if (botPing <= 9)
-		botPing = RandomInt(9, 19);
+		botPing = CRandomInt(9, 19);
 	else if (botPing > 133)
-		botPing = RandomInt(99, 119);
+		botPing = CRandomInt(99, 119);
 
 	for (int j = 0; j < 2; j++)
 	{
@@ -4236,7 +4236,7 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 			{
 				if (m_team == TEAM_TERRORIST)
 				{
-					if (m_skill >= 80 || RandomInt(0, 100) < m_skill)
+					if (m_skill >= 80 || CRandomInt(0, 100) < m_skill)
 					{
 						const int index = FindDefendWaypoint(g_waypoint->GetPath(m_currentWaypointIndex)->origin);
 						m_campposition = g_waypoint->GetPath(index)->origin;
@@ -4294,7 +4294,7 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 			}
 		}
 	}
-	else if (!HasNextPath()) // no more nodes to follow - search new ones (or we have a momb)
+	else if (!GoalIsValid()) // no more nodes to follow - search new ones (or we have a momb)
 	{
 		destIndex = FindGoal();
 
@@ -4309,6 +4309,8 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 			if (m_currentWaypointIndex != destIndex)
 				FindPath(m_currentWaypointIndex, destIndex);
 		}
+		else
+			FindPath(m_currentWaypointIndex, CRandomInt(1, (g_numWaypoints - 1)));
 	}
 }
 
@@ -4701,7 +4703,7 @@ void Bot::RunTask(void)
 
 		if (IsZombieMode())
 		{
-			if (m_isSlowThink && RandomInt(1, 3) == 1)
+			if (m_isSlowThink && CRandomInt(1, 3) == 1)
 				SelectBestWeapon();
 
 			m_aimFlags |= AIM_CAMP;
@@ -4875,13 +4877,13 @@ void Bot::RunTask(void)
 				}
 
 				if (--numFoundPoints >= 0)
-					m_camp = g_waypoint->GetPath(foundPoints[RandomInt(0, numFoundPoints)])->origin;
+					m_camp = g_waypoint->GetPath(foundPoints[CRandomInt(0, numFoundPoints)])->origin;
 				else
 					m_camp = g_waypoint->GetPath(GetCampAimingWaypoint())->origin;
 			}
 			else
 			{
-				if (!FNullEnt(m_lastEnemy) && IsAlive(m_lastEnemy) && RandomInt(1, 3) == 1 && IsVisible(m_lastEnemyOrigin, GetEntity()))
+				if (!FNullEnt(m_lastEnemy) && IsAlive(m_lastEnemy) && CRandomInt(1, 3) == 1 && IsVisible(m_lastEnemyOrigin, GetEntity()))
 					m_camp = g_waypoint->GetPath(g_waypoint->FindNearest(m_lastEnemyOrigin))->origin;
 				else
 					m_camp = g_waypoint->GetPath(GetCampAimingWaypoint())->origin;
@@ -4993,14 +4995,13 @@ void Bot::RunTask(void)
 			TaskComplete(); // we're done
 			m_prevGoalIndex = -1;
 		}
-
 		// didn't choose goal waypoint yet?
 		else if (!GoalIsValid())
 		{
 			DeleteSearchNodes();
 
 			int forcedestIndex = -1;
-			int goal = GetCurrentTask()->data;
+			const int goal = GetCurrentTask()->data;
 
 			if (IsValidWaypoint(goal))
 				forcedestIndex = goal;
@@ -6541,7 +6542,7 @@ void Bot::BotAI(void)
 
 			if (!IsZombieMode())
 			{
-				if (ebot_spraypaints.GetBool() && RandomInt(1, 10) < 2)
+				if (ebot_spraypaints.GetBool() && CRandomInt(1, 10) < 2)
 					PushTask(TASK_SPRAYLOGO, TASKPRI_SPRAYLOGO, -1, engine->GetTime() + 1.0f, false);
 
 				if (!IsDeathmatchMode() && ChanceOf(m_personality == PERSONALITY_RUSHER ? 99 : m_personality == PERSONALITY_CAREFUL ? 33 : 66) && !m_isReloading && (g_mapType & (MAP_CS | MAP_DE | MAP_ES | MAP_AS)))
@@ -7253,8 +7254,8 @@ Vector Bot::CheckToss(const Vector& start, Vector end)
 		return nullvec;
 
 	const float half = 0.5f * gravity;
-	float timeOne = Q_sqrt((midPoint.z - start.z) / half);
-	float timeTwo = Q_sqrt((midPoint.z - end.z) / half);
+	float timeOne = csqrt((midPoint.z - start.z) / half);
+	float timeTwo = csqrt((midPoint.z - end.z) / half);
 
 	if (timeOne < 0.1)
 		return nullvec;

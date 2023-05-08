@@ -31,9 +31,6 @@ ConVar::ConVar(const char* name, const char* initval, VarType type)
 
 float Engine::RandomFloat(float low, float high)
 {
-    if (low >= high)
-        return low;
-
     return RANDOM_FLOAT(low, high);
 }
 
@@ -65,7 +62,6 @@ void Engine::PushRegisteredConVarsToEngine(void)
     for (int i = 0; i < m_regCount; i++)
     {
         VarPair* ptr = &m_regVars[i];
-
         if (ptr == nullptr)
             break;
 

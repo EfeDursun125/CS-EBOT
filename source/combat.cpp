@@ -406,6 +406,9 @@ Vector Bot::GetAimPosition(void)
 	if (m_visibility == 0)
 	{
 		m_wantsToFire = true;
+		if (m_enemyOrigin == nullvec)
+			m_enemyOrigin = GetEntityOrigin(m_enemy);
+
 		return m_enemyOrigin;
 	}
 
@@ -418,6 +421,8 @@ Vector Bot::GetAimPosition(void)
 
 	// get enemy position initially
 	Vector targetOrigin = m_enemy->v.origin;
+	if (targetOrigin == nullvec)
+		targetOrigin = m_enemyOrigin;
 
 	const float distance = (targetOrigin - pev->origin).GetLengthSquared();
 
@@ -831,7 +836,7 @@ WeaponSelectEnd:
 	}
 
 	// need to care for burst fire?
-	if (g_gameVersion == HALFLIFE || distance < 256.0f || m_blindTime > engine->GetTime())
+	if (g_gameVersion == HALFLIFE || distance <= SquaredF(512.0f) || m_blindTime > engine->GetTime())
 	{
 		if (selectId == melee)
 			KnifeAttack();
@@ -851,10 +856,6 @@ WeaponSelectEnd:
 	}
 	else
 	{
-		const float baseDelay = delay[chosenWeaponIndex].primaryBaseDelay;
-		const float minDelay = delay[chosenWeaponIndex].primaryMinDelay[abs((m_skill / RandomInt(15, 20)) - 5)];
-		const float maxDelay = delay[chosenWeaponIndex].primaryMaxDelay[abs((m_skill / RandomInt(20, 30)) - 5)];
-
 		if (DoFirePause(distance))//, &delay[chosenWeaponIndex]))
 			return;
 
@@ -874,11 +875,14 @@ WeaponSelectEnd:
 		else
 		{
 			pev->button |= IN_ATTACK;  // use primary attack
+			const float baseDelay = delay[chosenWeaponIndex].primaryBaseDelay;
+			const float minDelay = delay[chosenWeaponIndex].primaryMinDelay[abs((m_skill / CRandomInt(15, 20)) - 5)];
+			const float maxDelay = delay[chosenWeaponIndex].primaryMaxDelay[abs((m_skill / CRandomInt(20, 30)) - 5)];
 			delayTime = baseDelay + engine->RandomFloat(minDelay, maxDelay);
 			m_zoomCheckTime = engine->GetTime();
 		}
 
-		if (!FNullEnt(enemy) && distance >= SquaredF(1200.0f))
+		if (distance >= SquaredF(1200.0f))
 		{
 			if (m_visibility & (VISIBILITY_HEAD | VISIBILITY_BODY))
 				delayTime -= (delayTime == 0.0f) ? 0.0f : 0.02f;
@@ -979,7 +983,7 @@ bool Bot::KnifeAttack(float attackDistance)
 				pev->button |= IN_ATTACK;
 			else if (kaMode == 2)
 				pev->button |= IN_ATTACK2;
-			else if (RandomInt(1, 10) < 3 || HasShield())
+			else if (CRandomInt(1, 10) < 3 || HasShield())
 				pev->button |= IN_ATTACK;
 			else
 				pev->button |= IN_ATTACK2;
@@ -1080,9 +1084,9 @@ void Bot::CombatFight(void)
 		DeleteSearchNodes();
 		m_moveSpeed = pev->maxspeed;
 
-		if (m_isSlowThink && !(pev->flags & FL_DUCKING) && RandomInt(1, 2) == 1 && !IsOnLadder() && pev->speed >= pev->maxspeed)
+		if (m_isSlowThink && !(pev->flags & FL_DUCKING) && CRandomInt(1, 2) == 1 && !IsOnLadder() && pev->speed >= pev->maxspeed)
 		{
-			const int random = RandomInt(1, 3);
+			const int random = CRandomInt(1, 3);
 			if (random == 1)
 				pev->button |= IN_JUMP;
 			else if (random == 2)
@@ -1121,7 +1125,7 @@ void Bot::CombatFight(void)
 				}
 				else
 				{
-					if (pev->weapons & (1 << WEAPON_FBGRENADE) && RandomInt(1, 2) == 1)
+					if (pev->weapons & (1 << WEAPON_FBGRENADE) && CRandomInt(1, 2) == 1)
 						ThrowFrostNade();
 					else
 						ThrowFireNade();
@@ -1229,7 +1233,7 @@ void Bot::CombatFight(void)
 		{
 			if (m_currentWeapon == WEAPON_MP5_HL && distance > SquaredF(300.0f) && distance <= SquaredF(800.0f))
 			{
-				if (!(pev->oldbuttons & IN_ATTACK2) && !m_isSlowThink && RandomInt(1, 3) == 1)
+				if (!(pev->oldbuttons & IN_ATTACK2) && !m_isSlowThink && CRandomInt(1, 3) == 1)
 					pev->button |= IN_ATTACK2;
 			}
 			else if (m_currentWeapon == WEAPON_CROWBAR && m_personality != PERSONALITY_CAREFUL)

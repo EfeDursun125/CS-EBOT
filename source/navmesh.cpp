@@ -168,7 +168,7 @@ float EuclideanDistance(const Vector start, const Vector goal)
     const float x = fabsf(start.x - goal.x);
     const float y = fabsf(start.y - goal.y);
     const float z = fabsf(start.z - goal.z);
-    const float euclidean = Q_sqrt(powf(x, 2.0f) + powf(y, 2.0f) + powf(z, 2.0f));
+    const float euclidean = csqrt(powf(x, 2.0f) + powf(y, 2.0f) + powf(z, 2.0f));
     return 1000.0f * (ceilf(euclidean) - euclidean);
 }
 
@@ -253,21 +253,7 @@ NavArea* NavMesh::CreateArea(const Vector origin)
     area->connections.Destory();
     area->bakedDist.Destory();
 
-    ExpandNavArea(area, 50.0f);
-
-    for (int j = 0; j < g_numNavAreas; j++)
-    {
-        if (m_area[j] == area)
-            continue;
-
-        if (IsWalkableTraceLineClear(GetCenter(area), GetCenter(m_area[j])) ? DoNavAreasIntersect(area, m_area[j], 0.33f) : DoNavAreasIntersect(area, m_area[j], 0.15f))
-        {
-            ConnectArea(area, m_area[j]);
-
-            // TODO Add height or fall check
-            ConnectArea(m_area[j], area);
-        }
-    }
+    //ExpandNavArea(area, 50.0f);
 
     PlaySound(g_hostEntity, "weapons/xbow_hit1.wav");
     return area;
@@ -402,6 +388,20 @@ void NavMesh::ExpandNavArea(NavArea* area, const float radius)
             }
         }
     }
+
+    for (int j = 0; j < g_numNavAreas; j++)
+    {
+        if (m_area[j] == area)
+            continue;
+
+        if (IsWalkableTraceLineClear(GetCenter(area), GetCenter(m_area[j])) ? DoNavAreasIntersect(area, m_area[j], 0.33f) : DoNavAreasIntersect(area, m_area[j], 0.15f))
+        {
+            ConnectArea(area, m_area[j]);
+
+            // TODO Add height or fall check
+            ConnectArea(m_area[j], area);
+        }
+    }
 }
 
 void NavMesh::OptimizeNavMesh(void)
@@ -418,7 +418,7 @@ void NavMesh::OptimizeNavMesh(void)
             if (newArea == nullptr)
                 continue;
 
-            if (DoNavAreasIntersect(area, newArea, 0.01f))
+            if (DoNavAreasIntersect(area, newArea, -0.05f))
             {
                 const float size1 = GetNavAreaSize(area);
                 const float size2 = GetNavAreaSize(newArea);
@@ -429,10 +429,7 @@ void NavMesh::OptimizeNavMesh(void)
             }
         }
 
-        /*
-
         Array<NavArea*> mergeList;
-        mergeList.Push(area);
 
         for (int j = 0; j < area->connections.GetElementNumber(); j++)
         {
@@ -460,7 +457,7 @@ void NavMesh::OptimizeNavMesh(void)
                 mergeList.Push(newArea);
         }
 
-        Vector corner1, corner2;
+        /*Vector corner1, corner2;
         GetFarthestCorners(area, corner1, corner2);
 
         for (int j = 0; j < mergeList.GetElementNumber(); j++)
@@ -470,6 +467,8 @@ void NavMesh::OptimizeNavMesh(void)
 
             if (target == nullptr)
                 continue;
+
+            
         }*/
     }
 }
@@ -483,7 +482,7 @@ float NavMesh::GetNavAreaSize(const NavArea* area)
     for (int i = 0; i < 4; i++)
         totalSize += (area->corners[i] - ((area->corners[0] + area->corners[1] + area->corners[2] + area->corners[3]) * 0.25f)).GetLengthSquared2D();
 
-    return Q_sqrt(totalSize);
+    return csqrt(totalSize);
 }
 
 // this function returns the squared distance between a point and a line segment
@@ -584,6 +583,27 @@ bool NavMesh::DoNavAreasIntersect(NavArea* area1, NavArea* area2, const float to
     return false;
 }
 
+bool NavMesh::DoPositionIntersect(const Vector origin, NavArea* area, const float tolerance)
+{
+    if (area == nullptr)
+        return false;
+
+    if (origin == nullvec)
+        return false;
+
+    for (int j = 0; j < 4; j++)
+    {
+        const Vector& p3 = area->corners[j];
+        const Vector& p4 = area->corners[(j + 1) % 4];
+
+        // check if the line segments intersect
+        if (LineSegmentIntersect(origin, origin, p3, p4, tolerance))
+            return true;
+    }
+
+    return false;
+}
+
 NavArea* NavMesh::GetNearestNavArea(const Vector origin)
 {
     NavArea* area = nullptr;
@@ -625,7 +645,7 @@ Vector NavMesh::GetCornerPosition(NavArea* area, int corner)
         return nullvec;
 
     if (corner < 0 || corner > 3)
-        corner = RandomInt(0, 3);
+        corner = CRandomInt(0, 3);
 
     return area->corners[corner];
 }

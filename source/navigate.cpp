@@ -36,7 +36,7 @@ int Bot::FindGoal(void)
 		if (m_isZombieBot)
 		{
 			if (g_waypoint->m_terrorPoints.IsEmpty())
-				return m_chosenGoalIndex = RandomInt(0, g_numWaypoints - 1);
+				return m_chosenGoalIndex = CRandomInt(0, g_numWaypoints - 1);
 
 			Array <int> Important;
 			for (int i = 0; i < g_waypoint->m_terrorPoints.GetElementNumber(); i++)
@@ -128,7 +128,7 @@ int Bot::FindGoal(void)
 			return m_chosenGoalIndex;
 		}
 		else
-			return m_chosenGoalIndex = RandomInt(0, g_numWaypoints - 1);
+			return m_chosenGoalIndex = CRandomInt(0, g_numWaypoints - 1);
 	}
 	else if (GetGameMode() == MODE_BASE)
 	{
@@ -288,7 +288,7 @@ int Bot::FindGoal(void)
 				}
 				else
 				{
-					if (!g_waypoint->m_ctPoints.IsEmpty() && RandomInt(1, 2) == 1)
+					if (!g_waypoint->m_ctPoints.IsEmpty() && CRandomInt(1, 2) == 1)
 						return m_chosenGoalIndex = g_waypoint->m_ctPoints.GetRandomElement();
 					else if (!g_waypoint->m_goalPoints.IsEmpty())
 						return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
@@ -296,7 +296,7 @@ int Bot::FindGoal(void)
 			}
 			else
 			{
-				if (!g_waypoint->m_rescuePoints.IsEmpty() && (ohShit || RandomInt(1, 11) == 1))
+				if (!g_waypoint->m_rescuePoints.IsEmpty() && (ohShit || CRandomInt(1, 11) == 1))
 					return m_chosenGoalIndex = g_waypoint->m_rescuePoints.GetRandomElement();
 				else if (!g_waypoint->m_goalPoints.IsEmpty())
 					return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
@@ -310,7 +310,7 @@ int Bot::FindGoal(void)
 					return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
 				else
 				{
-					if (!g_waypoint->m_goalPoints.IsEmpty() && RandomInt(1, 2) == 1)
+					if (!g_waypoint->m_goalPoints.IsEmpty() && CRandomInt(1, 2) == 1)
 						return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
 					else if (!g_waypoint->m_ctPoints.IsEmpty())
 						return m_chosenGoalIndex = g_waypoint->m_ctPoints.GetRandomElement();
@@ -318,7 +318,7 @@ int Bot::FindGoal(void)
 			}
 			else
 			{
-				if (!g_waypoint->m_goalPoints.IsEmpty() && RandomInt(1, 11) == 1)
+				if (!g_waypoint->m_goalPoints.IsEmpty() && CRandomInt(1, 11) == 1)
 					return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
 				else if (!g_waypoint->m_terrorPoints.IsEmpty())
 					return m_chosenGoalIndex = g_waypoint->m_terrorPoints.GetRandomElement();
@@ -340,16 +340,34 @@ int Bot::FindGoal(void)
 	if (!g_waypoint->m_otherPoints.IsEmpty())
 		return m_chosenGoalIndex = g_waypoint->m_otherPoints.GetRandomElement();
 
-	return m_chosenGoalIndex = RandomInt(0, g_numWaypoints - 1);
+	return m_chosenGoalIndex = CRandomInt(0, g_numWaypoints - 1);
 }
 
 bool Bot::GoalIsValid(void)
 {
-	int goal = GetCurrentTask()->data;
+	const int goal = GetCurrentTask()->data;
 
 	if (!IsValidWaypoint(goal)) // not decided about a goal
 		return false;
-	else if (goal == m_currentWaypointIndex) // no nodes needed
+
+	if (IsZombieMode())
+	{
+		if (m_isZombieBot)
+		{
+			if (m_navNode == nullptr)
+				return false;
+			else
+				return true;
+		}
+		else
+		{
+			auto path = g_waypoint->GetPath(goal);
+			if (path->flags & WAYPOINT_ZMHMCAMP || path->flags & WAYPOINT_HMCAMPMESH)
+				return true;
+		}
+	}
+	
+	if (goal == m_currentWaypointIndex) // no nodes needed
 		return true;
 	else if (m_navNode == nullptr) // no path calculated
 		return false;
@@ -406,7 +424,7 @@ bool Bot::DoWaypointNav(void)
 				else
 					waypointOrigin.z -= 36.0f;
 
-				const float timeToReachWaypoint = Q_sqrt(powf(waypointOrigin.x - myOrigin.x, 2.0f) + powf(waypointOrigin.y - myOrigin.y, 2.0f)) / pev->maxspeed;
+				const float timeToReachWaypoint = csqrt(powf(waypointOrigin.x - myOrigin.x, 2.0f) + powf(waypointOrigin.y - myOrigin.y, 2.0f)) / pev->maxspeed;
 				pev->velocity.x = (waypointOrigin.x - myOrigin.x) / timeToReachWaypoint;
 				pev->velocity.y = (waypointOrigin.y - myOrigin.y) / timeToReachWaypoint;
 				pev->velocity.z = 2.0f * (waypointOrigin.z - myOrigin.z - 0.5f * pev->gravity * powf(timeToReachWaypoint, 2.0f)) / timeToReachWaypoint;
@@ -422,7 +440,7 @@ bool Bot::DoWaypointNav(void)
 			m_checkTerrain = false;
 			m_desiredVelocity = nullvec;
 
-			PushTask(TASK_PAUSE, TASKPRI_PAUSE, -1, engine->GetTime() + engine->RandomFloat(0.48f, 0.64f), false);
+			PushTask(TASK_PAUSE, TASKPRI_PAUSE, -1, engine->GetTime() + engine->RandomFloat(0.48f, 0.96f), false);
 		}
 	}
 
@@ -1498,7 +1516,7 @@ void Bot::FindPathNavMesh(NavArea* start, NavArea* dest)
 	}
 
 	if (dest == nullptr)
-		dest = g_navmesh->GetNavArea(RandomInt(1, g_numNavAreas - 1));
+		dest = g_navmesh->GetNavArea(CRandomInt(1, g_numNavAreas - 1));
 
 	if (start == dest)
 		return;
@@ -1805,7 +1823,9 @@ void Bot::FindPath(int srcIndex, int destIndex)
 	
 	if (!PossiblePath.IsEmpty())
 	{
-		FindShortestPath(srcIndex, PossiblePath.GetRandomElement());
+		const int index = PossiblePath.GetRandomElement();
+		FindShortestPath(srcIndex, index);
+		m_tasks->data = index;
 		return;
 	}
 	
@@ -1944,7 +1964,9 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 
 	if (!PossiblePath.IsEmpty())
 	{
-		FindShortestPath(srcIndex, PossiblePath.GetRandomElement());
+		const int index = PossiblePath.GetRandomElement();
+		FindShortestPath(srcIndex, index);
+		m_tasks->data = index;
 		return;
 	}
 }
@@ -1972,7 +1994,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 	if (entity->v.takedamage != DAMAGE_YES)
 	{
 		// defuse bomb
-		if (m_team == TEAM_COUNTER && strcmp(STRING(entity->v.model) + 9, "c4.mdl") == 0)
+		if (g_bombPlanted && m_team == TEAM_COUNTER && strcmp(STRING(entity->v.model) + 9, "c4.mdl") == 0)
 		{
 			if (GetCurrentTask()->taskID != TASK_DEFUSEBOMB)
 			{
@@ -1999,7 +2021,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 		bool breakIt = false;
 
 		TraceResult tr;
-		TraceLine(pev->origin, m_destOrigin, false, false, GetEntity(), &tr);
+		TraceLine(EyePosition(), m_destOrigin, false, false, GetEntity(), &tr);
 
 		TraceResult tr2;
 		TraceHull(pev->origin, m_destOrigin, false, head_hull, GetEntity(), &tr2);
@@ -2040,7 +2062,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 
 					Vector breakableOrigin = GetBoxOrigin(m_breakableEntity);
 					TraceResult tr;
-					TraceLine(bot->pev->origin, breakableOrigin, true, true, bot->GetEntity(), &tr);
+					TraceLine(bot->EyePosition(), breakableOrigin, true, true, bot->GetEntity(), &tr);
 					if (tr.pHit == entity)
 					{
 						bot->m_breakableEntity = entity;
@@ -2074,7 +2096,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 					continue;
 
 				TraceResult tr;
-				TraceLine(enemy->pev->origin, m_breakable, true, true, enemy->GetEntity(), &tr);
+				TraceLine(enemy->EyePosition(), m_breakable, true, true, enemy->GetEntity(), &tr);
 				if (tr.pHit == entity)
 				{
 					enemy->m_breakableEntity = entity;
@@ -2252,9 +2274,9 @@ int Bot::FindWaypoint(bool skipLag)
 
 	// choice from found
 	if (IsValidWaypoint(lessIndex[2]))
-		index = RandomInt(0, 2);
+		index = CRandomInt(0, 2);
 	else if (IsValidWaypoint(lessIndex[1]))
-		index = RandomInt(0, 1);
+		index = CRandomInt(0, 1);
 	else if (IsValidWaypoint(lessIndex[0])) 
 		index = 0;
 
@@ -2459,7 +2481,7 @@ int Bot::ChooseBombWaypoint(void)
 	// this function finds the best goal (bomb) waypoint for CTs when searching for a planted bomb.
 
 	if (g_waypoint->m_goalPoints.IsEmpty())
-		return RandomInt(0, g_numWaypoints - 1); // reliability check
+		return CRandomInt(0, g_numWaypoints - 1); // reliability check
 
 	Vector bombOrigin = CheckBombAudible();
 
@@ -2509,7 +2531,7 @@ int Bot::FindDefendWaypoint(Vector origin)
 
 	// no camp waypoints
 	if (g_waypoint->m_campPoints.IsEmpty())
-		return RandomInt(0, g_numWaypoints - 1);
+		return CRandomInt(0, g_numWaypoints - 1);
 
 	// invalid index
 	if (!IsValidWaypoint(m_currentWaypointIndex))
@@ -2749,7 +2771,7 @@ bool Bot::HeadTowardWaypoint(void)
 				}
 				else if (g_botsCanPause && !IsOnLadder() && !IsInWater() && !m_currentTravelFlags && IsOnFloor())
 				{
-					if (RandomInt(1, 100) > (m_skill + RandomInt(1, 20)))
+					if (CRandomInt(1, 100) > (m_skill + CRandomInt(1, 20)))
 					{
 						m_minSpeed = GetWalkSpeed();
 						if (m_currentWeapon == WEAPON_KNIFE)

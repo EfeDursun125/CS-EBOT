@@ -211,7 +211,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 #endif
 			"+---------------------------------------------------------------------------------+\n";
 
-		HudMessage(ent, true, Color(RandomInt(33, 255), RandomInt(33, 255), RandomInt(33, 255)), aboutData);
+		HudMessage(ent, true, Color(CRandomInt(33, 255), CRandomInt(33, 255), CRandomInt(33, 255)), aboutData);
 	}
 
 	// displays version information
@@ -336,7 +336,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		if (stricmp(arg0, "randgen") == 0)
 		{
 			for (int i = 0; i < 500; i++)
-				ServerPrintNoTag("Result Range[0 - 100]: %d", RandomInt(0, 100));
+				ServerPrintNoTag("Result Range[0 - 100]: %d", CRandomInt(0, 100));
 		}
 	}
 
@@ -841,7 +841,7 @@ void LoadEntityData(void)
 				g_hostEntity->v.movetype = MOVETYPE_NOCLIP;
 
 			g_clients[i].origin = GetEntityOrigin(entity);
-			if (g_clients[i].getWPTime + 1.25f < engine->GetTime() || (g_clients[i].wpIndex == -1 && g_clients[i].wpIndex2 == -1))
+			if (g_clients[i].getWPTime + 1.0f < engine->GetTime() || (g_clients[i].wpIndex == -1 && g_clients[i].wpIndex2 == -1))
 				SetEntityWaypoint(entity);
 
 			continue;
@@ -851,7 +851,6 @@ void LoadEntityData(void)
 		g_clients[i].wpIndex2 = -1;
 		g_clients[i].getWpOrigin = nullvec;
 		g_clients[i].getWPTime = 0.0f;
-		g_clients[i].team = TEAM_COUNT;
 	}
 }
 
@@ -2362,23 +2361,23 @@ void ClientCommand(edict_t* ent)
 				switch (selection)
 				{
 				case 1:
-					g_storeAddbotVars[0] = RandomInt(0, 20);
+					g_storeAddbotVars[0] = CRandomInt(0, 20);
 					break;
 
 				case 2:
-					g_storeAddbotVars[0] = RandomInt(20, 40);
+					g_storeAddbotVars[0] = CRandomInt(20, 40);
 					break;
 
 				case 3:
-					g_storeAddbotVars[0] = RandomInt(40, 60);
+					g_storeAddbotVars[0] = CRandomInt(40, 60);
 					break;
 
 				case 4:
-					g_storeAddbotVars[0] = RandomInt(60, 80);
+					g_storeAddbotVars[0] = CRandomInt(60, 80);
 					break;
 
 				case 5:
-					g_storeAddbotVars[0] = RandomInt(80, 99);
+					g_storeAddbotVars[0] = CRandomInt(80, 99);
 					break;
 
 				case 6:
