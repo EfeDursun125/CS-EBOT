@@ -869,7 +869,7 @@ private:
 
 	bool IsOnAttackDistance(edict_t* targetEntity, float distance);
 
-	bool IsInViewCone(Vector origin);
+	bool IsInViewCone(const Vector& origin);
 	void ReactOnSound(void);
 	bool CheckVisibility(edict_t* targetEntity);
 	bool IsEnemyViewable(edict_t* player, bool setEnemy = false, bool checkOnly = false);
@@ -892,7 +892,7 @@ private:
 	bool GoalIsValid(void);
 	bool HeadTowardWaypoint(void);
 	bool HasNextPath(void);
-	float InFieldOfView(Vector dest);
+	float InFieldOfView(const Vector& dest);
 
 	bool IsBombDefusing(Vector bombOrigin);
 	bool IsWaypointOccupied(int index, bool needZeroVelocity = false);
@@ -1438,9 +1438,11 @@ public:
 	NavArea* GetNavArea(int id);
 	NavArea* GetNearestNavArea(const Vector origin);
 	bool DoNavAreasIntersect(NavArea* area1, NavArea* area2, const float tolerance = 0.0f);
+	bool DoPositionIntersect(const Vector origin, NavArea* area, const float tolerance = 0.0f);
+	float GetNavAreaSize(const NavArea* area);
 
 	Vector GetClosestPosition(NavArea* area, const Vector origin);
-	Vector GetCenter(NavArea* area);
+	Vector GetCenter(const NavArea* area);
 	Vector GetCornerPosition(NavArea* area, int corner);
 	Vector GetRandomPosition(NavArea* area);
 	Vector GetAimPosition(void);
@@ -1464,24 +1466,16 @@ extern void SetGameMode(int gamemode);
 extern bool IsZombieMode(void);
 extern bool IsDeathmatchMode(void);
 extern bool IsValidWaypoint(int index);
-extern bool ChanceOf(int number);
-extern float Clamp(float a, float b, float c);
-extern float SquaredF(float a);
-extern float AddTime(float time);
-extern float MaxFloat(float a, float b);
-extern float MinFloat(float a, float b);
-extern int MinInt(int a, int b);
 extern unsigned int GetPlayerPriority(edict_t* player);
-extern float GetDur(const char* fileName);
-extern float DotProduct(const Vector& a, const Vector& b);
-extern float DotProduct2D(const Vector& a, const Vector& b);
-extern Vector CrossProduct(const Vector& a, const Vector& b);
 extern edict_t* FindEntityInSphere(edict_t* startEnt, const Vector& vecCenter, const float flRadius);
 
 extern int GetEntityWaypoint(edict_t* ent);
 extern int SetEntityWaypoint(edict_t* ent, int mode = -1);
 
-extern float GetShootingConeDeviation(edict_t* ent, Vector* position);
+extern float GetShootingConeDeviation(edict_t* ent, const Vector* position);
+extern float DotProduct(const Vector& a, const Vector& b);
+extern float DotProduct2D(const Vector& a, const Vector& b);
+extern Vector CrossProduct(const Vector& a, const Vector& b);
 
 extern bool IsLinux(void);
 extern bool TryFileOpen(char* fileName);
@@ -1489,8 +1483,8 @@ extern bool IsWalkableTraceLineClear(const Vector from, const Vector to);
 extern bool IsDedicatedServer(void);
 extern bool IsVisible(const Vector& origin, edict_t* ent);
 extern Vector GetWalkablePosition(const Vector& origin, edict_t* ent = nullptr, bool returnNullVec = false, float height = 1000.0f);
-extern bool IsAlive(edict_t* ent);
-extern bool IsInViewCone(Vector origin, edict_t* ent);
+extern bool IsAlive(const edict_t* ent);
+extern bool IsInViewCone(const Vector& origin, edict_t* ent);
 extern bool IsWeaponShootingThroughWall(int id);
 extern bool IsValidBot(edict_t* ent);
 extern bool IsValidBot(int index);

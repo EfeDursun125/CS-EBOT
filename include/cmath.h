@@ -1,6 +1,15 @@
+//
+// Custom Math For EBot
+//
 #pragma once
 
-extern float squareRoot(float number);
-extern float rsqrtf(float number);
-extern float power(float x, float y);
-extern float tanf_sse(float x);
+extern int CRandomInt(int min, int max);
+extern float csqrt(float number);
+extern float crsqrt(float number);
+extern bool ChanceOf(int number);
+extern float Clamp(float a, float b, float c);
+extern float SquaredF(float a);
+extern float AddTime(float time);
+extern float MaxFloat(float a, float b);
+extern float MinFloat(float a, float b);
+extern int MinInt(int a, int b);

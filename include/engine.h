@@ -248,7 +248,7 @@ public:
 
     inline float Length(void) const
     {
-        return squareRoot(x * x + y * y);
+        return csqrt(x * x + y * y);
     }
 
     inline Vector2D Normalize(void) const
@@ -335,7 +335,7 @@ public:
     }
     inline float Length(void) const
     {
-        return Q_sqrt(x * x + y * y + z * z);
+        return csqrt(x * x + y * y + z * z);
     }
     operator float* ()
     {
@@ -375,7 +375,7 @@ public:
 
     inline float Length2D(void) const
     {
-        return Q_sqrt(x * x + y * y);
+        return csqrt(x * x + y * y);
     }
 
     // Members
@@ -3179,9 +3179,6 @@ public:
 
     // generates random float based on low and high value
     float RandomFloat(float low, float high);
-
-    // generates random integer based on low and high value
-    int RandomInt(int low, int high);
 
     // pushes global convar to list that will be registered by engine
     void RegisterVariable(const char* variable, const char* value, VarType varType, ConVar* self);

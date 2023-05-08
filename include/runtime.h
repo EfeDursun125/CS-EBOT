@@ -554,7 +554,7 @@ public:
     //
     inline float GetLength(void) const
     {
-        return squareRoot(x * x + y * y + z * z);
+        return csqrt(x * x + y * y + z * z);
     }
 
     //
@@ -570,7 +570,7 @@ public:
     //
     inline float GetLength2D(void) const
     {
-        return squareRoot(x * x + y * y);
+        return csqrt(x * x + y * y);
     }
 
     //
@@ -628,7 +628,7 @@ public:
     //
     inline Vector Normalize(void) const
     {
-        const float length = rsqrtf(x * x + y * y + z * z) + Math::MATH_FLEPSILON;
+        const float length = crsqrt(x * x + y * y + z * z);
         return Vector(x * length, y * length, z * length);
     }
 
@@ -642,7 +642,7 @@ public:
     //
     inline Vector Normalize2D(void) const
     {
-        const float length = rsqrtf(x * x + y * y) + Math::MATH_FLEPSILON;
+        const float length = crsqrt(x * x + y * y);
         return Vector(x * length, y * length, 0.0f);
     }
 
@@ -1366,16 +1366,10 @@ public:
     //
     T& GetRandomElement(void) const
     {
-        if (m_itemCount <= 1)
+        if (m_itemCount == 1)
             return m_elements[0];
 
-#if defined (_WIN32)
-        return m_elements[(*g_engfuncs.pfnRandomLong) (0, m_itemCount - 1)];
-#else
-        srand(time(nullptr));
-        int val = rand() % ((m_itemCount - 1) + 1);
-        return m_elements[val];
-#endif
+        return m_elements[CRandomInt(0, m_itemCount - 1)];
     }
 
     Array <T>& operator = (const Array <T>& other)
