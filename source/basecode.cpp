@@ -2810,7 +2810,7 @@ bool Bot::LastEnemyShootable(void)
 	if (!(m_aimFlags & AIM_LASTENEMY) || FNullEnt(m_lastEnemy) || GetCurrentTask()->taskID == TASK_PAUSE || GetCurrentTask()->taskID == TASK_CAMP)
 		return false;
 
-	return GetShootingConeDeviation(GetEntity(), m_lastEnemyOrigin) >= 0.90;
+	return GetShootingConeDeviation(GetEntity(), &m_lastEnemyOrigin) >= 0.90f;
 }
 
 void Bot::CheckRadioCommands(void)
@@ -3562,13 +3562,13 @@ void Bot::ChooseAimDirection(void)
 	}
 	else if (flags & AIM_GRENADE)
 		m_lookAt = m_throw + Vector(0.0f, 0.0f, 1.0f * m_grenade.z);
-	/*else if (flags & AIM_ENEMY) // now in FacePosition
+	else if (flags & AIM_ENEMY) // now in FacePosition
 	{
 		if (m_isZombieBot)
 			m_lookAt = m_enemyOrigin;
 		else
 			FocusEnemy();
-	}*/
+	}
 	else if (flags & AIM_ENTITY)
 		m_lookAt = m_entity;
 	else if (flags & AIM_LASTENEMY)
@@ -3583,7 +3583,7 @@ void Bot::ChooseAimDirection(void)
 					m_camp = m_lastEnemyOrigin;
 				else
 				{
-					int aimIndex = GetCampAimingWaypoint();
+					const int aimIndex = GetCampAimingWaypoint();
 					if (IsValidWaypoint(aimIndex))
 						m_camp = g_waypoint->GetPath(aimIndex)->origin;
 				}
@@ -5750,7 +5750,7 @@ void Bot::RunTask(void)
 		{
 			DeleteSearchNodes();
 
-			int boostIndex = g_waypoint->FindNearest(m_doubleJumpOrigin);
+			const int boostIndex = g_waypoint->FindNearest(m_doubleJumpOrigin);
 
 			if (IsValidWaypoint(boostIndex))
 			{
@@ -5824,7 +5824,7 @@ void Bot::RunTask(void)
 		m_camp = m_breakable;
 
 		// is bot facing the breakable?
-		if (GetShootingConeDeviation(GetEntity(), m_breakable) >= 0.90f)
+		if (GetShootingConeDeviation(GetEntity(), &m_breakable) >= 0.90f)
 		{
 			if (m_isZombieBot || m_currentWeapon == WEAPON_KNIFE)
 				m_moveSpeed = pev->maxspeed;

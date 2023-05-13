@@ -204,7 +204,7 @@ bool Bot::LookupEnemy(void)
 	}
 	else if (!FNullEnt(m_moveTargetEntity))
 	{
-		auto origin = GetEntityOrigin(m_moveTargetEntity);
+		const Vector origin = GetEntityOrigin(m_moveTargetEntity);
 		if (m_team == GetTeam(m_moveTargetEntity) || !IsAlive(m_moveTargetEntity) || origin == nullvec)
 			SetMoveTarget(nullptr);
 
@@ -300,7 +300,7 @@ bool Bot::LookupEnemy(void)
 			bool moveTotarget = true;
 			int movePoint = 0;
 
-			int srcIndex = GetEntityWaypoint(GetEntity());
+			const int srcIndex = GetEntityWaypoint(GetEntity());
 			const int destIndex = GetEntityWaypoint(targetEntity);
 			if ((m_currentTravelFlags & PATHFLAG_JUMP))
 				movePoint = 10;
@@ -540,7 +540,7 @@ bool Bot::IsFriendInLineOfFire(float distance)
 		Vector origin = client.ent->v.origin;
 		float friendDistance = (origin - pev->origin).GetLengthSquared();
 
-		if (friendDistance <= distance && GetShootingConeDeviation(GetEntity(), origin) > (friendDistance / (friendDistance + 1089.0f)))
+		if (friendDistance <= distance && GetShootingConeDeviation(GetEntity(), &origin) > (friendDistance / (friendDistance + 1089.0f)))
 			return true;
 	}
 
@@ -622,7 +622,7 @@ bool Bot::DoFirePause(float distance)//, FireDelay *fireDelay)
 	if (m_firePause > engine->GetTime())
 		return true;
 
-	if (m_enemyOrigin != nullvec && IsEnemyProtectedByShield(m_enemy))
+	if (m_aimFlags & AIM_ENEMY && m_enemyOrigin != nullvec && IsEnemyProtectedByShield(m_enemy))
 		return true;
 
 	const float angle = (fabsf(pev->punchangle.y) + fabsf(pev->punchangle.x)) * (Math::MATH_PI * 0.00277777777f);
@@ -1042,7 +1042,7 @@ void Bot::FocusEnemy(void)
 		else
 			m_wantsToFire = false;
 	} // when we start firing stop checks
-	else if (!m_wantsToFire && GetShootingConeDeviation(GetEntity(), m_lookAt) >= 0.80f)
+	else if (!m_wantsToFire && GetShootingConeDeviation(GetEntity(), &m_lookAt) >= 0.80f)
 		m_wantsToFire = true;
 }
 

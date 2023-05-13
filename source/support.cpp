@@ -110,12 +110,12 @@ bool IsAlive(const edict_t* ent)
 	return (ent->v.deadflag == DEAD_NO) && (ent->v.health > 0) && (ent->v.movetype != MOVETYPE_NOCLIP);
 }
 
-float GetShootingConeDeviation(edict_t* ent, const Vector& position)
+float GetShootingConeDeviation(edict_t* ent, const Vector* position)
 {
 	if (FNullEnt(ent))
 		return 0.0f;
 
-	const Vector& dir = (position - (GetEntityOrigin(ent) + ent->v.view_ofs)).Normalize();
+	const Vector& dir = (*position - (GetEntityOrigin(ent) + ent->v.view_ofs)).Normalize();
 	MakeVectors(ent->v.v_angle);
 
 	// he's facing it, he meant it

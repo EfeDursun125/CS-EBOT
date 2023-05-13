@@ -38,8 +38,8 @@ float updateTimer;
 
 void ebotVersionMSG(edict_t* entity = nullptr)
 {
-	int buildVersion[4] = { PRODUCT_VERSION_DWORD };
-	uint16 bV16[4] = { (uint16)buildVersion[0], (uint16)buildVersion[1], (uint16)buildVersion[2], (uint16)buildVersion[3] };
+	const int buildVersion[4] = { PRODUCT_VERSION_DWORD };
+	const uint16 bV16[4] = { (uint16)buildVersion[0], (uint16)buildVersion[1], (uint16)buildVersion[2], (uint16)buildVersion[3] };
 
 	char versionData[1024];
 	sprintf(versionData,
@@ -134,7 +134,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 	// select the weapon mode for bots
 	else if (stricmp(arg0, "weaponmode") == 0 || stricmp(arg0, "wmode") == 0)
 	{
-		int selection = atoi(arg1);
+		const int selection = atoi(arg1);
 
 		// check is selected range valid
 		if (selection >= 1 && selection <= 7)
@@ -182,8 +182,8 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 	// display current time on the server
 	else if (stricmp(arg0, "ctime") == 0 || stricmp(arg0, "time") == 0)
 	{
-		time_t tickTime = time(nullptr);
-		tm* localTime = localtime(&tickTime);
+		const time_t tickTime = time(nullptr);
+		const tm* localTime = localtime(&tickTime);
 
 		char date[32];
 		strftime(date, 31, "--- Current Time: %H:%M:%S ---", localTime);
@@ -303,7 +303,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 			ClientPrint(ent, print_withtag, "Please specify gravity");
 		else
 		{
-			float gravity = fabsf(static_cast <float> (atof(arg1)));
+			const float gravity = fabsf(static_cast <float> (atof(arg1)));
 			ClientPrint(ent, print_withtag, "E-Bot gravity is set to %d%%", gravity);
 
 			for (const auto& bot : g_botManager->m_bots)

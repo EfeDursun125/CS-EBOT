@@ -3387,11 +3387,6 @@ void Bot::FacePosition(void)
 	// predict enemy
 	if (m_aimFlags & AIM_ENEMY)
 	{
-		if (m_isZombieBot)
-			m_lookAt = m_enemyOrigin;
-		else
-			FocusEnemy();
-
 		// force press attack button for human bots in zombie mode
 		if (IsZombieMode() && !m_isReloading && !m_isSlowThink && !(pev->button & IN_ATTACK) && !(pev->oldbuttons & IN_ATTACK))
 			pev->button |= IN_ATTACK;

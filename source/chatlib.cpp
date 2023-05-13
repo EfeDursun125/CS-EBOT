@@ -146,8 +146,7 @@ void Bot::PrepareChatMessage(char* text)
 
         if (pattern != nullptr)
         {
-            int length = pattern - textStart;
-
+            const int length = pattern - textStart;
             if (length > 0)
                 strncpy(m_tempStrings, textStart, length);
 
@@ -170,7 +169,7 @@ void Bot::PrepareChatMessage(char* text)
                     if (!(client.flags & CFLAG_USED) || client.ent == GetEntity())
                         continue;
 
-                    int frags = static_cast <int> (client.ent->v.frags);
+                    const int frags = static_cast <int> (client.ent->v.frags);
 
                     if (frags > highestFrags)
                     {
@@ -316,14 +315,14 @@ void Bot::PrepareChatMessage(char* text)
             {
                 if (g_gameVersion == CSVER_CZERO)
                 {
-                    if (CRandomInt(1, 100) < 30)
+                    if (CRandomInt(1, 10) <= 3)
                         strcat(m_tempStrings, "CZ");
                     else
                         strcat(m_tempStrings, "Condition Zero");
                 }
                 else if ((g_gameVersion == CSVER_CSTRIKE) || (g_gameVersion == CSVER_VERYOLD))
                 {
-                    if (CRandomInt(1, 100) < 30)
+                    if (CRandomInt(1, 10) <= 3)
                         strcat(m_tempStrings, "CS");
                     else
                         strcat(m_tempStrings, "Counter-Strike");
