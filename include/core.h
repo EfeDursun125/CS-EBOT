@@ -1473,7 +1473,7 @@ extern edict_t* FindEntityInSphere(edict_t* startEnt, const Vector& vecCenter, c
 extern int GetEntityWaypoint(edict_t* ent);
 extern int SetEntityWaypoint(edict_t* ent, int mode = -1);
 
-extern float GetShootingConeDeviation(edict_t* ent, const Vector& position);
+extern float GetShootingConeDeviation(edict_t* ent, const Vector* position);
 extern float DotProduct(const Vector& a, const Vector& b);
 extern float DotProduct2D(const Vector& a, const Vector& b);
 extern Vector CrossProduct(const Vector& a, const Vector& b);
