@@ -332,9 +332,10 @@ enum BurstMode
 // visibility flags
 enum Visibility
 {
-	VISIBILITY_HEAD = (1 << 1),
-	VISIBILITY_BODY = (1 << 2),
-	VISIBILITY_OTHER = (1 << 3)
+	None = (1 << 0),
+	Head = (1 << 1),
+	Body = (1 << 2),
+	Other = (1 << 3)
 };
 
 // defines map type
@@ -881,7 +882,7 @@ private:
 	edict_t* FindNearestButton(const char* className);
 	edict_t* FindButton(void);
 	int FindCoverWaypoint(float maxDistance);
-	int FindDefendWaypoint(Vector origin);
+	int FindDefendWaypoint(const Vector& origin);
 	int FindGoal(void);
 	void FindItem(void);
 	void CheckCloseAvoidance(const Vector& dirNormal);
@@ -1445,7 +1446,7 @@ public:
 	Vector GetCenter(const NavArea* area);
 	Vector GetCornerPosition(NavArea* area, int corner);
 	Vector GetRandomPosition(NavArea* area);
-	Vector GetAimPosition(void);
+	Vector GetAimingPosition(void);
 
 	void ExpandNavArea(NavArea* area, const float radius = 50.0f);
 };
@@ -1472,7 +1473,7 @@ extern edict_t* FindEntityInSphere(edict_t* startEnt, const Vector& vecCenter, c
 extern int GetEntityWaypoint(edict_t* ent);
 extern int SetEntityWaypoint(edict_t* ent, int mode = -1);
 
-extern float GetShootingConeDeviation(edict_t* ent, const Vector* position);
+extern float GetShootingConeDeviation(edict_t* ent, const Vector& position);
 extern float DotProduct(const Vector& a, const Vector& b);
 extern float DotProduct2D(const Vector& a, const Vector& b);
 extern Vector CrossProduct(const Vector& a, const Vector& b);

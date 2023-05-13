@@ -3023,7 +3023,7 @@ public:
 
     inline bool operator == (const Client& other) const
     {
-        return IsValid() && m_ent == other.m_ent;
+        return m_ent == other.m_ent;
     }
 
     inline bool operator != (const Client& other) const
@@ -3033,12 +3033,12 @@ public:
 
     inline bool operator == (const Entity& other) const
     {
-        return IsValid(); //&& m_ent == other;
+        return m_ent == other;
     }
 
     inline bool operator != (const Entity& other) const
     {
-        return true;// m_ent != other;
+        return m_ent != other;
     }
 
 public:
