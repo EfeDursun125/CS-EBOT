@@ -485,7 +485,7 @@ bool Bot::DoWaypointNav(void)
 						m_lastEnemy = client.ent;
 						m_lastEnemyOrigin = client.ent->v.origin;
 
-						m_visibility = (VISIBILITY_HEAD | VISIBILITY_BODY);
+						m_visibility = (Visibility::Head | Visibility::Body);
 
 						m_states |= STATE_SEEINGENEMY;
 						m_seeEnemyTime = engine->GetTime();
@@ -2523,7 +2523,7 @@ int Bot::ChooseBombWaypoint(void)
 	return goal;
 }
 
-int Bot::FindDefendWaypoint(Vector origin)
+int Bot::FindDefendWaypoint(const Vector& origin)
 {
 	// where to defend?
 	if (origin == nullvec)
@@ -3387,6 +3387,11 @@ void Bot::FacePosition(void)
 	// predict enemy
 	if (m_aimFlags & AIM_ENEMY)
 	{
+		if (m_isZombieBot)
+			m_lookAt = m_enemyOrigin;
+		else
+			FocusEnemy();
+
 		// force press attack button for human bots in zombie mode
 		if (IsZombieMode() && !m_isReloading && !m_isSlowThink && !(pev->button & IN_ATTACK) && !(pev->oldbuttons & IN_ATTACK))
 			pev->button |= IN_ATTACK;
@@ -3417,7 +3422,7 @@ void Bot::FacePosition(void)
 		Vector direction = (m_lookAt - EyePosition()).ToAngles() + pev->punchangle;
 		direction.x = -direction.x; // invert for engine
 
-		float aimSpeed = ((m_skill * 0.054f) + 11.0f) * delta;
+		const float aimSpeed = ((m_skill * 0.054f) + 11.0f) * delta;
 
 		m_idealAngles.x += AngleNormalize(direction.x - m_idealAngles.x) * aimSpeed;
 		m_idealAngles.y += AngleNormalize(direction.y - m_idealAngles.y) * aimSpeed;

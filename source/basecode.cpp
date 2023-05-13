@@ -108,12 +108,12 @@ bool Bot::IsInViewCone(const Vector& origin)
 
 bool Bot::CheckVisibility(edict_t* targetEntity)
 {
-	m_visibility = 0;
+	m_visibility = Visibility::None;
 	if (FNullEnt(targetEntity))
 		return false;
 
 	TraceResult tr;
-	Vector eyes = EyePosition();
+	const Vector eyes = EyePosition();
 
 	Vector spot = targetEntity->v.origin;
 	edict_t* self = pev->pContainingEntity;
@@ -128,8 +128,8 @@ bool Bot::CheckVisibility(edict_t* targetEntity)
 
 	if (tr.flFraction >= 1.0f || tr.pHit == targetEntity)
 	{
-		m_visibility |= VISIBILITY_BODY;
-		m_enemyOrigin = tr.vecEndPos;
+		m_visibility |= Visibility::Body;
+		m_enemyOrigin = spot;
 	}
 
 	// check top of head
@@ -138,11 +138,11 @@ bool Bot::CheckVisibility(edict_t* targetEntity)
 
 	if (tr.flFraction >= 1.0f || tr.pHit == targetEntity)
 	{
-		m_visibility |= VISIBILITY_HEAD;
-		m_enemyOrigin = tr.vecEndPos;
+		m_visibility |= Visibility::Head;
+		m_enemyOrigin = spot;
 	}
 
-	if (m_visibility != 0)
+	if (m_visibility != Visibility::None)
 		return true;
 
 	constexpr auto standFeet = 34.0f;
@@ -157,8 +157,8 @@ bool Bot::CheckVisibility(edict_t* targetEntity)
 
 	if (tr.flFraction >= 1.0f || tr.pHit == targetEntity)
 	{
-		m_visibility |= VISIBILITY_OTHER;
-		m_enemyOrigin = tr.vecEndPos;
+		m_visibility |= Visibility::Other;
+		m_enemyOrigin = spot;
 		return true;
 	}
 
@@ -172,8 +172,8 @@ bool Bot::CheckVisibility(edict_t* targetEntity)
 
 	if (tr.flFraction >= 1.0f || tr.pHit == targetEntity)
 	{
-		m_visibility |= VISIBILITY_OTHER;
-		m_enemyOrigin = tr.vecEndPos;
+		m_visibility |= Visibility::Other;
+		m_enemyOrigin = spot;
 
 		return true;
 	}
@@ -183,8 +183,8 @@ bool Bot::CheckVisibility(edict_t* targetEntity)
 
 	if (tr.flFraction >= 1.0f || tr.pHit == targetEntity)
 	{
-		m_visibility |= VISIBILITY_OTHER;
-		m_enemyOrigin = tr.vecEndPos;
+		m_visibility |= Visibility::Other;
+		m_enemyOrigin = spot;
 		return true;
 	}
 
@@ -700,7 +700,7 @@ bool Bot::AllowPickupItem(void)
 		if (IsZombieMode() && m_currentWeapon != WEAPON_KNIFE) // if we're holding knife, mostly our guns dont have a ammo
 			return false;
 
-		int taskID = GetCurrentTask()->taskID;
+		const int taskID = GetCurrentTask()->taskID;
 		if (taskID == TASK_ESCAPEFROMBOMB)
 			return false;
 
@@ -2586,7 +2586,7 @@ void Bot::CheckGrenadeThrow(void)
 			}
 		}
 	}
-	else if (grenadeToThrow == WEAPON_FBGRENADE && (targetOrigin - pev->origin).GetLengthSquared() <= SquaredF(800.0f) && !(m_aimFlags & AIM_ENEMY))
+	else if (grenadeToThrow == WEAPON_FBGRENADE && !(m_aimFlags & AIM_ENEMY) && (targetOrigin - pev->origin).GetLengthSquared() <= SquaredF(800.0f))
 	{
 		bool allowThrowing = true;
 		Array <int> inRadius;
@@ -2810,7 +2810,7 @@ bool Bot::LastEnemyShootable(void)
 	if (!(m_aimFlags & AIM_LASTENEMY) || FNullEnt(m_lastEnemy) || GetCurrentTask()->taskID == TASK_PAUSE || GetCurrentTask()->taskID == TASK_CAMP)
 		return false;
 
-	return GetShootingConeDeviation(GetEntity(), &m_lastEnemyOrigin) >= 0.90;
+	return GetShootingConeDeviation(GetEntity(), m_lastEnemyOrigin) >= 0.90;
 }
 
 void Bot::CheckRadioCommands(void)
@@ -3562,16 +3562,13 @@ void Bot::ChooseAimDirection(void)
 	}
 	else if (flags & AIM_GRENADE)
 		m_lookAt = m_throw + Vector(0.0f, 0.0f, 1.0f * m_grenade.z);
-	else if (flags & AIM_ENEMY)
+	/*else if (flags & AIM_ENEMY) // now in FacePosition
 	{
 		if (m_isZombieBot)
 			m_lookAt = m_enemyOrigin;
 		else
 			FocusEnemy();
-
-		if (m_currentWeapon == WEAPON_KNIFE)
-			SelectBestWeapon();
-	}
+	}*/
 	else if (flags & AIM_ENTITY)
 		m_lookAt = m_entity;
 	else if (flags & AIM_LASTENEMY)
@@ -3645,7 +3642,7 @@ void Bot::ChooseAimDirection(void)
 					m_camp = m_lastDamageOrigin;
 				else
 				{
-					int aimIndex = GetCampAimingWaypoint();
+					const int aimIndex = GetCampAimingWaypoint();
 					if (IsValidWaypoint(aimIndex))
 						m_camp = g_waypoint->GetPath(aimIndex)->origin;
 				}
@@ -3659,11 +3656,10 @@ void Bot::ChooseAimDirection(void)
 				m_camp = m_lastDamageOrigin;
 			else
 			{
-				int aimIndex = GetCampAimingWaypoint();
+				const int aimIndex = GetCampAimingWaypoint();
 				if (IsValidWaypoint(aimIndex))
 					m_camp = g_waypoint->GetPath(aimIndex)->origin;
 			}
-
 
 			m_nextCampDirTime = engine->GetTime() + engine->RandomFloat(1.5f, 5.0f);
 		}
@@ -3677,39 +3673,43 @@ void Bot::ChooseAimDirection(void)
 
 		if (!FNullEnt(m_breakableEntity) && m_breakableEntity->v.health > 0.0f && m_breakable != nullvec)
 			m_lookAt = m_breakable;
-		else if (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_LADDER)
-		{
-			m_aimStopTime = 0.0f;
-			m_lookAt = m_destOrigin + pev->view_ofs;
-		}
-		else if (!m_isZombieBot && m_seeEnemyTime + 4.0f > engine->GetTime())
-		{
-			if (m_skill > 50 && !FNullEnt(m_lastEnemy))
-				m_lookAt = GetEntityOrigin(m_lastEnemy);
-			else
-				m_lookAt = m_lastEnemyOrigin;
-			m_aimStopTime = 0.0f;
-		}
 		else
 		{
-			extern ConVar ebot_path_smoothing;
-			if (ebot_path_smoothing.GetBool())
+			auto path = g_waypoint->GetPath(m_currentWaypointIndex);
+			if (path->flags & WAYPOINT_LADDER)
 			{
-				m_lookAt = m_destOrigin;
-
-				if (!(g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_LADDER))
-					m_lookAt.z = EyePosition().z;
+				m_aimStopTime = 0.0f;
+				m_lookAt = m_destOrigin + pev->view_ofs;
 			}
-			else if (m_personality == PERSONALITY_CAREFUL && HasNextPath() && m_navNode->next->next != nullptr)
-				m_lookAt = g_waypoint->GetPath(m_navNode->next->next->index)->origin + pev->view_ofs;
-			else if (m_personality == PERSONALITY_NORMAL && HasNextPath())
-				m_lookAt = g_waypoint->GetPath(m_navNode->next->index)->origin + pev->view_ofs;
+			else if (!m_isZombieBot && m_seeEnemyTime + 4.0f > engine->GetTime())
+			{
+				if (m_skill > 50 && !FNullEnt(m_lastEnemy))
+					m_lookAt = GetEntityOrigin(m_lastEnemy);
+				else
+					m_lookAt = m_lastEnemyOrigin;
+				m_aimStopTime = 0.0f;
+			}
 			else
 			{
-				m_lookAt = g_waypoint->GetPath(m_currentWaypointIndex)->origin;
+				extern ConVar ebot_path_smoothing;
+				if (ebot_path_smoothing.GetBool())
+				{
+					m_lookAt = m_destOrigin;
 
-				if (!(g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_LADDER))
-					m_lookAt.z = EyePosition().z;
+					if (!(path->flags & WAYPOINT_LADDER))
+						m_lookAt.z = EyePosition().z;
+				}
+				else if (m_personality == PERSONALITY_CAREFUL && HasNextPath() && m_navNode->next->next != nullptr)
+					m_lookAt = g_waypoint->GetPath(m_navNode->next->next->index)->origin + pev->view_ofs;
+				else if (m_personality == PERSONALITY_NORMAL && HasNextPath())
+					m_lookAt = g_waypoint->GetPath(m_navNode->next->index)->origin + pev->view_ofs;
+				else
+				{
+					m_lookAt = path->origin;
+
+					if (!(path->flags & WAYPOINT_LADDER))
+						m_lookAt.z = EyePosition().z;
+				}
 			}
 		}
 	}
@@ -3905,8 +3905,8 @@ void Bot::Think(void)
 	if (botMovement && m_isAlive)
 	{
 		BotAI();
-		FacePosition();
 		MoveAction();
+		FacePosition();
 		DebugModeMsg();
 	}
 	else
@@ -4603,12 +4603,8 @@ void Bot::RunTask(void)
 		m_checkTerrain = false;
 		m_navTimeset = engine->GetTime();
 
-		// if bot remembers last enemy position
-		if (m_skill > 70 && m_lastEnemyOrigin != nullvec && IsValidPlayer(m_lastEnemy) && !UsesSniper())
-		{
-			m_lookAt = m_lastEnemyOrigin; // face last enemy
-			m_wantsToFire = true; // and shoot it
-		}
+		if (m_skill > 70 && m_lastEnemyOrigin != nullvec && IsValidPlayer(m_lastEnemy) && IsAlive(m_lastEnemy) && !UsesSniper())
+			m_wantsToFire = true;
 
 		if (!IsValidWaypoint(m_blindCampPoint))
 		{
@@ -5700,7 +5696,6 @@ void Bot::RunTask(void)
 		if (FNullEnt(m_doubleJumpEntity) || !IsAlive(m_doubleJumpEntity) || !IsVisible(GetEntityOrigin(m_doubleJumpEntity), GetEntity()) || (m_aimFlags & AIM_ENEMY) || (IsValidWaypoint(m_travelStartIndex) && GetCurrentTask()->time + (g_waypoint->GetTravelTime(m_moveSpeed, g_waypoint->GetPath(m_travelStartIndex)->origin, m_doubleJumpOrigin) + 11.0f) < engine->GetTime()))
 		{
 			ResetDoubleJumpState();
-
 			return;
 		}
 
@@ -5829,7 +5824,7 @@ void Bot::RunTask(void)
 		m_camp = m_breakable;
 
 		// is bot facing the breakable?
-		if (GetShootingConeDeviation(GetEntity(), &m_breakable) >= 0.90f)
+		if (GetShootingConeDeviation(GetEntity(), m_breakable) >= 0.90f)
 		{
 			if (m_isZombieBot || m_currentWeapon == WEAPON_KNIFE)
 				m_moveSpeed = pev->maxspeed;

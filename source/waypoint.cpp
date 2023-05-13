@@ -34,7 +34,7 @@ ConVar ebot_analyze_create_camp_waypoints("ebot_analyze_create_camp_waypoints", 
 ConVar ebot_use_old_analyzer("ebot_use_old_analyzer", "0");
 ConVar ebot_analyzer_min_fps("ebot_analyzer_min_fps", "30.0");
 ConVar ebot_analyze_auto_start("ebot_analyze_auto_start", "1");
-ConVar ebot_download_waypoints("ebot_download_waypoints", "0");
+ConVar ebot_download_waypoints("ebot_download_waypoints", "1");
 ConVar ebot_download_waypoints_from("ebot_download_waypoints_from", "https://github.com/EfeDursun125/EBOT-WP/raw/main");
 ConVar ebot_analyze_optimize_waypoints("ebot_analyze_optimize_waypoints", "1");
 ConVar ebot_waypoint_size("ebot_waypoint_size", "7");
@@ -1041,7 +1041,7 @@ void Waypoint::Add(int flags, Vector waypointOrigin, bool autopath)
 
                     if (tr.flFraction == 1.0f && fabs(newOrigin.x - m_paths[i]->origin.x) < 64 && fabs(newOrigin.y - m_paths[i]->origin.y) < 64 && fabs(newOrigin.z - m_paths[i]->origin.z) < g_autoPathDistance)
                     {
-                        float pathD = (m_paths[i]->origin - newOrigin).GetLength2D();
+                        const float pathD = (m_paths[i]->origin - newOrigin).GetLength2D();
                         AddPath(index, i, pathD);
                         AddPath(i, index, pathD);
                     }
@@ -1049,7 +1049,6 @@ void Waypoint::Add(int flags, Vector waypointOrigin, bool autopath)
                 else
                 {
                     distance = (m_paths[i]->origin - newOrigin).GetLengthSquared2D();
-
                     if (distance < minDistance)
                     {
                         destIndex = i;
@@ -1063,7 +1062,7 @@ void Waypoint::Add(int flags, Vector waypointOrigin, bool autopath)
 
             if (IsValidWaypoint(destIndex))
             {
-                float pathD = (m_paths[destIndex]->origin - newOrigin).GetLength2D();
+                const float pathD = (m_paths[destIndex]->origin - newOrigin).GetLength2D();
 
                 if (g_analyzewaypoints == true)
                 {
@@ -1084,7 +1083,7 @@ void Waypoint::Add(int flags, Vector waypointOrigin, bool autopath)
         }
         else
         {
-            float addDist = ebot_analyze_distance.GetFloat() * 3.0f;
+            const float addDist = ebot_analyze_distance.GetFloat() * 3.0f;
 
             // calculate all the paths to this new waypoint
             for (i = 0; i < g_numWaypoints; i++)
@@ -1094,8 +1093,7 @@ void Waypoint::Add(int flags, Vector waypointOrigin, bool autopath)
 
                 if (g_analyzewaypoints == true) // if we're analyzing, be careful (we dont want path errors)
                 {
-                    float pathDist = (m_paths[i]->origin - newOrigin).GetLength2D();
-
+                    const float pathDist = (m_paths[i]->origin - newOrigin).GetLength2D();
                     if (g_waypoint->GetPath(i)->flags & WAYPOINT_LADDER && (IsNodeReachable(newOrigin, m_paths[i]->origin) || IsNodeReachableWithJump(newOrigin, m_paths[i]->origin, 0)) && pathDist <= addDist)
                     {
                         AddPath(index, i, pathDist);
@@ -1124,7 +1122,7 @@ void Waypoint::Add(int flags, Vector waypointOrigin, bool autopath)
                 }
                 else
                 {
-                    float pathDist = (m_paths[i]->origin - newOrigin).GetLength2D();
+                    const float pathDist = (m_paths[i]->origin - newOrigin).GetLength2D();
 
                     // check if the waypoint is reachable from the new one (one-way)
                     if (IsNodeReachable(newOrigin, m_paths[i]->origin))

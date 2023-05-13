@@ -160,7 +160,7 @@ void Bot::ResetCheckEnemy()
 
 bool Bot::LookupEnemy(void)
 {
-	m_visibility = 0;
+	m_visibility = Visibility::None;
 	if (m_blindTime > engine->GetTime())
 		return false;
 
@@ -288,7 +288,7 @@ bool Bot::LookupEnemy(void)
 		}
 		else if (IsShootableThruObstacle(m_enemy))
 		{
-			m_visibility = VISIBILITY_BODY;
+			m_visibility = Visibility::None;
 			return true;
 		}
 	}
@@ -403,7 +403,7 @@ bool Bot::LookupEnemy(void)
 Vector Bot::GetAimPosition(void)
 {
 	// not even visible?
-	if (m_visibility == 0)
+	if (m_visibility == Visibility::None)
 	{
 		m_wantsToFire = true;
 		if (m_enemyOrigin == nullvec)
@@ -421,13 +421,11 @@ Vector Bot::GetAimPosition(void)
 
 	// get enemy position initially
 	Vector targetOrigin = m_enemy->v.origin;
-	if (targetOrigin == nullvec)
-		targetOrigin = m_enemyOrigin;
 
 	const float distance = (targetOrigin - pev->origin).GetLengthSquared();
 
 	// now take in account different parts of enemy body
-	if (m_visibility & (VISIBILITY_HEAD | VISIBILITY_BODY)) // visible head & body
+	if (m_visibility & (Visibility::Head | Visibility::Body)) // visible head & body
 	{
 		// now check is our skill match to aim at head, else aim at enemy body
 		if (IsZombieMode() || ChanceOf(m_skill) || UsesPistol())
@@ -435,11 +433,11 @@ Vector Bot::GetAimPosition(void)
 		else
 			targetOrigin += Vector(0.0f, 0.0f, GetZOffset(distance));
 	}
-	else if (m_visibility & VISIBILITY_HEAD) // visible only head
+	else if (m_visibility & Visibility::Head) // visible only head
 		targetOrigin += m_enemy->v.view_ofs + Vector(0.0f, 0.0f, GetZOffset(distance));
-	else if (m_visibility & VISIBILITY_BODY) // visible only body
+	else if (m_visibility & Visibility::Body) // visible only body
 		targetOrigin += Vector(0.0f, 0.0f, GetZOffset(distance));
-	else if (m_visibility & VISIBILITY_OTHER) // random part of body is visible
+	else if (m_visibility & Visibility::Other) // random part of body is visible
 		targetOrigin = m_enemyOrigin;
 
 	return targetOrigin;
@@ -542,7 +540,7 @@ bool Bot::IsFriendInLineOfFire(float distance)
 		Vector origin = client.ent->v.origin;
 		float friendDistance = (origin - pev->origin).GetLengthSquared();
 
-		if (friendDistance <= distance && GetShootingConeDeviation(GetEntity(), &origin) > (friendDistance / (friendDistance + 1089.0f)))
+		if (friendDistance <= distance && GetShootingConeDeviation(GetEntity(), origin) > (friendDistance / (friendDistance + 1089.0f)))
 			return true;
 	}
 
@@ -624,7 +622,7 @@ bool Bot::DoFirePause(float distance)//, FireDelay *fireDelay)
 	if (m_firePause > engine->GetTime())
 		return true;
 
-	if (m_aimFlags & AIM_ENEMY && m_enemyOrigin != nullvec && IsEnemyProtectedByShield(m_enemy))
+	if (m_enemyOrigin != nullvec && IsEnemyProtectedByShield(m_enemy))
 		return true;
 
 	const float angle = (fabsf(pev->punchangle.y) + fabsf(pev->punchangle.x)) * (Math::MATH_PI * 0.00277777777f);
@@ -666,7 +664,7 @@ void Bot::FireWeapon(void)
 		return;
 	}
 
-	float distance = (m_lookAt - pev->origin).GetLengthSquared(); // how far away is the enemy?
+	const float distance = (m_lookAt - pev->origin).GetLengthSquared(); // how far away is the enemy?
 
 	// or if friend in line of fire, stop this too but do not update shoot time
 	if (!FNullEnt(m_enemy) && IsFriendInLineOfFire(distance))
@@ -884,16 +882,16 @@ WeaponSelectEnd:
 
 		if (distance >= SquaredF(1200.0f))
 		{
-			if (m_visibility & (VISIBILITY_HEAD | VISIBILITY_BODY))
+			if (m_visibility & (Visibility::Head | Visibility::Body))
 				delayTime -= (delayTime == 0.0f) ? 0.0f : 0.02f;
-			else if (m_visibility & VISIBILITY_HEAD)
+			else if (m_visibility & Visibility::Head)
 			{
 				if (distance >= SquaredF(2400.0f))
 					delayTime += (delayTime == 0.0f) ? 0.15f : 0.10f;
 				else
 					delayTime += (delayTime == 0.0f) ? 0.10f : 0.05f;
 			}
-			else if (m_visibility & VISIBILITY_BODY)
+			else if (m_visibility & Visibility::Body)
 			{
 				if (distance >= SquaredF(2400.0f))
 					delayTime += (delayTime == 0.0f) ? 0.12f : 0.08f;
@@ -1044,7 +1042,7 @@ void Bot::FocusEnemy(void)
 		else
 			m_wantsToFire = false;
 	} // when we start firing stop checks
-	else if (!m_wantsToFire && GetShootingConeDeviation(GetEntity(), &m_lookAt) >= 0.80f)
+	else if (!m_wantsToFire && GetShootingConeDeviation(GetEntity(), m_lookAt) >= 0.80f)
 		m_wantsToFire = true;
 }
 
@@ -1373,7 +1371,7 @@ void Bot::CombatFight(void)
 		else if (m_fightStyle == 1)
 		{
 			const Vector& src = pev->origin - Vector(0, 0, 18.0f);
-			if ((m_visibility & (VISIBILITY_HEAD | VISIBILITY_BODY)) && (FNullEnt(m_enemy) || (m_enemy->v.weapons != WEAPON_KNIFE && IsVisible(src, m_enemy))))
+			if (!(m_visibility & (Visibility::Head | Visibility::Body)) && IsVisible(src, m_enemy))
 				m_duckTime = engine->GetTime() + (m_frameInterval * 2.0f);
 
 			m_moveSpeed = 0.0f;

@@ -24,7 +24,7 @@ int CRandomInt(int min, int max)
 
 float csqrt(float number)
 {
-	return _mm_cvtss_f32(_mm_rsqrt_ss(_mm_load_ss(&number)));;
+	return _mm_cvtss_f32(_mm_sqrt_ss(_mm_load_ss(&number)));;
 }
 
 float crsqrt(float number)

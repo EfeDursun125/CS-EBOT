@@ -690,7 +690,7 @@ Vector NavMesh::GetClosestPosition(NavArea* area, const Vector origin)
     return closestPoint;
 }
 
-Vector NavMesh::GetAimPosition(void)
+Vector NavMesh::GetAimingPosition(void)
 {
     if (FNullEnt(g_hostEntity))
         return nullvec;
@@ -708,7 +708,7 @@ void NavMesh::DrawNavArea(void)
     if (FNullEnt(g_hostEntity))
         return;
 
-    Vector aimPosition = GetAimPosition();
+    Vector aimPosition = GetAimingPosition();
     NavArea* nearestArea = GetNearestNavArea(aimPosition);
     
     const float size = 10.0f;

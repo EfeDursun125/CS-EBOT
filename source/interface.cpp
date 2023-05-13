@@ -363,7 +363,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		}
 		else if (stricmp(arg1, "create") == 0)
 		{
-			const Vector aimPos = g_navmesh->GetAimPosition();
+			const Vector aimPos = g_navmesh->GetAimingPosition();
 			if (aimPos != nullvec)
 			{
 				g_navmeshOn = true;
@@ -375,7 +375,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		{
 			g_navmeshOn = true;
 
-			const Vector aimPos = g_navmesh->GetAimPosition();
+			const Vector aimPos = g_navmesh->GetAimingPosition();
 			g_navmesh->DeleteArea(g_navmesh->GetNearestNavArea(aimPos));
 
 			ServerCommand("ebot wp mdl on");
