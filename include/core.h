@@ -273,9 +273,9 @@ enum PickupType
 // reload state
 enum ReloadState
 {
-	RSTATE_NONE = 0, // no reload state currrently
-	RSTATE_PRIMARY = 1, // primary weapon reload state
-	RSTATE_SECONDARY = 2  // secondary weapon reload state
+	Nothing = 0, // no reload state currrently
+	Primary = 1, // primary weapon reload state
+	Secondary = 2  // secondary weapon reload state
 };
 
 // vgui menus (since latest steam updates is obsolete, but left for old cs)
@@ -790,6 +790,7 @@ private:
 	int m_reloadState; // current reload state
 	int m_voicePitch; // bot voice pitch
 	bool m_zombiePush; // we must push???
+	bool m_allowWalk; // walk for a few seconds
 
 	bool m_duckDefuse; // should or not bot duck to defuse bomb
 	float m_duckDefuseCheckTime; // time to check for ducking for defuse
