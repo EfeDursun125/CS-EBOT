@@ -1,8 +1,4 @@
 #include <core.h>
-#include <compress.h>
-#include <vector>
-#include <xmmintrin.h>
-#include <emmintrin.h>
 
 void NavMesh::Initialize(void)
 {

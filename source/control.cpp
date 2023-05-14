@@ -1184,8 +1184,9 @@ void Bot::NewRound(void)
 	for (i = 0; i < Const_MaxHostages; i++)
 		m_hostages[i] = nullptr;
 
+	m_allowWalk = false;
 	m_isReloading = false;
-	m_reloadState = RSTATE_NONE;
+	m_reloadState = ReloadState::Nothing;
 
 	m_reloadCheckTime = 0.0f;
 	m_shootTime = engine->GetTime();

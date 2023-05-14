@@ -1501,7 +1501,7 @@ void Bot::PerformWeaponPurchase(void)
 			}
 		}
 		else if (HasPrimaryWeapon() && !HasShield())
-			m_reloadState = RSTATE_PRIMARY;
+			m_reloadState = ReloadState::Primary;
 
 		break;
 
@@ -1659,8 +1659,8 @@ void Bot::PerformWeaponPurchase(void)
 		else
 			FakeClientCommand(GetEntity(), "buy;menuselect 6");
 
-		if (m_reloadState != RSTATE_PRIMARY)
-			m_reloadState = RSTATE_SECONDARY;
+		if (m_reloadState != ReloadState::Primary)
+			m_reloadState = ReloadState::Secondary;
 
 		break;
 
@@ -4099,12 +4099,20 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 			}
 		}
 
-		if (ebot_walkallow.GetBool() && engine->IsFootstepsOn() && m_moveSpeed != 0.0f && !(m_aimFlags & AIM_ENEMY) && (m_seeEnemyTime + 13.0f >= engine->GetTime() || m_heardSoundTime + 13.0f >= engine->GetTime() || m_states & (STATE_HEARENEMY)) && !g_bombPlanted)
+		if (m_allowWalk)
 		{
 			m_moveSpeed = GetWalkSpeed();
 			if (m_currentWeapon == WEAPON_KNIFE)
 				SelectBestWeapon();
+
+			if (m_isSlowThink)
+			{
+				if (!(ebot_walkallow.GetBool() && engine->IsFootstepsOn() && (m_seeEnemyTime + 13.0f >= engine->GetTime() || m_heardSoundTime + 13.0f >= engine->GetTime() || m_states & (STATE_HEARENEMY))))
+					m_allowWalk = false;
+			}
 		}
+		else if (ebot_walkallow.GetBool() && engine->IsFootstepsOn() && g_bombPlanted && (m_seeEnemyTime + 13.0f >= engine->GetTime() || m_heardSoundTime + 13.0f >= engine->GetTime() || m_states & (STATE_HEARENEMY)))
+			m_allowWalk = true;
 
 		// bot hasn't seen anything in a long time and is asking his teammates to report in or sector clear
 		if ((GetGameMode() == MODE_BASE || GetGameMode() == MODE_TDM) && m_seeEnemyTime != 0.0f && m_seeEnemyTime + engine->RandomFloat(30.0f, 80.0f) < engine->GetTime() && ChanceOf(70) && g_timeRoundStart + 20.0f < engine->GetTime() && m_askCheckTime + engine->RandomFloat(20.0, 30.0f) < engine->GetTime())
@@ -4152,8 +4160,8 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 				m_knifeAttackTime = AddTime(engine->RandomFloat(2.6f, 3.8f));
 			}
 		}
-		else if (m_reloadState == RSTATE_NONE && GetAmmo() != 0)
-			m_reloadState = RSTATE_PRIMARY;
+		else if (m_reloadState == ReloadState::Nothing && GetAmmo() != 0)
+			m_reloadState = ReloadState::Primary;
 	}
 
 	// reached the destination (goal) waypoint?
@@ -4204,7 +4212,7 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 						SelectBestWeapon();
 
 						if (!(m_states & (STATE_SEEINGENEMY | STATE_HEARENEMY)) && !m_reloadState)
-							m_reloadState = RSTATE_PRIMARY;
+							m_reloadState = ReloadState::Primary;
 
 						MakeVectors(pev->v_angle);
 
@@ -4488,8 +4496,8 @@ void Bot::RunTask(void)
 					m_campButtons = 0;
 			}
 
-			if ((m_reloadState == RSTATE_NONE) && (GetAmmoInClip() < 8) && (GetAmmo() != 0))
-				m_reloadState = RSTATE_PRIMARY;
+			if ((m_reloadState == ReloadState::Nothing) && (GetAmmoInClip() < 8) && (GetAmmo() != 0))
+				m_reloadState = ReloadState::Primary;
 
 			m_moveSpeed = 0.0f;
 			m_strafeSpeed = 0.0f;
@@ -5181,8 +5189,8 @@ void Bot::RunTask(void)
 				m_moveSpeed = pev->maxspeed;
 		}
 
-		if (m_reloadState == RSTATE_NONE && GetAmmo() != 0)
-			m_reloadState = RSTATE_PRIMARY;
+		if (m_reloadState == ReloadState::Nothing && GetAmmo() != 0)
+			m_reloadState = ReloadState::Primary;
 
 		if (IsZombieMode() || ((GetEntityOrigin(m_targetEntity) - pev->origin).GetLengthSquared() > SquaredF(80.0f)))
 			m_followWaitTime = 0.0f;
@@ -6088,13 +6096,13 @@ void Bot::RunTask(void)
 
 void Bot::DebugModeMsg(void)
 {
-	int debugMode = ebot_debug.GetInt();
-	if (FNullEnt(g_hostEntity) || debugMode <= 0 || debugMode == 2)
+	const int debugMode = ebot_debug.GetInt();
+	if (debugMode <= 0 || debugMode == 2 || FNullEnt(g_hostEntity))
 		return;
 
 	static float timeDebugUpdate = 0.0f;
 
-	int specIndex = g_hostEntity->v.iuser2;
+	const int specIndex = g_hostEntity->v.iuser2;
 	if (specIndex != m_index)
 		return;
 

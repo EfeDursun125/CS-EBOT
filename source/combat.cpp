@@ -386,7 +386,7 @@ bool Bot::LookupEnemy(void)
 	if ((m_aimFlags <= AIM_PREDICTENEMY && m_seeEnemyTime + 4.0f < engine->GetTime() && !(m_states & (STATE_SEEINGENEMY | STATE_HEARENEMY)) && FNullEnt(m_lastEnemy) && FNullEnt(m_enemy) && GetCurrentTask()->taskID != TASK_DESTROYBREAKABLE && GetCurrentTask()->taskID != TASK_PLANTBOMB && GetCurrentTask()->taskID != TASK_DEFUSEBOMB) || g_roundEnded)
 	{
 		if (!m_reloadState)
-			m_reloadState = RSTATE_PRIMARY;
+			m_reloadState = ReloadState::Primary;
 	}
 
 	if ((UsesSniper() || UsesZoomableRifle()) && m_zoomCheckTime + 1.0f < engine->GetTime())
@@ -735,10 +735,10 @@ void Bot::FireWeapon(void)
 				if (g_weaponDefs[id].ammo1 != -1 && m_ammo[g_weaponDefs[id].ammo1] >= selectTab[selectIndex].minPrimaryAmmo)
 				{
 					// available ammo found, reload weapon
-					if (m_reloadState == RSTATE_NONE || m_reloadCheckTime > engine->GetTime() || GetCurrentTask()->taskID != TASK_ESCAPEFROMBOMB)
+					if (m_reloadState == ReloadState::Nothing || m_reloadCheckTime > engine->GetTime() || GetCurrentTask()->taskID != TASK_ESCAPEFROMBOMB)
 					{
 						m_isReloading = true;
-						m_reloadState = RSTATE_PRIMARY;
+						m_reloadState = ReloadState::Primary;
 						m_reloadCheckTime = engine->GetTime();
 						m_fearLevel = 1.0f;
 						RadioMessage(Radio_NeedBackup);
@@ -757,13 +757,13 @@ WeaponSelectEnd:
 	// we want to fire weapon, don't reload now
 	if (!m_isReloading)
 	{
-		m_reloadState = RSTATE_NONE;
+		m_reloadState = ReloadState::Nothing;
 		m_reloadCheckTime = engine->GetTime() + 5.0f;
 	}
 
 	if (IsZombieMode() && m_currentWeapon == melee && selectId != melee && !m_isZombieBot)
 	{
-		m_reloadState = RSTATE_PRIMARY;
+		m_reloadState = ReloadState::Primary;
 		m_reloadCheckTime = engine->GetTime() + 2.5f;
 		return;
 	}
@@ -1246,7 +1246,7 @@ void Bot::CombatFight(void)
 		int approach;
 		if (!(m_states & STATE_SEEINGENEMY)) // if suspecting enemy stand still
 			approach = 49;
-		else if (m_isReloading || m_isVIP) // if reloading or vip back off
+		else if (g_gameVersion != HALFLIFE && (GetAmmoInClip() <= 0 || m_isReloading || m_isVIP)) // if reloading or vip back off
 			approach = 29;
 		else
 		{
@@ -1743,7 +1743,7 @@ void Bot::SelectBestWeapon(void)
 	{
 		SelectWeaponByName(selectTab[selectIndex].weaponName);
 		m_isReloading = false;
-		m_reloadState = RSTATE_NONE;
+		m_reloadState = ReloadState::Nothing;
 		m_weaponSelectDelay = engine->GetTime() + 6.0f;
 	}
 }
@@ -1885,31 +1885,44 @@ bool Bot::IsGroupOfEnemies(Vector location, int numEnemies, float radius)
 
 void Bot::CheckReload(void)
 {
-	// check the reload state
-	if (GetCurrentTask()->taskID == TASK_ESCAPEFROMBOMB || GetCurrentTask()->taskID == TASK_PLANTBOMB || GetCurrentTask()->taskID == TASK_DEFUSEBOMB || GetCurrentTask()->taskID == TASK_PICKUPITEM || GetCurrentTask()->taskID == TASK_THROWFBGRENADE || GetCurrentTask()->taskID == TASK_THROWSMGRENADE || m_isUsingGrenade)
+	if (m_isZombieBot)
 	{
-		m_reloadState = RSTATE_NONE;
+		m_reloadState = ReloadState::Nothing;
+		m_isReloading = false;
 		return;
 	}
 
-	m_isReloading = false;    // update reloading status
-	m_reloadCheckTime = engine->GetTime() + 5.0f;
+	// check the reload state
+	const int task = GetCurrentTask()->taskID;
 
-	if (m_reloadState != RSTATE_NONE)
+	// we're should not reload, while doing next tasks
+	const bool uninterruptibleTask = (task == TASK_PLANTBOMB || task == TASK_DEFUSEBOMB || task == TASK_PICKUPITEM || task == TASK_THROWHEGRENADE || task == TASK_THROWFBGRENADE || task == TASK_THROWSMGRENADE);
+
+	// do not check for reload
+	if (uninterruptibleTask || m_isUsingGrenade || m_currentWeapon == WEAPON_KNIFE)
+	{
+		m_reloadState = ReloadState::Nothing;
+		return;
+	}
+
+	m_isReloading = false; // update reloading status
+	m_reloadCheckTime = AddTime(3.0f);
+
+	if (m_reloadState != ReloadState::Nothing)
 	{
 		int weapons = pev->weapons;
 
-		if (m_reloadState == RSTATE_PRIMARY)
+		if (m_reloadState == ReloadState::Primary)
 			weapons &= WeaponBits_Primary;
-		else if (m_reloadState == RSTATE_SECONDARY)
+		else if (m_reloadState == ReloadState::Secondary)
 			weapons &= WeaponBits_Secondary;
 
 		if (weapons == 0)
 		{
 			m_reloadState++;
 
-			if (m_reloadState > RSTATE_SECONDARY)
-				m_reloadState = RSTATE_NONE;
+			if (m_reloadState > ReloadState::Secondary)
+				m_reloadState = ReloadState::Nothing;
 
 			return;
 		}
@@ -1917,14 +1930,14 @@ void Bot::CheckReload(void)
 		int weaponIndex = -1;
 		const int maxClip = CheckMaxClip(weapons, &weaponIndex);
 
-		if (m_ammoInClip[weaponIndex] < maxClip * 0.8f && g_weaponDefs[weaponIndex].ammo1 != -1 && g_weaponDefs[weaponIndex].ammo1 < 32 && m_ammo[g_weaponDefs[weaponIndex].ammo1] > 0)
+		if (m_ammoInClip[weaponIndex] < maxClip && g_weaponDefs[weaponIndex].ammo1 != -1 && g_weaponDefs[weaponIndex].ammo1 < 32 && m_ammo[g_weaponDefs[weaponIndex].ammo1] > 0)
 		{
 			if (m_currentWeapon != weaponIndex)
 				SelectWeaponByName(g_weaponDefs[weaponIndex].className);
 
 			pev->button &= ~IN_ATTACK;
 
-			if ((pev->oldbuttons & IN_RELOAD) == RSTATE_NONE)
+			if ((pev->oldbuttons & IN_RELOAD) == ReloadState::Nothing)
 				pev->button |= IN_RELOAD; // press reload button
 
 			m_isReloading = true;
@@ -1934,13 +1947,14 @@ void Bot::CheckReload(void)
 			// if we have enemy don't reload next weapon
 			if ((m_states & (STATE_SEEINGENEMY | STATE_HEARENEMY)) || m_seeEnemyTime + 5.0f > engine->GetTime())
 			{
-				m_reloadState = RSTATE_NONE;
+				m_reloadState = ReloadState::Nothing;
 				return;
 			}
+
 			m_reloadState++;
 
-			if (m_reloadState > RSTATE_SECONDARY)
-				m_reloadState = RSTATE_NONE;
+			if (m_reloadState > ReloadState::Secondary)
+				m_reloadState = ReloadState::Nothing;
 
 			return;
 		}
