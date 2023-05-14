@@ -2707,10 +2707,9 @@ public:
 
 class Entity
 {
-protected:
+public:
     edict_t* m_ent;
 
-public:
     inline Entity(void) : m_ent(nullptr)
     {
         // nothing todo
@@ -2746,7 +2745,7 @@ public:
 
     inline bool operator == (const Entity& other) const
     {
-        return IsValid() && m_ent == other.m_ent;
+        return m_ent == other.m_ent;
     }
 
     inline bool operator != (const Entity& other) const
@@ -2757,7 +2756,7 @@ public:
 public:
     inline bool IsPlayer(void) const
     {
-        return IsValid() && !!(m_ent->v.flags & (FL_FAKECLIENT | FL_CLIENT));
+        return !!(m_ent->v.flags & (FL_FAKECLIENT | FL_CLIENT));
     }
 
     virtual inline bool IsBot(void) const
@@ -2775,9 +2774,6 @@ public:
 
     inline virtual bool IsAlive(void) const
     {
-        if (!IsValid())
-            return false;
-
         return m_ent->v.deadflag == DEAD_NO && m_ent->v.health > 0 && m_ent->v.movetype != MOVETYPE_NOCLIP;
     }
 
@@ -2984,7 +2980,6 @@ public:
     {
         m_flags = CLIENT_UNASSIGNED;
         m_team = CLIENT_UNASSIGNED;
-
         m_ent = nullptr;
     }
 
@@ -2992,7 +2987,6 @@ public:
     {
         m_flags = CLIENT_UNASSIGNED;
         m_team = CLIENT_UNASSIGNED;
-
         m_ent = ent;
     }
 
@@ -3033,12 +3027,12 @@ public:
 
     inline bool operator == (const Entity& other) const
     {
-        return m_ent == other;
+        return m_ent == other.m_ent;
     }
 
     inline bool operator != (const Entity& other) const
     {
-        return m_ent != other;
+        return m_ent != other.m_ent;
     }
 
 public:
