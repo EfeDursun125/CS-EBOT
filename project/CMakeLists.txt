@@ -6,7 +6,7 @@ project(EBOT)
 find_program(CMAKE_CXX_COMPILER clang++)
 if(CMAKE_CXX_COMPILER)
     message(STATUS "Found Clang++: ${CMAKE_CXX_COMPILER} and using it as default C++ compiler")
-    set(CMAKE_CXX_COMPILER ${CMAKE_CXX_COMPILER})
+    set(CMAKE_CXX_COMPILER clang++)
 else()
     message(STATUS "Clang++ not found using default C++ compiler, this might cause E-Bot crashes")
 endif()
@@ -15,21 +15,23 @@ endif()
 find_program(CMAKE_C_COMPILER clang)
 if(CMAKE_C_COMPILER)
     message(STATUS "Found Clang: ${CMAKE_C_COMPILER} and using it as default C compiler")
-    set(CMAKE_C_COMPILER ${CMAKE_C_COMPILER})
+    set(CMAKE_C_COMPILER clang)
 else()
     message(STATUS "Clang not found using default C compiler, this might cause E-Bot crashes")
 endif()
 
-# Set minimum required glibc version to 2.17
-set(CMAKE_SYSTEM_VERSION 2.17)
+# Set minimum required glibc version to 2.16
+set(CMAKE_SYSTEM_VERSION 2.16)
+
+# Set build type
+set(CMAKE_BUILD_TYPE Release)
 
 # Set compiler flags
 set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_FLAGS "-w -m32 -msse3 -Ofast -fvisibility=hidden -fno-exceptions -fno-rtti -Wno-parentheses -pipe -mtune=generic -funroll-loops -fprofile-use -fomit-frame-pointer -fno-stack-protector -fvisibility-inlines-hidden")
-set(CMAKE_CXX_LINK_FLAGS "-m32")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w -m32 -pthread -msse3 -Ofast -fvisibility=hidden -fno-exceptions -fno-rtti -Wno-parentheses -pipe -mtune=generic -funroll-loops -fprofile-use -fomit-frame-pointer -fno-stack-protector -fvisibility-inlines-hidden")
+set(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -m32")
 
-# Set build type and library suffix
-set(CMAKE_BUILD_TYPE Release)
+# Set library suffix
 set(CMAKE_SHARED_LIBRARY_SUFFIX ".so")
 
 # Set output directory for the library
