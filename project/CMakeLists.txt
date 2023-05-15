@@ -23,16 +23,15 @@ endif()
 # Set minimum required glibc version to 2.16
 set(CMAKE_SYSTEM_VERSION 2.16)
 
-# Set build type
+# Set build type and library suffix
 set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_SHARED_LIBRARY_SUFFIX ".so")
 
 # Set compiler flags
 set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w -m32 -pthread -msse3 -Ofast -fvisibility=hidden -fno-exceptions -fno-rtti -Wno-parentheses -pipe -mtune=generic -funroll-loops -fprofile-use -fomit-frame-pointer -fno-stack-protector -fvisibility-inlines-hidden")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32 -Ofast")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w -m32 -msse3 -pthread -Ofast -fvisibility=hidden -fno-exceptions -fno-rtti -Wno-parentheses -pipe -mtune=generic -funroll-loops -fomit-frame-pointer -fno-stack-protector -fvisibility-inlines-hidden")
 set(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -m32")
-
-# Set library suffix
-set(CMAKE_SHARED_LIBRARY_SUFFIX ".so")
 
 # Set output directory for the library
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib)
@@ -67,3 +66,4 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 # Set installation directories
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../include/ DESTINATION include)
+
