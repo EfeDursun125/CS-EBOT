@@ -2341,7 +2341,7 @@ inline void MESSAGE_BEGIN(int msg_dest, int msg_type, const float* pOrigin, entv
 #define eoNullEntity 0
 inline bool FNullEnt(EOFFSET eoffset)
 {
-    return eoffset == 0;
+    return eoffset == eoNullEntity;
 }
 inline bool FNullEnt(entvars_t* pev)
 {
@@ -2522,44 +2522,32 @@ inline void STOP_SOUND(edict_t* entity, int channel, const char* sample)
 
 inline char* ENTITY_KEYVALUE(edict_t* entity, char* key)
 {
-    char* ifbuf = GET_INFOKEYBUFFER(entity);
-
-    return (INFOKEY_VALUE(ifbuf, key));
+    return INFOKEY_VALUE(GET_INFOKEYBUFFER(entity), key);
 }
 
 inline void ENTITY_SET_KEYVALUE(edict_t* entity, char* key, char* value)
 {
-    char* ifbuf = GET_INFOKEYBUFFER(entity);
-
-    SET_CLIENT_KEYVALUE(ENTINDEX(entity), ifbuf, key, value);
+    SET_CLIENT_KEYVALUE(ENTINDEX(entity), GET_INFOKEYBUFFER(entity), key, value);
 }
 
 inline char* SERVERINFO(char* key)
 {
-    edict_t* server = INDEXENT(0);
-
-    return (ENTITY_KEYVALUE(server, key));
+    return ENTITY_KEYVALUE(INDEXENT(0), key);
 }
 
 inline void SET_SERVERINFO(char* key, char* value)
 {
-    edict_t* server = INDEXENT(0);
-    char* ifbuf = GET_INFOKEYBUFFER(server);
-
-    SET_SERVER_KEYVALUE(ifbuf, key, value);
+    SET_SERVER_KEYVALUE(GET_INFOKEYBUFFER(INDEXENT(0)), key, value);
 }
 
 inline char* LOCALINFO(char* key)
 {
-    edict_t* server = nullptr;
-    return (ENTITY_KEYVALUE(server, key));
+    return ENTITY_KEYVALUE(nullptr, key);
 }
 
 inline void SET_LOCALINFO(char* key, char* value)
 {
-    edict_t* server = nullptr;
-    char* ifbuf = GET_INFOKEYBUFFER(server);
-    SET_SERVER_KEYVALUE(ifbuf, key, value);
+    SET_SERVER_KEYVALUE(GET_INFOKEYBUFFER(nullptr), key, value);
 }
 
 short FixedSigned16(float value, float scale);
@@ -2745,23 +2733,23 @@ public:
 
     inline bool operator == (const Entity& other) const
     {
-        return m_ent == other.m_ent;
+        return IsValid() && m_ent == other.m_ent;
     }
 
     inline bool operator != (const Entity& other) const
     {
-        return m_ent != other.m_ent;
+        return IsValid() && m_ent != other.m_ent;
     }
 
 public:
     inline bool IsPlayer(void) const
     {
-        return !!(m_ent->v.flags & (FL_FAKECLIENT | FL_CLIENT));
+        return IsValid() && !!(m_ent->v.flags & (FL_FAKECLIENT | FL_CLIENT));
     }
 
     virtual inline bool IsBot(void) const
     {
-        return !!(m_ent->v.flags & FL_FAKECLIENT);
+        return IsValid() && !!(m_ent->v.flags & FL_FAKECLIENT);
     }
 
     inline bool IsValid(void) const
@@ -2774,12 +2762,15 @@ public:
 
     inline virtual bool IsAlive(void) const
     {
+        if (!IsValid())
+            return false;
+
         return m_ent->v.deadflag == DEAD_NO && m_ent->v.health > 0 && m_ent->v.movetype != MOVETYPE_NOCLIP;
     }
 
     inline bool IsRendered(void) const
     {
-        return !!(m_ent->v.effects & EF_NODRAW);
+        return IsValid() && !!(m_ent->v.effects & EF_NODRAW);
     }
 
     inline String GetClassname(void) const
@@ -2809,6 +2800,9 @@ public:
 
     inline void SetName(const String& name) const
     {
+        if (!IsValid())
+            return;
+
         m_ent->v.netname = SDK_Utils::MakeStringByOffset(name.GetRawData());
     }
 
@@ -2824,31 +2818,49 @@ public:
 
     inline const Vector& GetVelocity(void) const
     {
+        if (!IsValid())
+            return nullvec;
+
         return m_ent->v.velocity;
     }
 
     inline void SetVelocity(const Vector& velocity) const
     {
+        if (!IsValid())
+            return;
+
         m_ent->v.velocity = velocity;
     }
 
     inline const Vector& GetBodyAngles(void) const
     {
+        if (!IsValid())
+            return nullvec;
+
         return m_ent->v.angles;
     }
 
     inline void SetBodyAngles(const Vector& angles) const
     {
+        if (!IsValid())
+            return;
+
         m_ent->v.angles = angles;
     }
 
     inline const Vector& GetViewAngles(void) const
     {
+        if (!IsValid())
+            return nullvec;
+
         return m_ent->v.v_angle;
     }
 
     inline void SetViewAngles(const Vector& viewAngles) const
     {
+        if (!IsValid())
+            return;
+
         m_ent->v.v_angle = viewAngles;
     }
 
@@ -2964,6 +2976,9 @@ public:
 
     inline int GetIndex(void) const
     {
+        if (!IsValid())
+            return -1;
+
         return g_engfuncs.pfnIndexOfEdict(m_ent);
     }
 };
@@ -3017,22 +3032,22 @@ public:
 
     inline bool operator == (const Client& other) const
     {
-        return m_ent == other.m_ent;
+        return IsValid() && m_ent == other.m_ent;
     }
 
     inline bool operator != (const Client& other) const
     {
-        return m_ent != other.m_ent;
+        return IsValid() && m_ent != other.m_ent;
     }
 
     inline bool operator == (const Entity& other) const
     {
-        return m_ent == other.m_ent;
+        return IsValid() && m_ent == other.m_ent;
     }
 
     inline bool operator != (const Entity& other) const
     {
-        return m_ent != other.m_ent;
+        return IsValid() && m_ent != other.m_ent;
     }
 
 public:
