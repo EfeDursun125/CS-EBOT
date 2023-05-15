@@ -1116,7 +1116,7 @@ void PriorityQueue::Insert(int value, float priority)
 // removes the smallest item from the priority queue
 int PriorityQueue::Remove(void)
 {
-	int retID = m_heap[0].id;
+	const int retID = m_heap[0].id;
 
 	m_size--;
 	m_heap[0] = m_heap[m_size];
@@ -1130,11 +1130,11 @@ void PriorityQueue::HeapSiftDown(int subRoot)
 	int parent = subRoot;
 	int child = (2 * parent) + 1;
 
-	HeapNode_t ref = m_heap[parent];
+	const HeapNode_t ref = m_heap[parent];
 
 	while (child < m_size)
 	{
-		int rightChild = (2 * parent) + 2;
+		const int rightChild = (2 * parent) + 2;
 
 		if (rightChild < m_size)
 		{
@@ -1154,19 +1154,18 @@ void PriorityQueue::HeapSiftDown(int subRoot)
 	m_heap[parent] = ref;
 }
 
-
 void PriorityQueue::HeapSiftUp(void)
 {
 	int child = m_size - 1;
 
 	while (child)
 	{
-		int parent = (child - 1) / 2;
+		const int parent = (child - 1) / 2;
 
 		if (m_heap[parent].priority <= m_heap[child].priority)
 			break;
 
-		HeapNode_t temp = m_heap[child];
+		const HeapNode_t temp = m_heap[child];
 
 		m_heap[child] = m_heap[parent];
 		m_heap[parent] = temp;

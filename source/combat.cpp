@@ -26,7 +26,7 @@
 
 ConVar ebot_escape("ebot_zombie_escape_mode", "0");
 ConVar ebot_zp_use_grenade_percent("ebot_zm_use_grenade_percent", "10");
-ConVar ebot_zp_escape_distance("ebot_zm_escape_distance", "320");
+ConVar ebot_zp_escape_distance("ebot_zm_escape_distance", "200");
 ConVar ebot_zombie_speed_factor("ebot_zombie_speed_factor", "0.54");
 ConVar ebot_sb_mode("ebot_sb_mode", "0");
 
