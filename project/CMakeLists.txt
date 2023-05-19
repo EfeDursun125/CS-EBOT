@@ -20,8 +20,8 @@ else()
     message(STATUS "Clang not found using default C compiler, this might cause E-Bot crashes")
 endif()
 
-# Set minimum required glibc version to 2.16
-set(CMAKE_SYSTEM_VERSION 2.16)
+# Set minimum required glibc version to 2.12
+set(CMAKE_SYSTEM_VERSION 2.12)
 
 # Set build type and library suffix
 set(CMAKE_BUILD_TYPE Release)
