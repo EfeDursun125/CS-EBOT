@@ -1004,6 +1004,7 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	}
 
 	MDLL_ClientPutInServer(bot);
+	bot->v.flags |= FL_FAKECLIENT;
 	bot->v.flags |= FL_CLIENT;
 
 	// initialize all the variables for this bot...

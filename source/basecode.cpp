@@ -226,15 +226,15 @@ bool Bot::ItemIsVisible(Vector destination, char* itemName)//, bool bomb)
 		// check for standard items
 		if (g_gameVersion == HALFLIFE)
 		{
-			if (tr.flFraction > 0.95f && strcmp(STRING(tr.pHit->v.classname), itemName) == 0)
+			if (tr.flFraction > 0.95f && !FNullEnt(tr.pHit) && strcmp(STRING(tr.pHit->v.classname), itemName) == 0)
 				return true;
 		}
 		else
 		{
-			if (tr.flFraction > 0.97f && strcmp(STRING(tr.pHit->v.classname), itemName) == 0)
+			if (tr.flFraction > 0.97f && !FNullEnt(tr.pHit) && strcmp(STRING(tr.pHit->v.classname), itemName) == 0)
 				return true;
 
-			if (tr.flFraction > 0.95f && strncmp(STRING(tr.pHit->v.classname), "csdmw_", 6) == 0)
+			if (tr.flFraction > 0.95f && !FNullEnt(tr.pHit) && strncmp(STRING(tr.pHit->v.classname), "csdmw_", 6) == 0)
 				return true;
 		}
 
@@ -3599,7 +3599,7 @@ void Bot::ChooseAimDirection(void)
 	else if (flags & AIM_PREDICTENEMY)
 	{
 		TraceLine(EyePosition(), m_lastEnemyOrigin, true, true, GetEntity(), &tr);
-		if (((pev->origin - m_lastEnemyOrigin).GetLengthSquared() < SquaredF(1600.0f) || UsesSniper()) && (tr.flFraction >= 0.2f || tr.pHit != g_worldEdict))
+		if (((pev->origin - m_lastEnemyOrigin).GetLengthSquared() < SquaredF(1600.0f) || UsesSniper()) && (tr.flFraction >= 0.2f || (!FNullEnt(tr.pHit) && tr.pHit != g_worldEdict)))
 		{
 			bool recalcPath = true;
 
@@ -5356,7 +5356,7 @@ void Bot::RunTask(void)
 
 			m_moveToGoal = false;
 		}
-		else if (!FNullEnt(m_enemy) || m_enemyOrigin != nullvec)
+		else if (!FNullEnt(m_enemy) && m_enemyOrigin != nullvec)
 			destination = m_enemyOrigin + (m_enemy->v.velocity.SkipZ() * 0.54f);
 		else
 			m_enemy = m_lastEnemy;
@@ -5472,7 +5472,7 @@ void Bot::RunTask(void)
 
 			m_moveToGoal = false;
 		}
-		else if (!FNullEnt(m_enemy) || m_enemyOrigin != nullvec)
+		else if (!FNullEnt(m_enemy) && m_enemyOrigin != nullvec)
 			destination = m_enemyOrigin + (m_enemy->v.velocity.SkipZ() * 0.54f);
 		else
 			m_enemy = m_lastEnemy;
@@ -5576,7 +5576,7 @@ void Bot::RunTask(void)
 			m_strafeSpeed = 0.0f;
 			m_moveToGoal = false;
 		}
-		else if (!FNullEnt(m_enemy) || m_enemyOrigin != nullvec)
+		else if (!FNullEnt(m_enemy) && m_enemyOrigin != nullvec)
 			destination = m_enemyOrigin + (m_enemy->v.velocity.SkipZ() * 0.54f);
 		else
 			m_enemy = m_lastEnemy;
@@ -5641,7 +5641,7 @@ void Bot::RunTask(void)
 
 			m_moveToGoal = false;
 		}
-		else if (!FNullEnt(m_enemy) || m_enemyOrigin != nullvec)
+		else if (!FNullEnt(m_enemy) && m_enemyOrigin != nullvec)
 			destination = m_enemyOrigin + (m_enemy->v.velocity.SkipZ() * 0.54f);
 
 		m_isUsingGrenade = true;
@@ -7245,12 +7245,13 @@ Vector Bot::CheckToss(const Vector& start, Vector end)
 		return nullvec;
 
 	Vector midPoint = start + (end - start) * 0.5f;
-	TraceHull(midPoint, midPoint + Vector(0.0f, 0.0f, 500.0f), true, head_hull, ENT(pev), &tr);
+	TraceHull(midPoint, midPoint + Vector(0.0f, 0.0f, 500.0f), true, head_hull, GetEntity(), &tr);
 
 	if (tr.flFraction < 1.0f)
 	{
 		midPoint = tr.vecEndPos;
-		midPoint.z = tr.pHit->v.absmin.z - 1.0f;
+		if (!FNullEnt(tr.pHit))
+			midPoint.z = tr.pHit->v.absmin.z - 1.0f;
 	}
 
 	if ((midPoint.z < start.z) || (midPoint.z < end.z))
@@ -7269,12 +7270,12 @@ Vector Bot::CheckToss(const Vector& start, Vector end)
 	Vector apex = start + nadeVelocity * timeOne;
 	apex.z = midPoint.z;
 
-	TraceHull(start, apex, false, head_hull, ENT(pev), &tr);
+	TraceHull(start, apex, false, head_hull, GetEntity(), &tr);
 
 	if (tr.flFraction < 1.0f || tr.fAllSolid)
 		return nullvec;
 
-	TraceHull(end, apex, true, head_hull, ENT(pev), &tr);
+	TraceHull(end, apex, true, head_hull, GetEntity(), &tr);
 
 	if (tr.flFraction != 1.0f)
 	{

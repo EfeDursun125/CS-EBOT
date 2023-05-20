@@ -479,7 +479,7 @@ bool Bot::DoWaypointNav(void)
 					TraceLine(EyePosition(), client.ent->v.origin, ignore_monsters, GetEntity(), &tr);
 
 					// bot found an enemy on his ladder - he should see him...
-					if (tr.pHit == client.ent)
+					if (!FNullEnt(tr.pHit) && tr.pHit == client.ent)
 					{
 						m_enemy = client.ent;
 						m_lastEnemy = client.ent;
@@ -497,7 +497,7 @@ bool Bot::DoWaypointNav(void)
 					TraceHull(EyePosition(), m_destOrigin, ignore_monsters, (pev->flags & FL_DUCKING) ? head_hull : human_hull, GetEntity(), &tr);
 
 					// someone is above or below us and is using the ladder already
-					if (tr.pHit == client.ent && fabsf(pev->origin.z - client.ent->v.origin.z) > 15.0f && (client.ent->v.movetype == MOVETYPE_FLY))
+					if (client.ent->v.movetype == MOVETYPE_FLY && fabsf(pev->origin.z - client.ent->v.origin.z) > 15.0f && !FNullEnt(tr.pHit) && tr.pHit == client.ent)
 					{
 						if (IsValidWaypoint(m_prevWptIndex[0]))
 						{
@@ -721,7 +721,7 @@ bool Bot::UpdateLiftHandling()
 	// trace line to door
 	TraceLine(pev->origin, m_waypointOrigin, true, true, GetEntity(), &tr);
 
-	if (tr.flFraction < 1.0f && tr.pHit && strcmp(STRING(tr.pHit->v.classname), "func_door") == 0 && (m_liftState == LiftState::None || m_liftState == LiftState::WaitingFor || m_liftState == LiftState::LookingButtonOutside) && pev->groundentity != tr.pHit)
+	if (tr.flFraction < 1.0f && (m_liftState == LiftState::None || m_liftState == LiftState::WaitingFor || m_liftState == LiftState::LookingButtonOutside) && !FNullEnt(tr.pHit) && strcmp(STRING(tr.pHit->v.classname), "func_door") == 0 && pev->groundentity != tr.pHit)
 	{
 		if (m_liftState == LiftState::None)
 		{
@@ -740,7 +740,7 @@ bool Bot::UpdateLiftHandling()
 		TraceLine(path->origin, m_waypointOrigin + Vector(0.0f, 0.0f, -50.0f), true, true, GetEntity(), &tr);
 
 		// if trace result shows us that it is a lift
-		if (!FNullEnt(tr.pHit) && (strcmp(STRING(tr.pHit->v.classname), "func_door") == 0 || strcmp(STRING(tr.pHit->v.classname), "func_plat") == 0 || strcmp(STRING(tr.pHit->v.classname), "func_train") == 0) && !liftClosedDoorExists)
+		if (!liftClosedDoorExists && !FNullEnt(tr.pHit) && (strcmp(STRING(tr.pHit->v.classname), "func_door") == 0 || strcmp(STRING(tr.pHit->v.classname), "func_plat") == 0 || strcmp(STRING(tr.pHit->v.classname), "func_train") == 0))
 		{
 			if ((m_liftState == LiftState::None || m_liftState == LiftState::WaitingFor || m_liftState == LiftState::LookingButtonOutside) && tr.pHit->v.velocity.z == 0.0f)
 			{
@@ -762,7 +762,7 @@ bool Bot::UpdateLiftHandling()
 		{
 			if ((m_liftState == LiftState::None || m_liftState == LiftState::WaitingFor) && HasNextPath())
 			{
-				int nextNode = m_navNode->next->index;
+				const int nextNode = m_navNode->next->index;
 
 				if (IsValidWaypoint(nextNode) && (g_waypoint->GetPath(nextNode)->flags & WAYPOINT_LIFT))
 				{
@@ -2026,7 +2026,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 		TraceHull(pev->origin, m_destOrigin, false, head_hull, GetEntity(), &tr2);
 
 		// double check
-		if (tr.pHit == entity || tr2.pHit == entity)
+		if ((!FNullEnt(tr.pHit) && tr.pHit == entity) || (!FNullEnt(tr2.pHit) && tr2.pHit == entity))
 		{
 			m_breakableEntity = entity;
 			m_breakable = GetBoxOrigin(entity);
@@ -2059,10 +2059,10 @@ void Bot::CheckTouchEntity(edict_t* entity)
 					if (GetEntity() == bot->GetEntity())
 						continue;
 
-					Vector breakableOrigin = GetBoxOrigin(m_breakableEntity);
+					const Vector breakableOrigin = GetBoxOrigin(m_breakableEntity);
 					TraceResult tr;
 					TraceLine(bot->EyePosition(), breakableOrigin, true, true, bot->GetEntity(), &tr);
-					if (tr.pHit == entity)
+					if (!FNullEnt(tr.pHit) && tr.pHit == entity)
 					{
 						bot->m_breakableEntity = entity;
 						bot->m_breakable = breakableOrigin;
@@ -2096,7 +2096,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 
 				TraceResult tr;
 				TraceLine(enemy->EyePosition(), m_breakable, true, true, enemy->GetEntity(), &tr);
-				if (tr.pHit == entity)
+				if (!FNullEnt(tr.pHit) && tr.pHit == entity)
 				{
 					enemy->m_breakableEntity = entity;
 					enemy->m_breakable = GetBoxOrigin(entity);

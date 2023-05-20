@@ -38,6 +38,9 @@ ConVar ebot_download_waypoints("ebot_download_waypoints", "1");
 ConVar ebot_download_waypoints_from("ebot_download_waypoints_from", "https://github.com/EfeDursun125/EBOT-WP/raw/main");
 ConVar ebot_analyze_optimize_waypoints("ebot_analyze_optimize_waypoints", "1");
 ConVar ebot_waypoint_size("ebot_waypoint_size", "7");
+ConVar ebot_waypoint_r("ebot_waypoint_r", "0");
+ConVar ebot_waypoint_g("ebot_waypoint_g", "255");
+ConVar ebot_waypoint_b("ebot_waypoint_b", "0");
 
 // this function initialize the waypoint structures..
 void Waypoint::Initialize(void)
@@ -437,7 +440,7 @@ void Waypoint::AddPath(int addIndex, int pathIndex, float distance, int type)
     }
 
     // there wasn't any free space. try exchanging it with a long-distance path
-    int maxDistance = -9999;
+    int maxDistance = -99999999;
     int slotID = -1;
 
     for (int i = 0; i < Const_MaxPathIndex; i++)
@@ -590,7 +593,7 @@ int Waypoint::FindNearest(Vector origin, float minDistance, int flags, edict_t* 
         if (flags != -1 && !(m_paths[i]->flags & flags))
             continue;
 
-        float distance = (m_paths[i]->origin - origin).GetLengthSquared();
+        const float distance = (m_paths[i]->origin - origin).GetLengthSquared();
         if (distance > squaredMinDistance)
             continue;
 
@@ -636,7 +639,7 @@ int Waypoint::FindNearest(Vector origin, float minDistance, int flags, edict_t* 
             if (wpIndex[i] < 0 || wpIndex[i] >= g_numWaypoints)
                 continue;
 
-            float distance = g_waypoint->GetPathDistance(wpIndex[i], mode);
+            const float distance = g_waypoint->GetPathDistance(wpIndex[i], mode);
             for (int y = 0; y < checkPoint; y++)
             {
                 if (distance >= cdWPDistance[y])
@@ -1616,13 +1619,13 @@ void Waypoint::CalculateWayzone(int index)
             Vector radiusStart = start - g_pGlobals->v_forward * scanDistance;
             Vector radiusEnd = start + g_pGlobals->v_forward * scanDistance;
 
-            TraceHull(radiusStart, radiusEnd, true, head_hull, nullptr, &tr);
+            TraceHull(radiusStart, radiusEnd, true, head_hull, g_hostEntity, &tr);
 
             if (tr.flFraction < 1.0f)
             {
-                TraceLine(radiusStart, radiusEnd, true, nullptr, &tr);
+                TraceLine(radiusStart, radiusEnd, true, g_hostEntity, &tr);
 
-                if (FClassnameIs(tr.pHit, "func_door") || FClassnameIs(tr.pHit, "func_door_rotating"))
+                if (!FNullEnt(tr.pHit) && (FClassnameIs(tr.pHit, "func_door") || FClassnameIs(tr.pHit, "func_door_rotating")))
                 {
                     path->radius = 0.0f;
                     wayBlocked = true;
@@ -1639,7 +1642,7 @@ void Waypoint::CalculateWayzone(int index)
             Vector dropStart = start + (g_pGlobals->v_forward * scanDistance);
             Vector dropEnd = dropStart - Vector(0.0f, 0.0f, scanDistance + 60.0f);
 
-            TraceHull(dropStart, dropEnd, true, head_hull, nullptr, &tr);
+            TraceHull(dropStart, dropEnd, true, head_hull, g_hostEntity, &tr);
 
             if (tr.flFraction >= 1.0f)
             {
@@ -1648,10 +1651,11 @@ void Waypoint::CalculateWayzone(int index)
 
                 break;
             }
+
             dropStart = start - (g_pGlobals->v_forward * scanDistance);
             dropEnd = dropStart - Vector(0.0f, 0.0f, scanDistance + 60.0f);
 
-            TraceHull(dropStart, dropEnd, true, head_hull, nullptr, &tr);
+            TraceHull(dropStart, dropEnd, true, head_hull, g_hostEntity, &tr);
 
             if (tr.flFraction >= 1.0f)
             {
@@ -1661,7 +1665,7 @@ void Waypoint::CalculateWayzone(int index)
             }
 
             radiusEnd.z += 34.0f;
-            TraceHull(radiusStart, radiusEnd, true, head_hull, nullptr, &tr);
+            TraceHull(radiusStart, radiusEnd, true, head_hull, g_hostEntity, &tr);
 
             if (tr.flFraction < 1.0f)
             {
@@ -1805,7 +1809,7 @@ bool Waypoint::Load(int mode)
             return false;
         }
 
-        if (strncmp(header.author, "EfeDursun125", 12) == 0)
+        if (strncmp(header.author, "EfeDursun125", 13) == 0 || strncmp(header.author, "Mysticpawn", 11) == 0 || strncmp(header.author, "Ark | Mysticpawn", 17) == 0)
             sprintf(m_infoBuffer, "Using Official Waypoint File By: %s", header.author);
         else
             sprintf(m_infoBuffer, "Using Waypoint File By: %s", header.author);
@@ -2078,14 +2082,14 @@ bool Waypoint::IsNodeReachable(const Vector src, const Vector destination)
     // check if we go through a func_illusionary, in which case return false
     TraceHull(src, destination, NO_BOTH, HULL_HEAD, g_hostEntity, &tr);
 
-    if (tr.pHit && strcmp("func_illusionary", STRING(tr.pHit->v.classname)) == 0)
+    if (!FNullEnt(tr.pHit) && strcmp("func_illusionary", STRING(tr.pHit->v.classname)) == 0)
         return false; // don't add pathnodes through func_illusionaries
 
     // check if this waypoint is "visible"...
     TraceLine(src, destination, true, false, g_hostEntity, &tr);
 
     // if waypoint is visible from current position (even behind head)...
-    if (tr.pHit && (tr.flFraction >= 1.0f || strncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0 || IsBreakable(tr.pHit)))
+    if (!FNullEnt(tr.pHit) && (tr.flFraction >= 1.0f || strncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0 || IsBreakable(tr.pHit)))
     {
         // if it's a door check if nothing blocks behind
         if (strncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0)
@@ -2167,14 +2171,14 @@ bool Waypoint::IsNodeReachableWithJump(const Vector src, const Vector destinatio
     // check if we go through a func_illusionary, in which case return false
     TraceHull(src, destination, true, head_hull, g_hostEntity, &tr);
 
-    if (tr.pHit && strcmp("func_illusionary", STRING(tr.pHit->v.classname)) == 0)
+    if (!FNullEnt(tr.pHit) && strcmp("func_illusionary", STRING(tr.pHit->v.classname)) == 0)
         return false; // don't add pathnodes through func_illusionaries
 
     // check if this waypoint is "visible"...
     TraceLine(src, destination, true, false, g_hostEntity, &tr);
 
     // if waypoint is visible from current position (even behind head)...
-    if (tr.pHit && (tr.flFraction >= 1.0f || strncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0 || IsBreakable(tr.pHit)))
+    if (!FNullEnt(tr.pHit) && (tr.flFraction >= 1.0f || strncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0 || IsBreakable(tr.pHit)))
     {
         // if it's a door check if nothing blocks behind
         if (strncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0)
@@ -2624,7 +2628,7 @@ void Waypoint::ShowWaypointMsg(void)
                 float nodeHalfHeight = nodeHeight * 0.5f;
 
                 // all waypoints are by default are green
-                Color nodeColor = Color(0, 255, 0, 255);
+                Color nodeColor = Color(ebot_waypoint_r.GetFloat(), ebot_waypoint_g.GetFloat(), ebot_waypoint_b.GetFloat(), 255);
 
                 // colorize all other waypoints
                 if (m_paths[i]->flags & WAYPOINT_CAMP)

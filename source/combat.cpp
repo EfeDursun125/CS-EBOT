@@ -514,7 +514,7 @@ bool Bot::IsFriendInLineOfFire(float distance)
 			if (IsValidPlayer(tr.pHit))
 				return true;
 
-			int entityIndex = ENTINDEX(tr.pHit);
+			const int entityIndex = ENTINDEX(tr.pHit);
 			for (int i = 0; i < entityNum; i++)
 			{
 				if (g_entityId[i] == -1 || g_entityAction[i] != 1)
