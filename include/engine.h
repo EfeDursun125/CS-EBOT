@@ -2733,23 +2733,23 @@ public:
 
     inline bool operator == (const Entity& other) const
     {
-        return IsValid() && m_ent == other.m_ent;
+        return m_ent == other.m_ent;
     }
 
     inline bool operator != (const Entity& other) const
     {
-        return IsValid() && m_ent != other.m_ent;
+        return m_ent != other.m_ent;
     }
 
 public:
     inline bool IsPlayer(void) const
     {
-        return IsValid() && !!(m_ent->v.flags & (FL_FAKECLIENT | FL_CLIENT));
+        return !!(m_ent->v.flags & (FL_FAKECLIENT | FL_CLIENT));
     }
 
     virtual inline bool IsBot(void) const
     {
-        return IsValid() && !!(m_ent->v.flags & FL_FAKECLIENT);
+        return !!(m_ent->v.flags & FL_FAKECLIENT);
     }
 
     inline bool IsValid(void) const
@@ -2762,15 +2762,12 @@ public:
 
     inline virtual bool IsAlive(void) const
     {
-        if (!IsValid())
-            return false;
-
         return m_ent->v.deadflag == DEAD_NO && m_ent->v.health > 0 && m_ent->v.movetype != MOVETYPE_NOCLIP;
     }
 
     inline bool IsRendered(void) const
     {
-        return IsValid() && !!(m_ent->v.effects & EF_NODRAW);
+        return !!(m_ent->v.effects & EF_NODRAW);
     }
 
     inline String GetClassname(void) const
@@ -2800,9 +2797,6 @@ public:
 
     inline void SetName(const String& name) const
     {
-        if (!IsValid())
-            return;
-
         m_ent->v.netname = SDK_Utils::MakeStringByOffset(name.GetRawData());
     }
 
@@ -2818,49 +2812,31 @@ public:
 
     inline const Vector& GetVelocity(void) const
     {
-        if (!IsValid())
-            return nullvec;
-
         return m_ent->v.velocity;
     }
 
     inline void SetVelocity(const Vector& velocity) const
     {
-        if (!IsValid())
-            return;
-
         m_ent->v.velocity = velocity;
     }
 
     inline const Vector& GetBodyAngles(void) const
     {
-        if (!IsValid())
-            return nullvec;
-
         return m_ent->v.angles;
     }
 
     inline void SetBodyAngles(const Vector& angles) const
     {
-        if (!IsValid())
-            return;
-
         m_ent->v.angles = angles;
     }
 
     inline const Vector& GetViewAngles(void) const
     {
-        if (!IsValid())
-            return nullvec;
-
         return m_ent->v.v_angle;
     }
 
     inline void SetViewAngles(const Vector& viewAngles) const
     {
-        if (!IsValid())
-            return;
-
         m_ent->v.v_angle = viewAngles;
     }
 
@@ -2976,9 +2952,6 @@ public:
 
     inline int GetIndex(void) const
     {
-        if (!IsValid())
-            return -1;
-
         return g_engfuncs.pfnIndexOfEdict(m_ent);
     }
 };
@@ -3032,22 +3005,22 @@ public:
 
     inline bool operator == (const Client& other) const
     {
-        return IsValid() && m_ent == other.m_ent;
+        return m_ent == other.m_ent;
     }
 
     inline bool operator != (const Client& other) const
     {
-        return IsValid() && m_ent != other.m_ent;
+        return m_ent != other.m_ent;
     }
 
     inline bool operator == (const Entity& other) const
     {
-        return IsValid() && m_ent == other.m_ent;
+        return m_ent == other.m_ent;
     }
 
     inline bool operator != (const Entity& other) const
     {
-        return IsValid() && m_ent != other.m_ent;
+        return m_ent != other.m_ent;
     }
 
 public:
