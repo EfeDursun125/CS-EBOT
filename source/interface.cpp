@@ -148,7 +148,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 	{
 		if (!IsNullString(arg1))
 		{
-			int nominatedMap = atoi(arg1);
+			const int nominatedMap = atoi(arg1);
 
 			// loop through all players
 			for (const auto& bot : g_botManager->m_bots)
@@ -243,8 +243,8 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 
 		if (stricmp(arg1, "full") == 0 || stricmp(arg1, "f") == 0 || stricmp(arg1, "?") == 0)
 		{
-			ClientPrint(ent, print_console, "ebot add_t              - creates one random e-bot to terrorist team");
-			ClientPrint(ent, print_console, "ebot add_ct             - creates one random e-bot to ct team");
+			ClientPrint(ent, print_console, "ebot_add_t              - creates one random e-bot to terrorist team");
+			ClientPrint(ent, print_console, "ebot_add_ct             - creates one random e-bot to ct team");
 			ClientPrint(ent, print_console, "ebot kick_t             - disconnect one random e-bot from terrorist team");
 			ClientPrint(ent, print_console, "ebot kick_ct            - disconnect one random e-bot from ct team");
 			ClientPrint(ent, print_console, "ebot kill_t             - kills all e-bots on terrorist team");
@@ -1227,6 +1227,7 @@ void GameDLLInit(void)
 	RegisterCommand("ebot_about", ebot_Version_Command);
 
 	RegisterCommand("ebot_add_t", AddBot_TR);
+	RegisterCommand("ebot_add_tr", AddBot_TR);
 	RegisterCommand("ebot_add_ct", AddBot_CT);
 	RegisterCommand("ebot_add", AddBot);
 

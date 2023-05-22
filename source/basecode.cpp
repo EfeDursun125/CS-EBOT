@@ -1769,6 +1769,146 @@ float HysteresisDesire(float cur, float min, float max, float old)
 	return old;
 }
 
+void Bot::SetProcess(const Process process, const char* debugnote, const bool rememberProcess, const float time)
+{
+	if (m_failedProcess == process)
+		return;
+
+	if (m_currentProcess != process && IsReadyForTheProcess(process))
+	{
+		if (ebot_debug.GetInt() > 0)
+			ServerPrint("%s has got a new process from %s to %s %s", GetEntityName(GetEntity()), GetProcessName(m_currentProcess), GetProcessName(process), debugnote);
+
+		if (rememberProcess)
+		{
+			m_rememberedProcess = m_currentProcess;
+			m_rememberedProcessTime = m_currentProcessTime;
+		}
+
+		EndProcess(m_currentProcess);
+		m_currentProcess = process;
+		StartProcess(process);
+		m_currentProcessTime = AddTime(time);
+	}
+}
+
+void Bot::StartProcess(const Process process)
+{
+	switch (process)
+	{
+	case Process::Default:
+		DefaultStart();
+	case Process::Attack:
+		AttackStart();
+	}
+}
+
+void Bot::EndProcess(const Process process)
+{
+	m_currentProcessTime = engine->GetTime();
+
+	switch (process)
+	{
+	case Process::Default:
+		DefaultEnd();
+	case Process::Attack:
+		AttackEnd();
+	}
+}
+
+void Bot::UpdateProcess(void)
+{
+	if (m_currentProcess != Process::Default && m_currentProcessTime < engine->GetTime())
+	{
+		if (ebot_debug.GetInt() > 0)
+			ServerPrint("%s is cancelled %s process -> timed out.", GetEntityName(GetEntity()), GetProcessName(m_currentProcess));
+
+		EndProcess(m_currentProcess);
+
+		if (m_rememberedProcess != m_currentProcess && m_rememberedProcessTime > engine->GetTime())
+		{
+			StartProcess(m_rememberedProcess);
+			m_currentProcess = m_rememberedProcess;
+			m_currentProcessTime = m_rememberedProcessTime;
+			return;
+		}
+
+		m_currentProcess = Process::Default;
+		StartProcess(Process::Default);
+	}
+
+	switch (m_currentProcess)
+	{
+	case Process::Default:
+		DefaultUpdate();
+	case Process::Attack:
+		AttackUpdate();
+	}
+}
+
+void Bot::FinishCurrentProcess(const char* debugNote)
+{
+	if (m_currentProcess != Process::Default)
+	{
+		if (ebot_debug.GetInt() > 0)
+			ServerPrint("%s is cancelled %s process -> %s", GetEntityName(GetEntity()), GetProcessName(m_currentProcess), debugNote);
+
+		EndProcess(m_currentProcess);
+
+		if (m_rememberedProcess != m_currentProcess && m_rememberedProcessTime > engine->GetTime())
+		{
+			StartProcess(m_rememberedProcess);
+			m_currentProcess = m_rememberedProcess;
+			m_currentProcessTime = m_rememberedProcessTime;
+			return;
+		}
+
+		StartProcess(Process::Default);
+		m_currentProcess = Process::Default;
+	}
+}
+
+void Bot::SetFailedProcess(const char* debugNote)
+{
+	if (m_currentProcess != Process::Default)
+	{
+		m_failedProcess = m_currentProcess;
+		FinishCurrentProcess(debugNote);
+	}
+}
+
+bool Bot::IsReadyForTheProcess(const Process process)
+{
+	switch (process)
+	{
+	case Process::Default:
+		return DefaultReq();
+	case Process::Attack:
+		return AttackReq();
+	}
+
+	return true;
+}
+
+char* Bot::GetProcessName(const Process process)
+{
+	char string[64] = "UNKNOWN";
+
+	switch (process)
+	{
+	case Process::Default:
+		FormatBuffer(string, "DEFAULT");
+	case Process::Attack:
+		FormatBuffer(string, "ATTACK");
+	case Process::Hide:
+		FormatBuffer(string, "HIDE FROM DANGER");
+	case Process::Camp:
+		FormatBuffer(string, "CAMP");
+	}
+
+	return string;
+}
+
 // this function carried out each frame. does all of the sensing, calculates emotions and finally sets the desired action after applying all of the Filters
 void Bot::SetConditions(void)
 {
@@ -1922,7 +2062,7 @@ void Bot::SetConditions(void)
 	float desireLevel = 0.0f;
 
 	// calculate desire to attack
-	if (GetCurrentTask()->taskID != TASK_THROWFBGRENADE && GetCurrentTask()->taskID != TASK_THROWHEGRENADE && GetCurrentTask()->taskID != TASK_THROWSMGRENADE && (m_states & STATE_SEEINGENEMY) && ReactOnEnemy())
+	if (GetCurrentTask()->taskID != TASK_THROWFBGRENADE && GetCurrentTask()->taskID != TASK_THROWHEGRENADE && GetCurrentTask()->taskID != TASK_THROWSMGRENADE && m_states & STATE_SEEINGENEMY && ReactOnEnemy())
 		g_taskFilters[TASK_FIGHTENEMY].desire = TASKPRI_FIGHTENEMY;
 	else if (GetCurrentTask()->taskID != TASK_THROWFBGRENADE && GetCurrentTask()->taskID != TASK_THROWHEGRENADE && GetCurrentTask()->taskID != TASK_THROWSMGRENADE)
 		g_taskFilters[TASK_FIGHTENEMY].desire = 0;
@@ -2644,6 +2784,9 @@ bool Bot::ReactOnEnemy(void)
 	// NO!
 	if (IsOnLadder())
 		return m_isEnemyReachable = false;
+
+	if (!IsZombieMode())
+		return m_isEnemyReachable = true;
 
 	if (FNullEnt(m_enemy))
 		return m_isEnemyReachable = false;
@@ -3599,7 +3742,7 @@ void Bot::ChooseAimDirection(void)
 	else if (flags & AIM_PREDICTENEMY)
 	{
 		TraceLine(EyePosition(), m_lastEnemyOrigin, true, true, GetEntity(), &tr);
-		if (((pev->origin - m_lastEnemyOrigin).GetLengthSquared() < SquaredF(1600.0f) || UsesSniper()) && (tr.flFraction >= 0.2f || (!FNullEnt(tr.pHit) && tr.pHit != g_worldEdict)))
+		if (((pev->origin - m_lastEnemyOrigin).GetLengthSquared() < SquaredF(1600.0f) || UsesSniper()) && (tr.flFraction >= 0.2f || tr.pHit != g_worldEdict))
 		{
 			bool recalcPath = true;
 
@@ -3718,6 +3861,327 @@ void Bot::ChooseAimDirection(void)
 		m_lookAt = m_lookAtCache;
 	else
 		m_lookAtCache = m_lookAt;
+}
+
+void Bot::BaseUpdate(void)
+{
+	pev->button = 0;
+	m_moveSpeed = 0.0f;
+	m_strafeSpeed = 0.0f;
+
+	if (m_slowthinktimer < engine->GetTime())
+	{
+		m_isSlowThink = true;
+		CheckSlowThink();
+		if (m_slowthinktimer < engine->GetTime())
+			m_slowthinktimer = engine->GetTime() + CRandomInt(0.9f, 1.1f);
+	}
+	else
+		m_isSlowThink = false;
+
+	// is bot movement enabled
+	bool botMovement = false;
+
+	if (m_notStarted) // if the bot hasn't selected stuff to start the game yet, go do that...
+		StartGame(); // select team & class
+	else if (!m_isAlive)
+	{
+		if (g_gameVersion == HALFLIFE && !(pev->oldbuttons & IN_ATTACK))
+			pev->button |= IN_ATTACK;
+
+		extern ConVar ebot_chat;
+		extern ConVar ebot_random_join_quit;
+
+		if (ebot_random_join_quit.GetBool() && m_stayTime > 0.0f && m_stayTime < engine->GetTime())
+		{
+			Kick();
+			return;
+		}
+
+		if (ebot_chat.GetBool() && !RepliesToPlayer() && m_lastChatTime + 10.0f < engine->GetTime() && g_lastChatTime + 5.0f < engine->GetTime()) // bot chatting turned on?
+		{
+			m_lastChatTime = engine->GetTime();
+			if (ChanceOf(ebot_chat_percent.GetInt()) && !g_chatFactory[CHAT_DEAD].IsEmpty())
+			{
+				g_lastChatTime = engine->GetTime();
+
+				char* pickedPhrase = g_chatFactory[CHAT_DEAD].GetRandomElement();
+				bool sayBufferExists = false;
+
+				// search for last messages, sayed
+				ITERATE_ARRAY(m_sayTextBuffer.lastUsedSentences, i)
+				{
+					if (strncmp(m_sayTextBuffer.lastUsedSentences[i], pickedPhrase, m_sayTextBuffer.lastUsedSentences[i].GetLength()) == 0)
+						sayBufferExists = true;
+				}
+
+				if (!sayBufferExists)
+				{
+					PrepareChatMessage(pickedPhrase);
+					PushMessageQueue(CMENU_SAY);
+
+					// add to ignore list
+					m_sayTextBuffer.lastUsedSentences.Push(pickedPhrase);
+				}
+
+				// clear the used line buffer every now and then
+				if (m_sayTextBuffer.lastUsedSentences.GetElementNumber() > CRandomInt(4, 6))
+					m_sayTextBuffer.lastUsedSentences.RemoveAll();
+			}
+		}
+	}
+	else
+	{
+		if (g_gameVersion == HALFLIFE)
+		{
+			// idk why ???
+			if (pev->maxspeed <= 10.0f)
+			{
+				const auto maxSpeed = g_engfuncs.pfnCVarGetPointer("sv_maxspeed");
+				if (maxSpeed != nullptr)
+					pev->maxspeed = maxSpeed->value;
+				else // default is 270
+					pev->maxspeed = 270.0f;
+			}
+
+			if (!ebot_stopbots.GetBool())
+				botMovement = true;
+		}
+		else
+		{
+			if (!m_buyingFinished)
+				ResetCollideState();
+
+			if (m_buyingFinished && !ebot_stopbots.GetBool())
+				botMovement = true;
+		}
+	}
+
+	CheckMessageQueue(); // check for pending messages
+
+	if (botMovement && m_isAlive)
+	{
+		UpdateLooking();
+		UpdateProcess();
+		MoveAction();
+		FacePosition();
+	}
+	else
+		m_aimInterval = engine->GetTime();
+
+	m_frameInterval = 0.03333333333f;
+}
+
+void Bot::CheckSlowThink(void)
+{
+	CalculatePing();
+
+	if (m_stayTime <= 0.0f)
+	{
+		extern ConVar ebot_random_join_quit;
+		if (ebot_random_join_quit.GetBool())
+		{
+			extern ConVar ebot_stay_min;
+			extern ConVar ebot_stay_max;
+			m_stayTime = engine->GetTime() + RANDOM_FLOAT(ebot_stay_min.GetFloat(), ebot_stay_max.GetFloat());
+		}
+		else
+			m_stayTime = engine->GetTime() + 999999.0f;
+	}
+
+	edict_t* ent = GetEntity();
+	m_isZombieBot = IsZombieEntity(ent);
+	m_team = GetTeam(ent);
+	m_isAlive = IsAlive(ent);
+
+	if (m_isZombieBot)
+	{
+		m_isBomber = false;
+		if (m_damageTime + 10.0f > engine->GetTime() && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_ZOMBIEPUSH)
+			m_zombiePush = true;
+		else
+			m_zombiePush = false;
+
+		SelectKnife();
+	}
+	else
+	{
+		m_zombiePush = false;
+		if (pev->weapons & (1 << WEAPON_C4))
+			m_isBomber = true;
+		else
+			m_isBomber = false;
+	}
+
+	extern ConVar ebot_ignore_enemies;
+	if (!ebot_ignore_enemies.GetBool() && m_randomattacktimer < engine->GetTime() && !engine->IsFriendlyFireOn() && !HasHostage()) // simulate players with random knife attacks
+	{
+		if (m_isStuck && m_personality != PERSONALITY_CAREFUL)
+		{
+			if (m_personality == PERSONALITY_RUSHER)
+				m_randomattacktimer = 0.0f;
+			else
+				m_randomattacktimer = engine->GetTime() + engine->RandomFloat(0.1f, 10.0f);
+		}
+		else if (m_personality == PERSONALITY_RUSHER)
+			m_randomattacktimer = engine->GetTime() + engine->RandomFloat(0.1f, 30.0f);
+		else if (m_personality == PERSONALITY_CAREFUL)
+			m_randomattacktimer = engine->GetTime() + engine->RandomFloat(10.0f, 100.0f);
+		else
+			m_randomattacktimer = engine->GetTime() + engine->RandomFloat(0.15f, 75.0f);
+
+		if (m_currentWeapon == WEAPON_KNIFE)
+		{
+			if (CRandomInt(1, 3) == 1)
+				pev->button |= IN_ATTACK;
+			else
+				pev->button |= IN_ATTACK2;
+		}
+	}
+}
+
+bool Bot::IsAttacking(const edict_t* player)
+{
+	return (player->v.button & IN_ATTACK || player->v.oldbuttons & IN_ATTACK || player->v.button & IN_ATTACK2 || player->v.oldbuttons & IN_ATTACK2);
+}
+
+void Bot::UpdateLooking(void)
+{
+	LookAtAround();
+}
+
+void Bot::LookAtAround(void)
+{
+	if (m_pauseTime >= engine->GetTime())
+		return;
+
+	if (m_hasFriendsNear && m_currentWeapon != WEAPON_KNIFE && IsAttacking(m_nearestFriend)) // TODO: check if friend does not holding knife too
+	{
+		auto bot = g_botManager->GetBot(m_nearestFriend);
+		if (bot != nullptr)
+			m_lookAt = bot->m_lookAt;
+		else
+		{
+			TraceResult tr;
+			const auto eyePosition = EyePosition();
+			MakeVectors(pev->v_angle);
+			TraceLine(eyePosition, eyePosition + g_pGlobals->v_forward * 1000.0f, false, false, GetEntity(), &tr);
+			m_lookAt = tr.vecEndPos;
+		}
+
+		m_pauseTime = AddTime(engine->RandomFloat(1.5, 2.5));
+	}
+	else if (m_isSlowThink && ChanceOf(m_senseChance)) // no any friends near, who's footsteps is this or fire sounds?
+	{
+		for (const auto& client : g_clients)
+		{
+			if (client.index < 0)
+				continue;
+
+			if (client.ent == nullptr)
+				continue;
+
+			// we can see our friends in radar... let bots act like that.
+			if (client.team == m_team)
+				continue;
+
+			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.ent == GetEntity())
+				continue;
+
+			if (client.ent->v.flags & FL_DUCKING)
+				continue;
+
+			if ((pev->origin - client.origin).GetLengthSquared() > SquaredF(1024.0f))
+				continue;
+
+			Vector playerArea;
+			if (m_isZombieBot)
+				playerArea = client.origin;
+			else
+			{
+				const int index = g_waypoint->FindNearest(client.origin, 999999.0f);
+				if (index != -1)
+				{
+					const Vector eyePosition = EyePosition();
+					const Vector waypointOrigin = g_waypoint->GetPath(index)->origin;
+					const float waypointRadius = g_waypoint->GetPath(index)->radius;
+					playerArea.x = waypointOrigin.x + engine->RandomFloat(-waypointRadius, waypointRadius) + ((playerArea.x - eyePosition.x) * 1024.0f);
+					playerArea.y = waypointOrigin.y + engine->RandomFloat(-waypointRadius, waypointRadius) + ((playerArea.y - eyePosition.y) * 1024.0f);
+					playerArea.z = eyePosition.z;
+				}
+			}
+
+			const int skill = m_personality == PERSONALITY_RUSHER ? 30 : 10;
+			if (m_skill > skill)
+			{
+				SelectBestWeapon();
+			}
+
+			m_lookAt = playerArea;
+			m_pauseTime = AddTime(engine->RandomFloat(1.5f, 2.5f));
+
+			return;
+		}
+	}
+
+	Vector bestLookPos;
+	Vector selectRandom;
+
+	if (m_searchTime < engine->GetTime())
+	{
+		bestLookPos = EyePosition();
+
+		bestLookPos.x += engine->RandomFloat(-1024.0f, 1024.0f);
+		bestLookPos.y += engine->RandomFloat(-1024.0f, 1024.0f);
+		bestLookPos.z += engine->RandomFloat(-256.0f, 256.0f);
+
+		const int index = g_waypoint->FindNearest(bestLookPos, 999999.0f);
+		if (IsValidWaypoint(index))
+		{
+			const Vector waypointOrigin = g_waypoint->GetPath(index)->origin;
+			const float waypointRadius = g_waypoint->GetPath(index)->radius;
+			selectRandom.x = waypointOrigin.x + engine->RandomFloat(-waypointRadius, waypointRadius);
+			selectRandom.y = waypointOrigin.y + engine->RandomFloat(-waypointRadius, waypointRadius);
+			selectRandom.z = waypointOrigin.z + 36.0f;
+		}
+
+		m_searchTime = AddTime(0.25f);
+	}
+
+	auto isVisible = [&](void)
+	{
+		TraceResult tr;
+		TraceLine(EyePosition(), selectRandom, true, true, GetEntity(), &tr);
+		if (tr.flFraction == 1.0f)
+			return true;
+
+		return false;
+	};
+
+	if ((pev->origin - selectRandom).GetLengthSquared() > SquaredF(512.0f) && isVisible())
+	{
+		if (m_pauseTime < engine->GetTime())
+		{
+			const Vector eyePosition = EyePosition();
+			m_lookAt.x = selectRandom.x + ((selectRandom.x - eyePosition.x) * 256.0f);
+			m_lookAt.y = selectRandom.y + ((selectRandom.y - eyePosition.y) * 256.0f);
+			m_lookAt.z = selectRandom.z + 36.0f;
+			m_pauseTime = engine->GetTime() + engine->RandomFloat(1.5f, 2.25f);
+		}
+	}
+	else if (m_isSlowThink && pev->velocity.GetLengthSquared2D() > SquaredF(24.0f))
+	{
+		const int index = g_waypoint->FindNearest(m_destOrigin, 999999.0f);
+		if (IsValidWaypoint(index))
+		{
+			const Vector eyePosition = EyePosition();
+			const Vector waypointOrigin = g_waypoint->GetPath(index)->origin;
+			const float waypointRadius = g_waypoint->GetPath(index)->radius;
+			m_lookAt.x = waypointOrigin.x + engine->RandomFloat(-waypointRadius, waypointRadius) + ((m_destOrigin.x - eyePosition.x) * 1024.0f);
+			m_lookAt.y = waypointOrigin.y + engine->RandomFloat(-waypointRadius, waypointRadius) + ((m_destOrigin.y - eyePosition.y) * 1024.0f);
+			m_lookAt.z = waypointOrigin.z + 36.0f;
+		}
+	}
 }
 
 void Bot::Think(void)
@@ -7439,8 +7903,7 @@ float Bot::GetBombTimeleft(void)
 	if (!g_bombPlanted)
 		return 0.0f;
 
-	float timeLeft = ((g_timeBombPlanted + engine->GetC4TimerTime()) - engine->GetTime());
-
+	const float timeLeft = ((g_timeBombPlanted + engine->GetC4TimerTime()) - engine->GetTime());
 	if (timeLeft < 0.0f)
 		return 0.0f;
 
@@ -7811,4 +8274,44 @@ bool Bot::IsBombDefusing(Vector bombOrigin)
 	}
 
 	return defusingInProgress;
+}
+
+void Bot::DefaultStart(void)
+{
+
+}
+
+void Bot::DefaultUpdate(void)
+{
+
+}
+
+void Bot::DefaultEnd(void)
+{
+
+}
+
+bool Bot::DefaultReq(void)
+{
+
+}
+
+void Bot::AttackStart(void)
+{
+
+}
+
+void Bot::AttackUpdate(void)
+{
+
+}
+
+void Bot::AttackEnd(void)
+{
+
+}
+
+bool Bot::AttackReq(void)
+{
+
 }

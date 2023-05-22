@@ -43,6 +43,7 @@ ConVar ebot_save_bot_names("ebot_save_bot_names", "0");
 ConVar ebot_random_join_quit("ebot_random_join_quit", "0");
 ConVar ebot_stay_min("ebot_stay_min", "120"); // 2 minutes
 ConVar ebot_stay_max("ebot_stay_max", "3600"); // 1 hours
+ConVar ebot_use_new_ai("ebot_use_new_ai", "1");
 
 // this is a bot manager class constructor
 BotControl::BotControl(void)
@@ -225,7 +226,10 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 
 	auto ebotName = GetEntityName(bot);
 	ServerPrint("Connecting E-Bot - %s | Skill %d", ebotName, skill);
+
+	// set values
 	m_bots[index]->m_index = m_bots[index]->GetIndex();
+	m_bots[index]->m_senseChance = engine->RandomFloat(10.0f, 90.0f);
 
 	return index;
 }
@@ -314,7 +318,7 @@ void BotControl::DoJoinQuitStuff(void)
 	if (ebot_stay_min.GetFloat() > ebot_stay_max.GetFloat())
 		ebot_stay_min.SetFloat(ebot_stay_max.GetFloat());
 
-	float min = ebot_stay_min.GetFloat() * 2.0f;
+	const float min = ebot_stay_min.GetFloat() * 2.0f;
 	float max = ebot_stay_max.GetFloat() * 0.5f;
 
 	if (min > max)
@@ -332,7 +336,10 @@ void BotControl::Think(void)
 		if (bot == nullptr)
 			continue;
 
-		bot->Think();
+		if (ebot_use_new_ai.GetBool())
+			bot->BaseUpdate();
+		else
+			bot->Think();
 		bot->RunPlayerMovement();
 	}
 }
@@ -470,7 +477,7 @@ int BotControl::AddBotAPI(const String& name, int skill, int team)
 	if (g_botManager->GetBotsNum() + 1 > ebot_quota.GetInt())
 		ebot_quota.SetInt(g_botManager->GetBotsNum() + 1);
 
-	int resultOfCall = CreateBot(name, skill, -1, team, -1);
+	const int resultOfCall = CreateBot(name, skill, -1, team, -1);
 
 	// check the result of creation
 	if (resultOfCall == -1)
@@ -498,7 +505,7 @@ void BotControl::MaintainBotQuota(void)
 	{
 		CreateItem last = m_creationTab.Pop();
 
-		int resultOfCall = CreateBot(last.name, last.skill, last.personality, last.team, last.member);
+		const int resultOfCall = CreateBot(last.name, last.skill, last.personality, last.team, last.member);
 
 		// check the result of creation
 		if (resultOfCall == -1)
@@ -1004,7 +1011,6 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	}
 
 	MDLL_ClientPutInServer(bot);
-	bot->v.flags |= FL_FAKECLIENT;
 	bot->v.flags |= FL_CLIENT;
 
 	// initialize all the variables for this bot...

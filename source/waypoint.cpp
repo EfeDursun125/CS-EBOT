@@ -160,7 +160,7 @@ void CreateWaypoint(Vector WayVec, Vector Next, float range, float goalDist)
 
 void AnalyzeThread(void)
 {
-    float goalDist = SquaredF(ebot_analyze_goal_check_distance.GetFloat());
+    const float goalDist = SquaredF(ebot_analyze_goal_check_distance.GetFloat());
 
     if (!ebot_use_old_analyzer.GetBool())
     {

@@ -400,7 +400,7 @@ bool Bot::LookupEnemy(void)
 	return false;
 }
 
-Vector Bot::GetAimPosition(void)
+Vector Bot::GetEnemyPosition(void)
 {
 	// not even visible?
 	if (m_visibility == Visibility::None)
@@ -1033,7 +1033,7 @@ bool Bot::IsWeaponBadInDistance(int weaponIndex, float distance)
 
 void Bot::FocusEnemy(void)
 {
-	m_lookAt = GetAimPosition();
+	m_lookAt = GetEnemyPosition();
 
 	if (m_currentWeapon == WEAPON_KNIFE)
 	{
@@ -1186,6 +1186,7 @@ void Bot::CombatFight(void)
 		{
 			if (distance > SquaredF(128.0f))
 			{
+				SelectBestWeapon();
 				m_destOrigin = m_enemyOrigin;
 				m_moveSpeed = pev->maxspeed;
 			}
@@ -1246,7 +1247,7 @@ void Bot::CombatFight(void)
 		int approach;
 		if (!(m_states & STATE_SEEINGENEMY)) // if suspecting enemy stand still
 			approach = 49;
-		else if (g_gameVersion != HALFLIFE && (GetAmmoInClip() <= 0 || m_isReloading || m_isVIP)) // if reloading or vip back off
+		else if (g_gameVersion != HALFLIFE && (m_isReloading || m_isVIP)) // if reloading or vip back off
 			approach = 29;
 		else
 		{

@@ -497,7 +497,7 @@ bool Bot::DoWaypointNav(void)
 					TraceHull(EyePosition(), m_destOrigin, ignore_monsters, (pev->flags & FL_DUCKING) ? head_hull : human_hull, GetEntity(), &tr);
 
 					// someone is above or below us and is using the ladder already
-					if (client.ent->v.movetype == MOVETYPE_FLY && fabsf(pev->origin.z - client.ent->v.origin.z) > 15.0f && !FNullEnt(tr.pHit) && tr.pHit == client.ent)
+					if (client.ent->v.movetype == MOVETYPE_FLY && fabsf(pev->origin.z - client.ent->v.origin.z) > 15.0f && tr.pHit == client.ent)
 					{
 						if (IsValidWaypoint(m_prevWptIndex[0]))
 						{
@@ -2026,7 +2026,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 		TraceHull(pev->origin, m_destOrigin, false, head_hull, GetEntity(), &tr2);
 
 		// double check
-		if ((!FNullEnt(tr.pHit) && tr.pHit == entity) || (!FNullEnt(tr2.pHit) && tr2.pHit == entity))
+		if (tr.pHit == entity || tr2.pHit == entity)
 		{
 			m_breakableEntity = entity;
 			m_breakable = GetBoxOrigin(entity);
@@ -2062,7 +2062,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 					const Vector breakableOrigin = GetBoxOrigin(m_breakableEntity);
 					TraceResult tr;
 					TraceLine(bot->EyePosition(), breakableOrigin, true, true, bot->GetEntity(), &tr);
-					if (!FNullEnt(tr.pHit) && tr.pHit == entity)
+					if (tr.pHit == entity)
 					{
 						bot->m_breakableEntity = entity;
 						bot->m_breakable = breakableOrigin;
@@ -2096,7 +2096,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 
 				TraceResult tr;
 				TraceLine(enemy->EyePosition(), m_breakable, true, true, enemy->GetEntity(), &tr);
-				if (!FNullEnt(tr.pHit) && tr.pHit == entity)
+				if (tr.pHit == entity)
 				{
 					enemy->m_breakableEntity = entity;
 					enemy->m_breakable = GetBoxOrigin(entity);

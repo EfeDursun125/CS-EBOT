@@ -652,11 +652,11 @@ Vector NavMesh::GetRandomPosition(NavArea* area)
         return nullvec;
 
     // pick a random point inside the NavArea's bounds
-    float randX = engine->RandomFloat(area->corners[1].x, area->corners[3].x);
-    float randY = engine->RandomFloat(area->corners[1].y, area->corners[3].y);
+    const float randX = engine->RandomFloat(area->corners[1].x, area->corners[3].x);
+    const float randY = engine->RandomFloat(area->corners[1].y, area->corners[3].y);
 
     // use the NavArea's center for the Z-coordinate
-    float randZ = (area->corners[0].z + area->corners[1].z + area->corners[2].z + area->corners[3].z) * 0.25f;
+    const float randZ = (area->corners[0].z + area->corners[1].z + area->corners[2].z + area->corners[3].z) * 0.25f;
 
     return Vector(randX, randY, randZ);
 }
@@ -704,7 +704,7 @@ void NavMesh::DrawNavArea(void)
     if (FNullEnt(g_hostEntity))
         return;
 
-    Vector aimPosition = GetAimingPosition();
+    const Vector aimPosition = GetAimingPosition();
     NavArea* nearestArea = GetNearestNavArea(aimPosition);
     
     const float size = 10.0f;
