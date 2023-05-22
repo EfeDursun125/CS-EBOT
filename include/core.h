@@ -93,6 +93,14 @@ enum BotTask
 	TASK_GOINGFORCAMP
 };
 
+enum class Process
+{
+	Default,
+	Attack,
+	Hide,
+	Camp,
+};
+
 // supported cs's
 enum GameVersion
 {
@@ -939,7 +947,7 @@ private:
 
 	Vector CheckToss(const Vector& start, Vector end);
 	Vector CheckThrow(const Vector& start, Vector end);
-	Vector GetAimPosition(void);
+	Vector GetEnemyPosition(void);
 	Vector CheckBombAudible(void);
 	float GetZOffset(float distance);
 
@@ -1116,23 +1124,74 @@ public:
 	edict_t* m_checkEnemy[checkEnemyNum];
 	float m_checkEnemyDistance[checkEnemyNum];
 
+	// NEW VARS
+	Process m_currentProcess;
+	Process m_failedProcess;
+	Process m_rememberedProcess;
+	float m_currentProcessTime;
+	float m_rememberedProcessTime;
+
+	bool m_hasEnemiesNear;
+	bool m_hasFriendsNear;
+	float m_enemyDistance;
+	float m_friendDistance;
+	edict_t* m_nearestEnemy;
+	edict_t* m_nearestFriend;
+
+	float m_senseChance;
+
+	float m_searchTime;
+	float m_pauseTime;
+
 	Bot(edict_t* bot, int skill, int personality, int team, int member);
 	~Bot(void);
+
+	// NEW AI
+	void BaseUpdate(void);
+	void UpdateLooking(void);
+	void UpdateProcess(void);
+	void CheckSlowThink(void);
+
+	void SetProcess(const Process process, const char* debugNote = "clear", const bool rememberProcess = true, const float time = 999999.0f);
+	void StartProcess(const Process process);
+	void EndProcess(const Process process);
+	void FinishCurrentProcess(const char* debugNote = "finished by the system");
+	void SetFailedProcess(const char* debugNote = "finished by the system");
+	bool IsReadyForTheProcess(const Process process);
+	char* GetProcessName(const Process process);
+
+	// FUNCTIONS
+	void LookAtEnemies(void);
+	void LookAtAround(void);
+	void FollowPath(const Vector targetposition);
+
+	bool IsAttacking(const edict_t* player);
+
+	// GOAP
+	void DefaultStart(void);
+	void AttackStart(void);
+
+	void DefaultUpdate(void);
+	void AttackUpdate(void);
+
+	void DefaultEnd(void);
+	void AttackEnd(void);
+
+	bool DefaultReq(void);
+	bool AttackReq(void);
 
 	int GetAmmo(void);
 	inline int GetAmmoInClip(void) { return m_ammoInClip[m_currentWeapon]; }
 
-	inline edict_t* GetEntity(void) { return ENT(pev); };
+	inline edict_t* GetEntity(void) { return pev->pContainingEntity; };
 	inline EOFFSET GetOffset(void) { return OFFSET(pev); };
 	inline int GetIndex(void) { return ENTINDEX(GetEntity()); };
 
 	inline Vector Center(void) { return (pev->absmax + pev->absmin) * 0.5f; };
 	inline Vector EyePosition(void) { return pev->origin + pev->view_ofs; };
-	inline Vector EarPosition(void) { return pev->origin + pev->view_ofs; };
 
 	void Think(void);
 	void FacePosition(void);
-	void FacePositionLowCost(void);
 	void UpdateAI(void);
 	void NewRound(void);
 	void EquipInBuyzone(int buyCount);
