@@ -1817,7 +1817,6 @@ void Bot::EndProcess(const Process process)
 
 void Bot::UpdateProcess(void)
 {
-	// WTF? switch works SO weird?
 	switch (m_currentProcess)
 	{
 	case Process::Default:
@@ -1830,13 +1829,6 @@ void Bot::UpdateProcess(void)
 		SetProcess(Process::Default, "unknown process");
 		break;
 	}
-
-	/*if (m_currentProcess == Process::Default)
-		DefaultUpdate();
-	else if (m_currentProcess == Process::Attack)
-		AttackUpdate();
-	else
-		SetProcess(Process::Default, "unknown process");*/
 
 	if (m_currentProcess > Process::Default && m_currentProcessTime < engine->GetTime())
 	{
