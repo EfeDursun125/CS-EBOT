@@ -81,6 +81,116 @@ int Bot::GetNearbyEnemiesNearPosition(Vector origin, float radius)
 	return count;
 }
 
+void Bot::FindEnemyEntities(void)
+{
+	m_entityDistance = FLT_MAX;
+	m_entitiesNearCount = 0;
+	m_hasEntitiesNear = false;
+
+	for (int i = engine->GetMaxClients() + 1; i < entityNum; i++)
+	{
+		if (g_entityId[i] == -1 || g_entityAction[i] != 1 || m_team == g_entityTeam[i])
+			continue;
+
+		edict_t* entity = INDEXENT(g_entityId[i]);
+		if (FNullEnt(entity) || !IsAlive(entity) || entity->v.effects & EF_NODRAW || entity->v.takedamage == DAMAGE_NO)
+			continue;
+
+		// simple check
+		TraceResult tr;
+		const Vector origin = GetEntityOrigin(entity);
+		TraceLine(pev->origin, origin, true, true, GetEntity(), &tr);
+		if (tr.flFraction != 1.0f)
+			continue;
+
+		m_entitiesNearCount++;
+		const float distance = (pev->origin - origin).GetLengthSquared();
+		if (distance < m_entityDistance)
+		{
+			m_entityDistance = distance;
+			m_nearestEntity = entity;
+		}
+	}
+
+	m_hasEntitiesNear = m_entitiesNearCount > 0;
+	if (m_hasEntitiesNear)
+		m_entitySeeTime = engine->GetTime();
+}
+
+void Bot::FindFriendsAndEnemiens(void)
+{
+	m_enemyDistance = FLT_MAX;
+	m_friendDistance = FLT_MAX;
+	m_enemiesNearCount = 0;
+	m_friendsNearCount = 0;
+	m_hasEnemiesNear = false;
+	m_hasFriendsNear = false;
+
+	for (const auto& client : g_clients)
+	{
+		if (client.index < 0)
+			continue;
+
+		if (client.ent == nullptr)
+			continue;
+
+		if (client.ent == GetEntity())
+			continue;
+
+		if (!IsAlive(client.ent))
+			continue;
+
+		if (client.team == m_team)
+		{
+			// simple check
+			TraceResult tr;
+			TraceLine(pev->origin, client.origin, true, true, GetEntity(), &tr);
+			if (tr.flFraction != 1.0f)
+				continue;
+
+			m_friendsNearCount++;
+			const float distance = (pev->origin - client.origin).GetLengthSquared();
+			if (distance < m_friendDistance)
+			{
+				m_friendDistance = distance;
+				m_nearestFriend = client.ent;
+			}
+		}
+		else
+		{
+			if (!IsVisible(EyePosition(), client.ent))
+				continue;
+
+			// we don't know this enemy, where it can be?
+			if (!m_isZombieBot && client.ent != m_nearestEnemy)
+			{
+				if (!IsAttacking(client.ent) && !IsInViewCone(client.origin))
+					continue;
+
+				if (IsBehindSmokeClouds(client.ent))
+					continue;
+			}
+
+			m_enemiesNearCount++;
+			const float distance = (pev->origin - client.origin).GetLengthSquared();
+			if (distance < m_enemyDistance)
+			{
+				m_enemyDistance = distance;
+				m_nearestEnemy = client.ent;
+			}
+		}
+	}
+
+	m_hasEnemiesNear = m_enemiesNearCount > 0;
+	m_hasFriendsNear = m_friendsNearCount > 0;
+
+	if (m_hasEnemiesNear)
+		m_enemySeeTime = engine->GetTime();
+
+	if (m_hasFriendsNear)
+		m_friendSeeTime = engine->GetTime();
+}
+
 void Bot::ResetCheckEnemy()
 {
 	int i;
@@ -537,8 +647,8 @@ bool Bot::IsFriendInLineOfFire(float distance)
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != m_team || client.ent == GetEntity())
 			continue;
 
-		Vector origin = client.ent->v.origin;
-		float friendDistance = (origin - pev->origin).GetLengthSquared();
+		const Vector origin = client.ent->v.origin;
+		const float friendDistance = (origin - pev->origin).GetLengthSquared();
 
 		if (friendDistance <= distance && GetShootingConeDeviation(GetEntity(), &origin) > (friendDistance / (friendDistance + 1089.0f)))
 			return true;
@@ -1642,52 +1752,6 @@ void Bot::SelectKnife(void)
 
 void Bot::SelectBestWeapon(void)
 {
-	if (!m_isSlowThink)
-		return;
-
-	// never change weapon while reloading if theres no enemy
-	if (FNullEnt(m_enemy) && m_isReloading)
-		return;
-
-	if (g_gameVersion != HALFLIFE)
-	{
-		if (ebot_sb_mode.GetBool())
-		{
-			if (m_currentWeapon != WEAPON_HEGRENADE && m_currentWeapon != WEAPON_FBGRENADE && m_currentWeapon != WEAPON_SMGRENADE)
-			{
-				if (pev->weapons & (1 << WEAPON_HEGRENADE))
-					SelectWeaponByName("weapon_hegrenade");
-				else if (pev->weapons & (1 << WEAPON_FBGRENADE))
-					SelectWeaponByName("weapon_flashbang");
-				else if (pev->weapons & (1 << WEAPON_SMGRENADE))
-					SelectWeaponByName("weapon_smokegrenade");
-			}
-
-			return;
-		}
-
-		if (!IsZombieMode())
-		{
-			if (m_numEnemiesLeft <= 0)
-			{
-				if (m_currentWeapon != WEAPON_KNIFE)
-					SelectWeaponByName("weapon_knife");
-
-				m_weaponSelectDelay = engine->GetTime() + 3.0f;
-				return;
-			}
-
-			if (!FNullEnt(m_enemy) && GetCurrentTask()->taskID == TASK_FIGHTENEMY && (pev->origin - m_enemyOrigin).GetLengthSquared() <= SquaredF(96.0f))
-			{
-				if (m_currentWeapon != WEAPON_KNIFE)
-					SelectWeaponByName("weapon_knife");
-
-				m_weaponSelectDelay = engine->GetTime() + 3.0f;
-				return;
-			}
-		}
-	}
-
 	if (m_weaponSelectDelay >= engine->GetTime())
 		return;
 

@@ -3083,7 +3083,7 @@ void Waypoint::SetGoalVisited(int index)
 
     if (!IsGoalVisited(index) && (m_paths[index]->flags & WAYPOINT_GOAL))
     {
-        int bombPoint = FindNearest(GetBombPosition());
+        const int bombPoint = FindNearest(GetBombPosition());
 
         if (IsValidWaypoint(bombPoint) && bombPoint != index)
             m_visitedGoals.Push(index);
@@ -3265,7 +3265,7 @@ Path* Waypoint::GetPath(int id)
 {
     // anti crash
     if (!IsValidWaypoint(id))
-        return m_paths[0];
+        return m_paths[1];
 
     return m_paths[id];
 }

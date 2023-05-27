@@ -68,7 +68,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		stricmp(arg0, "addbot_hs") == 0 || stricmp(arg0, "addhs") == 0 ||
 		stricmp(arg0, "addbot_t") == 0 || stricmp(arg0, "add_t") == 0 ||
 		stricmp(arg0, "addbot_ct") == 0 || stricmp(arg0, "add_ct") == 0)
-		ServerPrint("Pls use the command to change it");
+		ServerPrint("Pls use the command to change it, use 'ebot help'");
 
 	// kicking off one bot from the terrorist team
 	else if (stricmp(arg0, "kickbot_t") == 0 || stricmp(arg0, "kick_t") == 0)

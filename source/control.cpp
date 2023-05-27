@@ -1108,6 +1108,8 @@ void Bot::NewRound(void)
 		return;
 	}
 
+	SetProcess(Process::Default, "i have respawned");
+
 	int i = 0;
 
 	// delete all allocated path nodes

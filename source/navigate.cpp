@@ -384,6 +384,57 @@ bool Bot::GoalIsValid(void)
 	return false;
 }
 
+void Bot::MoveTo(const Vector targetPosition)
+{
+	const Vector directionOld = (targetPosition + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval);
+	const Vector directionNormal = directionOld.Normalize2D();
+	const Vector direction = directionNormal;
+	m_moveAngles = directionOld.ToAngles();
+	m_moveAngles.ClampAngles();
+	m_moveAngles.x = -m_moveAngles.x; // invert for engine
+	m_moveSpeed = pev->maxspeed;
+	m_strafeSpeed = 0.0f;
+}
+
+void Bot::MoveOut(const Vector targetPosition)
+{
+	const Vector directionOld = (targetPosition + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval);
+	const Vector directionNormal = directionOld.Normalize();
+	const Vector direction = directionNormal;
+	SetStrafeSpeed(directionNormal, pev->maxspeed);
+	m_moveAngles = directionOld.ToAngles();
+	m_moveAngles.ClampAngles();
+	m_moveAngles.x *= -1.0f; // invert for engine
+	m_moveSpeed = -pev->maxspeed;
+}
+
+void Bot::FollowPath(const Vector targetPosition)
+{
+	FollowPath(g_waypoint->FindNearestInCircle(targetPosition));
+}
+
+void Bot::FollowPath(const int targetIndex)
+{
+	m_moveSpeed = pev->maxspeed;
+	m_strafeSpeed = 0.0f;
+
+	if (m_navNode != nullptr)
+	{
+		const Vector directionOld = m_waypointFlags & WAYPOINT_FALLRISK ? (m_destOrigin + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval) : (m_destOrigin + pev->velocity * m_frameInterval) - (pev->origin + pev->velocity * -m_frameInterval);
+		const Vector directionNormal = directionOld.Normalize2D();
+		const Vector direction = directionNormal;
+
+		m_moveAngles = directionOld.ToAngles();
+		m_moveAngles.ClampAngles();
+		m_moveAngles.x = -m_moveAngles.x; // invert for engine
+
+		DoWaypointNav();
+		CheckStuck(directionNormal);
+	}
+	else if (!m_isSlowThink)
+		FindPath(m_currentWaypointIndex, targetIndex);
+}
+
 // this function is a main path navigation
 bool Bot::DoWaypointNav(void)
 {
@@ -391,7 +442,6 @@ bool Bot::DoWaypointNav(void)
 	if (!IsValidWaypoint(m_currentWaypointIndex))
 	{
 		GetValidWaypoint();
-		SetWaypointOrigin();
 		m_navTimeset = engine->GetTime();
 	}
 	else if (m_waypointOrigin != nullvec)
@@ -408,7 +458,7 @@ bool Bot::DoWaypointNav(void)
 	if (m_currentTravelFlags & PATHFLAG_JUMP)
 	{
 		// bot is not jumped yet?
-		if (!m_jumpFinished)
+		if (IsOnFloor() || IsOnLadder() || IsInWater())
 		{
 			// cheating for jump, bots cannot do some hard jumps and double jumps too
 			// who cares about double jump for bots? :)
@@ -436,8 +486,6 @@ bool Bot::DoWaypointNav(void)
 			else
 				pev->velocity = m_desiredVelocity + m_desiredVelocity * 0.05f;
 
-			m_jumpFinished = true;
-			m_checkTerrain = false;
 			m_desiredVelocity = nullvec;
 
 			PushTask(TASK_PAUSE, TASKPRI_PAUSE, -1, engine->GetTime() + engine->RandomFloat(0.48f, 0.96f), false);
@@ -987,7 +1035,6 @@ bool Bot::UpdateLiftHandling()
 
 				DeleteSearchNodes();
 				FindWaypoint();
-				SetWaypointOrigin();
 
 				if (IsValidWaypoint(m_prevWptIndex[2]))
 					FindShortestPath(m_currentWaypointIndex, m_prevWptIndex[2]);
@@ -1034,16 +1081,10 @@ bool Bot::UpdateLiftStates()
 				SetWaypointOrigin();
 			}
 			else
-			{
 				FindWaypoint();
-				SetWaypointOrigin();
-			}
 		}
 		else
-		{
 			FindWaypoint();
-			SetWaypointOrigin();
-		}
 
 		return false;
 	}
@@ -1482,11 +1523,11 @@ inline const float GF_CostNoHostage(const int index, const int parent, const int
 	return baseCost;
 }
 
-inline const float HF_Distance(int start, int goal)
+inline const float HF_Chebyshev(int start, int goal)
 {
-	auto sPath = g_waypoint->GetPath(start)->origin;
-	auto gPath = g_waypoint->GetPath(goal)->origin;
-	return (sPath - gPath).GetLengthSquared();
+	const Vector startOrigin = g_waypoint->GetPath(start)->origin;
+	const Vector goalOrigin = g_waypoint->GetPath(goal)->origin;
+	return MaxFloat(MaxFloat(fabsf(startOrigin.x - goalOrigin.x), fabsf(startOrigin.y - goalOrigin.y)), fabsf(startOrigin.z - goalOrigin.z));
 }
 
 inline const float GF_CostNav(NavArea* start, NavArea* goal)
@@ -1684,11 +1725,6 @@ void Bot::FindPath(int srcIndex, int destIndex)
 	}
 
 	const float (*gcalc) (int, int, int, float, bool) = nullptr;
-	const float (*hcalc) (int, int) = nullptr;
-
-	hcalc = HF_Distance;
-	if (hcalc == nullptr)
-		return;
 
 	if (IsZombieMode() && ebot_zombies_as_path_cost.GetBool() && !m_isZombieBot)
 		gcalc = GF_CostHuman;
@@ -1711,13 +1747,13 @@ void Bot::FindPath(int srcIndex, int destIndex)
 	else
 		gcalc = GF_CostNormal;
 
-	if (hcalc == nullptr)
+	if (gcalc == nullptr)
 		return;
 
 	// put start node into open list
 	const auto srcWaypoint = &waypoints[srcIndex];
 	srcWaypoint->g = gcalc(srcIndex, -1, m_team, pev->gravity, m_isZombieBot);
-	srcWaypoint->f = srcWaypoint->g + hcalc(srcIndex, destIndex);
+	srcWaypoint->f = srcWaypoint->g;
 	srcWaypoint->state = State::Open;
 
 	PriorityQueue openList;
@@ -1757,7 +1793,6 @@ void Bot::FindPath(int srcIndex, int destIndex)
 
 			m_navNodeStart = m_navNode;
 			m_currentWaypointIndex = m_navNodeStart->index;
-			m_cachedWaypointIndex = m_currentWaypointIndex;
 			m_waypointOrigin = g_waypoint->GetPath(m_currentWaypointIndex)->origin;
 			m_destOrigin = m_waypointOrigin;
 
@@ -1778,11 +1813,12 @@ void Bot::FindPath(int srcIndex, int destIndex)
 			if (self == -1)
 				continue;
 
-			int32 flags = g_waypoint->GetPath(self)->flags;
+			const int32 flags = g_waypoint->GetPath(self)->flags;
 			if (flags & WAYPOINT_FALLCHECK)
 			{
 				TraceResult tr;
-				TraceLine(g_waypoint->GetPath(self)->origin, g_waypoint->GetPath(self)->origin - Vector(0.0f, 0.0f, 60.0f), false, false, GetEntity(), &tr);
+				const Vector origin = g_waypoint->GetPath(self)->origin;
+				TraceLine(origin, origin - Vector(0.0f, 0.0f, 60.0f), false, false, GetEntity(), &tr);
 				if (tr.flFraction == 1.0f)
 					continue;
 			}
@@ -1794,7 +1830,7 @@ void Bot::FindPath(int srcIndex, int destIndex)
 
 			// calculate the F value as F = G + H
 			const float g = currWaypoint->g + gcalc(currentIndex, self, m_team, pev->gravity, m_isZombieBot);
-			const float h = hcalc(self, destIndex);
+			const float h = HF_Chebyshev(self, destIndex);
 			const float f = g + h;
 
 			const auto childWaypoint = &waypoints[self];
@@ -1865,7 +1901,7 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 
 	// put start node into open list
 	const auto srcWaypoint = &waypoints[srcIndex];
-	srcWaypoint->f = HF_Distance(srcIndex, destIndex);
+	srcWaypoint->f = 1.0f;
 	srcWaypoint->state = State::Open;
 
 	PriorityQueue openList;
@@ -1926,11 +1962,12 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 			if (self == -1)
 				continue;
 
-			int32 flags = g_waypoint->GetPath(self)->flags;
+			const int32 flags = g_waypoint->GetPath(self)->flags;
 			if (flags & WAYPOINT_FALLCHECK)
 			{
 				TraceResult tr;
-				TraceLine(g_waypoint->GetPath(self)->origin, g_waypoint->GetPath(self)->origin - Vector(0.0f, 0.0f, 60.0f), false, false, GetEntity(), &tr);
+				const Vector origin = g_waypoint->GetPath(self)->origin;
+				TraceLine(origin, origin - Vector(0.0f, 0.0f, 60.0f), false, false, GetEntity(), &tr);
 				if (tr.flFraction == 1.0f)
 					continue;
 			}
@@ -1940,7 +1977,7 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 					continue;
 			}
 
-			const float f = HF_Distance(self, destIndex);
+			const float f = HF_Chebyshev(self, destIndex);
 			const auto childWaypoint = &waypoints[self];
 			if (childWaypoint->state == State::New || childWaypoint->f > f)
 			{
@@ -2003,9 +2040,6 @@ void Bot::CheckTouchEntity(edict_t* entity)
 
 				m_moveToGoal = false;
 				m_checkTerrain = false;
-
-				m_moveSpeed = 0.0f;
-				m_strafeSpeed = 0.0f;
 
 				PushTask(TASK_DEFUSEBOMB, TASKPRI_DEFUSEBOMB, -1, 0.0, false);
 			}
@@ -2290,15 +2324,102 @@ int Bot::FindWaypoint(bool skipLag)
 		selected = g_waypoint->FindNearest(pev->origin + pev->velocity, 9999.0f, -1, GetEntity());
 
 	ChangeWptIndex(selected);
+	SetWaypointOrigin();
 	return selected;
 }
 
 void Bot::IgnoreCollisionShortly(void)
 {
 	ResetCollideState();
-
 	m_lastCollTime = engine->GetTime() + 1.0f;
-	m_checkTerrain = false;
+}
+
+void Bot::ResetStuck(void)
+{
+	m_isStuck = false;
+	m_stuckWarn = 0;
+	m_stuckTimer = AddTime(2.0f);
+}
+
+void Bot::CheckStuck(const Vector dirNormal)
+{
+	if (m_hasFriendsNear && pev->solid != SOLID_NOT)
+	{
+		const float distance = (pev->origin - m_nearestFriend->v.origin).GetLengthSquared();
+		if (distance <= SquaredF(pev->maxspeed))
+		{
+			const unsigned int myPri = GetPlayerPriority(GetEntity());
+			const unsigned int otherPri = GetPlayerPriority(m_nearestFriend);
+			if (myPri >= otherPri)
+			{
+				const float interval = m_frameInterval * 8.0f;
+
+				// use our movement angles, try to predict where we should be next frame
+				Vector right, forward;
+				m_moveAngles.BuildVectors(&forward, &right, nullptr);
+
+				Vector predict = pev->origin + forward * m_moveSpeed * interval;
+
+				predict += right * m_strafeSpeed * interval;
+				predict += pev->velocity * interval;
+
+				const float movedDistance = (predict - m_nearestFriend->v.origin).GetLengthSquared();
+				const float nextFrameDistance = (pev->origin - (m_nearestFriend->v.origin + m_nearestFriend->v.velocity * interval)).GetLengthSquared();
+
+				// is player that near now or in future that we need to steer away?
+				if (movedDistance <= SquaredF(64.0f) || (distance <= SquaredF(72.0f) && nextFrameDistance <= distance))
+				{
+					const auto dir = (pev->origin - m_nearestFriend->v.origin).Normalize2D();
+
+					// to start strafing, we have to first figure out if the target is on the left side or right side
+					if ((dir | right.Normalize2D()) > 0.0f)
+						SetStrafeSpeed(dirNormal, pev->maxspeed);
+					else
+						SetStrafeSpeed(dirNormal, -pev->maxspeed);
+
+					if (distance <= SquaredF(80.0f))
+					{
+						if ((dir | forward.Normalize2D()) < 0.0f)
+							m_moveSpeed = -pev->maxspeed;
+						else
+							m_moveSpeed = pev->maxspeed;
+					}
+				}
+			}
+		}
+	}
+
+	if (!m_isSlowThink)
+		return;
+
+	if ((pev->origin - m_stuckArea).GetLengthSquared2D() <= (pev->maxspeed * 2.0f))
+	{
+		m_stuckWarn += 1;
+
+		if (m_stuckWarn >= 20)
+		{
+			m_stuckWarn = 10;
+			FindWaypoint(false);
+			DeleteSearchNodes();
+		}
+
+		if (m_stuckWarn > 10)
+			m_isStuck = true;
+	}
+	else
+	{
+		if (m_stuckWarn > 0)
+			m_stuckWarn -= 1;
+
+		if (m_stuckWarn < 5)
+			m_isStuck = false;
+	}
+
+	if (m_stuckTimer < engine->GetTime())
+	{
+		m_stuckArea = pev->origin;
+		m_stuckTimer = AddTime(2.0f);
+	}
 }
 
 Vector Smooth(const Vector& one, const Vector& second)
@@ -2399,7 +2520,7 @@ void Bot::SetWaypointOrigin(void)
 			float sDistance = FLT_MAX;
 			for (int i = 0; i < 5; i++)
 			{
-				float distance = (pev->origin - waypointOrigin[i]).GetLengthSquared();
+				const float distance = (pev->origin - waypointOrigin[i]).GetLengthSquared();
 
 				if (distance < sDistance)
 				{
@@ -2420,44 +2541,14 @@ void Bot::SetWaypointOrigin(void)
 // checks if the last waypoint the bot was heading for is still valid
 void Bot::GetValidWaypoint(void)
 {
-	bool needFindWaypont = false;
-	if (!IsValidWaypoint(m_currentWaypointIndex))
-		needFindWaypont = true;
-	else if ((m_navTimeset + GetEstimatedReachTime() < engine->GetTime()))
-		needFindWaypont = true;
-	else
-	{
-		int waypointIndex1, waypointIndex2;
-		int client = ENTINDEX(GetEntity()) - 1;
-		waypointIndex1 = g_clients[client].wpIndex;
-		waypointIndex2 = g_clients[client].wpIndex2;
-
-		if (m_currentWaypointIndex != waypointIndex1 && m_currentWaypointIndex != waypointIndex2 && (g_waypoint->GetPath(m_currentWaypointIndex)->origin - pev->origin).GetLengthSquared() > SquaredF(600.0f) && !g_waypoint->Reachable(GetEntity(), m_currentWaypointIndex))
-			needFindWaypont = true;
-	}
-
-	if (needFindWaypont)
-	{
-		DeleteSearchNodes();
-		FindWaypoint();
-	}
+	FindWaypoint();
+	DeleteSearchNodes();
 }
 
-void Bot::ChangeWptIndex(int waypointIndex)
+void Bot::ChangeWptIndex(const int waypointIndex)
 {
-	if (!IsValidWaypoint(waypointIndex))
-		return;
-
-	if (m_currentWaypointIndex == waypointIndex)
-		return;
-
-	bool noCheck = false;
-
-	// no current waypoint = no check
-	if (!IsValidWaypoint(m_currentWaypointIndex))
-		noCheck = true;
-
 	m_currentWaypointIndex = waypointIndex;
+	m_cachedWaypointIndex = waypointIndex;
 
 	if (m_prevWptIndex[0] != m_currentWaypointIndex)
 	{
@@ -2465,13 +2556,7 @@ void Bot::ChangeWptIndex(int waypointIndex)
 		m_prevWptIndex[1] = m_prevWptIndex[0];
 		m_prevWptIndex[2] = m_prevWptIndex[1];
 	}
-	
-	if (noCheck)
-		return;
 
-	m_navTimeset = engine->GetTime();
-
-	// get the current waypoint flags
 	m_waypointFlags = g_waypoint->GetPath(m_currentWaypointIndex)->flags;
 }
 
@@ -2711,7 +2796,8 @@ bool Bot::HasNextPath(void)
 // advances in our pathfinding list and sets the appropiate destination origins for this bot
 bool Bot::HeadTowardWaypoint(void)
 {
-	GetValidWaypoint(); // check if old nodes is still reliable
+	if (!IsValidWaypoint(m_currentWaypointIndex))
+		GetValidWaypoint(); // check if old nodes is still reliable
 
 	// no nodes from pathfinding?
 	if (m_navNode == nullptr)
@@ -2725,7 +2811,7 @@ bool Bot::HeadTowardWaypoint(void)
 	// helper to change bot's goal
 	auto changeNextGoal = [&]
 	{
-		int newGoal = FindGoal();
+		const int newGoal = FindGoal();
 
 		m_prevGoalIndex = newGoal;
 		m_chosenGoalIndex = newGoal;
@@ -3416,7 +3502,7 @@ void Bot::FacePosition(void)
 		Vector direction = (m_lookAt - EyePosition()).ToAngles() + pev->punchangle;
 		direction.x = -direction.x; // invert for engine
 
-		const float aimSpeed = ((m_skill * 0.054f) + 11.0f) * delta;
+		const float aimSpeed = ((m_skill * 0.033f) + 9.0f) * delta;
 
 		m_idealAngles.x += AngleNormalize(direction.x - m_idealAngles.x) * aimSpeed;
 		m_idealAngles.y += AngleNormalize(direction.y - m_idealAngles.y) * aimSpeed;
