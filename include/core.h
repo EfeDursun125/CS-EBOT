@@ -760,7 +760,7 @@ private:
 	int m_currentWaypointIndex; // current waypoint index
 	int m_travelStartIndex; // travel start index to double jump action
 	int m_prevWptIndex[3]; // previous waypoint indices from waypoint find
-	int m_waypointFlags; // current waypoint flags
+	int32 m_waypointFlags; // current waypoint flags
 	int m_loosedBombWptIndex; // nearest to loosed bomb waypoint
 
 	unsigned short m_currentTravelFlags; // connection flags like jumping
@@ -794,6 +794,10 @@ private:
 	Vector m_lastWallOrigin; // for better zombie avoiding
 
 	bool m_isStuck; // bot is stuck
+	int m_stuckWarn;
+	Vector m_stuckArea;
+	float m_stuckTimer;
+
 	bool m_isReloading; // bot is reloading a gun
 	int m_reloadState; // current reload state
 	int m_voicePitch; // bot voice pitch
@@ -937,7 +941,7 @@ private:
 
 	void RunPlayerMovement(void);
 	void GetValidWaypoint(void);
-	void ChangeWptIndex(int waypointIndex);
+	void ChangeWptIndex(const int waypointIndex);
 	bool IsDeadlyDrop(Vector targetOriginPos);
 	bool CampingAllowed(void);
 	bool OutOfBombTimer(void);
@@ -1126,17 +1130,25 @@ public:
 
 	// NEW VARS
 	Process m_currentProcess;
-	Process m_failedProcess;
 	Process m_rememberedProcess;
 	float m_currentProcessTime;
 	float m_rememberedProcessTime;
 
 	bool m_hasEnemiesNear;
 	bool m_hasFriendsNear;
+	bool m_hasEntitiesNear;
+	int m_enemiesNearCount;
+	int m_friendsNearCount;
+	int m_entitiesNearCount;
 	float m_enemyDistance;
 	float m_friendDistance;
+	float m_entityDistance;
+	float m_enemySeeTime;
+	float m_friendSeeTime;
+	float m_entitySeeTime;
 	edict_t* m_nearestEnemy;
 	edict_t* m_nearestFriend;
+	edict_t* m_nearestEntity;
 
 	float m_senseChance;
 
@@ -1152,18 +1164,25 @@ public:
 	void UpdateProcess(void);
 	void CheckSlowThink(void);
 
-	void SetProcess(const Process process, const char* debugNote = "clear", const bool rememberProcess = true, const float time = 999999.0f);
+	bool SetProcess(const Process process, const char* debugNote = "clear", const bool rememberProcess = false, const float time = 999999.0f);
 	void StartProcess(const Process process);
 	void EndProcess(const Process process);
 	void FinishCurrentProcess(const char* debugNote = "finished by the system");
-	void SetFailedProcess(const char* debugNote = "finished by the system");
 	bool IsReadyForTheProcess(const Process process);
 	char* GetProcessName(const Process process);
 
 	// FUNCTIONS
 	void LookAtEnemies(void);
 	void LookAtAround(void);
-	void FollowPath(const Vector targetposition);
+	void MoveTo(const Vector targetPosition);
+	void MoveOut(const Vector targetPosition);
+	void FollowPath(const Vector targetPosition);
+	void FollowPath(const int targetIndex);
+	void FindFriendsAndEnemiens(void);
+	void FindEnemyEntities(void);
+
+	void CheckStuck(const Vector dirNormal);
+	void ResetStuck(void);
 
 	bool IsAttacking(const edict_t* player);
 
