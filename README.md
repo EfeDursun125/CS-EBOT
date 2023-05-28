@@ -4,7 +4,7 @@ AI Bot for Counter-Strike based on SyPB
 This bot can be used for default gamemodes, deathmatch and zombie.
 
 # E-Bot Requires VCRedist (For Windows)
-If you see badf load on console (when you type "meta list") install this
+If you see badf load on console (when you type "meta list") install this.
 [Click Here To Download](https://aka.ms/vs/17/release/vc_redist.x86.exe)
 
 # How to install
