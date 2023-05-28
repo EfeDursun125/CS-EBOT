@@ -3,8 +3,8 @@ AI Bot for Counter-Strike based on SyPB
 
 This bot can be used for default gamemodes, deathmatch and zombie.
 
-# Get Waypoints For Zombie Maps
-https://github.com/EfeDursun125/EBOT-WP
+# E-Bot Requires VCRedist (For Windows)
+[Click Here To Download](https://aka.ms/vs/17/release/vc_redist.x86.exe)
 
 # How to install
 1. Download & install metamod if you dont have.
