@@ -1117,64 +1117,6 @@ void InitConfig(void)
 				for (int i = 0; i < Const_NumWeapons; i++)
 					g_carefulWeaponPrefs[i] = splitted[i];
 			}
-			else if (pair[0].Contains("Skill"))
-			{
-				if (splitted.GetElementNumber() != 8)
-					AddLogEntry(LOG_FATAL, "%s entry in general config is not valid.", pair[0][0]);
-
-				int parserState = 0;
-
-				if (pair[0].Contains("Easy"))
-					parserState = 0;
-				else if (pair[0].Contains("Fair"))
-					parserState = 1;
-				else if (pair[0].Contains("Normal"))
-					parserState = 2;
-				else if (pair[0].Contains("Hard"))
-					parserState = 3;
-				else if (pair[0].Contains("Expert"))
-					parserState = 4;
-				else if (pair[0].Contains("Elite"))
-					parserState = 5;
-
-				for (int i = 0; i < 8; i++)
-				{
-					switch (i)
-					{
-					case 0:
-						g_skillTab[parserState].minSurpriseTime = splitted[i];
-						break;
-
-					case 1:
-						g_skillTab[parserState].maxSurpriseTime = splitted[i];
-						break;
-
-					case 2:
-						g_skillTab[parserState].minTurnSpeed = splitted[i];
-						break;
-
-					case 3:
-						g_skillTab[parserState].maxTurnSpeed = splitted[i];
-						break;
-
-					case 4:
-						g_skillTab[parserState].headshotFrequency = splitted[i];
-						break;
-
-					case 5:
-						g_skillTab[parserState].heardShootThruProb = splitted[i];
-						break;
-
-					case 6:
-						g_skillTab[parserState].seenShootThruProb = splitted[i];
-						break;
-
-					case 7:
-						g_skillTab[parserState].recoilAmount = splitted[i];
-						break;
-					}
-				}
-			}
 		}
 
 		fp.Close();
@@ -2714,7 +2656,7 @@ void ClientCommand(edict_t* ent)
 		{
 			radioCommand += 10 * (g_radioSelect[clientIndex] - 1);
 
-			if (radioCommand != Radio_Affirmative && radioCommand != Radio_Negative && radioCommand != Radio_ReportingIn)
+			if (radioCommand != Radio::Affirmative && radioCommand != Radio::Negative && radioCommand != Radio::ReportingIn)
 			{
 				for (const auto& bot : g_botManager->m_bots)
 				{

@@ -43,7 +43,6 @@ ConVar ebot_save_bot_names("ebot_save_bot_names", "0");
 ConVar ebot_random_join_quit("ebot_random_join_quit", "0");
 ConVar ebot_stay_min("ebot_stay_min", "120"); // 2 minutes
 ConVar ebot_stay_max("ebot_stay_max", "3600"); // 1 hours
-ConVar ebot_use_new_ai("ebot_use_new_ai", "1");
 
 // this is a bot manager class constructor
 BotControl::BotControl(void)
@@ -336,10 +335,7 @@ void BotControl::Think(void)
 		if (bot == nullptr)
 			continue;
 
-		if (ebot_use_new_ai.GetBool())
-			bot->BaseUpdate();
-		else
-			bot->Think();
+		bot->BaseUpdate();
 		bot->RunPlayerMovement();
 	}
 }
@@ -816,8 +812,8 @@ void BotControl::ListBots(void)
 		edict_t* player = client.ent;
 
 		// is this player slot valid
-		if (IsValidBot(player) && GetBot(player))
-			ServerPrintNoTag("[%-3.1d] %-9.13s %-17.18s %-3.4s %-3.1d %-3.1d", client.index, GetEntityName(player), GetBot(player)->m_personality == PERSONALITY_RUSHER ? "rusher" : GetBot(player)->m_personality == PERSONALITY_NORMAL ? "normal" : "careful", GetTeam(player) != 0 ? "CT" : "T", GetBot(player)->m_skill, static_cast <int> (player->v.frags));
+		if (IsValidBot(player))
+			ServerPrintNoTag("[%-3.1d] %-9.13s %-17.18s %-3.4s %-3.1d %-3.1d", client.index, GetEntityName(player), GetBot(player)->m_personality == PERSONALITY_RUSHER ? "Rusher" : GetBot(player)->m_personality == PERSONALITY_NORMAL ? "Normal" : "Careful", GetTeam(player) != 0 ? "CT" : "TR", GetBot(player)->m_skill, static_cast <int> (player->v.frags));
 	}
 }
 
@@ -1109,6 +1105,13 @@ void Bot::NewRound(void)
 	}
 
 	SetProcess(Process::Default, "i have respawned");
+	m_rememberedProcess = Process::Default;
+	m_rememberedProcessTime = 0.0f;
+
+	if (!g_waypoint->m_zmHmPoints.IsEmpty())
+		m_zhCampPointIndex = g_waypoint->m_zmHmPoints.GetRandomElement();
+	else
+		m_zhCampPointIndex = -1;
 
 	int i = 0;
 
@@ -1217,7 +1220,6 @@ void Bot::NewRound(void)
 	m_sayTextBuffer.sayText[0] = 0x0;
 
 	m_damageTime = 0.0f;
-	m_zhCampPointIndex = -1;
 	m_checkCampPointTime = 0.0f;
 
 	if (!IsAlive(GetEntity())) // if bot died, clear all weapon stuff and force buying again

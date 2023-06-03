@@ -114,7 +114,10 @@ void Bot::FindEnemyEntities(void)
 
 	m_hasEntitiesNear = m_entitiesNearCount > 0;
 	if (m_hasEntitiesNear)
+	{
+		m_entityOrigin = GetEntityOrigin(m_nearestEntity);
 		m_entitySeeTime = engine->GetTime();
+	}
 }
 
 void Bot::FindFriendsAndEnemiens(void)
@@ -158,7 +161,7 @@ void Bot::FindFriendsAndEnemiens(void)
 		}
 		else
 		{
-			if (!IsVisible(EyePosition(), client.ent))
+			if (!IsEnemyViewable(client.ent))
 				continue;
 
 			// we don't know this enemy, where it can be?
@@ -184,11 +187,15 @@ void Bot::FindFriendsAndEnemiens(void)
 	m_hasEnemiesNear = m_enemiesNearCount > 0;
 	m_hasFriendsNear = m_friendsNearCount > 0;
 
+	// enemyOrigin will be added with IsEnemyViewable function unlike friendOrigin
 	if (m_hasEnemiesNear)
 		m_enemySeeTime = engine->GetTime();
 
 	if (m_hasFriendsNear)
+	{
+		m_friendOrigin = m_nearestFriend->v.origin;
 		m_friendSeeTime = engine->GetTime();
+	}
 }
 
 void Bot::ResetCheckEnemy()
@@ -300,7 +307,7 @@ bool Bot::LookupEnemy(void)
 
 		if ((m_enemyUpdateTime > engine->GetTime()))
 		{
-			if (IsEnemyViewable(m_enemy, true) || IsShootableThruObstacle(m_enemy))
+			if (IsEnemyViewable(m_enemy) || IsShootableThruObstacle(m_enemy))
 			{
 				m_aimFlags |= AIM_ENEMY;
 				return true;
@@ -342,7 +349,7 @@ bool Bot::LookupEnemy(void)
 		if (IsValidPlayer(entity) && IsEnemyProtectedByShield(entity))
 			continue;
 
-		if (IsEnemyViewable(entity, true, true))
+		if (IsEnemyViewable(entity))
 		{
 			enemy_distance = m_checkEnemyDistance[i];
 			targetEntity = entity;
@@ -384,7 +391,7 @@ bool Bot::LookupEnemy(void)
 	}
 
 	// last checking
-	if (!FNullEnt(targetEntity) && !IsEnemyViewable(targetEntity, true, true))
+	if (!FNullEnt(targetEntity) && !IsEnemyViewable(targetEntity))
 		targetEntity = nullptr;
 
 	if (!FNullEnt(m_enemy) && FNullEnt(targetEntity))
@@ -477,7 +484,7 @@ bool Bot::LookupEnemy(void)
 		}
 
 		if (m_seeEnemyTime + 3.0f < engine->GetTime() && (m_isBomber || HasHostage() || !FNullEnt(m_targetEntity)))
-			RadioMessage(Radio_EnemySpotted);
+			RadioMessage(Radio::EnemySpotted);
 
 		m_targetEntity = nullptr;
 
@@ -514,23 +521,10 @@ Vector Bot::GetEnemyPosition(void)
 {
 	// not even visible?
 	if (m_visibility == Visibility::None)
-	{
-		m_wantsToFire = true;
-		if (m_enemyOrigin == nullvec)
-			m_enemyOrigin = GetEntityOrigin(m_enemy);
-
 		return m_enemyOrigin;
-	}
-
-	// npc/entity
-	if (!IsValidPlayer(m_enemy))
-	{
-		m_wantsToFire = true;
-		return m_lastEnemyOrigin = m_enemyOrigin = GetEntityOrigin(m_enemy);
-	}
 
 	// get enemy position initially
-	Vector targetOrigin = m_enemy->v.origin;
+	Vector targetOrigin = m_nearestEnemy->v.origin;
 
 	const float distance = (targetOrigin - pev->origin).GetLengthSquared();
 
@@ -539,12 +533,12 @@ Vector Bot::GetEnemyPosition(void)
 	{
 		// now check is our skill match to aim at head, else aim at enemy body
 		if (IsZombieMode() || ChanceOf(m_skill) || UsesPistol())
-			targetOrigin += m_enemy->v.view_ofs + Vector(0.0f, 0.0f, GetZOffset(distance));
+			targetOrigin += m_nearestEnemy->v.view_ofs + Vector(0.0f, 0.0f, GetZOffset(distance));
 		else
 			targetOrigin += Vector(0.0f, 0.0f, GetZOffset(distance));
 	}
 	else if (m_visibility & Visibility::Head) // visible only head
-		targetOrigin += m_enemy->v.view_ofs + Vector(0.0f, 0.0f, GetZOffset(distance));
+		targetOrigin += m_nearestEnemy->v.view_ofs + Vector(0.0f, 0.0f, GetZOffset(distance));
 	else if (m_visibility & Visibility::Body) // visible only body
 		targetOrigin += Vector(0.0f, 0.0f, GetZOffset(distance));
 	else if (m_visibility & Visibility::Other) // random part of body is visible
@@ -727,18 +721,18 @@ bool Bot::IsShootableThruObstacle(edict_t* entity)
 	return false;
 }
 
-bool Bot::DoFirePause(float distance)//, FireDelay *fireDelay)
+bool Bot::DoFirePause(const float distance)
 {
 	if (m_firePause > engine->GetTime())
 		return true;
 
-	if (m_aimFlags & AIM_ENEMY && m_enemyOrigin != nullvec && IsEnemyProtectedByShield(m_enemy))
+	if (m_hasEnemiesNear && IsEnemyProtectedByShield(m_nearestEnemy))
 		return true;
 
 	const float angle = (fabsf(pev->punchangle.y) + fabsf(pev->punchangle.x)) * (Math::MATH_PI * 0.00277777777f);
 
 	// check if we need to compensate recoil
-	if (tanf(angle) * (distance + (distance * 0.25f)) > g_skillTab[m_skill / 20].recoilAmount)
+	if (tanf(angle) * (distance + (distance * 0.25f)) > 100.0f)
 	{
 		if (m_firePause < (engine->GetTime() - 0.4))
 			m_firePause = engine->GetTime() + engine->RandomFloat(0.4f, (0.4f + 1.2f * ((100 - m_skill)) * 0.01f));
@@ -754,7 +748,7 @@ bool Bot::DoFirePause(float distance)//, FireDelay *fireDelay)
 		m_moveSpeed = 0.0f;
 		m_strafeSpeed = 0.0f;
 
-		if (pev->speed >= pev->maxspeed && GetGameMode() != MODE_ZP)
+		if (pev->speed >= pev->maxspeed && !IsZombieMode())
 		{
 			m_firePause = engine->GetTime() + 0.1f;
 			return true;
@@ -767,32 +761,25 @@ bool Bot::DoFirePause(float distance)//, FireDelay *fireDelay)
 // this function will return true if weapon was fired, false otherwise
 void Bot::FireWeapon(void)
 {
-	// if using grenade stop this
-	if (m_isUsingGrenade)
-	{
-		m_shootTime = engine->GetTime() + 0.25f;
-		return;
-	}
-
-	const float distance = (m_lookAt - pev->origin).GetLengthSquared(); // how far away is the enemy?
+	const float distance = m_enemyDistance <= m_entityDistance ? m_enemyDistance : m_entityDistance;
 
 	// or if friend in line of fire, stop this too but do not update shoot time
-	if (!FNullEnt(m_enemy) && IsFriendInLineOfFire(distance))
+	if (IsFriendInLineOfFire(distance))
 		return;
 
-	int melee = g_gameVersion == HALFLIFE ? WEAPON_CROWBAR : WEAPON_KNIFE;
+	const int melee = g_gameVersion == HALFLIFE ? WEAPON_CROWBAR : WEAPON_KNIFE;
 
 	FireDelay* delay = &g_fireDelay[0];
 	WeaponSelect* selectTab = g_gameVersion == HALFLIFE ? &g_weaponSelectHL[0] : &g_weaponSelect[0];
 
-	edict_t* enemy = m_enemy;
+	edict_t* enemy = m_nearestEnemy;
 
 	int selectId = melee, selectIndex = 0, chosenWeaponIndex = 0;
 	int weapons = pev->weapons;
 
 	if (m_isZombieBot || ebot_knifemode.GetBool())
 		goto WeaponSelectEnd;
-	else if (!FNullEnt(enemy) && ChanceOf(m_skill) && !IsZombieEntity(enemy) && IsOnAttackDistance(enemy, 128.0f) && (enemy->v.health <= 30 || pev->health > enemy->v.health) && !IsOnLadder() && !IsGroupOfEnemies(enemy->v.origin))
+	else if (!FNullEnt(enemy) && ChanceOf(m_skill) && !IsZombieEntity(enemy) && distance <= SquaredF(128.0f) && (enemy->v.health <= 30 || pev->health > enemy->v.health) && !IsOnLadder() && !IsGroupOfEnemies(enemy->v.origin))
 		goto WeaponSelectEnd;
 
 	// loop through all the weapons until terminator is found...
@@ -845,14 +832,14 @@ void Bot::FireWeapon(void)
 				if (g_weaponDefs[id].ammo1 != -1 && m_ammo[g_weaponDefs[id].ammo1] >= selectTab[selectIndex].minPrimaryAmmo)
 				{
 					// available ammo found, reload weapon
-					if (m_reloadState == ReloadState::Nothing || m_reloadCheckTime > engine->GetTime() || GetCurrentTask()->taskID != TASK_ESCAPEFROMBOMB)
+					if (m_reloadState == ReloadState::Nothing || m_reloadCheckTime > engine->GetTime())
 					{
 						m_isReloading = true;
 						m_reloadState = ReloadState::Primary;
 						m_reloadCheckTime = engine->GetTime();
-						m_fearLevel = 1.0f;
-						RadioMessage(Radio_NeedBackup);
+						RadioMessage(Radio::NeedBackup);
 					}
+
 					return;
 				}
 			}
@@ -868,7 +855,7 @@ WeaponSelectEnd:
 	if (!m_isReloading)
 	{
 		m_reloadState = ReloadState::Nothing;
-		m_reloadCheckTime = engine->GetTime() + 5.0f;
+		m_reloadCheckTime = engine->GetTime() + 6.0f;
 	}
 
 	if (IsZombieMode() && m_currentWeapon == melee && selectId != melee && !m_isZombieBot)
@@ -908,7 +895,7 @@ WeaponSelectEnd:
 	{
 		CheckBurstMode(distance);
 
-		if (HasShield() && m_shieldCheckTime < engine->GetTime() && GetCurrentTask()->taskID != TASK_CAMP) // better shield gun usage
+		if (HasShield() && m_shieldCheckTime < engine->GetTime() && m_currentProcess != Process::Camp) // better shield gun usage
 		{
 			if ((distance > SquaredF(768.0f)) && !IsShieldDrawn())
 				pev->button |= IN_ATTACK2; // draw the shield
@@ -964,7 +951,7 @@ WeaponSelectEnd:
 	}
 	else
 	{
-		if (DoFirePause(distance))//, &delay[chosenWeaponIndex]))
+		if (DoFirePause(distance))
 			return;
 
 		// don't attack with knife over long distance
@@ -1023,47 +1010,39 @@ WeaponSelectEnd:
 
 bool Bot::KnifeAttack(float attackDistance)
 {
-	edict_t* entity = nullptr;
+	Vector origin = nullvec;
 	float distance = FLT_MAX;
-	if (!FNullEnt(m_enemy))
+
+	if (m_enemyDistance <= m_entityDistance)
 	{
-		entity = m_enemy;
-		distance = (pev->origin - m_enemyOrigin).GetLengthSquared();
+		origin = m_enemyOrigin;
+		distance = m_enemyDistance;
+	}
+	else
+	{
+		origin = m_entityOrigin;
+		distance = m_entityDistance;
 	}
 
-	if (!FNullEnt(m_breakableEntity))
-	{
-		if (m_breakable == nullvec)
-			m_breakable = GetEntityOrigin(m_breakableEntity);
-
-		if ((pev->origin - m_breakable).GetLengthSquared() < distance)
-		{
-			entity = m_breakableEntity;
-			distance = (pev->origin - m_breakable).GetLengthSquared();
-		}
-	}
-
-	if (FNullEnt(entity))
-		return false;
-
-	float kad1 = 64.0f;
-	float kad2 = pev->speed * 0.26;
+	float kad1 = SquaredF(pev->speed * 0.26);
+	const float kad2 = SquaredF(64.0f);
 
 	if (attackDistance != 0.0f)
 		kad1 = attackDistance;
 
 	int kaMode = 0;
-	if (IsOnAttackDistance(entity, kad1))
+
+	if (distance <= kad1)
 		kaMode = 1;
-	if (IsOnAttackDistance(entity, kad2))
+
+	if (distance <= kad2)
 		kaMode += 2;
 
 	if (kaMode > 0)
 	{
-		Vector entityOrigin = GetEntityOrigin(entity);
-		float distanceSkipZ = (pev->origin - entityOrigin).GetLengthSquared2D();
+		const float distanceSkipZ = (pev->origin - origin).GetLengthSquared2D();
 
-		if (pev->origin.z > entityOrigin.z && distanceSkipZ < SquaredF(64.0f))
+		if (pev->origin.z > origin.z && distanceSkipZ < SquaredF(64.0f))
 		{
 			pev->button |= IN_DUCK;
 			m_campButtons |= IN_DUCK;
@@ -1074,7 +1053,7 @@ bool Bot::KnifeAttack(float attackDistance)
 			pev->button &= ~IN_DUCK;
 			m_campButtons &= ~IN_DUCK;
 
-			if (pev->origin.z + 150.0f < entityOrigin.z && distanceSkipZ < SquaredF(300.0f))
+			if (pev->origin.z + 150.0f < origin.z && distanceSkipZ < SquaredF(300.0f))
 				pev->button |= IN_JUMP;
 		}
 
@@ -1695,59 +1674,15 @@ void Bot::SelectKnife(void)
 			return;
 
 		SelectWeaponByName("weapon_crowbar");
-		return;
 	}
-
-	// already have
-	if (m_currentWeapon == WEAPON_KNIFE)
-		return;
-
-	auto task = GetCurrentTask()->taskID;
-	if (task == TASK_THROWFBGRENADE)
-		return;
-
-	if (task == TASK_THROWFLARE)
-		return;
-
-	if (task == TASK_THROWHEGRENADE)
-		return;
-
-	if (task == TASK_THROWSMGRENADE)
-		return;
-
-	if (m_isZombieBot)
+	else
 	{
+		// already have
+		if (m_currentWeapon == WEAPON_KNIFE)
+			return;
+
 		SelectWeaponByName("weapon_knife");
-		return;
 	}
-
-	if (task == TASK_BLINDED)
-		return;
-
-	if (task == TASK_CAMP)
-		return;
-
-	if (task == TASK_DESTROYBREAKABLE)
-		return;
-
-	if (task == TASK_PAUSE)
-		return;
-
-	if (task == TASK_FOLLOWUSER)
-		return;
-
-	if (task == TASK_HUNTENEMY)
-		return;
-
-	if (task == TASK_GOINGFORCAMP)
-	{
-		if (m_personality == PERSONALITY_CAREFUL)
-			return;
-		else if (m_personality == PERSONALITY_NORMAL && m_skill > 50)
-			return;
-	}
-
-	SelectWeaponByName("weapon_knife");
 }
 
 void Bot::SelectBestWeapon(void)
@@ -1897,20 +1832,20 @@ void Bot::CommandTeam(void)
 	if (memberNear && ChanceOf(50)) // has teammates ?
 	{
 		if (m_personality == PERSONALITY_RUSHER)
-			RadioMessage(Radio_StormTheFront);
+			RadioMessage(Radio::StormTheFront);
 		else if (m_personality == PERSONALITY_NORMAL)
-			RadioMessage(Radio_StickTogether);
+			RadioMessage(Radio::StickTogether);
 		else
-			RadioMessage(Radio_Fallback);
+			RadioMessage(Radio::Fallback);
 	}
 	else if (memberExists)
 	{
 		if (ChanceOf(25))
-			RadioMessage(Radio_NeedBackup);
+			RadioMessage(Radio::NeedBackup);
 		else if (ChanceOf(25))
-			RadioMessage(Radio_EnemySpotted);
+			RadioMessage(Radio::EnemySpotted);
 		else if (ChanceOf(25))
-			RadioMessage(Radio_TakingFire);
+			RadioMessage(Radio::TakingFire);
 	}
 
 	m_timeTeamOrder = engine->GetTime() + engine->RandomFloat(10.0f, 30.0f);
@@ -1957,14 +1892,8 @@ void Bot::CheckReload(void)
 		return;
 	}
 
-	// check the reload state
-	const int task = GetCurrentTask()->taskID;
-
-	// we're should not reload, while doing next tasks
-	const bool uninterruptibleTask = (task == TASK_PLANTBOMB || task == TASK_DEFUSEBOMB || task == TASK_PICKUPITEM || task == TASK_THROWHEGRENADE || task == TASK_THROWFBGRENADE || task == TASK_THROWSMGRENADE);
-
 	// do not check for reload
-	if (uninterruptibleTask || m_isUsingGrenade || m_currentWeapon == WEAPON_KNIFE)
+	if (m_currentWeapon == g_gameVersion == HALFLIFE ? WEAPON_CROWBAR : WEAPON_KNIFE)
 	{
 		m_reloadState = ReloadState::Nothing;
 		return;

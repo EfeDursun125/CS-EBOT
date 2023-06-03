@@ -1964,34 +1964,6 @@ int GetWeaponReturn(bool needString, const char* weaponAlias, int weaponID)
 // return priority of player (0 = max pri)
 unsigned int GetPlayerPriority(edict_t* player)
 {
-	const unsigned int lowestPriority = 0xFFFFFFFF;
-
-	if (FNullEnt(player))
-		return lowestPriority;
-
-	// human players have highest priority
-	const auto bot = g_botManager->GetBot(player);
-	if (bot != nullptr)
-	{
-		// bots doing something important for the current scenario have high priority
-		if (GetGameMode() == MODE_BASE)
-		{
-			if (bot->m_isBomber)
-				return 2;
-
-			if (bot->m_isVIP)
-				return 2;
-
-			if (bot->HasHostage())
-				return 2;
-		}
-
-		// get my index
-		const int index = bot->m_index + 3;
-
-		// everyone else is ranked by their unique ID (which cannot be zero)
-		return index;
-	}
-
-	return 1;
+	const int index = ENTINDEX(player);
+	return index * index;
 }

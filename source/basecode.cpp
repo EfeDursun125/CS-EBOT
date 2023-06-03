@@ -109,8 +109,6 @@ bool Bot::IsInViewCone(const Vector& origin)
 bool Bot::CheckVisibility(edict_t* targetEntity)
 {
 	m_visibility = Visibility::None;
-	if (FNullEnt(targetEntity))
-		return false;
 
 	TraceResult tr;
 	const Vector eyes = EyePosition();
@@ -162,10 +160,10 @@ bool Bot::CheckVisibility(edict_t* targetEntity)
 		return true;
 	}
 
-	const float edgeOffset = 13.0f;
-	Vector dir = (targetEntity->v.origin - pev->origin).Normalize2D();
+	constexpr float edgeOffset = 13.0f;
+	const Vector dir = (targetEntity->v.origin - pev->origin).Normalize2D();
 
-	Vector perp(-dir.y, dir.x, 0.0f);
+	const Vector perp(-dir.y, dir.x, 0.0f);
 	spot = targetEntity->v.origin + Vector(perp.x * edgeOffset, perp.y * edgeOffset, 0);
 
 	TraceLine(eyes, spot, true, ignoreGlass, self, &tr);
@@ -191,29 +189,15 @@ bool Bot::CheckVisibility(edict_t* targetEntity)
 	return false;
 }
 
-bool Bot::IsEnemyViewable(edict_t* entity, bool setEnemy, bool checkOnly)
+bool Bot::IsEnemyViewable(edict_t* player)
 {
-	if (FNullEnt(entity))
+	if (IsNotAttackLab(player))
 		return false;
 
-	if (IsNotAttackLab(entity))
-		return false;
-
-	const bool seeEntity = CheckVisibility(entity);
-	if (checkOnly)
-		return seeEntity;
-
-	if (seeEntity)
-	{
-		m_seeEnemyTime = engine->GetTime();
-		SetLastEnemy(entity);
-		return true;
-	}
-
-	return false;
+	return CheckVisibility(player);
 }
 
-bool Bot::ItemIsVisible(Vector destination, char* itemName)//, bool bomb)
+bool Bot::ItemIsVisible(Vector destination, char* itemName)
 {
 	TraceResult tr;
 
@@ -977,7 +961,7 @@ void Bot::FindItem(void)
 						m_campButtons |= IN_DUCK;
 					}
 					else
-						RadioMessage(Radio_ShesGonnaBlow);
+						RadioMessage(Radio::ShesGonnaBlow);
 				}
 			}
 		}
@@ -1173,10 +1157,6 @@ void Bot::RadioMessage(int message)
 	if (GetGameMode() == MODE_DM)
 		return;
 
-	// poor bots spamming this :(
-	if (IsZombieMode() && message == Radio_NeedBackup && !g_waypoint->m_zmHmPoints.IsEmpty())
-		return;
-
 	m_radioSelect = message;
 	PushMessageQueue(CMENU_RADIO);
 	m_radiotimer = engine->GetTime() + engine->RandomFloat(m_numFriendsLeft, m_numFriendsLeft * 1.5f);
@@ -1275,16 +1255,16 @@ void Bot::CheckMessageQueue(void)
 		if ((m_team == 0 || m_team == 1) && (g_lastRadioTime[m_team] + 3.0f < engine->GetTime()))
 		{
 			// if same message like previous just do a yes/no
-			if (m_radioSelect != Radio_Affirmative && m_radioSelect != Radio_Negative)
+			if (m_radioSelect != Radio::Affirmative && m_radioSelect != Radio::Negative)
 			{
 				if (m_radioSelect == g_lastRadio[m_team] && g_lastRadioTime[m_team] + 1.5 > engine->GetTime())
-					m_radioSelect = -1;
+					m_radioSelect = Radio::Nothin;
 				else
 				{
-					if (m_radioSelect != Radio_ReportingIn)
+					if (m_radioSelect != Radio::ReportingIn)
 						g_lastRadio[m_team] = m_radioSelect;
 					else
-						g_lastRadio[m_team] = -1;
+						g_lastRadio[m_team] = Radio::Nothin;
 
 					for (const auto& bot : g_botManager->m_bots)
 					{
@@ -1297,20 +1277,20 @@ void Bot::CheckMessageQueue(void)
 				}
 			}
 
-			if (m_radioSelect != -1)
+			if (m_radioSelect != Radio::Nothin)
 			{
-				if (m_radioSelect != Radio_ReportingIn)
+				if (m_radioSelect != Radio::ReportingIn)
 				{
-					if (m_radioSelect < Radio_GoGoGo)
+					if (m_radioSelect < Radio::GoGoGo)
 						FakeClientCommand(GetEntity(), "radio1");
-					else if (m_radioSelect < Radio_Affirmative)
+					else if (m_radioSelect < Radio::Affirmative)
 					{
-						m_radioSelect -= Radio_GoGoGo - 1;
+						m_radioSelect -= Radio::GoGoGo - 1;
 						FakeClientCommand(GetEntity(), "radio2");
 					}
 					else
 					{
-						m_radioSelect -= Radio_Affirmative - 1;
+						m_radioSelect -= Radio::Affirmative - 1;
 						FakeClientCommand(GetEntity(), "radio3");
 					}
 
@@ -1766,12 +1746,17 @@ float HysteresisDesire(float cur, float min, float max, float old)
 	return old;
 }
 
+Process Bot::GetProcess(void)
+{
+	return m_currentProcess;
+}
+
 bool Bot::SetProcess(const Process process, const char* debugnote, const bool rememberProcess, const float time)
 {
 	if (m_currentProcess != process && IsReadyForTheProcess(process))
 	{
 		if (ebot_debug.GetInt() > 0)
-			ServerPrint("%s has got a new process from %s to %s | -> %s", GetEntityName(GetEntity()), GetProcessName(m_currentProcess), GetProcessName(process), debugnote);
+			ServerPrint("%s has got a new process from %s to %s | process started -> %s", GetEntityName(GetEntity()), GetProcessName(m_currentProcess), GetProcessName(process), debugnote);
 
 		if (rememberProcess && m_currentProcess > Process::Default)
 		{
@@ -1799,6 +1784,18 @@ void Bot::StartProcess(const Process process)
 	case Process::Attack:
 		AttackStart();
 		break;
+	case Process::Defuse:
+		DefuseStart();
+		break;
+	case Process::Plant:
+		PlantStart();
+		break;
+	case Process::Escape:
+		EscapeStart();
+		break;
+	case Process::Pause:
+		PauseStart();
+		break;
 	}
 }
 
@@ -1812,6 +1809,18 @@ void Bot::EndProcess(const Process process)
 	case Process::Attack:
 		AttackEnd();
 		break;
+	case Process::Defuse:
+		DefuseEnd();
+		break;
+	case Process::Plant:
+		PlantEnd();
+		break;
+	case Process::Escape:
+		EscapeEnd();
+		break;
+	case Process::Pause:
+		EscapeEnd();
+		break;
 	}
 }
 
@@ -1824,6 +1833,18 @@ void Bot::UpdateProcess(void)
 		break;
 	case Process::Attack: 
 		AttackUpdate();
+		break;
+	case Process::Defuse:
+		DefuseUpdate();
+		break;
+	case Process::Plant:
+		PlantUpdate();
+		break;
+	case Process::Escape:
+		EscapeUpdate();
+		break;
+	case Process::Pause:
+		PauseUpdate();
 		break;
 	default:
 		SetProcess(Process::Default, "unknown process");
@@ -1883,6 +1904,14 @@ bool Bot::IsReadyForTheProcess(const Process process)
 		return DefaultReq();
 	case Process::Attack:
 		return AttackReq();
+	case Process::Defuse:
+		return DefuseReq();
+	case Process::Plant:
+		return PlantReq();
+	case Process::Escape:
+		return EscapeReq();
+	case Process::Pause:
+		return EscapeReq();
 	}
 
 	return true;
@@ -1896,10 +1925,18 @@ char* Bot::GetProcessName(const Process process)
 		return "DEFAULT";
 	case Process::Attack:
 		return "ATTACK";
+	case Process::Plant:
+		return "PLANT THE BOMB";
+	case Process::Defuse:
+		return "DEFUSE THE BOMB";
+	case Process::Escape:
+		return "ESCAPE FROM THE BOMB";
 	case Process::Hide:
 		return "HIDE FROM DANGER";
 	case Process::Camp:
 		return "CAMP";
+	case Process::Pause:
+		return "PAUSE";
 	}
 
 	return "UNKNOWN";
@@ -1967,7 +2004,7 @@ void Bot::SetConditions(void)
 			if (ChanceOf(50))
 				ChatMessage(CHAT_KILL);
 			else
-				RadioMessage(Radio_EnemyDown);
+				RadioMessage(Radio::EnemyDown);
 
 			// if no more enemies found AND bomb planted, switch to knife to get to bombplace faster
 			if (m_team == TEAM_COUNTER && m_currentWeapon != WEAPON_KNIFE && m_numEnemiesLeft == 0 && g_bombPlanted)
@@ -1975,7 +2012,7 @@ void Bot::SetConditions(void)
 				SelectKnife();
 
 				// order team to regroup
-				RadioMessage(Radio_RegroupTeam);
+				RadioMessage(Radio::RegroupTeam);
 			}
 		}
 		else
@@ -2979,7 +3016,7 @@ void Bot::CheckRadioCommands(void)
 
 	switch (m_radioOrder)
 	{
-	case Radio_FollowMe:
+	case Radio::FollowMe:
 		if (IsVisible(GetTopOrigin(m_radioEntity), GetEntity()) && FNullEnt(m_enemy) && FNullEnt(m_lastEnemy))
 		{
 			int numFollowers = 0;
@@ -3001,7 +3038,7 @@ void Bot::CheckRadioCommands(void)
 
 			if (numFollowers < allowedFollowers)
 			{
-				RadioMessage(Radio_Affirmative);
+				RadioMessage(Radio::Affirmative);
 				m_targetEntity = m_radioEntity;
 
 				BotTask taskID = GetCurrentTask()->taskID;
@@ -3013,14 +3050,14 @@ void Bot::CheckRadioCommands(void)
 			}
 		}
 		else
-			RadioMessage(Radio_Negative);
+			RadioMessage(Radio::Negative);
 
 		break;
 
-	case Radio_StickTogether:
+	case Radio::StickTogether:
 		if (IsVisible(GetTopOrigin(m_radioEntity), GetEntity()) && FNullEnt(m_enemy) && FNullEnt(m_lastEnemy))
 		{
-			RadioMessage(Radio_Affirmative);
+			RadioMessage(Radio::Affirmative);
 			m_targetEntity = m_radioEntity;
 
 			// don't pause/camp/follow anymore
@@ -3035,7 +3072,7 @@ void Bot::CheckRadioCommands(void)
 		}
 		else if (FNullEnt(m_enemy) && FNullEnt(m_lastEnemy))
 		{
-			RadioMessage(Radio_Affirmative);
+			RadioMessage(Radio::Affirmative);
 
 			m_position = GetEntityOrigin(m_radioEntity);
 
@@ -3043,15 +3080,15 @@ void Bot::CheckRadioCommands(void)
 			PushTask(TASK_MOVETOPOSITION, TASKPRI_MOVETOPOSITION, -1, 1.0f, true);
 		}
 		else
-			RadioMessage(Radio_Negative);
+			RadioMessage(Radio::Negative);
 
 		break;
 
-	case Radio_CoverMe:
+	case Radio::CoverMe:
 		// check if line of sight to object is not blocked (i.e. visible)
 		if (IsVisible(pev->origin, m_radioEntity))
 		{
-			RadioMessage(Radio_Affirmative);
+			RadioMessage(Radio::Affirmative);
 
 			if (GetCurrentTask()->taskID == TASK_CAMP || GetCurrentTask()->taskID == TASK_PAUSE)
 				return;
@@ -3069,14 +3106,14 @@ void Bot::CheckRadioCommands(void)
 
 		break;
 
-	case Radio_HoldPosition:
+	case Radio::HoldPosition:
 		if (m_numEnemiesLeft > 0 && !g_waypoint->m_campPoints.IsEmpty())
 		{
 			int index = FindDefendWaypoint(GetTopOrigin(m_radioEntity));
 
 			if (IsValidWaypoint(index))
 			{
-				RadioMessage(Radio_Affirmative);
+				RadioMessage(Radio::Affirmative);
 
 				m_campposition = g_waypoint->GetPath(index)->origin;
 
@@ -3084,14 +3121,14 @@ void Bot::CheckRadioCommands(void)
 				PushTask(TASK_GOINGFORCAMP, TASKPRI_GOINGFORCAMP, index, 9999.0f, true);
 			}
 			else
-				RadioMessage(Radio_Negative);
+				RadioMessage(Radio::Negative);
 		}
 		else
-			RadioMessage(Radio_Negative);
+			RadioMessage(Radio::Negative);
 
 		break;
 
-	case Radio_TakingFire:
+	case Radio::TakingFire:
 		if (FNullEnt(m_targetEntity))
 		{
 			if (FNullEnt(m_enemy) && m_seeEnemyTime + 10.0f < engine->GetTime())
@@ -3102,7 +3139,7 @@ void Bot::CheckRadioCommands(void)
 				if (m_fearLevel < 0.0f)
 					m_fearLevel = 0.0f;
 
-				RadioMessage(Radio_Affirmative);
+				RadioMessage(Radio::Affirmative);
 				m_targetEntity = m_radioEntity;
 				m_position = GetEntityOrigin(m_radioEntity);
 
@@ -3110,15 +3147,15 @@ void Bot::CheckRadioCommands(void)
 				PushTask(TASK_MOVETOPOSITION, TASKPRI_MOVETOPOSITION, -1, 10.0f, true);
 			}
 			else
-				RadioMessage(Radio_Negative);
+				RadioMessage(Radio::Negative);
 		}
 
 		break;
 
-	case Radio_YouTakePoint:
+	case Radio::YouTakePoint:
 		if (IsVisible(GetTopOrigin(m_radioEntity), GetEntity()) && m_isLeader)
 		{
-			RadioMessage(Radio_Affirmative);
+			RadioMessage(Radio::Affirmative);
 
 			if (g_bombPlanted)
 				m_position = g_waypoint->GetBombPosition();
@@ -3150,14 +3187,14 @@ void Bot::CheckRadioCommands(void)
 
 		}
 		else
-			RadioMessage(Radio_Negative);
+			RadioMessage(Radio::Negative);
 
 		break;
 
-	case Radio_EnemySpotted:
+	case Radio::EnemySpotted:
 		if (m_personality == PERSONALITY_RUSHER && FNullEnt(m_enemy) && FNullEnt(m_lastEnemy)) // rusher bots will like that, they want fight!
 		{
-			RadioMessage(Radio_Affirmative);
+			RadioMessage(Radio::Affirmative);
 
 			m_position = GetEntityOrigin(m_radioEntity);
 
@@ -3166,7 +3203,7 @@ void Bot::CheckRadioCommands(void)
 		}
 		else if (g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_GOAL) // he's in goal waypoint, its danger!!!
 		{
-			RadioMessage(Radio_Affirmative);
+			RadioMessage(Radio::Affirmative);
 
 			m_position = GetEntityOrigin(m_radioEntity);
 
@@ -3176,7 +3213,7 @@ void Bot::CheckRadioCommands(void)
 
 		break;
 
-	case Radio_NeedBackup:
+	case Radio::NeedBackup:
 		if ((FNullEnt(m_enemy) && IsVisible(GetPlayerHeadOrigin(m_radioEntity), GetEntity()) || distance <= SquaredF(1536.0f) || !m_moveToC4) && m_seeEnemyTime + 5.0f <= engine->GetTime())
 		{
 			m_fearLevel -= 0.1f;
@@ -3184,7 +3221,7 @@ void Bot::CheckRadioCommands(void)
 			if (m_fearLevel < 0.0f)
 				m_fearLevel = 0.0f;
 
-			RadioMessage(Radio_Affirmative);
+			RadioMessage(Radio::Affirmative);
 
 			m_targetEntity = m_radioEntity;
 			m_position = GetEntityOrigin(m_radioEntity);
@@ -3193,14 +3230,14 @@ void Bot::CheckRadioCommands(void)
 			PushTask(TASK_MOVETOPOSITION, TASKPRI_MOVETOPOSITION, -1, 10.0f, true);
 		}
 		else
-			RadioMessage(Radio_Negative);
+			RadioMessage(Radio::Negative);
 
 		break;
 
-	case Radio_GoGoGo:
+	case Radio::GoGoGo:
 		if (m_radioEntity == m_targetEntity)
 		{
-			RadioMessage(Radio_Affirmative);
+			RadioMessage(Radio::Affirmative);
 
 			m_targetEntity = nullptr;
 			m_fearLevel -= 0.2f;
@@ -3224,7 +3261,7 @@ void Bot::CheckRadioCommands(void)
 				if (m_fearLevel < 0.0f)
 					m_fearLevel = 0.0f;
 
-				RadioMessage(Radio_Affirmative);
+				RadioMessage(Radio::Affirmative);
 
 				m_targetEntity = nullptr;
 				m_position = GetTopOrigin(m_radioEntity) + (m_radioEntity->v.v_angle + (g_pGlobals->v_forward * 20));
@@ -3235,18 +3272,18 @@ void Bot::CheckRadioCommands(void)
 		}
 		else if (!FNullEnt(m_doubleJumpEntity))
 		{
-			RadioMessage(Radio_Affirmative);
+			RadioMessage(Radio::Affirmative);
 			ResetDoubleJumpState();
 		}
 		else
-			RadioMessage(Radio_Negative);
+			RadioMessage(Radio::Negative);
 
 		break;
 
-	case Radio_ShesGonnaBlow:
+	case Radio::ShesGonnaBlow:
 		if (FNullEnt(m_enemy) && distance <= SquaredF(2048.0f) && g_bombPlanted && m_team == TEAM_TERRORIST)
 		{
-			RadioMessage(Radio_Affirmative);
+			RadioMessage(Radio::Affirmative);
 
 			if (GetCurrentTask()->taskID == TASK_CAMP || GetCurrentTask()->taskID == TASK_PAUSE)
 				TaskComplete();
@@ -3255,11 +3292,11 @@ void Bot::CheckRadioCommands(void)
 			PushTask(TASK_ESCAPEFROMBOMB, TASKPRI_ESCAPEFROMBOMB, -1, GetBombTimeleft(), true);
 		}
 		else
-			RadioMessage(Radio_Negative);
+			RadioMessage(Radio::Negative);
 
 		break;
 
-	case Radio_RegroupTeam:
+	case Radio::RegroupTeam:
 		// if no more enemies found AND bomb planted, switch to knife to get to bombplace faster
 		if (m_team == TEAM_COUNTER && m_currentWeapon != WEAPON_KNIFE && m_numEnemiesLeft == 0 && g_bombPlanted && GetCurrentTask()->taskID != TASK_DEFUSEBOMB)
 		{
@@ -3270,7 +3307,7 @@ void Bot::CheckRadioCommands(void)
 			m_position = g_waypoint->GetBombPosition();
 			PushTask(TASK_MOVETOPOSITION, TASKPRI_MOVETOPOSITION, -1, 1.0f, true);
 
-			RadioMessage(Radio_Affirmative);
+			RadioMessage(Radio::Affirmative);
 		}
 		else if (m_team == TEAM_TERRORIST && m_numEnemiesLeft > 0 && g_bombPlanted && GetCurrentTask()->taskID != TASK_PLANTBOMB && GetCurrentTask()->taskID != TASK_CAMP)
 		{
@@ -3284,7 +3321,7 @@ void Bot::CheckRadioCommands(void)
 			m_position = g_waypoint->GetBombPosition();
 			PushTask(TASK_MOVETOPOSITION, TASKPRI_MOVETOPOSITION, -1, 1.0f, true);
 
-			RadioMessage(Radio_Affirmative);
+			RadioMessage(Radio::Affirmative);
 		}
 		else if (FNullEnt(m_enemy) && FNullEnt(m_lastEnemy))
 		{
@@ -3298,17 +3335,17 @@ void Bot::CheckRadioCommands(void)
 			m_position = GetEntityOrigin(m_radioEntity);
 			PushTask(TASK_MOVETOPOSITION, TASKPRI_MOVETOPOSITION, -1, 1.0f, true);
 
-			RadioMessage(Radio_Affirmative);
+			RadioMessage(Radio::Affirmative);
 		}
 		else
-			RadioMessage(Radio_Negative);
+			RadioMessage(Radio::Negative);
 
 		break;
 
-	case Radio_StormTheFront:
+	case Radio::StormTheFront:
 		if ((FNullEnt(m_enemy) && IsVisible(GetTopOrigin(m_radioEntity), GetEntity())) || distance < SquaredF(1024.0f))
 		{
-			RadioMessage(Radio_Affirmative);
+			RadioMessage(Radio::Affirmative);
 
 			BotTask taskID = GetCurrentTask()->taskID;
 			if (taskID == TASK_PAUSE || taskID == TASK_CAMP)
@@ -3333,7 +3370,7 @@ void Bot::CheckRadioCommands(void)
 
 		break;
 
-	case Radio_Fallback:
+	case Radio::Fallback:
 		if ((FNullEnt(m_enemy) && IsVisible(GetPlayerHeadOrigin(m_radioEntity), GetEntity())) || distance <= SquaredF(1024.0f))
 		{
 			m_fearLevel += 0.5f;
@@ -3348,7 +3385,7 @@ void Bot::CheckRadioCommands(void)
 
 			if (GetCurrentTask()->taskID == TASK_CAMP && !FNullEnt(m_lastEnemy))
 			{
-				RadioMessage(Radio_Negative);
+				RadioMessage(Radio::Negative);
 				GetCurrentTask()->time += engine->RandomFloat(ebot_camp_min.GetFloat(), ebot_camp_min.GetFloat());
 			}
 			else
@@ -3356,7 +3393,7 @@ void Bot::CheckRadioCommands(void)
 				const BotTask taskID = GetCurrentTask()->taskID;
 				if (taskID == TASK_PAUSE || taskID == TASK_CAMP || taskID == TASK_HIDE || taskID == TASK_HUNTENEMY || taskID == TASK_GOINGFORCAMP)
 				{
-					RadioMessage(Radio_Affirmative);
+					RadioMessage(Radio::Affirmative);
 					TaskComplete();
 				}
 
@@ -3390,7 +3427,7 @@ void Bot::CheckRadioCommands(void)
 				}
 				else
 				{
-					RadioMessage(Radio_Affirmative);
+					RadioMessage(Radio::Affirmative);
 
 					const int seekindex = FindCoverWaypoint(9999.0f);
 					if (IsValidWaypoint(seekindex))
@@ -3403,7 +3440,7 @@ void Bot::CheckRadioCommands(void)
 
 		break;
 
-	case Radio_ReportTeam:
+	case Radio::ReportTeam:
 		switch (GetCurrentTask()->taskID)
 		{
 		case TASK_NORMAL:
@@ -3412,50 +3449,50 @@ void Bot::CheckRadioCommands(void)
 				if (!FNullEnt(m_enemy))
 				{
 					if (IsAlive(m_enemy))
-						RadioMessage(Radio_EnemySpotted);
+						RadioMessage(Radio::EnemySpotted);
 					else
-						RadioMessage(Radio_EnemyDown);
+						RadioMessage(Radio::EnemyDown);
 				}
 				else if (!FNullEnt(m_lastEnemy))
 				{
 					if (IsAlive(m_lastEnemy))
-						RadioMessage(Radio_EnemySpotted);
+						RadioMessage(Radio::EnemySpotted);
 					else
-						RadioMessage(Radio_EnemyDown);
+						RadioMessage(Radio::EnemyDown);
 				}
 				else if (m_seeEnemyTime + 10.0f > engine->GetTime())
-					RadioMessage(Radio_EnemySpotted);
+					RadioMessage(Radio::EnemySpotted);
 				else
-					RadioMessage(Radio_SectorClear);
+					RadioMessage(Radio::SectorClear);
 			}
 
 			break;
 
 		case TASK_MOVETOPOSITION:
 			if (m_seeEnemyTime + 10.0f > engine->GetTime())
-				RadioMessage(Radio_EnemySpotted);
+				RadioMessage(Radio::EnemySpotted);
 			else if (FNullEnt(m_enemy) && FNullEnt(m_lastEnemy))
-				RadioMessage(Radio_SectorClear);
+				RadioMessage(Radio::SectorClear);
 
 			break;
 
 		case TASK_CAMP:
-			RadioMessage(Radio_InPosition);
+			RadioMessage(Radio::InPosition);
 
 			break;
 
 		case TASK_GOINGFORCAMP:
-			RadioMessage(Radio_HoldPosition);
+			RadioMessage(Radio::HoldPosition);
 
 			break;
 
 		case TASK_PLANTBOMB:
-			RadioMessage(Radio_HoldPosition);
+			RadioMessage(Radio::HoldPosition);
 
 			break;
 
 		case TASK_DEFUSEBOMB:
-			RadioMessage(Radio_CoverMe);
+			RadioMessage(Radio::CoverMe);
 
 			break;
 
@@ -3463,31 +3500,31 @@ void Bot::CheckRadioCommands(void)
 			if (!FNullEnt(m_enemy))
 			{
 				if (IsAlive(m_enemy))
-					RadioMessage(Radio_EnemySpotted);
+					RadioMessage(Radio::EnemySpotted);
 				else
-					RadioMessage(Radio_EnemyDown);
+					RadioMessage(Radio::EnemyDown);
 			}
 			else if (m_seeEnemyTime + 10.0f > engine->GetTime())
-				RadioMessage(Radio_EnemySpotted);
+				RadioMessage(Radio::EnemySpotted);
 
 			break;
 
 		default:
 			if (ChanceOf(15))
-				RadioMessage(Radio_ReportingIn);
+				RadioMessage(Radio::ReportingIn);
 			else if (ChanceOf(15))
-				RadioMessage(Radio_FollowMe);
+				RadioMessage(Radio::FollowMe);
 			else if (m_seeEnemyTime + 10.0f > engine->GetTime())
-				RadioMessage(Radio_EnemySpotted);
+				RadioMessage(Radio::EnemySpotted);
 			else
-				RadioMessage(Radio_Negative);
+				RadioMessage(Radio::Negative);
 
 			break;
 		}
 
 		break;
 
-	case Radio_SectorClear:
+	case Radio::SectorClear:
 		// is bomb planted and it's a ct
 		if (!g_bombPlanted)
 			break;
@@ -3520,7 +3557,7 @@ void Bot::CheckRadioCommands(void)
 					if (GetCurrentTask()->data == bombPoint)
 					{
 						GetCurrentTask()->data = -1;
-						RadioMessage(Radio_Affirmative);
+						RadioMessage(Radio::Affirmative);
 					}
 				}
 
@@ -3532,10 +3569,10 @@ void Bot::CheckRadioCommands(void)
 
 		break;
 
-	case Radio_GetInPosition:
+	case Radio::GetInPosition:
 		if ((FNullEnt(m_enemy) && IsVisible(GetTopOrigin(m_radioEntity), GetEntity())) || distance <= SquaredF(1024.0f))
 		{
-			RadioMessage(Radio_Affirmative);
+			RadioMessage(Radio::Affirmative);
 
 			if (GetCurrentTask()->taskID == TASK_CAMP)
 				GetCurrentTask()->time = engine->GetTime() + engine->RandomFloat(ebot_camp_min.GetFloat(), ebot_camp_max.GetFloat());
@@ -3602,7 +3639,7 @@ void Bot::SelectLeaderEachTeam(int team)
 			if (botLeader != nullptr)
 			{
 				botLeader->m_isLeader = true;
-				botLeader->RadioMessage(Radio_FollowMe);
+				botLeader->RadioMessage(Radio::FollowMe);
 			}
 		}
 		else if (team == TEAM_COUNTER && !g_leaderChoosen[TEAM_COUNTER])
@@ -3612,7 +3649,7 @@ void Bot::SelectLeaderEachTeam(int team)
 			if (botLeader != nullptr)
 			{
 				botLeader->m_isLeader = true;
-					botLeader->RadioMessage(Radio_FollowMe);
+					botLeader->RadioMessage(Radio::FollowMe);
 			}
 		}
 	}
@@ -3634,9 +3671,6 @@ float Bot::GetWalkSpeed(void)
 
 bool Bot::IsNotAttackLab(edict_t* entity)
 {
-	if (FNullEnt(entity))
-		return true;
-
 	if (entity->v.takedamage == DAMAGE_NO)
 		return true;
 
@@ -4044,23 +4078,44 @@ bool Bot::IsAttacking(const edict_t* player)
 
 void Bot::UpdateLooking(void)
 {
-	if (m_hasEnemiesNear)
+	if (m_hasEnemiesNear || m_hasEntitiesNear)
 	{
-		if (m_isZombieBot)
+		CheckReload();
+		SelectBestWeapon();
+		FireWeapon();
+
+		if (m_enemyDistance <= m_entityDistance)
 		{
-			if (m_enemyDistance <= SquaredF(128.0f))
+			if (m_isZombieBot)
 			{
-				m_lookAt = m_nearestEnemy->v.origin;
-				if (CRandomInt(1, 3) == 1)
-					pev->button |= IN_ATTACK;
-				else
-					pev->button |= IN_ATTACK2;
+				if (m_enemyDistance <= SquaredF(128.0f))
+				{
+					m_lookAt = m_enemyOrigin;
+					if (CRandomInt(1, 3) == 1)
+						pev->button |= IN_ATTACK;
+					else
+						pev->button |= IN_ATTACK2;
+					return;
+				}
+			}
+			else
+			{
+				m_lookAt = m_enemyOrigin;
 				return;
 			}
 		}
 		else
 		{
-			m_lookAt = m_nearestEnemy->v.origin + m_nearestEnemy->v.view_ofs;
+			m_lookAt = m_entityOrigin;
+			return;
+		}
+	}
+	else
+	{
+		const float val = IsZombieMode() ? 8.0f : 4.0f;
+		if (m_enemySeeTime + val > engine->GetTime())
+		{
+			m_lookAt = m_enemyOrigin;
 			return;
 		}
 	}
@@ -4124,7 +4179,10 @@ void Bot::LookAtAround(void)
 			if (client.ent->v.flags & FL_DUCKING)
 				continue;
 
-			if ((pev->origin - client.origin).GetLengthSquared() > SquaredF(1024.0f))
+			if (client.ent->v.speed < client.ent->v.maxspeed * 0.5f)
+				continue;
+
+			if ((pev->origin - client.origin).GetLengthSquared() > SquaredF(1280.0f))
 				continue;
 
 			Vector playerArea;
@@ -4516,20 +4574,24 @@ void Bot::CalculatePing(void)
 
 void Bot::MoveAction(void)
 {
-	if (!(pev->button & (IN_FORWARD | IN_BACK)))
-	{
-		if (m_moveSpeed > 0)
-			pev->button |= IN_FORWARD;
-		else if (m_moveSpeed < 0)
-			pev->button |= IN_BACK;
-	}
+	if (m_moveSpeed > 0.0f)
+		pev->button |= IN_FORWARD;
+	else if (m_moveSpeed < 0.0f)
+		pev->button |= IN_BACK;
 
-	if (!(pev->button & (IN_MOVELEFT | IN_MOVERIGHT)))
+	if (m_strafeSpeed > 0.0f)
+		pev->button |= IN_MOVERIGHT;
+	else if (m_strafeSpeed < 0.0f)
+		pev->button |= IN_MOVELEFT;
+
+	const float time = engine->GetTime();
+	if (pev->button & IN_JUMP)
+		m_jumpTime = time;
+
+	if (m_jumpTime + 0.85f > time)
 	{
-		if (m_strafeSpeed > 0)
-			pev->button |= IN_MOVERIGHT;
-		else if (m_strafeSpeed < 0)
-			pev->button |= IN_MOVELEFT;
+		if (!IsOnFloor() && !IsInWater() && !IsOnLadder())
+			pev->button |= IN_DUCK;
 	}
 }
 
@@ -4607,9 +4669,9 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 		{
 			m_askCheckTime = engine->GetTime();
 			if (ChanceOf(40))
-				RadioMessage(Radio_SectorClear);
+				RadioMessage(Radio::SectorClear);
 			else
-				RadioMessage(Radio_ReportTeam);
+				RadioMessage(Radio::ReportTeam);
 		}
 	}
 
@@ -4701,7 +4763,6 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 
 						MakeVectors(pev->v_angle);
 
-						m_timeCamping = engine->GetTime() + engine->RandomFloat(g_skillTab[m_skill / 20].campStartDelay, g_skillTab[m_skill / 20].campEndDelay);
 						PushTask(TASK_CAMP, TASKPRI_CAMP, -1, m_timeCamping, true);
 
 						src.x = g_waypoint->GetPath(m_currentWaypointIndex)->campStartX;
@@ -4714,7 +4775,7 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 
 						// tell the world we're camping
 						if (ChanceOf(90))
-							RadioMessage(Radio_InPosition);
+							RadioMessage(Radio::InPosition);
 
 						m_moveToGoal = false;
 						m_checkTerrain = false;
@@ -4761,7 +4822,7 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 					if ((m_states & STATE_SEEINGENEMY) && m_numFriendsLeft > 0 && m_numEnemiesLeft > 0 && GetNearbyFriendsNearPosition(pev->origin, 768.0f) == 0)
 					{
 						// request an help also
-						RadioMessage(Radio_NeedBackup);
+						RadioMessage(Radio::NeedBackup);
 
 						const int index = FindDefendWaypoint(pev->origin);
 						m_campposition = g_waypoint->GetPath(index)->origin;
@@ -4774,7 +4835,6 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 				{
 					if (!g_bombPlanted && ChanceOf(60) && GetNearbyFriendsNearPosition(pev->origin, 250.0f) < 4)
 					{
-						m_timeCamping = engine->GetTime() + engine->RandomFloat(g_skillTab[m_skill / 20].campStartDelay, g_skillTab[m_skill / 20].campEndDelay);
 						const int index = FindDefendWaypoint(g_waypoint->GetPath(m_currentWaypointIndex)->origin);
 						m_campposition = g_waypoint->GetPath(index)->origin;
 						PushTask(TASK_GOINGFORCAMP, TASKPRI_GOINGFORCAMP, index, engine->GetTime() + ebot_camp_max.GetFloat(), true); // push camp task on to stack
@@ -5506,7 +5566,7 @@ void Bot::RunTask(void)
 		if (m_isBomber) // we're still got the C4?
 		{
 			SelectWeaponByName("weapon_c4");
-			RadioMessage(Radio_CoverMe);
+			RadioMessage(Radio::CoverMe);
 
 			if (IsAlive(m_enemy) || !m_inBombZone)
 				TaskComplete();
@@ -5531,7 +5591,7 @@ void Bot::RunTask(void)
 
 			// tell teammates to move over here...
 			if (m_numFriendsLeft > 0 && GetNearbyFriendsNearPosition(pev->origin, 768.0f) <= 1)
-				RadioMessage(Radio_RegroupTeam);
+				RadioMessage(Radio::RegroupTeam);
 
 			DeleteSearchNodes();
 
@@ -5552,7 +5612,7 @@ void Bot::RunTask(void)
 			exceptionCaught = true;
 			g_bombPlanted = false;
 
-			RadioMessage(Radio_SectorClear);
+			RadioMessage(Radio::SectorClear);
 		}
 		else if (m_numEnemiesLeft > 0 && !FNullEnt(m_enemy))
 		{
@@ -5565,7 +5625,7 @@ void Bot::RunTask(void)
 					exceptionCaught = false;
 
 				if (m_numFriendsLeft > friends)
-					RadioMessage(Radio_NeedBackup);
+					RadioMessage(Radio::NeedBackup);
 			}
 		}
 		else if (defuseRemainingTime > timeToBlowUp)
@@ -5616,7 +5676,7 @@ void Bot::RunTask(void)
 
 				g_bombDefusing = true;
 
-				RadioMessage(Radio_CoverMe);
+				RadioMessage(Radio::CoverMe);
 			}
 		}
 
@@ -5676,7 +5736,7 @@ void Bot::RunTask(void)
 				{
 					m_targetEntity = nullptr;
 
-					RadioMessage(Radio_YouTakePoint);
+					RadioMessage(Radio::YouTakePoint);
 					TaskComplete();
 
 					break;
@@ -6405,7 +6465,7 @@ void Bot::RunTask(void)
 			{
 				// notify team of defusing
 				if (m_numFriendsLeft >= 1)
-					RadioMessage(Radio_CoverMe);
+					RadioMessage(Radio::CoverMe);
 
 				m_moveToGoal = false;
 				m_checkTerrain = false;
@@ -6516,11 +6576,11 @@ void Bot::DebugModeMsg(void)
 		return;
 
 	static int index, goal;
-	static Process processID;
+	static Process processID, rememberedProcessID;
 
 	if (m_tasks != nullptr)
 	{
-		if (processID != m_currentProcess || index != m_currentWaypointIndex || goal != m_tasks->data || timeDebugUpdate < engine->GetTime())
+		if (processID != m_currentProcess || rememberedProcessID != m_rememberedProcess || index != m_currentWaypointIndex || goal != m_tasks->data || timeDebugUpdate < engine->GetTime())
 		{
 			processID = m_currentProcess;
 			index = m_currentWaypointIndex;
@@ -6529,15 +6589,23 @@ void Bot::DebugModeMsg(void)
 			char processName[80];
 			sprintf(processName, GetProcessName(m_currentProcess));
 
+			char rememberedProcessName[80];
+			sprintf(rememberedProcessName, GetProcessName(m_rememberedProcess));
+
 			char weaponName[80], botType[32];
-			char enemyName[80], pickName[80];
+			char enemyName[80], friendName[80];
 
 			if (!FNullEnt(m_nearestEnemy) && IsAlive(m_nearestEnemy))
 				sprintf(enemyName, "%s", GetEntityName(m_nearestEnemy));
+			else if (!FNullEnt(m_nearestEntity) && IsAlive(m_nearestEntity))
+				sprintf(enemyName, "%s", GetEntityName(m_nearestEntity));
 			else
 				sprintf(enemyName, "%s", GetEntityName(nullptr));
 
-			sprintf(pickName, "%s", GetEntityName(m_pickupItem));
+			if (!FNullEnt(m_nearestFriend) && IsAlive(m_nearestFriend))
+				sprintf(friendName, "%s", GetEntityName(m_nearestFriend));
+			else
+				sprintf(friendName, "%s", GetEntityName(nullptr));
 
 			WeaponSelect* selectTab = &g_weaponSelect[0];
 			char weaponCount = 0;
@@ -6632,10 +6700,10 @@ void Bot::DebugModeMsg(void)
 
 			char outputBuffer[512];
 			sprintf(outputBuffer, "\n\n\n\n\n\n\n Game Mode: %s"
-				"\n [%s] \n Process: %s  \n"
+				"\n [%s] \n Process: %s  RE-Process: %s \n"
 				"Weapon: %s  Clip: %d   Ammo: %d \n"
 				"Type: %s  Money: %d  Bot AI: %s \n"
-				"Enemy: %s  Pickup: %s  \n\n"
+				"Enemy: %s  Friend: %s  \n\n"
 
 				"Current Index: %d  Goal Index: %d  TD: %d \n"
 				"Nav: %d  Next Nav: %d \n"
@@ -6643,10 +6711,10 @@ void Bot::DebugModeMsg(void)
 				"Move Speed: %2.f  Strafe Speed: %2.f \n "
 				"Stuck Warnings: %d  Stuck: %d \n",
 				gamemodName,
-				GetEntityName(GetEntity()), processName,
+				GetEntityName(GetEntity()), processName, rememberedProcessName,
 				&weaponName[7], GetAmmoInClip(), GetAmmo(),
 				botType, m_moneyAmount, m_isZombieBot ? "Zombie" : "Normal",
-				enemyName, pickName,
+				enemyName, friendName,
 
 				m_currentWaypointIndex, m_prevGoalIndex, m_tasks->data,
 				navIndex[0], navIndex[1],
@@ -7384,52 +7452,6 @@ void Bot::TakeDamage(edict_t* inflictor, int /*damage*/, int /*armor*/, int bits
 {
 	if (FNullEnt(inflictor) || inflictor == GetEntity())
 		return;
-
-	if (m_blindTime > engine->GetTime())
-		return;
-
-	if (!IsValidPlayer(inflictor))
-		return;
-
-	m_lastDamageOrigin = GetPlayerHeadOrigin(inflictor);
-	m_damageTime = engine->GetTime() + 1.0f;
-
-	if (GetTeam(inflictor) == m_team)
-		return;
-
-	if (!IsZombieMode() && m_currentWeapon == WEAPON_KNIFE)
-		SelectBestWeapon();
-
-	m_lastDamageType = bits;
-
-	// remove some tasks
-	RemoveCertainTask(TASK_HIDE);
-	RemoveCertainTask(TASK_PAUSE);
-	RemoveCertainTask(TASK_PLANTBOMB);
-	RemoveCertainTask(TASK_DOUBLEJUMP);
-	RemoveCertainTask(TASK_SPRAYLOGO);
-
-	if (m_isZombieBot)
-	{
-		if (FNullEnt(m_enemy) && FNullEnt(m_moveTargetEntity))
-		{
-			if (IsEnemyViewable(inflictor, false, true))
-				SetMoveTarget(inflictor);
-			else
-				goto lastly;
-		}
-
-		return;
-	}
-
-	if (FNullEnt(m_enemy))
-	{
-	lastly:
-
-		SetLastEnemy(inflictor);
-
-		m_seeEnemyTime = engine->GetTime();
-	}
 }
 
 // this function gets called by network message handler, when screenfade message get's send
@@ -7509,7 +7531,7 @@ void Bot::DiscardWeaponForUser(edict_t* user, bool discardC4)
 	}
 	else
 	{
-		RadioMessage(Radio_Negative);
+		RadioMessage(Radio::Negative);
 		ChatSay(false, FormatBuffer("Sorry %s, i don't want discard my %s to you!", GetEntityName(user), discardC4 ? "bomb" : "weapon"));
 	}
 }
@@ -7833,7 +7855,7 @@ bool Bot::CampingAllowed(void)
 		}
 	}
 
-	if (ebot_followuser.GetInt() > 0 && (m_radioOrder == Radio_FollowMe || GetCurrentTask()->taskID == TASK_CAMP))
+	if (ebot_followuser.GetInt() > 0 && (m_radioOrder == Radio::FollowMe || GetCurrentTask()->taskID == TASK_CAMP))
 	{
 		int numFollowers = 0;
 
@@ -8119,23 +8141,22 @@ void Bot::DefaultUpdate(void)
 		// nearest enemy never resets to nullptr, so bot always know where are humans
 		if (!FNullEnt(m_nearestEnemy) && GetTeam(m_nearestEnemy) != m_team)
 		{
-			if (m_enemyDistance <= SquaredF(128.0f))
+			if (m_enemyDistance <= SquaredF(192.0f))
 			{
 				m_currentWaypointIndex = -1;
 				DeleteSearchNodes();
-				MoveTo(m_nearestEnemy->v.origin);
+				MoveTo(m_enemyOrigin);
 			}
 			else
-				FollowPath(m_nearestEnemy->v.origin);
+				FollowPath(m_enemyOrigin);
 		}
 		else
 			FollowPath(CRandomInt(1, g_numWaypoints - 1));
 
 		if (m_isSlowThink)
-		{
-			FindFriendsAndEnemiens();
 			FindEnemyEntities();
-		}
+		else
+			FindFriendsAndEnemiens();
 	}
 	else
 	{
@@ -8146,14 +8167,33 @@ void Bot::DefaultUpdate(void)
 			CheckReload();
 			FindFriendsAndEnemiens();
 		}
-
-		if (m_hasEnemiesNear)
-		{
-			if (SetProcess(Process::Attack, "i found a target", false, 9999.0f))
-				return;
-		}
 		
-		FollowPath(CRandomInt(1, g_numWaypoints - 1));
+		if (IsZombieMode())
+		{
+			if (m_enemyDistance <= SquaredF(256.0f))
+			{
+				m_currentWaypointIndex = -1;
+				DeleteSearchNodes();
+				MoveOut(m_enemyOrigin);
+			}
+			else
+				FollowPath(FindGoal());
+		}
+		else
+		{
+			if (m_hasEnemiesNear)
+			{
+				if (SetProcess(Process::Attack, "i found a target", false, 999999.0f))
+					return;
+			}
+			else if (m_isBomber && m_waypointFlags & WAYPOINT_GOAL && m_navNode == nullptr)
+			{
+				if (SetProcess(Process::Plant, "trying to plant the bomb.", false, 12.0f))
+					return;
+			}
+
+			FollowPath(FindGoal());
+		}
 	}
 }
 
@@ -8184,7 +8224,6 @@ void Bot::AttackUpdate(void)
 
 	FindFriendsAndEnemiens();
 	FindEnemyEntities();
-	CheckReload();
 	
 	if (!m_hasEnemiesNear)
 	{
@@ -8194,20 +8233,11 @@ void Bot::AttackUpdate(void)
 			m_strafeSpeed = 0.0f;
 		}
 
-		if (m_enemySeeTime + 2.0f < engine->GetTime())
+		if (m_enemySeeTime + 1.5f < engine->GetTime())
 			FinishCurrentProcess("no target exist");
 
 		return;
 	}
-	else if (GetAmmoInClip() > 0)
-	{
-		if (!(pev->button & IN_ATTACK) && !(pev->oldbuttons & IN_ATTACK))
-			pev->button |= IN_ATTACK;
-	}
-	else if (!(pev->button & IN_RELOAD))
-		pev->button |= IN_RELOAD;
-
-	SelectBestWeapon();
 
 	const float distance = m_enemyDistance;
 	const int melee = g_gameVersion == HALFLIFE ? WEAPON_CROWBAR : WEAPON_KNIFE;
@@ -8236,8 +8266,6 @@ void Bot::AttackUpdate(void)
 		else if (m_currentWeapon == WEAPON_CROWBAR && m_personality != PERSONALITY_CAREFUL)
 			pev->button |= IN_ATTACK;
 	}
-	
-	const Vector enemyOrigin = GetEntityOrigin(m_nearestEnemy);
 
 	int approach;
 	if (!(m_states & STATE_SEEINGENEMY)) // if suspecting enemy stand still
@@ -8252,7 +8280,7 @@ void Bot::AttackUpdate(void)
 	}
 
 	// only take cover when bomb is not planted and enemy can see the bot or the bot is VIP
-	if (approach < 30 && !g_bombPlanted && (::IsInViewCone(enemyOrigin, GetEntity()) || m_isVIP))
+	if (approach < 30 && !g_bombPlanted && (::IsInViewCone(m_enemyOrigin, GetEntity()) || m_isVIP))
 	{
 		m_moveSpeed = -pev->maxspeed;
 		//PushTask(TASK_SEEKCOVER, TASKPRI_SEEKCOVER, -1, 0.0f, true);
@@ -8319,7 +8347,7 @@ void Bot::AttackUpdate(void)
 			// to start strafing, we have to first figure out if the target is on the left side or right side
 			MakeVectors(m_nearestEnemy->v.v_angle);
 
-			const Vector& dirToPoint = (pev->origin - enemyOrigin).Normalize2D();
+			const Vector& dirToPoint = (pev->origin - m_enemyOrigin).Normalize2D();
 			const Vector& rightSide = g_pGlobals->v_right.Normalize2D();
 
 			if ((dirToPoint | rightSide) < 0)
@@ -8354,7 +8382,7 @@ void Bot::AttackUpdate(void)
 			}
 		}
 
-		if (m_jumpTime + 10.0f < engine->GetTime() && !IsOnLadder() && ChanceOf(m_isReloading ? 5 : 2) && !UsesSniper() && pev->velocity.GetLength2D() > float(m_skill + 50))
+		if (m_jumpTime + 2.0f < engine->GetTime() && !IsOnLadder() && ChanceOf(m_isReloading ? 5 : 2) && !UsesSniper() && pev->velocity.GetLength2D() > float(m_skill + 50))
 			pev->button |= IN_JUMP;
 
 		if (m_moveSpeed > 0.0f && distance > SquaredF(512.0f) && m_currentWeapon != melee)
@@ -8407,5 +8435,212 @@ void Bot::AttackEnd(void)
 
 bool Bot::AttackReq(void)
 {
+	return true;
+}
+
+void Bot::DefuseStart(void)
+{
+	RadioMessage(Radio::CoverMe);
+}
+
+void Bot::DefuseUpdate(void)
+{
+	const Vector bombOrigin = g_waypoint->GetBombPosition();
+	if (bombOrigin == nullvec)
+	{
+		g_bombPlanted = false;
+		RadioMessage(Radio::SectorClear);
+		FinishCurrentProcess("where's the bomb?");
+		return;
+	}
+
+	m_lookAt = bombOrigin;
+	pev->button |= (IN_ATTACK | IN_DUCK);
+
+	m_moveSpeed = 0.0f;
+	m_strafeSpeed = 0.0f;
+
+	if (!g_bombPlanted)
+		FinishCurrentProcess("i have defused the bomb");
+}
+
+void Bot::DefuseEnd(void)
+{
+	g_bombDefusing = false;
+}
+
+bool Bot::DefuseReq(void)
+{
+	if (m_hasEnemiesNear)
+		return false;
+
+	if (m_hasEntitiesNear)
+		return false;
+
+	if (!g_bombPlanted)
+		return false;
+
+	if (m_team != TEAM_COUNTER)
+		return false;
+
+	if (g_waypoint->GetBombPosition() == nullvec)
+		return false;
+
+	if (!IsOnFloor())
+		return false;
+
+	return true;
+}
+
+void Bot::PlantStart(void)
+{
+	RadioMessage(Radio::CoverMe);
+}
+
+void Bot::PlantUpdate(void)
+{
+	if (!m_inBombZone)
+	{
+		FinishCurrentProcess("i'm not at the plant area");
+		return;
+	}
+
+	SelectWeaponByName("weapon_c4");
+
+	pev->button |= (IN_ATTACK | IN_DUCK);
+
+	m_moveSpeed = 0.0f;
+	m_strafeSpeed = 0.0f;
+
+	if (g_bombPlanted)
+		FinishCurrentProcess("succsesfully planted the bomb");
+}
+
+void Bot::PlantEnd(void)
+{
+	const int random = CRandomInt(1, 4);
+	switch (random)
+	{
+	case 1:
+		RadioMessage(Radio::RegroupTeam);
+	case 2:
+		RadioMessage(Radio::HoldPosition);
+	case 3:
+		RadioMessage(Radio::GetInPosition);
+	case 4:
+		RadioMessage(Radio::StickTogether);
+	}
+
+	m_isBomber = false;
+}
+
+bool Bot::PlantReq(void)
+{
+	if (m_hasEnemiesNear)
+		return false;
+
+	if (m_hasEntitiesNear)
+		return false;
+
+	if (g_bombPlanted)
+		return false;
+
+	if (!m_isBomber)
+		return false;
+
+	if (!IsOnFloor())
+		return false;
+
+	return true;
+}
+
+void Bot::EscapeStart(void)
+{
+	RadioMessage(Radio::ShesGonnaBlow);
+}
+
+void Bot::EscapeUpdate(void)
+{
+	FindEnemyEntities();
+	FindFriendsAndEnemiens();
+
+	if (!g_bombPlanted || DoWaypointNav())
+		SetProcess(Process::Pause, "i have escaped from the bomb", false, 99999999.0f);
+	else if (!HasNextPath())
+	{
+		if (m_numEnemiesLeft <= 0)
+			SelectKnife();
+
+		Vector bombOrigin = g_waypoint->GetBombPosition();
+		if (bombOrigin == nullvec)
+			bombOrigin = pev->origin;
+
+		const int index = g_waypoint->FindFarest(bombOrigin, 2048.0f);
+		if (IsValidWaypoint(index))
+		{
+			m_prevGoalIndex = index;
+			m_chosenGoalIndex = index;
+			FollowPath(index);
+		}
+		else // WHERE WE MUST GO???
+			FollowPath(CRandomInt(0, g_numWaypoints - 1));
+	}
+}
+
+void Bot::EscapeEnd(void)
+{
+	if (m_numEnemiesLeft > 0)
+	{
+		if (IsShieldDrawn())
+			pev->button |= IN_ATTACK2;
+		else
+			SelectBestWeapon();
+	}
+}
+
+bool Bot::EscapeReq(void)
+{
+	return true;
+}
+
+void Bot::PauseStart(void)
+{
+
+}
+
+void Bot::PauseUpdate(void)
+{
+	if (m_isSlowThink)
+	{
+		FindEnemyEntities();
+		FindFriendsAndEnemiens();
+		if (m_hasEnemiesNear || m_hasEntitiesNear)
+		{
+			FinishCurrentProcess("enemies found me");
+			return;
+		}
+	}
+
+	m_moveSpeed = 0.0f;
+	m_strafeSpeed = 0.0f;
+}
+
+void Bot::PauseEnd(void)
+{
+
+}
+
+bool Bot::PauseReq(void)
+{
+	if (m_hasEnemiesNear)
+		return false;
+
+	if (m_hasEntitiesNear)
+		return false;
+
+	// do not pause on ladder or in the water
+	if (!IsOnFloor())
+		return false;
+
 	return true;
 }

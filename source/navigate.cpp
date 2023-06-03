@@ -24,7 +24,6 @@
 
 #include <core.h>
 
-ConVar ebot_aimbot("ebot_aimbot", "0");
 ConVar ebot_zombies_as_path_cost("ebot_zombie_count_as_path_cost", "1");
 ConVar ebot_aim_type("ebot_aim_type", "1");
 ConVar ebot_path_smoothing("ebot_path_smoothing", "0");
@@ -37,96 +36,13 @@ int Bot::FindGoal(void)
 		{
 			if (g_waypoint->m_terrorPoints.IsEmpty())
 				return m_chosenGoalIndex = CRandomInt(0, g_numWaypoints - 1);
-
-			Array <int> Important;
-			for (int i = 0; i < g_waypoint->m_terrorPoints.GetElementNumber(); i++)
-			{
-				int index;
-				g_waypoint->m_terrorPoints.GetAt(i, index);
-				Important.Push(index);
-			}
-
-			if (!Important.IsEmpty())
-				return m_chosenGoalIndex = Important.GetRandomElement();
+			else
+				return m_chosenGoalIndex = g_waypoint->m_terrorPoints.GetRandomElement();
 		}
 		else if (IsValidWaypoint(m_myMeshWaypoint))
 			return m_chosenGoalIndex = m_myMeshWaypoint;
-
-		if (!g_waypoint->m_zmHmPoints.IsEmpty())
-		{
-			// if round starts always go to nearest (zombies appeared)
-			if (g_DelayTimer <= engine->GetTime())
-			{
-				int targetWpIndex = -1;
-				float distance = FLT_MAX;
-
-				for (int i = 0; i < g_waypoint->m_zmHmPoints.GetElementNumber(); i++)
-				{
-					int wpIndex;
-					g_waypoint->m_zmHmPoints.GetAt(i, wpIndex);
-					if (IsValidWaypoint(wpIndex))
-					{
-						float theDistance = (pev->origin - g_waypoint->GetPath(wpIndex)->origin).GetLengthSquared2D();
-						if (theDistance < distance)
-						{
-							distance = theDistance;
-							targetWpIndex = wpIndex;
-						}
-					}
-				}
-
-				if (IsValidWaypoint(targetWpIndex))
-					return m_chosenGoalIndex = targetWpIndex;
-			}
-
-			Array <int> ZombieWaypoints;
-			for (int i = 0; i < g_waypoint->m_zmHmPoints.GetElementNumber(); i++)
-			{
-				int index;
-				g_waypoint->m_zmHmPoints.GetAt(i, index);
-
-				if (m_numEnemiesLeft > 0 && m_numFriendsLeft > 0 && GetNearbyEnemiesNearPosition(g_waypoint->GetPath(index)->origin, 600.0f) > GetNearbyFriendsNearPosition(g_waypoint->GetPath(index)->origin, 600.0f))
-					continue;
-
-				ZombieWaypoints.Push(index);
-			}
-
-			if (!ZombieWaypoints.IsEmpty())
-				return m_chosenGoalIndex = ZombieWaypoints.GetRandomElement();
-
-			if (!IsValidWaypoint(m_chosenGoalIndex))
-			{
-				int targetWpIndex = -1;
-				float distance = FLT_MAX;
-
-				for (int i = 0; i < g_waypoint->m_zmHmPoints.GetElementNumber(); i++)
-				{
-					int wpIndex;
-					g_waypoint->m_zmHmPoints.GetAt(i, wpIndex);
-					if (IsValidWaypoint(wpIndex))
-					{
-						if (m_numEnemiesLeft > 0 && m_numFriendsLeft > 0 && GetNearbyEnemiesNearPosition(g_waypoint->GetPath(wpIndex)->origin, 600.0f) > GetNearbyFriendsNearPosition(g_waypoint->GetPath(wpIndex)->origin, 600.0f))
-							continue;
-
-						float theDistance = (pev->origin - g_waypoint->GetPath(wpIndex)->origin).GetLengthSquared2D();
-
-						if (theDistance < distance)
-						{
-							distance = theDistance;
-							targetWpIndex = wpIndex;
-						}
-					}
-				}
-
-				if (IsValidWaypoint(targetWpIndex))
-					return m_chosenGoalIndex = targetWpIndex;
-			}
-
-			if (!IsValidWaypoint(m_chosenGoalIndex))
-				m_chosenGoalIndex = g_waypoint->m_zmHmPoints.GetRandomElement();
-
-			return m_chosenGoalIndex;
-		}
+		else if (IsValidWaypoint(m_zhCampPointIndex))
+			return m_chosenGoalIndex = m_zhCampPointIndex;
 		else
 			return m_chosenGoalIndex = CRandomInt(0, g_numWaypoints - 1);
 	}
@@ -138,12 +54,12 @@ int Bot::FindGoal(void)
 			{
 				const bool noTimeLeft = OutOfBombTimer();
 
-				if (GetCurrentTask()->taskID != TASK_ESCAPEFROMBOMB)
+				if (GetProcess() != Process::Escape)
 				{
 					if (noTimeLeft)
 					{
-						TaskComplete();
-						PushTask(TASK_ESCAPEFROMBOMB, TASKPRI_ESCAPEFROMBOMB, -1, 2.0f, true);
+						/*TaskComplete();
+						PushTask(TASK_ESCAPEFROMBOMB, TASKPRI_ESCAPEFROMBOMB, -1, 2.0f, true);*/
 					}
 					else if (m_team == TEAM_COUNTER)
 					{
@@ -388,7 +304,6 @@ void Bot::MoveTo(const Vector targetPosition)
 {
 	const Vector directionOld = (targetPosition + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval);
 	const Vector directionNormal = directionOld.Normalize2D();
-	const Vector direction = directionNormal;
 	m_moveAngles = directionOld.ToAngles();
 	m_moveAngles.ClampAngles();
 	m_moveAngles.x = -m_moveAngles.x; // invert for engine
@@ -399,12 +314,11 @@ void Bot::MoveTo(const Vector targetPosition)
 void Bot::MoveOut(const Vector targetPosition)
 {
 	const Vector directionOld = (targetPosition + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval);
-	const Vector directionNormal = directionOld.Normalize();
-	const Vector direction = directionNormal;
+	const Vector directionNormal = directionOld.Normalize2D();
 	SetStrafeSpeed(directionNormal, pev->maxspeed);
 	m_moveAngles = directionOld.ToAngles();
 	m_moveAngles.ClampAngles();
-	m_moveAngles.x *= -1.0f; // invert for engine
+	m_moveAngles.x = -m_moveAngles.x; // invert for engine
 	m_moveSpeed = -pev->maxspeed;
 }
 
@@ -420,10 +334,8 @@ void Bot::FollowPath(const int targetIndex)
 
 	if (m_navNode != nullptr)
 	{
-		const Vector directionOld = m_waypointFlags & WAYPOINT_FALLRISK ? (m_destOrigin + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval) : (m_destOrigin + pev->velocity * m_frameInterval) - (pev->origin + pev->velocity * -m_frameInterval);
+		const Vector directionOld = m_waypointFlags & WAYPOINT_FALLRISK ? (m_destOrigin + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval) : m_destOrigin - pev->origin;
 		const Vector directionNormal = directionOld.Normalize2D();
-		const Vector direction = directionNormal;
-
 		m_moveAngles = directionOld.ToAngles();
 		m_moveAngles.ClampAngles();
 		m_moveAngles.x = -m_moveAngles.x; // invert for engine
@@ -458,7 +370,7 @@ bool Bot::DoWaypointNav(void)
 	if (m_currentTravelFlags & PATHFLAG_JUMP)
 	{
 		// bot is not jumped yet?
-		if (IsOnFloor() || IsOnLadder() || IsInWater())
+		if (m_jumpTime + 0.85f < engine->GetTime())
 		{
 			// cheating for jump, bots cannot do some hard jumps and double jumps too
 			// who cares about double jump for bots? :)
@@ -468,7 +380,7 @@ bool Bot::DoWaypointNav(void)
 			{
 				Vector myOrigin = GetBottomOrigin(GetEntity());
 				Vector waypointOrigin = m_waypointOrigin;
-				
+
 				if (currentWaypoint->flags & WAYPOINT_CROUCH)
 					waypointOrigin.z -= 18.0f;
 				else
@@ -488,7 +400,8 @@ bool Bot::DoWaypointNav(void)
 
 			m_desiredVelocity = nullvec;
 
-			PushTask(TASK_PAUSE, TASKPRI_PAUSE, -1, engine->GetTime() + engine->RandomFloat(0.48f, 0.96f), false);
+			// bug...
+			// SetProcess(Process::Pause, "pausing for next jump", false, engine->RandomFloat(0.75f, 1.25f));
 		}
 	}
 
@@ -595,8 +508,10 @@ bool Bot::DoWaypointNav(void)
 			}
 		}
 	}
+	else if (currentWaypoint->flags & WAYPOINT_CROUCH)
+		pev->button |= IN_DUCK;
 
-	if (m_waypointFlags & WAYPOINT_LIFT)
+	if (currentWaypoint->flags & WAYPOINT_LIFT)
 	{
 		if (UpdateLiftHandling())
 		{
@@ -648,7 +563,7 @@ bool Bot::DoWaypointNav(void)
 			// if bot hits the door, then it opens, so wait a bit to let it open safely
 			if (pev->velocity.GetLengthSquared2D() < SquaredF(pev->maxspeed * 0.20f) && m_timeDoorOpen < engine->GetTime())
 			{
-				PushTask(TASK_PAUSE, TASKPRI_PAUSE, -1, engine->GetTime() + 1.25f, false);
+				SetProcess(Process::Pause, "waiting for door open", false, 1.25f);
 				m_timeDoorOpen = engine->GetTime() + 1.0f; // retry in 1 sec until door is open
 
 				if (++m_tryOpenDoor > 2 && !FNullEnt(m_lastEnemy) && IsWalkableTraceLineClear(pev->origin, GetEntityOrigin(m_lastEnemy)))
@@ -2030,20 +1945,8 @@ void Bot::CheckTouchEntity(edict_t* entity)
 	if (entity->v.takedamage != DAMAGE_YES)
 	{
 		// defuse bomb
-		if (g_bombPlanted && m_team == TEAM_COUNTER && strcmp(STRING(entity->v.model) + 9, "c4.mdl") == 0)
-		{
-			if (GetCurrentTask()->taskID != TASK_DEFUSEBOMB)
-			{
-				// notify team of defusing
-				if (m_numFriendsLeft >= 1)
-					RadioMessage(Radio_CoverMe);
-
-				m_moveToGoal = false;
-				m_checkTerrain = false;
-
-				PushTask(TASK_DEFUSEBOMB, TASKPRI_DEFUSEBOMB, -1, 0.0, false);
-			}
-		}
+		if (g_bombPlanted && strcmp(STRING(entity->v.model) + 9, "c4.mdl") == 0)
+			SetProcess(Process::Defuse, "trying to defusing the bomb.", false, 12.0f);
 
 		return;
 	}
@@ -2345,46 +2248,26 @@ void Bot::CheckStuck(const Vector dirNormal)
 {
 	if (m_hasFriendsNear && pev->solid != SOLID_NOT)
 	{
-		const float distance = (pev->origin - m_nearestFriend->v.origin).GetLengthSquared();
-		if (distance <= SquaredF(pev->maxspeed))
+		if (((pev->origin + pev->velocity * m_frameInterval) - (m_friendOrigin + m_nearestFriend->v.velocity * m_frameInterval)).GetLengthSquared() <= SquaredF(m_nearestFriend->v.maxspeed * 0.33f))
 		{
-			const unsigned int myPri = GetPlayerPriority(GetEntity());
-			const unsigned int otherPri = GetPlayerPriority(m_nearestFriend);
-			if (myPri >= otherPri)
+			// use our movement angles, try to predict where we should be next frame
+			Vector right, forward;
+			m_moveAngles.BuildVectors(&forward, &right, nullptr);
+
+			const auto dir = (pev->origin - m_friendOrigin).Normalize2D();
+
+			// to start strafing, we have to first figure out if the target is on the left side or right side
+			if ((dir | right.Normalize2D()) > 0.0f)
+				m_strafeSpeed = pev->maxspeed;
+			else
+				m_strafeSpeed = -pev->maxspeed;
+
+			if (m_stuckWarn >= 10)
 			{
-				const float interval = m_frameInterval * 8.0f;
-
-				// use our movement angles, try to predict where we should be next frame
-				Vector right, forward;
-				m_moveAngles.BuildVectors(&forward, &right, nullptr);
-
-				Vector predict = pev->origin + forward * m_moveSpeed * interval;
-
-				predict += right * m_strafeSpeed * interval;
-				predict += pev->velocity * interval;
-
-				const float movedDistance = (predict - m_nearestFriend->v.origin).GetLengthSquared();
-				const float nextFrameDistance = (pev->origin - (m_nearestFriend->v.origin + m_nearestFriend->v.velocity * interval)).GetLengthSquared();
-
-				// is player that near now or in future that we need to steer away?
-				if (movedDistance <= SquaredF(64.0f) || (distance <= SquaredF(72.0f) && nextFrameDistance <= distance))
-				{
-					const auto dir = (pev->origin - m_nearestFriend->v.origin).Normalize2D();
-
-					// to start strafing, we have to first figure out if the target is on the left side or right side
-					if ((dir | right.Normalize2D()) > 0.0f)
-						SetStrafeSpeed(dirNormal, pev->maxspeed);
-					else
-						SetStrafeSpeed(dirNormal, -pev->maxspeed);
-
-					if (distance <= SquaredF(80.0f))
-					{
-						if ((dir | forward.Normalize2D()) < 0.0f)
-							m_moveSpeed = -pev->maxspeed;
-						else
-							m_moveSpeed = pev->maxspeed;
-					}
-				}
+				if ((dir | forward.Normalize2D()) < 0.0f)
+					m_moveSpeed = -pev->maxspeed;
+				else
+					m_moveSpeed = pev->maxspeed;
 			}
 		}
 	}
@@ -2405,6 +2288,11 @@ void Bot::CheckStuck(const Vector dirNormal)
 
 		if (m_stuckWarn > 10)
 			m_isStuck = true;
+		else if (m_stuckWarn == 10)
+		{
+			pev->button |= IN_DUCK;
+			pev->button |= IN_JUMP;
+		}
 	}
 	else
 	{
@@ -2921,7 +2809,7 @@ bool Bot::HeadTowardWaypoint(void)
 						// if another bot uses this ladder, wait 3 secs
 						if (other != nullptr && other != this && other->m_isAlive && other->m_currentWaypointIndex == destIndex)
 						{
-							PushTask(TASK_PAUSE, TASKPRI_PAUSE, -1, AddTime(3.0f), false);
+							SetProcess(Process::Pause, "waiting for next bot", false, 3.0f);
 							return true;
 						}
 					}
@@ -3469,34 +3357,27 @@ int Bot::GetCampAimingWaypoint(void)
 
 void Bot::FacePosition(void)
 {
-	// predict enemy
-	if (m_aimFlags & AIM_ENEMY)
+	const int aimType = ebot_aim_type.GetInt();
+	if (aimType == 0)
 	{
-		// force press attack button for human bots in zombie mode
-		if (IsZombieMode() && !m_isReloading && !m_isSlowThink && !(pev->button & IN_ATTACK) && !(pev->oldbuttons & IN_ATTACK))
-			pev->button |= IN_ATTACK;
+		Vector direction = (m_lookAt - EyePosition()).ToAngles() + pev->punchangle;
+		direction.x = -direction.x; // invert for engine
 
-		if (ebot_aimbot.GetInt() == 1)
-		{
-			Vector direction = (m_lookAt - EyePosition()).ToAngles() + pev->punchangle;
-			direction.x = -direction.x; // invert for engine
+		if (direction.x < -89.0f)
+			direction.x = -89.0f;
+		else if (direction.x > 89.0f)
+			direction.x = 89.0f;
 
-			if (direction.x < -89.0f)
-				direction.x = -89.0f;
-			else if (direction.x > 89.0f)
-				direction.x = 89.0f;
-
-			pev->v_angle = direction;
-			pev->angles.x = -pev->v_angle.x * 0.33333333333f;
-			pev->angles.y = pev->v_angle.y;
-			return;
-		}
+		pev->v_angle = direction;
+		pev->angles.x = -pev->v_angle.x * 0.33333333333f;
+		pev->angles.y = pev->v_angle.y;
+		return;
 	}
 
 	const float delta = engine->GetTime() - m_aimInterval;
 	m_aimInterval = engine->GetTime();
 
-	if (ebot_aim_type.GetInt() == 2)
+	if (aimType == 2)
 	{
 		m_idealAngles = pev->v_angle;
 		Vector direction = (m_lookAt - EyePosition()).ToAngles() + pev->punchangle;
@@ -3517,17 +3398,6 @@ void Bot::FacePosition(void)
 		pev->angles.y = pev->v_angle.y;
 		return;
 	}
-
-	if (FNullEnt(m_enemy) && FNullEnt(m_breakableEntity))
-	{
-		if (IsOnLadder() || g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_LADDER || (HasNextPath() && g_waypoint->GetPath(m_navNode->next->index)->flags & WAYPOINT_LADDER))
-			m_aimStopTime = 0.0f;
-
-		if (m_aimStopTime >= engine->GetTime())
-			return;
-	}
-	else
-		m_aimStopTime = 0.0f;
 
 	// adjust all body and view angles to face an absolute vector
 	Vector direction = (m_lookAt - EyePosition()).ToAngles() + pev->punchangle;
