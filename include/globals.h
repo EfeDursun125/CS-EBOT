@@ -102,7 +102,6 @@ extern WeaponProperty g_weaponDefs[Const_MaxWeapons + 1];
 
 extern Clients g_clients[33];
 extern MenuText g_menus[28];
-extern SkillDef g_skillTab[6];
 extern Task g_taskFilters[];
 
 extern edict_t* g_hostEntity;

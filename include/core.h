@@ -99,6 +99,11 @@ enum class Process
 	Attack,
 	Hide,
 	Camp,
+	Escape,
+	Plant,
+	Defuse,
+	Pause,
+	DestroyBreakable
 };
 
 // supported cs's
@@ -181,29 +186,30 @@ enum ClientFlags
 };
 
 // radio messages
-enum RadioList
+enum Radio
 {
-	Radio_CoverMe = 1,
-	Radio_YouTakePoint = 2,
-	Radio_HoldPosition = 3,
-	Radio_RegroupTeam = 4,
-	Radio_FollowMe = 5,
-	Radio_TakingFire = 6,
-	Radio_GoGoGo = 11,
-	Radio_Fallback = 12,
-	Radio_StickTogether = 13,
-	Radio_GetInPosition = 14,
-	Radio_StormTheFront = 15,
-	Radio_ReportTeam = 16,
-	Radio_Affirmative = 21,
-	Radio_EnemySpotted = 22,
-	Radio_NeedBackup = 23,
-	Radio_SectorClear = 24,
-	Radio_InPosition = 25,
-	Radio_ReportingIn = 26,
-	Radio_ShesGonnaBlow = 27,
-	Radio_Negative = 28,
-	Radio_EnemyDown = 29
+	Nothin = -1,
+	CoverMe = 1,
+	YouTakePoint = 2,
+	HoldPosition = 3,
+	RegroupTeam = 4,
+	FollowMe = 5,
+	TakingFire = 6,
+	GoGoGo = 11,
+	Fallback = 12,
+	StickTogether = 13,
+	GetInPosition = 14,
+	StormTheFront = 15,
+	ReportTeam = 16,
+	Affirmative = 21,
+	EnemySpotted = 22,
+	NeedBackup = 23,
+	SectorClear = 24,
+	InPosition = 25,
+	ReportingIn = 26,
+	ShesGonnaBlow = 27,
+	Negative = 28,
+	EnemyDown = 29
 };
 
 // counter-strike weapon id's
@@ -776,7 +782,6 @@ private:
 	float m_lookYawVel; // look yaw velocity
 	float m_lookPitchVel; // look pich velocity
 
-	Vector m_enemyOrigin; // target origin chosen for shooting
 	Vector m_grenade; // calculated vector for grenades
 	Vector m_entity; // origin of entities like buttons etc.
 	Vector m_camp; // aiming vector when camping.
@@ -886,7 +891,6 @@ private:
 	bool IsInViewCone(const Vector& origin);
 	void ReactOnSound(void);
 	bool CheckVisibility(edict_t* targetEntity);
-	bool IsEnemyViewable(edict_t* player, bool setEnemy = false, bool checkOnly = false);
 
 	void CheckGrenadeThrow(void);
 	void ThrowFireNade(void);
@@ -959,7 +963,7 @@ private:
 	void CommandTeam(void);
 	void CombatFight(void);
 	bool IsWeaponBadInDistance(int weaponIndex, float distance);
-	bool DoFirePause(float distance);
+	bool DoFirePause(const float distance);
 	bool LookupEnemy(void);
 	void FireWeapon(void);
 	void FocusEnemy(void);
@@ -1149,6 +1153,9 @@ public:
 	edict_t* m_nearestEnemy;
 	edict_t* m_nearestFriend;
 	edict_t* m_nearestEntity;
+	Vector m_enemyOrigin;
+	Vector m_friendOrigin;
+	Vector m_entityOrigin;
 
 	float m_senseChance;
 
@@ -1164,6 +1171,7 @@ public:
 	void UpdateProcess(void);
 	void CheckSlowThink(void);
 
+	Process GetProcess(void);
 	bool SetProcess(const Process process, const char* debugNote = "clear", const bool rememberProcess = false, const float time = 999999.0f);
 	void StartProcess(const Process process);
 	void EndProcess(const Process process);
@@ -1181,6 +1189,8 @@ public:
 	void FindFriendsAndEnemiens(void);
 	void FindEnemyEntities(void);
 
+	bool IsEnemyViewable(edict_t* player);
+
 	void CheckStuck(const Vector dirNormal);
 	void ResetStuck(void);
 
@@ -1189,15 +1199,39 @@ public:
 	// GOAP
 	void DefaultStart(void);
 	void AttackStart(void);
+	void PlantStart(void);
+	void DefuseStart(void);
+	void EscapeStart(void);
+	void CampStart(void);
+	void PauseStart(void);
+	void DestroyBreakableStart(void);
 
 	void DefaultUpdate(void);
 	void AttackUpdate(void);
+	void PlantUpdate(void);
+	void DefuseUpdate(void);
+	void EscapeUpdate(void);
+	void CampUpdate(void);
+	void PauseUpdate(void);
+	void DestroyBreakableUpdate(void);
 
 	void DefaultEnd(void);
 	void AttackEnd(void);
+	void PlantEnd(void);
+	void DefuseEnd(void);
+	void EscapeEnd(void);
+	void CampEnd(void);
+	void PauseEnd(void);
+	void DestroyBreakableEnd(void);
 
 	bool DefaultReq(void);
 	bool AttackReq(void);
+	bool PlantReq(void);
+	bool DefuseReq(void);
+	bool EscapeReq(void);
+	bool CampReq(void);
+	bool PauseReq(void);
+	bool DestroyBreakableReq(void);
 
 	int GetAmmo(void);
 	inline int GetAmmoInClip(void) { return m_ammoInClip[m_currentWeapon]; }
