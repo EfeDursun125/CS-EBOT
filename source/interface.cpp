@@ -3018,7 +3018,7 @@ void StartFrame(void)
 		g_botManager->Think();
 #endif
 
-		if (g_gameVersion != CSVER_VERYOLD && g_gameVersion != CSVER_XASH)
+		if (g_gameVersion != CSVER_VERYOLD)
 			updateTimer = AddTime(0.03333333333f);
 	}
 

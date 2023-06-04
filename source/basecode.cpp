@@ -1796,6 +1796,9 @@ void Bot::StartProcess(const Process process)
 	case Process::Pause:
 		PauseStart();
 		break;
+	case Process::DestroyBreakable:
+		DestroyBreakableStart();
+		break;
 	}
 }
 
@@ -1819,7 +1822,9 @@ void Bot::EndProcess(const Process process)
 		EscapeEnd();
 		break;
 	case Process::Pause:
-		EscapeEnd();
+		PauseEnd();
+	case Process::DestroyBreakable:
+		DestroyBreakableEnd();
 		break;
 	}
 }
@@ -1845,6 +1850,9 @@ void Bot::UpdateProcess(void)
 		break;
 	case Process::Pause:
 		PauseUpdate();
+		break;
+	case Process::DestroyBreakable:
+		DestroyBreakableUpdate();
 		break;
 	default:
 		SetProcess(Process::Default, "unknown process");
@@ -1911,7 +1919,9 @@ bool Bot::IsReadyForTheProcess(const Process process)
 	case Process::Escape:
 		return EscapeReq();
 	case Process::Pause:
-		return EscapeReq();
+		return PauseReq();
+	case Process::DestroyBreakable:
+		return DestroyBreakableReq();
 	}
 
 	return true;
@@ -1937,6 +1947,8 @@ char* Bot::GetProcessName(const Process process)
 		return "CAMP";
 	case Process::Pause:
 		return "PAUSE";
+	case Process::DestroyBreakable:
+		return "DESTROY BREAKABLE";
 	}
 
 	return "UNKNOWN";
@@ -4125,6 +4137,12 @@ void Bot::UpdateLooking(void)
 
 void Bot::LookAtAround(void)
 {
+	if (m_waypointFlags & WAYPOINT_LADDER || IsOnLadder())
+	{
+		m_lookAt = m_destOrigin;
+		return;
+	}
+
 	if (m_hasFriendsNear && IsAttacking(m_nearestFriend)) // TODO: check if friend does not holding knife too
 	{
 		auto bot = g_botManager->GetBot(m_nearestFriend);
@@ -4574,16 +4592,6 @@ void Bot::CalculatePing(void)
 
 void Bot::MoveAction(void)
 {
-	if (m_moveSpeed > 0.0f)
-		pev->button |= IN_FORWARD;
-	else if (m_moveSpeed < 0.0f)
-		pev->button |= IN_BACK;
-
-	if (m_strafeSpeed > 0.0f)
-		pev->button |= IN_MOVERIGHT;
-	else if (m_strafeSpeed < 0.0f)
-		pev->button |= IN_MOVELEFT;
-
 	const float time = engine->GetTime();
 	if (pev->button & IN_JUMP)
 		m_jumpTime = time;
@@ -4592,6 +4600,18 @@ void Bot::MoveAction(void)
 	{
 		if (!IsOnFloor() && !IsInWater() && !IsOnLadder())
 			pev->button |= IN_DUCK;
+	}
+	else
+	{
+		if (m_moveSpeed > 0.0f)
+			pev->button |= IN_FORWARD;
+		else if (m_moveSpeed < 0.0f)
+			pev->button |= IN_BACK;
+
+		if (m_strafeSpeed > 0.0f)
+			pev->button |= IN_MOVERIGHT;
+		else if (m_strafeSpeed < 0.0f)
+			pev->button |= IN_MOVELEFT;
 	}
 }
 
@@ -6580,11 +6600,11 @@ void Bot::DebugModeMsg(void)
 
 	if (m_tasks != nullptr)
 	{
-		if (processID != m_currentProcess || rememberedProcessID != m_rememberedProcess || index != m_currentWaypointIndex || goal != m_tasks->data || timeDebugUpdate < engine->GetTime())
+		if (processID != m_currentProcess || rememberedProcessID != m_rememberedProcess || index != m_currentWaypointIndex || goal != m_chosenGoalIndex || timeDebugUpdate < engine->GetTime())
 		{
 			processID = m_currentProcess;
 			index = m_currentWaypointIndex;
-			goal = m_tasks->data;
+			goal = m_chosenGoalIndex;
 
 			char processName[80];
 			sprintf(processName, GetProcessName(m_currentProcess));
@@ -6702,10 +6722,10 @@ void Bot::DebugModeMsg(void)
 			sprintf(outputBuffer, "\n\n\n\n\n\n\n Game Mode: %s"
 				"\n [%s] \n Process: %s  RE-Process: %s \n"
 				"Weapon: %s  Clip: %d   Ammo: %d \n"
-				"Type: %s  Money: %d  Bot AI: %s \n"
+				"Type: %s  Money: %d  Heuristic: %s \n"
 				"Enemy: %s  Friend: %s  \n\n"
 
-				"Current Index: %d  Goal Index: %d  TD: %d \n"
+				"Current Index: %d  Goal Index: %d  Prev Goal Index: %d \n"
 				"Nav: %d  Next Nav: %d \n"
 				"GEWI: %d GEWI2: %d \n"
 				"Move Speed: %2.f  Strafe Speed: %2.f \n "
@@ -6713,10 +6733,10 @@ void Bot::DebugModeMsg(void)
 				gamemodName,
 				GetEntityName(GetEntity()), processName, rememberedProcessName,
 				&weaponName[7], GetAmmoInClip(), GetAmmo(),
-				botType, m_moneyAmount, m_isZombieBot ? "Zombie" : "Normal",
+				botType, m_moneyAmount, GetHeuristicName(),
 				enemyName, friendName,
 
-				m_currentWaypointIndex, m_prevGoalIndex, m_tasks->data,
+				m_currentWaypointIndex, goal, m_prevGoalIndex,
 				navIndex[0], navIndex[1],
 				g_clients[client].wpIndex, g_clients[client].wpIndex2,
 				m_moveSpeed, m_strafeSpeed,
@@ -6862,7 +6882,7 @@ void Bot::BotAI(void)
 	if (flag & WAYPOINT_FALLRISK)
 		directionOld = (m_destOrigin + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval);
 	else
-		directionOld = m_destOrigin - (pev->origin + pev->velocity * m_frameInterval);;
+		directionOld = m_destOrigin - (pev->origin + pev->velocity * m_frameInterval);
 
 	Vector directionNormal = directionOld.Normalize2D();
 	Vector direction = directionNormal;
@@ -8150,8 +8170,10 @@ void Bot::DefaultUpdate(void)
 			else
 				FollowPath(m_enemyOrigin);
 		}
+		else if (!GoalIsValid())
+			FindGoal();
 		else
-			FollowPath(CRandomInt(1, g_numWaypoints - 1));
+			FollowPath(m_chosenGoalIndex);
 
 		if (m_isSlowThink)
 			FindEnemyEntities();
@@ -8176,8 +8198,10 @@ void Bot::DefaultUpdate(void)
 				DeleteSearchNodes();
 				MoveOut(m_enemyOrigin);
 			}
-			else
-				FollowPath(FindGoal());
+			else if (!GoalIsValid())
+				FindGoal();
+			
+			FollowPath(m_chosenGoalIndex);
 		}
 		else
 		{
@@ -8192,7 +8216,10 @@ void Bot::DefaultUpdate(void)
 					return;
 			}
 
-			FollowPath(FindGoal());
+			if (!GoalIsValid())
+				FindGoal();
+
+			FollowPath(m_chosenGoalIndex);
 		}
 	}
 }
@@ -8455,7 +8482,7 @@ void Bot::DefuseUpdate(void)
 	}
 
 	m_lookAt = bombOrigin;
-	pev->button |= (IN_ATTACK | IN_DUCK);
+	pev->button |= (IN_USE | IN_DUCK);
 
 	m_moveSpeed = 0.0f;
 	m_strafeSpeed = 0.0f;
@@ -8556,6 +8583,8 @@ bool Bot::PlantReq(void)
 
 void Bot::EscapeStart(void)
 {
+	m_currentWaypointIndex = -1;
+	DeleteSearchNodes();
 	RadioMessage(Radio::ShesGonnaBlow);
 }
 
@@ -8566,24 +8595,29 @@ void Bot::EscapeUpdate(void)
 
 	if (!g_bombPlanted || DoWaypointNav())
 		SetProcess(Process::Pause, "i have escaped from the bomb", false, 99999999.0f);
-	else if (!HasNextPath())
+	else
 	{
 		if (m_numEnemiesLeft <= 0)
 			SelectKnife();
 
-		Vector bombOrigin = g_waypoint->GetBombPosition();
-		if (bombOrigin == nullvec)
-			bombOrigin = pev->origin;
-
-		const int index = g_waypoint->FindFarest(bombOrigin, 2048.0f);
-		if (IsValidWaypoint(index))
+		if (!GoalIsValid())
 		{
-			m_prevGoalIndex = index;
-			m_chosenGoalIndex = index;
-			FollowPath(index);
+			Vector bombOrigin = g_waypoint->GetBombPosition();
+			if (bombOrigin == nullvec)
+				bombOrigin = pev->origin;
+
+			const int index = g_waypoint->FindFarest(bombOrigin, 2048.0f);
+			if (IsValidWaypoint(index))
+			{
+				m_prevGoalIndex = index;
+				m_chosenGoalIndex = index;
+				FollowPath(index);
+			}
+			else // WHERE WE MUST GO???
+				m_chosenGoalIndex = CRandomInt(0, g_numWaypoints - 1);
 		}
-		else // WHERE WE MUST GO???
-			FollowPath(CRandomInt(0, g_numWaypoints - 1));
+		else
+			FollowPath(m_chosenGoalIndex);
 	}
 }
 
@@ -8640,6 +8674,48 @@ bool Bot::PauseReq(void)
 
 	// do not pause on ladder or in the water
 	if (!IsOnFloor())
+		return false;
+
+	return true;
+}
+
+void Bot::DestroyBreakableStart(void)
+{
+
+}
+
+void Bot::DestroyBreakableUpdate(void)
+{
+	if (!IsShootableBreakable(m_breakableEntity))
+	{
+		FinishCurrentProcess("sucsessfully destroyed a breakable");
+		return;
+	}
+
+	m_lookAt = m_breakable;
+
+	if (!m_isZombieBot)
+		FireWeapon();
+	else
+		KnifeAttack();
+
+	pev->button |= m_campButtons;
+
+	m_enemyDistance = FLT_MAX;
+	m_nearestEnemy = nullptr;
+	m_entityDistance = (pev->origin - m_breakable).GetLengthSquared();
+	m_nearestEntity = m_breakableEntity;
+}
+
+void Bot::DestroyBreakableEnd(void)
+{
+	m_nearestEntity = nullptr;
+	m_entityDistance = FLT_MAX;
+}
+
+bool Bot::DestroyBreakableReq(void)
+{
+	if (!IsShootableBreakable(m_breakableEntity))
 		return false;
 
 	return true;

@@ -772,12 +772,12 @@ void Bot::FireWeapon(void)
 	FireDelay* delay = &g_fireDelay[0];
 	WeaponSelect* selectTab = g_gameVersion == HALFLIFE ? &g_weaponSelectHL[0] : &g_weaponSelect[0];
 
-	edict_t* enemy = m_nearestEnemy;
+	edict_t* enemy = m_enemyDistance <= m_entityDistance ? m_nearestEnemy : m_nearestEntity;
 
 	int selectId = melee, selectIndex = 0, chosenWeaponIndex = 0;
 	int weapons = pev->weapons;
 
-	if (m_isZombieBot || ebot_knifemode.GetBool())
+	if (ebot_knifemode.GetBool())
 		goto WeaponSelectEnd;
 	else if (!FNullEnt(enemy) && ChanceOf(m_skill) && !IsZombieEntity(enemy) && distance <= SquaredF(128.0f) && (enemy->v.health <= 30 || pev->health > enemy->v.health) && !IsOnLadder() && !IsGroupOfEnemies(enemy->v.origin))
 		goto WeaponSelectEnd;
@@ -895,11 +895,11 @@ WeaponSelectEnd:
 	{
 		CheckBurstMode(distance);
 
-		if (HasShield() && m_shieldCheckTime < engine->GetTime() && m_currentProcess != Process::Camp) // better shield gun usage
+		if (HasShield() && m_shieldCheckTime < engine->GetTime() && GetProcess() != Process::Camp) // better shield gun usage
 		{
 			if ((distance > SquaredF(768.0f)) && !IsShieldDrawn())
 				pev->button |= IN_ATTACK2; // draw the shield
-			else if (IsShieldDrawn() || (!FNullEnt(enemy) && (enemy->v.button & IN_RELOAD)))
+			else if (IsShieldDrawn() || (IsValidPlayer(enemy) && (enemy->v.button & IN_RELOAD)))
 				pev->button |= IN_ATTACK2; // draw out the shield
 
 			m_shieldCheckTime = engine->GetTime() + 2.0f;

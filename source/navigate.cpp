@@ -30,6 +30,8 @@ ConVar ebot_path_smoothing("ebot_path_smoothing", "0");
 
 int Bot::FindGoal(void)
 {
+	m_prevGoalIndex = m_chosenGoalIndex;
+
 	if (IsZombieMode())
 	{
 		if (m_isZombieBot)
@@ -57,10 +59,7 @@ int Bot::FindGoal(void)
 				if (GetProcess() != Process::Escape)
 				{
 					if (noTimeLeft)
-					{
-						/*TaskComplete();
-						PushTask(TASK_ESCAPEFROMBOMB, TASKPRI_ESCAPEFROMBOMB, -1, 2.0f, true);*/
-					}
+						SetProcess(Process::Escape, "escaping from the bomb", true, 60.0f);
 					else if (m_team == TEAM_COUNTER)
 					{
 						const Vector bombOrigin = g_waypoint->GetBombPosition();
@@ -261,43 +260,16 @@ int Bot::FindGoal(void)
 
 bool Bot::GoalIsValid(void)
 {
-	const int goal = GetCurrentTask()->data;
-
-	if (!IsValidWaypoint(goal)) // not decided about a goal
+	if (!IsValidWaypoint(m_chosenGoalIndex))
 		return false;
 
-	if (IsZombieMode())
-	{
-		if (m_isZombieBot)
-		{
-			if (m_navNode == nullptr)
-				return false;
-			else
-				return true;
-		}
-		else
-		{
-			auto path = g_waypoint->GetPath(goal);
-			if (path->flags & WAYPOINT_ZMHMCAMP || path->flags & WAYPOINT_HMCAMPMESH)
-				return true;
-		}
-	}
-	
-	if (goal == m_currentWaypointIndex) // no nodes needed
-		return true;
-	else if (m_navNode == nullptr) // no path calculated
+	if (m_chosenGoalIndex == m_currentWaypointIndex)
 		return false;
 
-	// got path - check if still valid
-	PathNode* node = m_navNode;
+	if (m_navNode == nullptr)
+		return false;
 
-	while (node->next != nullptr)
-		node = node->next;
-
-	if (node->index == goal)
-		return true;
-
-	return false;
+	return true;
 }
 
 void Bot::MoveTo(const Vector targetPosition)
@@ -329,12 +301,11 @@ void Bot::FollowPath(const Vector targetPosition)
 
 void Bot::FollowPath(const int targetIndex)
 {
-	m_moveSpeed = pev->maxspeed;
 	m_strafeSpeed = 0.0f;
 
 	if (m_navNode != nullptr)
 	{
-		const Vector directionOld = m_waypointFlags & WAYPOINT_FALLRISK ? (m_destOrigin + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval) : m_destOrigin - pev->origin;
+		const Vector directionOld = m_waypointFlags & WAYPOINT_FALLRISK ? (m_destOrigin + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval) : m_destOrigin - (pev->origin + pev->velocity * m_frameInterval);
 		const Vector directionNormal = directionOld.Normalize2D();
 		m_moveAngles = directionOld.ToAngles();
 		m_moveAngles.ClampAngles();
@@ -342,9 +313,13 @@ void Bot::FollowPath(const int targetIndex)
 
 		DoWaypointNav();
 		CheckStuck(directionNormal);
+		m_moveSpeed = pev->maxspeed;
 	}
 	else if (!m_isSlowThink)
+	{
+		m_moveSpeed = 0.0f;
 		FindPath(m_currentWaypointIndex, targetIndex);
+	}
 }
 
 // this function is a main path navigation
@@ -399,9 +374,6 @@ bool Bot::DoWaypointNav(void)
 				pev->velocity = m_desiredVelocity + m_desiredVelocity * 0.05f;
 
 			m_desiredVelocity = nullvec;
-
-			// bug...
-			// SetProcess(Process::Pause, "pausing for next jump", false, engine->RandomFloat(0.75f, 1.25f));
 		}
 	}
 
@@ -1438,11 +1410,71 @@ inline const float GF_CostNoHostage(const int index, const int parent, const int
 	return baseCost;
 }
 
+inline const float HF_Distance(int start, int goal)
+{
+	const Vector startOrigin = g_waypoint->GetPath(start)->origin;
+	const Vector goalOrigin = g_waypoint->GetPath(goal)->origin;
+	return (startOrigin - goalOrigin).GetLengthSquared();
+}
+
+inline const float HF_Distance2D(int start, int goal)
+{
+	const Vector startOrigin = g_waypoint->GetPath(start)->origin;
+	const Vector goalOrigin = g_waypoint->GetPath(goal)->origin;
+	return (startOrigin - goalOrigin).GetLengthSquared2D();
+}
+
 inline const float HF_Chebyshev(int start, int goal)
 {
 	const Vector startOrigin = g_waypoint->GetPath(start)->origin;
 	const Vector goalOrigin = g_waypoint->GetPath(goal)->origin;
 	return MaxFloat(MaxFloat(fabsf(startOrigin.x - goalOrigin.x), fabsf(startOrigin.y - goalOrigin.y)), fabsf(startOrigin.z - goalOrigin.z));
+}
+
+inline const float HF_Chebyshev2D(int start, int goal)
+{
+	const Vector startOrigin = g_waypoint->GetPath(start)->origin;
+	const Vector goalOrigin = g_waypoint->GetPath(goal)->origin;
+	return MaxFloat(fabsf(startOrigin.x - goalOrigin.x), fabsf(startOrigin.y - goalOrigin.y));
+}
+
+inline const float HF_Manhattan(int start, int goal)
+{
+	const Vector startOrigin = g_waypoint->GetPath(start)->origin;
+	const Vector goalOrigin = g_waypoint->GetPath(goal)->origin;
+	return fabsf(startOrigin.x - goalOrigin.x) + fabsf(startOrigin.y - goalOrigin.y) + fabsf(startOrigin.z - goalOrigin.z);
+}
+
+inline const float HF_Manhattan2D(int start, int goal)
+{
+	const Vector startOrigin = g_waypoint->GetPath(start)->origin;
+	const Vector goalOrigin = g_waypoint->GetPath(goal)->origin;
+	return fabsf(startOrigin.x - goalOrigin.x) + fabsf(startOrigin.y - goalOrigin.y);
+}
+
+inline const float HF_Euclidean(int start, int goal)
+{
+	const Vector startOrigin = g_waypoint->GetPath(start)->origin;
+	const Vector goalOrigin = g_waypoint->GetPath(goal)->origin;
+
+	const float x = fabsf(startOrigin.x - goalOrigin.x);
+	const float y = fabsf(startOrigin.y - goalOrigin.y);
+	const float z = fabsf(startOrigin.z - goalOrigin.z);
+
+	const float euclidean = csqrt(powf(x, 2.0f) + powf(y, 2.0f) + powf(z, 2.0f));
+	return 1000.0f * (ceilf(euclidean) - euclidean);
+}
+
+inline const float HF_Euclidean2D(int start, int goal)
+{
+	const Vector startOrigin = g_waypoint->GetPath(start)->origin;
+	const Vector goalOrigin = g_waypoint->GetPath(goal)->origin;
+
+	const float x = fabsf(startOrigin.x - goalOrigin.x);
+	const float y = fabsf(startOrigin.y - goalOrigin.y);
+
+	const float euclidean = csqrt(powf(x, 2.0f) + powf(y, 2.0f));
+	return 1000.0f * (ceilf(euclidean) - euclidean);
 }
 
 inline const float GF_CostNav(NavArea* start, NavArea* goal)
@@ -1454,6 +1486,41 @@ inline const float HF_Nav(NavArea* start, NavArea* goal)
 {
 	return (g_navmesh->GetCenter(start) - g_navmesh->GetCenter(goal)).GetLengthSquared();
 }
+
+char* Bot::GetHeuristicName(void)
+{
+	if (m_2dH)
+	{
+		switch (m_heuristic)
+		{
+		case 1:
+			return "Squared Length 2D";
+		case 2:
+			return "Manhattan 2D";
+		case 3:
+			return "Chebyshev 2D";
+		case 4:
+			return "Euclidean 2D";
+		}
+	}
+	else
+	{
+		switch (m_heuristic)
+		{
+		case 1:
+			return "Squared Length";
+		case 2:
+			return "Manhattan";
+		case 3:
+			return "Chebyshev";
+		case 4:
+			return "Euclidean";
+		}
+	}
+
+	return "UNKNOWN";
+}
+
 
 // this function finds a path from srcIndex to destIndex
 void Bot::FindPathNavMesh(NavArea* start, NavArea* dest)
@@ -1640,6 +1707,7 @@ void Bot::FindPath(int srcIndex, int destIndex)
 	}
 
 	const float (*gcalc) (int, int, int, float, bool) = nullptr;
+	const float (*hcalc) (int, int) = nullptr;
 
 	if (IsZombieMode() && ebot_zombies_as_path_cost.GetBool() && !m_isZombieBot)
 		gcalc = GF_CostHuman;
@@ -1663,6 +1731,52 @@ void Bot::FindPath(int srcIndex, int destIndex)
 		gcalc = GF_CostNormal;
 
 	if (gcalc == nullptr)
+		return;
+
+	if (m_2dH)
+	{
+		switch (m_heuristic)
+		{
+		case 1:
+			hcalc = HF_Distance2D;
+			break;
+		case 2:
+			hcalc = HF_Manhattan2D;
+			break;
+		case 3:
+			hcalc = HF_Chebyshev2D;
+			break;
+		case 4:
+			hcalc = HF_Euclidean2D;
+			break;
+		default:
+			hcalc = HF_Distance2D;
+			break;
+		}
+	}
+	else
+	{
+		switch (m_heuristic)
+		{
+		case 1:
+			hcalc = HF_Distance;
+			break;
+		case 2:
+			hcalc = HF_Manhattan;
+			break;
+		case 3:
+			hcalc = HF_Chebyshev;
+			break;
+		case 4:
+			hcalc = HF_Euclidean;
+			break;
+		default:
+			hcalc = HF_Distance;
+			break;
+		}
+	}
+
+	if (hcalc == nullptr)
 		return;
 
 	// put start node into open list
@@ -1745,7 +1859,7 @@ void Bot::FindPath(int srcIndex, int destIndex)
 
 			// calculate the F value as F = G + H
 			const float g = currWaypoint->g + gcalc(currentIndex, self, m_team, pev->gravity, m_isZombieBot);
-			const float h = HF_Chebyshev(self, destIndex);
+			const float h = hcalc(self, destIndex);
 			const float f = g + h;
 
 			const auto childWaypoint = &waypoints[self];
@@ -1936,7 +2050,6 @@ void Bot::DeleteSearchNodes(void)
 	
 	m_navNodeStart = nullptr;
 	m_navNode = nullptr;
-	m_chosenGoalIndex = -1;
 }
 
 void Bot::CheckTouchEntity(edict_t* entity)
@@ -1974,7 +2087,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 			else
 				m_campButtons = pev->button & IN_DUCK;
 
-			PushTask(TASK_DESTROYBREAKABLE, TASKPRI_SHOOTBREAKABLE, -1, 1.0f, false);
+			SetProcess(Process::DestroyBreakable, "trying to destroy a breakable", false, 20.0f);
 
 			// tell my friends to destroy it
 			if (!m_isZombieBot)
@@ -2012,7 +2125,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 						else
 							bot->m_campButtons = bot->pev->button & IN_DUCK;
 
-						bot->PushTask(TASK_DESTROYBREAKABLE, TASKPRI_SHOOTBREAKABLE, -1, 1.0f, false);
+						bot->SetProcess(Process::DestroyBreakable, "trying to help my friend for destroy a breakable", false, 20.0f);
 					}
 				}
 			}
@@ -2043,7 +2156,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 					else
 						enemy->m_campButtons = enemy->pev->button & IN_DUCK;
 
-					enemy->PushTask(TASK_DESTROYBREAKABLE, TASKPRI_SHOOTBREAKABLE, -1, 1.0f, false);
+					enemy->SetProcess(Process::DestroyBreakable, "trying to destroy a breakable for my enemy fall", false, 20.0f);
 				}
 			}
 		}

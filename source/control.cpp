@@ -44,6 +44,9 @@ ConVar ebot_random_join_quit("ebot_random_join_quit", "0");
 ConVar ebot_stay_min("ebot_stay_min", "120"); // 2 minutes
 ConVar ebot_stay_max("ebot_stay_max", "3600"); // 1 hours
 
+ConVar ebot_always_use_2d("ebot_always_use_2d_heuristic", "0");
+ConVar ebot_heuristic_type("ebot_heuristic_type", "-1");
+
 // this is a bot manager class constructor
 BotControl::BotControl(void)
 {
@@ -1107,6 +1110,16 @@ void Bot::NewRound(void)
 	SetProcess(Process::Default, "i have respawned");
 	m_rememberedProcess = Process::Default;
 	m_rememberedProcessTime = 0.0f;
+
+	if (ebot_always_use_2d.GetBool())
+		m_2dH = true;
+	else
+		m_2dH = CRandomInt(0, 1);
+
+	if (ebot_heuristic_type.GetInt() >= 1 && ebot_heuristic_type.GetInt() <= 4)
+		m_heuristic = ebot_heuristic_type.GetInt();
+	else
+		m_heuristic = CRandomInt(1, 4);
 
 	if (!g_waypoint->m_zmHmPoints.IsEmpty())
 		m_zhCampPointIndex = g_waypoint->m_zmHmPoints.GetRandomElement();
