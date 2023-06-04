@@ -103,7 +103,8 @@ enum class Process
 	Plant,
 	Defuse,
 	Pause,
-	DestroyBreakable
+	DestroyBreakable,
+	Pickup
 };
 
 // supported cs's
@@ -901,9 +902,7 @@ private:
 	int FindCoverWaypoint(float maxDistance);
 	int FindDefendWaypoint(const Vector& origin);
 	int FindGoal(void);
-	void FindItem(void);
 	void CheckCloseAvoidance(const Vector& dirNormal);
-	bool AllowPickupItem(void);
 
 	void GetCampDirection(Vector* dest);
 	int GetMessageQueue(void);
@@ -1195,8 +1194,10 @@ public:
 	void FindEnemyEntities(void);
 
 	bool IsEnemyViewable(edict_t* player);
+	bool AllowPickupItem(void);
+	bool FindItem(void);
 
-	void CheckStuck(const Vector dirNormal);
+	void CheckStuck(void);
 	void ResetStuck(void);
 
 	bool IsAttacking(const edict_t* player);
@@ -1210,6 +1211,7 @@ public:
 	void CampStart(void);
 	void PauseStart(void);
 	void DestroyBreakableStart(void);
+	void PickupStart(void);
 
 	void DefaultUpdate(void);
 	void AttackUpdate(void);
@@ -1219,6 +1221,7 @@ public:
 	void CampUpdate(void);
 	void PauseUpdate(void);
 	void DestroyBreakableUpdate(void);
+	void PickupUpdate(void);
 
 	void DefaultEnd(void);
 	void AttackEnd(void);
@@ -1228,6 +1231,7 @@ public:
 	void CampEnd(void);
 	void PauseEnd(void);
 	void DestroyBreakableEnd(void);
+	void PickupEnd(void);
 
 	bool DefaultReq(void);
 	bool AttackReq(void);
@@ -1237,6 +1241,7 @@ public:
 	bool CampReq(void);
 	bool PauseReq(void);
 	bool DestroyBreakableReq(void);
+	bool PickupReq(void);
 
 	int GetAmmo(void);
 	inline int GetAmmoInClip(void) { return m_ammoInClip[m_currentWeapon]; }

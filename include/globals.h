@@ -45,6 +45,7 @@ extern bool g_analyzenavmesh;
 extern bool g_analyzeputrequirescrouch;
 extern bool g_expanded[Const_MaxWaypoints];
 extern bool g_isUsingNAV;
+extern bool g_hasDoors;
 
 extern bool g_sgdWaypoint;
 extern bool g_sautoWaypoint;
