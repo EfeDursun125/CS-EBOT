@@ -1162,6 +1162,9 @@ public:
 	float m_searchTime;
 	float m_pauseTime;
 
+	int m_heuristic;
+	bool m_2dH;
+
 	Bot(edict_t* bot, int skill, int personality, int team, int member);
 	~Bot(void);
 
@@ -1178,6 +1181,8 @@ public:
 	void FinishCurrentProcess(const char* debugNote = "finished by the system");
 	bool IsReadyForTheProcess(const Process process);
 	char* GetProcessName(const Process process);
+
+	char* GetHeuristicName(void);
 
 	// FUNCTIONS
 	void LookAtEnemies(void);
