@@ -1205,8 +1205,8 @@ int Spawn(edict_t* ent)
 	// world, in other words to 'display') the entity pointed to by ent in the game. The
 	// Spawn() function is one of the functions any entity is supposed to have in the game DLL,
 	// and any MOD is supposed to implement one for each of its entities.
-
 	const char* entityClassname = STRING(ent->v.classname);
+	
 	if (strcmp(entityClassname, "worldspawn") == 0)
 	{
 		PRECACHE_SOUND("weapons/xbow_hit1.wav");      // waypoint add
@@ -1222,9 +1222,12 @@ int Spawn(edict_t* ent)
 
 		RoundInit();
 
+		g_hasDoors = false; // reset doors if they are removed by a custom plugin
 		g_mapType = 0; // reset map type as worldspawn is the first entity spawned
 		g_worldEdict = ent; // save the world entity for future use
 	}
+	else if (strcmp(entityClassname, "func_door") == 0 || strcmp(entityClassname, "func_door_rotating") == 0)
+		g_hasDoors = true;
 	else if (strcmp(entityClassname, "player_weaponstrip") == 0)
 	{
 		if ((g_gameVersion == CSVER_VERYOLD || g_gameVersion == HALFLIFE) && (STRING(ent->v.target))[0] == '\0')
@@ -1267,13 +1270,11 @@ int Spawn(edict_t* ent)
 				ent->v.renderamt = 127; // set its transparency amount
 				ent->v.effects |= EF_NODRAW;
 			}
-			else if (strcmp(entityClassname, "func_vip_safetyzone") == 0 ||
-				strcmp(entityClassname, "info_vip_safetyzone") == 0)
+			else if (strcmp(entityClassname, "func_vip_safetyzone") == 0 || strcmp(entityClassname, "info_vip_safetyzone") == 0)
 				g_mapType |= MAP_AS; // assassination map
 			else if (strcmp(entityClassname, "hostage_entity") == 0)
 				g_mapType |= MAP_CS; // rescue map
-			else if (strcmp(entityClassname, "func_bomb_target") == 0 ||
-				strcmp(entityClassname, "info_bomb_target") == 0)
+			else if (strcmp(entityClassname, "func_bomb_target") == 0 || strcmp(entityClassname, "info_bomb_target") == 0)
 				g_mapType |= MAP_DE; // defusion map
 			else if (strcmp(entityClassname, "func_escapezone") == 0)
 				g_mapType |= MAP_ES;

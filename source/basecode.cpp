@@ -673,50 +673,19 @@ edict_t* Bot::FindButton(void)
 
 bool Bot::AllowPickupItem(void)
 {
-	if (g_gameVersion != HALFLIFE)
-	{
-		if (m_isZombieBot)
-			return false;
-
-		if (IsZombieMode() && m_currentWeapon != WEAPON_KNIFE) // if we're holding knife, mostly our guns dont have a ammo
-			return false;
-
-		const int taskID = GetCurrentTask()->taskID;
-		if (taskID == TASK_ESCAPEFROMBOMB)
-			return false;
-
-		if (taskID == TASK_PLANTBOMB)
-			return false;
-
-		if (taskID == TASK_THROWHEGRENADE)
-			return false;
-
-		if (taskID == TASK_THROWFBGRENADE)
-			return false;
-
-		if (taskID == TASK_THROWSMGRENADE)
-			return false;
-
-		if (taskID == TASK_DESTROYBREAKABLE)
-			return false;
-	}
-
-	if (m_aimFlags & AIM_ENEMY || m_aimFlags & AIM_ENTITY)
-		return false;
-
 	if (IsOnLadder())
 		return false;
 
 	return true;
 }
 
-void Bot::FindItem(void)
+bool Bot::FindItem(void)
 {
-	if (AllowPickupItem())
+	if (!AllowPickupItem())
 	{
 		m_pickupItem = nullptr;
 		m_pickupType = PICKTYPE_NONE;
-		return;
+		return false;
 	}
 
 	edict_t* ent = nullptr;
@@ -729,7 +698,7 @@ void Bot::FindItem(void)
 				continue; // someone owns this weapon or it hasn't re spawned yet
 
 			if (ItemIsVisible(GetEntityOrigin(ent), const_cast <char*> (STRING(ent->v.classname))))
-				return;
+				return true;
 
 			break;
 		}
@@ -799,15 +768,11 @@ void Bot::FindItem(void)
 		{
 			if (m_currentWeapon != WEAPON_SNARK && strncmp("monster_snark", STRING(ent->v.classname), 13) == 0)
 			{
-				SetEnemy(ent);
-				SetLastEnemy(ent);
-				m_canChooseAimDirection = false;
-				m_moveToGoal = false;
-				m_checkTerrain = false;
+				m_hasEntitiesNear = true;
+				m_nearestEntity = ent;
 				m_lookAt = GetEntityOrigin(ent);
 				m_moveSpeed = -pev->maxspeed;
 				m_strafeSpeed = 0.0f;
-				m_aimStopTime = 0.0f;
 
 				if (!(pev->oldbuttons & IN_ATTACK))
 					pev->button |= IN_ATTACK;
@@ -856,8 +821,8 @@ void Bot::FindItem(void)
 		if (pickupType == PICKTYPE_NONE)
 			continue;
 
-		Vector entityOrigin = GetEntityOrigin(ent);
-		float distance = (pev->origin - entityOrigin).GetLengthSquared();
+		const Vector entityOrigin = GetEntityOrigin(ent);
+		const float distance = (pev->origin - entityOrigin).GetLengthSquared();
 		if (distance > minDistance)
 			continue;
 
@@ -928,16 +893,6 @@ void Bot::FindItem(void)
 			{
 				m_itemIgnore = ent;
 				allowPickup = false;
-
-				if (m_skill > 80 && ChanceOf(50) && GetCurrentTask()->taskID != TASK_GOINGFORCAMP && GetCurrentTask()->taskID != TASK_CAMP)
-				{
-					int index = FindDefendWaypoint(entityOrigin);
-					m_campposition = g_waypoint->GetPath(index)->origin;
-					PushTask(TASK_GOINGFORCAMP, TASKPRI_GOINGFORCAMP, index, ebot_camp_max.GetFloat(), true);
-					m_campButtons |= IN_DUCK;
-
-					return;
-				}
 			}
 			else if (pickupType == PICKTYPE_PLANTEDC4)
 			{
@@ -947,19 +902,11 @@ void Bot::FindItem(void)
 				{
 					m_defendedBomb = true;
 
-					int index = FindDefendWaypoint(entityOrigin);
-					float timeMidBlowup = g_timeBombPlanted + ((engine->GetC4TimerTime() * 0.5f) + engine->GetC4TimerTime() * 0.25f) - g_waypoint->GetTravelTime(m_moveSpeed, pev->origin, g_waypoint->GetPath(index)->origin);
+					const int index = FindDefendWaypoint(entityOrigin);
+					const float timeMidBlowup = g_timeBombPlanted + ((engine->GetC4TimerTime() * 0.5f) + engine->GetC4TimerTime() * 0.25f) - g_waypoint->GetTravelTime(m_moveSpeed, pev->origin, g_waypoint->GetPath(index)->origin);
 
 					if (timeMidBlowup > engine->GetTime())
-					{
-						RemoveCertainTask(TASK_MOVETOPOSITION);
-						RemoveCertainTask(TASK_GOINGFORCAMP);
-
-						m_campposition = g_waypoint->GetPath(index)->origin;
-
 						PushTask(TASK_GOINGFORCAMP, TASKPRI_GOINGFORCAMP, index, engine->GetTime() + ebot_camp_max.GetFloat(), true);
-						m_campButtons |= IN_DUCK;
-					}
 					else
 						RadioMessage(Radio::ShesGonnaBlow);
 				}
@@ -996,21 +943,21 @@ void Bot::FindItem(void)
 
 				if (m_skill > 80 && CRandomInt(0, 100) < 90)
 				{
-					int index = FindDefendWaypoint(entityOrigin);
+					const int index = FindDefendWaypoint(entityOrigin);
 
 					m_campposition = g_waypoint->GetPath(index)->origin;
 
 					PushTask(TASK_GOINGFORCAMP, TASKPRI_GOINGFORCAMP, index, engine->GetTime() + ebot_camp_max.GetFloat(), false);
 					m_campButtons |= IN_DUCK;
-					return;
+					return false;
 				}
 			}
 			else if (pickupType == PICKTYPE_PLANTEDC4)
 			{
-				if (m_states & (STATE_SEEINGENEMY) || OutOfBombTimer())
+				if (OutOfBombTimer())
 				{
 					allowPickup = false;
-					return;
+					return false;
 				}
 
 				allowPickup = !IsBombDefusing(g_waypoint->GetBombPosition());
@@ -1049,22 +996,24 @@ void Bot::FindItem(void)
 				{
 					m_pickupItem = nullptr;
 					m_pickupType = PICKTYPE_NONE;
-					return;
+					return false;
 				}
 			}
 		}
 
-		Vector pickupOrigin = GetEntityOrigin(pickupItem);
+		const Vector pickupOrigin = GetEntityOrigin(pickupItem);
 		if (pickupOrigin.z > EyePosition().z + 12.0f || IsDeadlyDrop(pickupOrigin))
 		{
 			m_pickupItem = nullptr;
 			m_pickupType = PICKTYPE_NONE;
 
-			return;
+			return false;
 		}
 
 		m_pickupItem = pickupItem;
 	}
+
+	return false;
 }
 
 // this function check if view on last enemy position is blocked - replace with better vector then
@@ -1799,6 +1748,9 @@ void Bot::StartProcess(const Process process)
 	case Process::DestroyBreakable:
 		DestroyBreakableStart();
 		break;
+	case Process::Pickup:
+		PickupStart();
+		break;
 	}
 }
 
@@ -1825,6 +1777,9 @@ void Bot::EndProcess(const Process process)
 		PauseEnd();
 	case Process::DestroyBreakable:
 		DestroyBreakableEnd();
+		break;
+	case Process::Pickup:
+		PickupEnd();
 		break;
 	}
 }
@@ -1853,6 +1808,9 @@ void Bot::UpdateProcess(void)
 		break;
 	case Process::DestroyBreakable:
 		DestroyBreakableUpdate();
+		break;
+	case Process::Pickup:
+		PickupUpdate();
 		break;
 	default:
 		SetProcess(Process::Default, "unknown process");
@@ -1922,6 +1880,8 @@ bool Bot::IsReadyForTheProcess(const Process process)
 		return PauseReq();
 	case Process::DestroyBreakable:
 		return DestroyBreakableReq();
+	case Process::Pickup:
+		return PickupReq();
 	}
 
 	return true;
@@ -1949,6 +1909,8 @@ char* Bot::GetProcessName(const Process process)
 		return "PAUSE";
 	case Process::DestroyBreakable:
 		return "DESTROY BREAKABLE";
+	case Process::Pickup:
+		return "PICKUP ITEM";
 	}
 
 	return "UNKNOWN";
@@ -4003,7 +3965,6 @@ void Bot::BaseUpdate(void)
 
 	if (botMovement && m_isAlive)
 	{
-		UpdateLooking(); // must be executed first because
 		UpdateProcess(); // update process can override update looking
 		MoveAction();
 		FacePosition();
@@ -4092,33 +4053,23 @@ void Bot::UpdateLooking(void)
 {
 	if (m_hasEnemiesNear || m_hasEntitiesNear)
 	{
-		CheckReload();
-		SelectBestWeapon();
-		FireWeapon();
-
-		if (m_enemyDistance <= m_entityDistance)
+		if (m_isZombieBot)
 		{
-			if (m_isZombieBot)
-			{
-				if (m_enemyDistance <= SquaredF(128.0f))
-				{
-					m_lookAt = m_enemyOrigin;
-					if (CRandomInt(1, 3) == 1)
-						pev->button |= IN_ATTACK;
-					else
-						pev->button |= IN_ATTACK2;
-					return;
-				}
-			}
-			else
+			if (m_enemyDistance <= SquaredF(128.0f))
 			{
 				m_lookAt = m_enemyOrigin;
+				if (CRandomInt(1, 3) == 1)
+					pev->button |= IN_ATTACK;
+				else
+					pev->button |= IN_ATTACK2;
 				return;
 			}
 		}
 		else
 		{
-			m_lookAt = m_entityOrigin;
+			LookAtEnemies();
+			CheckReload();
+			FireWeapon();
 			return;
 		}
 	}
@@ -4127,7 +4078,11 @@ void Bot::UpdateLooking(void)
 		const float val = IsZombieMode() ? 8.0f : 4.0f;
 		if (m_enemySeeTime + val > engine->GetTime())
 		{
-			m_lookAt = m_enemyOrigin;
+			if (!FNullEnt(m_nearestEnemy) && IsAlive(m_nearestEnemy))
+				m_lookAt = m_nearestEnemy->v.origin + m_nearestEnemy->v.view_ofs;
+			else
+				m_lookAt = m_enemyOrigin;
+
 			return;
 		}
 	}
@@ -4135,12 +4090,46 @@ void Bot::UpdateLooking(void)
 	LookAtAround();
 }
 
+void Bot::LookAtEnemies(void)
+{
+	if (m_enemyDistance <= m_entityDistance)
+		m_lookAt = GetEnemyPosition();
+	else
+		m_lookAt = m_entityOrigin;
+}
+
 void Bot::LookAtAround(void)
 {
 	if (m_waypointFlags & WAYPOINT_LADDER || IsOnLadder())
 	{
-		m_lookAt = m_destOrigin;
+		m_lookAt = m_destOrigin + pev->view_ofs;
 		return;
+	}
+	else if (m_waypointFlags & WAYPOINT_USEBUTTON)
+	{
+		const Vector origin = g_waypoint->GetPath(m_currentWaypointIndex)->origin;
+		if ((pev->origin - origin).GetLengthSquared() <= SquaredF(80.0f))
+		{
+			if (g_gameVersion == CSVER_XASH)
+			{
+				m_lookAt = origin;
+				if (!(pev->button & IN_USE) && !(pev->oldbuttons & IN_USE))
+					pev->button |= IN_USE;
+				return;
+			}
+			else
+			{
+				edict_t* button = FindButton();
+				if (button != nullptr) // no need to look at thanks to the game...
+					MDLL_Use(button, GetEntity());
+				if (!(pev->button & IN_USE) && !(pev->oldbuttons & IN_USE))
+				{
+					m_lookAt = origin;
+					pev->button |= IN_USE;
+					return;
+				}
+			}
+		}
 	}
 
 	if (m_hasFriendsNear && IsAttacking(m_nearestFriend)) // TODO: check if friend does not holding knife too
@@ -7039,7 +7028,6 @@ void Bot::BotAI(void)
 				else
 				{
 					edict_t* button = FindButton();
-
 					if (button != nullptr)
 						MDLL_Use(button, GetEntity());
 					else if (!(pev->oldbuttons & IN_USE))
@@ -8156,6 +8144,8 @@ void Bot::DefaultStart(void)
 
 void Bot::DefaultUpdate(void)
 {
+	UpdateLooking();
+
 	if (m_isZombieBot)
 	{
 		// nearest enemy never resets to nullptr, so bot always know where are humans
@@ -8183,7 +8173,15 @@ void Bot::DefaultUpdate(void)
 	else
 	{
 		if (m_isSlowThink)
+		{
+			if (FindItem())
+			{
+				if (SetProcess(Process::Pickup, "i see good stuff to pick it up", false, 20.0f))
+					return;
+			}
+
 			FindEnemyEntities();
+		}
 		else
 		{
 			CheckReload();
@@ -8245,14 +8243,16 @@ void Bot::AttackUpdate(void)
 {
 	if (m_isZombieBot)
 	{
-		FinishCurrentProcess("i am zombie now");
+		FinishCurrentProcess("i am a zombie now");
 		return;
 	}
 
 	FindFriendsAndEnemiens();
 	FindEnemyEntities();
-	
-	if (!m_hasEnemiesNear)
+	LookAtEnemies();
+	CheckReload();
+
+	if (!m_hasEnemiesNear && !m_hasEntitiesNear)
 	{
 		if (m_personality == PERSONALITY_CAREFUL)
 		{
@@ -8260,11 +8260,13 @@ void Bot::AttackUpdate(void)
 			m_strafeSpeed = 0.0f;
 		}
 
-		if (m_enemySeeTime + 1.5f < engine->GetTime())
+		if (m_enemySeeTime + 1.5f < engine->GetTime() && m_entitySeeTime + 1.5f < engine->GetTime())
 			FinishCurrentProcess("no target exist");
 
 		return;
 	}
+	else
+		FireWeapon();
 
 	const float distance = m_enemyDistance;
 	const int melee = g_gameVersion == HALFLIFE ? WEAPON_CROWBAR : WEAPON_KNIFE;
@@ -8272,6 +8274,7 @@ void Bot::AttackUpdate(void)
 	{
 		m_destOrigin = m_enemyOrigin;
 		m_moveSpeed = pev->maxspeed;
+		m_strafeSpeed = 0.0f;
 		return;
 	}
 	else
@@ -8592,6 +8595,7 @@ void Bot::EscapeUpdate(void)
 {
 	FindEnemyEntities();
 	FindFriendsAndEnemiens();
+	UpdateLooking();
 
 	if (!g_bombPlanted || DoWaypointNav())
 		SetProcess(Process::Pause, "i have escaped from the bomb", false, 99999999.0f);
@@ -8681,7 +8685,7 @@ bool Bot::PauseReq(void)
 
 void Bot::DestroyBreakableStart(void)
 {
-
+	ResetStuck();
 }
 
 void Bot::DestroyBreakableUpdate(void)
@@ -8693,18 +8697,17 @@ void Bot::DestroyBreakableUpdate(void)
 	}
 
 	m_lookAt = m_breakable;
+	m_enemyDistance = FLT_MAX;
+	m_nearestEnemy = nullptr;
+	m_entityDistance = (pev->origin - m_breakable).GetLengthSquared();
+	m_nearestEntity = m_breakableEntity;
 
-	if (!m_isZombieBot)
+	if (!m_isZombieBot && m_currentWeapon != WEAPON_KNIFE)
 		FireWeapon();
 	else
 		KnifeAttack();
 
 	pev->button |= m_campButtons;
-
-	m_enemyDistance = FLT_MAX;
-	m_nearestEnemy = nullptr;
-	m_entityDistance = (pev->origin - m_breakable).GetLengthSquared();
-	m_nearestEntity = m_breakableEntity;
 }
 
 void Bot::DestroyBreakableEnd(void)
@@ -8719,4 +8722,236 @@ bool Bot::DestroyBreakableReq(void)
 		return false;
 
 	return true;
+}
+
+void Bot::PickupStart(void)
+{
+	ResetStuck();
+}
+
+void Bot::PickupUpdate(void)
+{
+	if (!PickupReq())
+	{
+		m_pickupItem = nullptr;
+		m_pickupType = PICKTYPE_NONE;
+		return;
+	}
+
+	// is entity deleted???
+	if (FNullEnt(m_pickupItem))
+	{
+		m_pickupItem = nullptr;
+		FinishCurrentProcess("pickup item is disappeared...");
+		return;
+	}
+
+	FindEnemyEntities();
+	FindFriendsAndEnemiens();
+	UpdateLooking();
+
+	const Vector destination = GetEntityOrigin(m_pickupItem);
+	m_destOrigin = destination;
+	MoveTo(destination);
+
+	CheckStuck();
+
+	// find the distance to the item
+	const float itemDistance = (destination - pev->origin).GetLengthSquared();
+
+	switch (m_pickupType)
+	{
+	case PICKTYPE_GETENTITY:
+		if (FNullEnt(m_pickupItem) || (GetTeam(m_pickupItem) != -1 && m_team != GetTeam(m_pickupItem)))
+		{
+			m_pickupItem = nullptr;
+			m_pickupType = PICKTYPE_NONE;
+		}
+		break;
+
+	case PICKTYPE_WEAPON:
+		// near to weapon?
+		if (itemDistance <= SquaredF(60.0f))
+		{
+			int i;
+			for (i = 0; i < 7; i++)
+			{
+				if (strcmp(g_weaponSelect[i].modelName, STRING(m_pickupItem->v.model) + 9) == 0)
+					break;
+			}
+
+			if (i < 7)
+			{
+				// secondary weapon. i.e., pistol
+				int weaponID = 0;
+
+				for (i = 0; i < 7; i++)
+				{
+					if (pev->weapons & (1 << g_weaponSelect[i].id))
+						weaponID = i;
+				}
+
+				if (weaponID > 0)
+				{
+					SelectWeaponbyNumber(weaponID);
+					FakeClientCommand(GetEntity(), "drop");
+
+					if (HasShield()) // If we have the shield...
+						FakeClientCommand(GetEntity(), "drop"); // discard both shield and pistol
+				}
+
+				EquipInBuyzone(0);
+			}
+			else
+			{
+				// primary weapon
+				const int weaponID = GetHighestWeapon();
+
+				if ((weaponID > 6) || HasShield())
+				{
+					SelectWeaponbyNumber(weaponID);
+					FakeClientCommand(GetEntity(), "drop");
+				}
+
+				EquipInBuyzone(0);
+			}
+
+			CheckSilencer(); // check the silencer
+
+			if (IsValidWaypoint(m_currentWaypointIndex))
+			{
+				if (itemDistance > SquaredF(g_waypoint->GetPath(m_currentWaypointIndex)->radius))
+				{
+					SetEntityWaypoint(GetEntity());
+					m_currentWaypointIndex = -1;
+					GetValidWaypoint();
+				}
+			}
+		}
+
+		break;
+
+	case PICKTYPE_SHIELDGUN:
+		if (HasShield())
+		{
+			m_pickupItem = nullptr;
+			break;
+		}
+		else if (itemDistance < SquaredF(60.0f)) // near to shield?
+		{
+			// get current best weapon to check if it's a primary in need to be dropped
+			const int weaponID = GetHighestWeapon();
+
+			if (weaponID > 6)
+			{
+				SelectWeaponbyNumber(weaponID);
+				FakeClientCommand(GetEntity(), "drop");
+
+				if (IsValidWaypoint(m_currentWaypointIndex))
+				{
+					if (itemDistance > SquaredF(g_waypoint->GetPath(m_currentWaypointIndex)->radius))
+					{
+						SetEntityWaypoint(GetEntity());
+						m_currentWaypointIndex = -1;
+						GetValidWaypoint();
+					}
+				}
+			}
+		}
+		break;
+
+	case PICKTYPE_PLANTEDC4:
+		if (m_team == TEAM_COUNTER && itemDistance <= SquaredF(64.0f))
+		{
+			if (!SetProcess(Process::Defuse, "trying to defusing the bomb", false, m_hasDefuser ? 6.0f : 12.0f))
+				FinishCurrentProcess("cannot start to defuse bomb");
+		}
+
+		break;
+
+	case PICKTYPE_HOSTAGE:
+		if (!IsAlive(m_pickupItem) || m_team != TEAM_COUNTER)
+		{
+			// don't pickup dead hostages
+			m_pickupItem = nullptr;
+			FinishCurrentProcess("hostage is dead");
+			break;
+		}
+
+		m_lookAt = destination;
+
+		if (itemDistance <= SquaredF(64.0f))
+		{
+			if (g_gameVersion == CSVER_XASH)
+				pev->button |= IN_USE;
+			else // use game dll function to make sure the hostage is correctly 'used'
+				MDLL_Use(m_pickupItem, GetEntity());
+
+			for (int i = 0; i < Const_MaxHostages; i++)
+			{
+				if (FNullEnt(m_hostages[i])) // store pointer to hostage so other bots don't steal from this one or bot tries to reuse it
+				{
+					m_hostages[i] = m_pickupItem;
+					m_pickupItem = nullptr;
+					break;
+				}
+			}
+
+			m_itemCheckTime = engine->GetTime() + 0.1f;
+			m_lastCollTime = engine->GetTime() + 0.1f; // also don't consider being stuck
+		}
+		break;
+
+	case PICKTYPE_DEFUSEKIT:
+		if (m_hasDefuser || m_team != TEAM_COUNTER)
+		{
+			m_pickupItem = nullptr;
+			m_pickupType = PICKTYPE_NONE;
+		}
+		break;
+
+	case PICKTYPE_BUTTON:
+		if (FNullEnt(m_pickupItem) || m_buttonPushTime < engine->GetTime()) // it's safer...
+		{
+			FinishCurrentProcess("button is gone...");
+			m_pickupType = PICKTYPE_NONE;
+			break;
+		}
+
+		m_lookAt = destination;
+
+		// find angles from bot origin to entity...
+		const float angleToEntity = InFieldOfView(destination - EyePosition());
+
+		if (itemDistance <= SquaredF(90.0f)) // near to the button?
+		{
+			m_moveToGoal = false;
+			m_checkTerrain = false;
+
+			if (angleToEntity <= 10) // facing it directly?
+			{
+				if (g_gameVersion == CSVER_XASH)
+					pev->button |= IN_USE;
+				else
+					MDLL_Use(m_pickupItem, GetEntity());
+
+				m_pickupItem = nullptr;
+				m_pickupType = PICKTYPE_NONE;
+				m_buttonPushTime = engine->GetTime() + 3.0f;
+				FinishCurrentProcess("i have pushed the button");
+			}
+		}
+
+		break;
+	}
+}
+
+void Bot::PickupEnd(void)
+{
+	ResetStuck();
+}
+
+bool Bot::PickupReq(void)
+{
+	return AllowPickupItem();
 }

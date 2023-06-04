@@ -45,6 +45,7 @@ bool g_analyzenavmesh = false;
 bool g_analyzeputrequirescrouch = false;
 bool g_expanded[Const_MaxWaypoints];
 bool g_isUsingNAV = false;
+bool g_hasDoors = false;
 
 bool g_sgdWaypoint = false;
 bool g_sautoWaypoint = false;

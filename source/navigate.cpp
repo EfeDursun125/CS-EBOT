@@ -305,14 +305,14 @@ void Bot::FollowPath(const int targetIndex)
 
 	if (m_navNode != nullptr)
 	{
-		const Vector directionOld = m_waypointFlags & WAYPOINT_FALLRISK ? (m_destOrigin + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval) : m_destOrigin - (pev->origin + pev->velocity * m_frameInterval);
+		const Vector directionOld = m_waypointFlags & WAYPOINT_FALLRISK ? (m_destOrigin + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval) : m_destOrigin - pev->origin;
 		const Vector directionNormal = directionOld.Normalize2D();
 		m_moveAngles = directionOld.ToAngles();
 		m_moveAngles.ClampAngles();
 		m_moveAngles.x = -m_moveAngles.x; // invert for engine
 
 		DoWaypointNav();
-		CheckStuck(directionNormal);
+		CheckStuck();
 		m_moveSpeed = pev->maxspeed;
 	}
 	else if (!m_isSlowThink)
@@ -497,6 +497,7 @@ bool Bot::DoWaypointNav(void)
 	TraceResult tr;
 
 	// check if we are going through a door...
+	if (g_hasDoors)
 	{
 		TraceLine(pev->origin, m_waypointOrigin, ignore_monsters, GetEntity(), &tr);
 
@@ -2059,7 +2060,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 	{
 		// defuse bomb
 		if (g_bombPlanted && strcmp(STRING(entity->v.model) + 9, "c4.mdl") == 0)
-			SetProcess(Process::Defuse, "trying to defusing the bomb.", false, 12.0f);
+			SetProcess(Process::Defuse, "trying to defusing the bomb", false, m_hasDefuser ? 6.0f : 12.0f);
 
 		return;
 	}
@@ -2357,7 +2358,7 @@ void Bot::ResetStuck(void)
 	m_stuckTimer = AddTime(2.0f);
 }
 
-void Bot::CheckStuck(const Vector dirNormal)
+void Bot::CheckStuck(void)
 {
 	if (m_hasFriendsNear && pev->solid != SOLID_NOT)
 	{
@@ -2402,10 +2403,7 @@ void Bot::CheckStuck(const Vector dirNormal)
 		if (m_stuckWarn > 10)
 			m_isStuck = true;
 		else if (m_stuckWarn == 10)
-		{
-			pev->button |= IN_DUCK;
 			pev->button |= IN_JUMP;
-		}
 	}
 	else
 	{
