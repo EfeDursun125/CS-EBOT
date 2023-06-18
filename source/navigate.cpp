@@ -353,8 +353,8 @@ bool Bot::DoWaypointNav(void)
 
 			if (m_desiredVelocity == nullvec || m_desiredVelocity == -1)
 			{
-				Vector myOrigin = GetBottomOrigin(GetEntity());
-				Vector waypointOrigin = m_waypointOrigin;
+				Vector myOrigin = GetBottomOrigin(GetEntity()) + pev->velocity * m_frameInterval;
+				Vector waypointOrigin = currentWaypoint->origin + pev->velocity * -m_frameInterval;
 
 				if (currentWaypoint->flags & WAYPOINT_CROUCH)
 					waypointOrigin.z -= 18.0f;
@@ -1478,12 +1478,17 @@ inline const float HF_Euclidean2D(int start, int goal)
 	return 1000.0f * (ceilf(euclidean) - euclidean);
 }
 
-inline const float GF_CostNav(NavArea* start, NavArea* goal)
+inline const float GF_CostNav(const NavArea* start, const NavArea* goal, const int index)
 {
-	return (g_navmesh->GetCenter(start) - g_navmesh->GetCenter(goal)).GetLengthSquared();
+	float multiplier = 1.0f;
+	int seed = int(engine->GetTime() * 0.1f) + 1;
+	seed *= goal->index;
+	seed *= index;
+	multiplier += (cosf(float(seed)) + 1.0f) * 10.0f;
+	return (g_navmesh->GetCenter(start) - g_navmesh->GetCenter(goal)).GetLengthSquared() * multiplier;
 }
 
-inline const float HF_Nav(NavArea* start, NavArea* goal)
+inline const float HF_Nav(const NavArea* start, const NavArea* goal)
 {
 	return (g_navmesh->GetCenter(start) - g_navmesh->GetCenter(goal)).GetLengthSquared();
 }
@@ -1544,17 +1549,17 @@ void Bot::FindPathNavMesh(NavArea* start, NavArea* dest)
 	if (start == dest)
 		return;
 
-	AStar_t waypoints[Const_MaxWaypoints];
+	AStar_t navmesh[Const_MaxWaypoints];
 	for (int i = 0; i < g_numNavAreas; i++)
 	{
-		waypoints[i].g = 0;
-		waypoints[i].f = 0;
-		waypoints[i].parent = -1;
-		waypoints[i].state = State::New;
+		navmesh[i].g = 0;
+		navmesh[i].f = 0;
+		navmesh[i].parent = -1;
+		navmesh[i].state = State::New;
 	}
 
-	const float (*gcalc) (NavArea*, NavArea*) = nullptr;
-	const float (*hcalc) (NavArea*, NavArea*) = nullptr;
+	const float (*gcalc) (const NavArea*, const NavArea*, const int index) = nullptr;
+	const float (*hcalc) (const NavArea*, const NavArea*) = nullptr;
 
 	hcalc = HF_Nav;
 	if (hcalc == nullptr)
@@ -1565,8 +1570,8 @@ void Bot::FindPathNavMesh(NavArea* start, NavArea* dest)
 		return;
 
 	// put start node into open list
-	const auto srcWaypoint = &waypoints[start->index];
-	srcWaypoint->g = gcalc(start, dest);
+	const auto srcWaypoint = &navmesh[start->index];
+	srcWaypoint->g = gcalc(start, dest, m_index);
 	srcWaypoint->f = srcWaypoint->g + hcalc(start, dest);
 	srcWaypoint->state = State::Open;
 
@@ -1602,7 +1607,7 @@ void Bot::FindPathNavMesh(NavArea* start, NavArea* dest)
 				path->next = m_navNode;
 
 				m_navNode = path;
-				currentIndex = waypoints[currentIndex].parent;
+				currentIndex = navmesh[currentIndex].parent;
 			} while (IsValidWaypoint(currentIndex));
 
 			m_navNodeStart = m_navNode;
@@ -1619,7 +1624,7 @@ void Bot::FindPathNavMesh(NavArea* start, NavArea* dest)
 			return;
 		}
 
-		const auto currWaypoint = &waypoints[currentIndex];
+		const auto currWaypoint = &navmesh[currentIndex];
 		if (currWaypoint->state != State::Open)
 			continue;
 
@@ -1633,16 +1638,16 @@ void Bot::FindPathNavMesh(NavArea* start, NavArea* dest)
 		// now expand the current node
 		for (int i = 0; i < pointer->connections.GetElementNumber(); i++)
 		{
-			NavArea* self = pointer->connections[i];
+			const NavArea* self = pointer->connections[i];
 			if (self == nullptr)
 				continue;
 
 			// calculate the F value as F = G + H
-			const float g = currWaypoint->g + gcalc(pointer, self);
+			const float g = currWaypoint->g + gcalc(pointer, self, m_index);
 			const float h = hcalc(self, dest);
 			const float f = g + h;
 
-			const auto childWaypoint = &waypoints[self->index];
+			const auto childWaypoint = &navmesh[self->index];
 			if (childWaypoint->state == State::New || childWaypoint->f > f)
 			{
 				// put the current child into open list
@@ -2080,7 +2085,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 		if (tr.pHit == entity || tr2.pHit == entity)
 		{
 			m_breakableEntity = entity;
-			m_breakable = GetBoxOrigin(entity);
+			m_breakable = tr.pHit == entity ? tr.vecEndPos : tr2.vecEndPos;
 			m_destOrigin = m_breakable;
 
 			if (pev->origin.z > m_breakable.z)
@@ -2110,13 +2115,12 @@ void Bot::CheckTouchEntity(edict_t* entity)
 					if (GetEntity() == bot->GetEntity())
 						continue;
 
-					const Vector breakableOrigin = GetBoxOrigin(m_breakableEntity);
-					TraceResult tr;
-					TraceLine(bot->EyePosition(), breakableOrigin, true, true, bot->GetEntity(), &tr);
-					if (tr.pHit == entity)
+					TraceResult tr3;
+					TraceLine(bot->EyePosition(), m_breakable, true, true, bot->GetEntity(), &tr3);
+					if (tr3.pHit == entity)
 					{
 						bot->m_breakableEntity = entity;
-						bot->m_breakable = breakableOrigin;
+						bot->m_breakable = tr3.vecEndPos;
 
 						if (bot->m_currentWeapon == WEAPON_KNIFE)
 							bot->m_destOrigin = bot->m_breakable;
@@ -2145,12 +2149,12 @@ void Bot::CheckTouchEntity(edict_t* entity)
 				if (!enemy->m_isAlive)
 					continue;
 
-				TraceResult tr;
-				TraceLine(enemy->EyePosition(), m_breakable, true, true, enemy->GetEntity(), &tr);
-				if (tr.pHit == entity)
+				TraceResult tr3;
+				TraceLine(enemy->EyePosition(), m_breakable, true, true, enemy->GetEntity(), &tr3);
+				if (tr3.pHit == entity)
 				{
 					enemy->m_breakableEntity = entity;
-					enemy->m_breakable = GetBoxOrigin(entity);
+					enemy->m_breakable = tr3.vecEndPos;
 
 					if (enemy->pev->origin.z > enemy->m_breakable.z)
 						enemy->m_campButtons = IN_DUCK;

@@ -425,8 +425,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		// enables or disable waypoint displaying
 		if (stricmp(arg1, "analyze") == 0)
 		{
-			g_analyzewaypoints = true;
-			ServerPrint("Waypoint Analyzing On (Please Manually Edit Waypoints For Best Results)");
+			ServerPrint("Waypoint Analyzing On (Please Manually Edit Waypoints For Better Result)");
 			ServerCommand("ebot wp on");
 			if (ebot_analyze_create_goal_waypoints.GetInt() == 1)
 				g_waypoint->CreateBasic();
@@ -434,6 +433,8 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 			// no expand
 			for (int i = 0; i < (Const_MaxWaypoints - 1); i++)
 				g_expanded[i] = false;
+
+			g_analyzewaypoints = true;
 		}
 
 		else if (stricmp(arg1, "analyzeoff") == 0)

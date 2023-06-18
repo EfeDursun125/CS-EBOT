@@ -740,7 +740,6 @@ bool Bot::FindItem(void)
 			m_checkTerrain = false;
 			m_moveSpeed = pev->maxspeed;
 			m_strafeSpeed = 0.0f;
-			m_aimStopTime = 0.0f;
 		}
 		else if (pev->armorvalue < 100 && strncmp("item_battery", STRING(ent->v.classname), 12) == 0)
 			pickupType = PICKTYPE_GETENTITY;
@@ -762,7 +761,6 @@ bool Bot::FindItem(void)
 			m_checkTerrain = false;
 			m_moveSpeed = pev->maxspeed;
 			m_strafeSpeed = 0.0f;
-			m_aimStopTime = 0.0f;
 		}
 		else if (g_gameVersion == HALFLIFE)
 		{
@@ -840,12 +838,10 @@ bool Bot::FindItem(void)
 			allowPickup = true;
 		else if (pickupType == PICKTYPE_WEAPON)
 		{
-			int weaponCarried = GetBestWeaponCarried();
-			int secondaryWeaponCarried = GetBestSecondaryWeaponCarried();
-
-			int weaponAmmoMax, secondaryWeaponAmmoMax;
-			secondaryWeaponAmmoMax = g_weaponDefs[g_weaponSelect[secondaryWeaponCarried].id].ammo1Max;
-			weaponAmmoMax = g_weaponDefs[g_weaponSelect[weaponCarried].id].ammo1Max;
+			const int weaponCarried = GetBestWeaponCarried();
+			const int secondaryWeaponCarried = GetBestSecondaryWeaponCarried();
+			const int secondaryWeaponAmmoMax = g_weaponDefs[g_weaponSelect[secondaryWeaponCarried].id].ammo1Max;
+			const int weaponAmmoMax = g_weaponDefs[g_weaponSelect[weaponCarried].id].ammo1Max;
 
 			if (secondaryWeaponCarried < 7 && (m_ammo[g_weaponSelect[secondaryWeaponCarried].id] > 0.3 * secondaryWeaponAmmoMax) && strcmp(STRING(ent->v.model) + 9, "w_357ammobox.mdl") == 0)
 				allowPickup = false;
@@ -965,8 +961,8 @@ bool Bot::FindItem(void)
 				{
 					m_defendedBomb = true;
 
-					int index = FindDefendWaypoint(entityOrigin);
-					float timeBlowup = g_timeBombPlanted + engine->GetC4TimerTime() - g_waypoint->GetTravelTime(pev->maxspeed, pev->origin, g_waypoint->GetPath(index)->origin);
+					const int index = FindDefendWaypoint(entityOrigin);
+					const float timeBlowup = g_timeBombPlanted + engine->GetC4TimerTime() - g_waypoint->GetTravelTime(pev->maxspeed, pev->origin, g_waypoint->GetPath(index)->origin);
 
 					RemoveCertainTask(TASK_MOVETOPOSITION); // remove any move tasks
 					RemoveCertainTask(TASK_GOINGFORCAMP);
@@ -1434,7 +1430,7 @@ void Bot::PerformWeaponPurchase(void)
 	case 1:
 		if (pev->armorvalue < CRandomInt(40, 80) && (g_botManager->EconomicsValid(m_team) || HasPrimaryWeapon()))
 		{
-			if (m_moneyAmount > 1500 && !IsRestricted(WEAPON_KEVHELM))
+			if (m_moneyAmount > 1600 && !IsRestricted(WEAPON_KEVHELM))
 				FakeClientCommand(GetEntity(), "buyequip;menuselect 2");
 			else
 				FakeClientCommand(GetEntity(), "buyequip;menuselect 1");
@@ -1471,7 +1467,7 @@ void Bot::PerformWeaponPurchase(void)
 				if (IsRestricted(selectedWeapon->id))
 					continue;
 
-				if (m_moneyAmount <= (selectedWeapon->price + 120))
+				if (m_moneyAmount <= (selectedWeapon->price + 125))
 					continue;
 
 				int gunMode = BuyWeaponMode(selectedWeapon->id);
@@ -8174,16 +8170,20 @@ void Bot::DefaultUpdate(void)
 	{
 		if (m_isSlowThink)
 		{
+			// revert the zoom to normal
+			if (pev->fov != 90.0f)
+				pev->button |= IN_ATTACK2;
+
+			FindEnemyEntities();
+		}
+		else
+		{
 			if (FindItem())
 			{
 				if (SetProcess(Process::Pickup, "i see good stuff to pick it up", false, 20.0f))
 					return;
 			}
 
-			FindEnemyEntities();
-		}
-		else
-		{
 			CheckReload();
 			FindFriendsAndEnemiens();
 		}
@@ -8690,6 +8690,14 @@ void Bot::DestroyBreakableStart(void)
 
 void Bot::DestroyBreakableUpdate(void)
 {
+	CheckStuck();
+
+	if (m_stuckWarn >= 20)
+	{
+		FinishCurrentProcess("i'm stuck");
+		return;
+	}
+
 	if (!IsShootableBreakable(m_breakableEntity))
 	{
 		FinishCurrentProcess("sucsessfully destroyed a breakable");
@@ -8698,7 +8706,7 @@ void Bot::DestroyBreakableUpdate(void)
 
 	m_lookAt = m_breakable;
 	m_enemyDistance = FLT_MAX;
-	m_nearestEnemy = nullptr;
+	m_nearestEnemy = m_breakableEntity;
 	m_entityDistance = (pev->origin - m_breakable).GetLengthSquared();
 	m_nearestEntity = m_breakableEntity;
 
@@ -8713,6 +8721,8 @@ void Bot::DestroyBreakableUpdate(void)
 void Bot::DestroyBreakableEnd(void)
 {
 	m_nearestEntity = nullptr;
+	m_nearestEnemy = nullptr;
+	m_enemyDistance = FLT_MAX;
 	m_entityDistance = FLT_MAX;
 }
 

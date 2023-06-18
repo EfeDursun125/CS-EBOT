@@ -868,5 +868,5 @@ NavMesh::NavMesh(void)
 
 NavMesh::~NavMesh(void)
 {
-
+    m_navmeshLoaded = false;
 }

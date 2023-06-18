@@ -34,7 +34,7 @@ ConVar ebot_analyze_create_camp_waypoints("ebot_analyze_create_camp_waypoints", 
 ConVar ebot_use_old_analyzer("ebot_use_old_analyzer", "0");
 ConVar ebot_analyzer_min_fps("ebot_analyzer_min_fps", "30.0");
 ConVar ebot_analyze_auto_start("ebot_analyze_auto_start", "1");
-ConVar ebot_download_waypoints("ebot_download_waypoints", "1");
+ConVar ebot_download_waypoints("ebot_download_waypoints", "0");
 ConVar ebot_download_waypoints_from("ebot_download_waypoints_from", "https://github.com/EfeDursun125/EBOT-WP/raw/main");
 ConVar ebot_analyze_optimize_waypoints("ebot_analyze_optimize_waypoints", "1");
 ConVar ebot_waypoint_size("ebot_waypoint_size", "7");
@@ -279,7 +279,7 @@ void AnalyzeThread(void)
             g_waypointOn = false;
             g_waypoint->AnalyzeDeleteUselessWaypoints();
             
-            /*for (int i = 0; i < g_numWaypoints; i++)
+            for (int i = 0; i < g_numWaypoints; i++)
             {
                 auto origin = g_waypoint->GetPath(i)->origin;
                 if (g_waypoint->GetPath(i)->flags & WAYPOINT_CROUCH)
@@ -299,7 +299,7 @@ void AnalyzeThread(void)
                 g_navmesh->ExpandNavArea(area, 20.0f);
             }
 
-            g_navmesh->OptimizeNavMesh();*/
+            //g_navmesh->OptimizeNavMesh();
 
             g_waypoint->Save();
             g_waypoint->Load();
@@ -1828,12 +1828,13 @@ bool Waypoint::Load(int mode)
         {
             if (ebot_analyze_auto_start.GetBool())
             {
-                g_analyzewaypoints = true;
                 g_waypoint->CreateBasic();
 
                 // no expand
                 for (int i = 0; i < (Const_MaxWaypoints - 1); i++)
                     g_expanded[i] = false;
+
+                g_analyzewaypoints = true;
             }
             else
             {
