@@ -145,7 +145,7 @@ size_t cstrlen(const char* str)
         const int mask = _mm_movemask_epi8(cmp);
 
         if (mask != 0)
-			return static_cast<size_t>(ptr - str) + static_cast<size_t>(__builtin_ctz(static_cast<uint32_t>(mask)));
+		return static_cast<size_t>(ptr - str) + static_cast<size_t>(__builtin_ctz(static_cast<uint32_t>(mask)));
 
         ptr += 16;
     }
