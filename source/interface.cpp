@@ -292,7 +292,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 			for (const auto& bot : g_botManager->m_bots)
 			{
 				if (bot != nullptr)
-					bot->pev->health = fabsf(static_cast <float> (atof(arg1)));
+					bot->pev->health = cabsf(static_cast <float> (atof(arg1)));
 			}
 		}
 	}
@@ -303,7 +303,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 			ClientPrint(ent, print_withtag, "Please specify gravity");
 		else
 		{
-			const float gravity = fabsf(static_cast <float> (atof(arg1)));
+			const float gravity = cabsf(static_cast <float> (atof(arg1)));
 			ClientPrint(ent, print_withtag, "E-Bot gravity is set to %d%%", gravity);
 
 			for (const auto& bot : g_botManager->m_bots)
@@ -539,7 +539,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 				int index = g_waypoint->FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
 				if (IsValidWaypoint(index))
 				{
-					g_waypoint->GetPath(index)->campStartX = fabsf(static_cast <float> (atof(arg2)));
+					g_waypoint->GetPath(index)->campStartX = cabsf(static_cast <float> (atof(arg2)));
 					ClientPrint(ent, print_withtag, "Waypoint mesh set to %d", static_cast <int> (g_waypoint->GetPath(index)->campStartX));
 				}
 				else
@@ -557,7 +557,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 				int index = g_waypoint->FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
 				if (IsValidWaypoint(index))
 				{
-					g_waypoint->GetPath(index)->campStartY = fabsf(static_cast <float> (atof(arg2)));
+					g_waypoint->GetPath(index)->campStartY = cabsf(static_cast <float> (atof(arg2)));
 					ClientPrint(ent, print_withtag, "Waypoint gravity set to %f", g_waypoint->GetPath(index)->campStartY);
 				}
 				else

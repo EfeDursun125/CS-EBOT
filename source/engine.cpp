@@ -341,11 +341,11 @@ void Engine::IssueBotCommand(edict_t* ent, const char* fmt, ...)
     m_isBotCommand = true;
 
     int i, pos = 0;
-    int length = strlen(string);
+    const int length = cstrlen(string);
 
     while (pos < length)
     {
-        int start = pos;
+        const int start = pos;
         int stop = pos;
 
         while (pos < length && string[pos] != ';')

@@ -40,7 +40,7 @@ void StripTags(char* buffer)
     char* tagClose[] = {"]", "]", "]", "=-", "]-", "[-", "{-", "}-", "]>", "[>", "-]", "-[", "-}", "-{", "]]", "]", "}", "[", "{", ">", "<", "-", "|", "=", "+", ")"};
 
     int index, fieldStart, fieldStop, i;
-    int length = strlen(buffer); // get length of string
+    const int length = cstrlen(buffer); // get length of string
 
     // foreach known tag...
     for (index = 0; index < ARRAYSIZE_HLSDK(tagOpen); index++)
@@ -55,8 +55,8 @@ void StripTags(char* buffer)
             // have we found a tag stop?
             if ((fieldStop > fieldStart) && (fieldStop < 32))
             {
-                for (i = fieldStart; i < length - (fieldStop + static_cast <int> (strlen(tagClose[index])) - fieldStart); i++)
-                    buffer[i] = buffer[i + (fieldStop + strlen(tagClose[index]) - fieldStart)]; // overwrite the buffer with the stripped string
+                for (i = fieldStart; i < length - (fieldStop + static_cast <int> (cstrlen(tagClose[index])) - fieldStart); i++)
+                    buffer[i] = buffer[i + (fieldStop + cstrlen(tagClose[index]) - fieldStart)]; // overwrite the buffer with the stripped string
 
                 buffer[i] = 0x0; // terminate the string
             }
@@ -64,7 +64,7 @@ void StripTags(char* buffer)
     }
 
     // have we stripped too much (all the stuff)?
-    if (strlen(buffer) != 0)
+    if (cstrlen(buffer) != 0)
     {
         strtrim(buffer); // if so, string is just a tag
 
@@ -76,10 +76,10 @@ void StripTags(char* buffer)
             // have we found a tag start?
             if (fieldStart >= 0 && fieldStart < 32)
             {
-                fieldStop = fieldStart + strlen(tagOpen[index]); // set the tag stop
+                fieldStop = fieldStart + cstrlen(tagOpen[index]); // set the tag stop
 
-                for (i = fieldStart; i < length - static_cast <int> (strlen(tagOpen[index])); i++)
-                    buffer[i] = buffer[i + strlen(tagOpen[index])]; // overwrite the buffer with the stripped string
+                for (i = fieldStart; i < length - static_cast <int> (cstrlen(tagOpen[index])); i++)
+                    buffer[i] = buffer[i + cstrlen(tagOpen[index])]; // overwrite the buffer with the stripped string
 
                 buffer[i] = 0x0; // terminate the string
 
@@ -88,10 +88,10 @@ void StripTags(char* buffer)
                 // have we found a tag stop ?
                 if (fieldStart >= 0 && fieldStart < 32)
                 {
-                    fieldStop = fieldStart + strlen(tagClose[index]); // set the tag stop
+                    fieldStop = fieldStart + cstrlen(tagClose[index]); // set the tag stop
 
-                    for (i = fieldStart; i < length - static_cast <int> (strlen(tagClose[index])); i++)
-                        buffer[i] = buffer[i + static_cast <int> (strlen(tagClose[index]))]; // overwrite the buffer with the stripped string
+                    for (i = fieldStart; i < length - static_cast <int> (cstrlen(tagClose[index])); i++)
+                        buffer[i] = buffer[i + static_cast <int> (cstrlen(tagClose[index]))]; // overwrite the buffer with the stripped string
 
                     buffer[i] = 0; // terminate the string
                 }
@@ -119,7 +119,7 @@ char* HumanizeName(char* name)
     // note: since we're using russian names written in english, we reduce this shit to 6 percent
     if (CRandomInt(1, 100) <= 6)
     {
-        for (int i = 0; i < static_cast <int> (strlen(outputName)); i++)
+        for (int i = 0; i < static_cast <int> (cstrlen(outputName)); i++)
             outputName[i] = static_cast <char> (tolower(outputName[i])); // to lower case
     }
 
@@ -384,7 +384,7 @@ bool Bot::ParseChat(char* reply)
     strcpy(tempMessage, m_sayTextBuffer.sayText); // copy to safe place
 
     // text to uppercase for keyword parsing
-    for (int i = 0; i < static_cast <int> (strlen(tempMessage)); i++)
+    for (int i = 0; i < static_cast <int> (cstrlen(tempMessage)); i++)
         tempMessage[i] = toupper(tempMessage[i]);
 
     return CheckKeywords(tempMessage, reply);

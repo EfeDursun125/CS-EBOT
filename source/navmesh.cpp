@@ -51,8 +51,6 @@ void NavMesh::Analyze(void)
     else if (!IsDedicatedServer()) // let the player join first...
         return;
 
-    extern ConVar ebot_analyzer_min_fps;
-
     static float magicTimer;
     for (int i = 0; i < g_numNavAreas; i++)
     {
@@ -62,14 +60,13 @@ void NavMesh::Analyze(void)
         if (magicTimer >= engine->GetTime())
             continue;
 
-        if ((ebot_analyzer_min_fps.GetFloat() + g_pGlobals->frametime) <= 1.0f / g_pGlobals->frametime)
-            magicTimer = engine->GetTime() + g_pGlobals->frametime * 0.054f; // pause
-
         if (m_area[i] == nullptr)
             continue;
 
-        Vector WayVec = GetCenter(m_area[i]);
-        float range = engine->RandomFloat(200.0f, 1000.0f);
+        magicTimer = engine->GetTime() + g_pGlobals->frametime * 0.01f;
+
+        const Vector WayVec = GetCenter(m_area[i]);
+        const float range = 50.0f;
 
         for (int dir = 0; dir < 4; dir++)
         {
@@ -161,11 +158,11 @@ void NavMesh::Analyze(void)
 
 float EuclideanDistance(const Vector start, const Vector goal)
 {
-    const float x = fabsf(start.x - goal.x);
-    const float y = fabsf(start.y - goal.y);
-    const float z = fabsf(start.z - goal.z);
-    const float euclidean = csqrt(powf(x, 2.0f) + powf(y, 2.0f) + powf(z, 2.0f));
-    return 1000.0f * (ceilf(euclidean) - euclidean);
+    const float x = cabsf(start.x - goal.x);
+    const float y = cabsf(start.y - goal.y);
+    const float z = cabsf(start.z - goal.z);
+    const float euclidean = csqrtf(powf(x, 2.0f) + powf(y, 2.0f) + powf(z, 2.0f));
+    return 1000.0f * (cceilf(euclidean) - euclidean);
 }
 
 void NavMesh::ConnectArea(NavArea* start, NavArea* goal)
@@ -191,7 +188,7 @@ void NavMesh::ConnectArea(NavArea* start, NavArea* goal)
     PlaySound(g_hostEntity, "weapons/mine_activate.wav");
 }
 
-void NavMesh::DisconnectArea(NavArea* start, NavArea* goal)
+void NavMesh::DisconnectArea(NavArea* start, const NavArea* goal)
 {
     for (int i = 0; i < start->connections.GetElementNumber(); i++)
     {
@@ -249,7 +246,7 @@ NavArea* NavMesh::CreateArea(const Vector origin)
     area->connections.Destory();
     area->bakedDist.Destory();
 
-    //ExpandNavArea(area, 50.0f);
+    ExpandNavArea(area, 50.0f);
 
     PlaySound(g_hostEntity, "weapons/xbow_hit1.wav");
     return area;
@@ -478,24 +475,24 @@ float NavMesh::GetNavAreaSize(const NavArea* area)
     for (int i = 0; i < 4; i++)
         totalSize += (area->corners[i] - ((area->corners[0] + area->corners[1] + area->corners[2] + area->corners[3]) * 0.25f)).GetLengthSquared2D();
 
-    return csqrt(totalSize);
+    return csqrtf(totalSize);
 }
 
 // this function returns the squared distance between a point and a line segment
 float DistanceToLineSegmentSquared(const Vector& point, const Vector& start, const Vector& end)
 {
-    Vector direction = end - start;
-    float lengthSquared = direction.GetLengthSquared();
+    const Vector direction = end - start;
+    const float lengthSquared = direction.GetLengthSquared();
 
     // if the line segment has zero length, the point cannot be closer to it
     if (lengthSquared == 0.0f)
         return (point - start).GetLengthSquared();
 
     // calculate the projection of the point onto the line segment
-    Vector toPoint = point - start;
+    const Vector toPoint = point - start;
     float projection = DotProduct(toPoint, direction) / lengthSquared;
-    projection = Clamp(projection, 0.0f, 1.0f);
-    Vector closestPoint = start + projection * direction;
+    projection = cclampf(projection, 0.0f, 1.0f);
+    const Vector closestPoint = start + projection * direction;
 
     // calculate the squared distance between the point and the closest point on the line segment
     return (point - closestPoint).GetLengthSquared();
@@ -504,18 +501,18 @@ float DistanceToLineSegmentSquared(const Vector& point, const Vector& start, con
 // this function returns the closest point on a line segment to a given point
 Vector ClosestPointOnLineSegment(const Vector& point, const Vector& start, const Vector& end)
 {
-    Vector direction = end - start;
-    float lengthSquared = direction.GetLengthSquared();
+    const Vector direction = end - start;
+    const float lengthSquared = direction.GetLengthSquared();
 
     // if the line segment has zero length, return either endpoint
     if (lengthSquared == 0.0f)
         return start;
 
     // calculate the projection of the point onto the line segment
-    Vector toPoint = point - start;
+    const Vector toPoint = point - start;
     float projection = DotProduct(toPoint, direction) / lengthSquared;
-    projection = Clamp(projection, 0.0f, 1.0f);
-    Vector closestPoint = start + projection * direction;
+    projection = cclampf(projection, 0.0f, 1.0f);
+    const Vector closestPoint = start + projection * direction;
 
     return closestPoint;
 }
@@ -540,7 +537,7 @@ bool LineSegmentIntersect(const Vector& p1, const Vector& p2, const Vector& p3, 
 
         // check if the height difference between the two line segments is within tolerance
         const float heightTolerance = 0.44f;
-        if (fabsf(z1 - z2) <= heightTolerance)
+        if (cabsf(z1 - z2) <= heightTolerance)
             return true;
     }
 

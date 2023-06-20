@@ -93,10 +93,10 @@ float Bot::InFieldOfView(const Vector& destination)
 	// return the absolute value of angle to destination entity
 	// zero degrees means straight ahead, 45 degrees to the left or
 	// 45 degrees to the right is the limit of the normal view angle
-	float absoluteAngle = fabsf(viewAngle - entityAngle);
+	const float absoluteAngle = cabsf(viewAngle - entityAngle);
 
 	if (absoluteAngle > 180.0f)
-		absoluteAngle = 360.0f - absoluteAngle;
+		return 360.0f - absoluteAngle;
 
 	return absoluteAngle;
 }
@@ -305,7 +305,7 @@ void Bot::ZombieModeAi(void)
 			if (m_team == GetTeam(entity))
 				continue;
 
-			float distance = (pev->origin - GetEntityOrigin(entity)).GetLengthSquared2D();
+			const float distance = (pev->origin - GetEntityOrigin(entity)).GetLengthSquared2D();
 			if (distance < targetDistance)
 			{
 				targetDistance = distance;
@@ -485,21 +485,16 @@ void Bot::AvoidEntity(void)
 		if (InFieldOfView(entityOrigin - EyePosition()) > pev->fov * 0.5f && !EntityIsVisible(entityOrigin))
 			continue;
 
-		if (strcmp(STRING(entity->v.model) + 9, "flashbang.mdl") == 0)
+		if (m_skill >= 70 && strcmp(STRING(entity->v.model) + 9, "flashbang.mdl") == 0)
 		{
-			Vector position = (entityOrigin - EyePosition()).ToAngles();
-			if (m_skill >= 70)
-			{
-				pev->v_angle.y = AngleNormalize(position.y + 180.0f);
-				m_canChooseAimDirection = false;
-				return;
-			}
+			pev->v_angle.y = AngleNormalize((entityOrigin - EyePosition()).ToAngles().y + 180.0f);
+			return;
 		}
 
 		if ((entity->v.flags & FL_ONGROUND) == 0)
 		{
-			float distance = (entityOrigin - pev->origin).GetLengthSquared();
-			float distanceMoved = ((entityOrigin + entity->v.velocity * m_frameInterval) - pev->origin).GetLengthSquared();
+			const float distance = (entityOrigin - pev->origin).GetLengthSquared();
+			const float distanceMoved = ((entityOrigin + entity->v.velocity * m_frameInterval) - pev->origin).GetLengthSquared();
 
 			if (distanceMoved < distance && distance < SquaredF(500))
 			{
@@ -511,8 +506,8 @@ void Bot::AvoidEntity(void)
 
 				MakeVectors(pev->v_angle);
 
-				Vector dirToPoint = (pev->origin - entityOrigin).Normalize2D();
-				Vector rightSide = g_pGlobals->v_right.Normalize2D();
+				const Vector dirToPoint = (pev->origin - entityOrigin).Normalize2D();
+				const Vector rightSide = g_pGlobals->v_right.Normalize2D();
 
 				if ((dirToPoint | rightSide) > 0)
 					m_needAvoidEntity = -1;
@@ -537,20 +532,20 @@ bool Bot::IsBehindSmokeClouds(edict_t* ent)
 		return false;
 
 	edict_t* pentGrenade = nullptr;
-	const Vector entOrigin = GetEntityOrigin(ent);
-	const Vector betweenUs = (entOrigin - pev->origin).Normalize();
-
 	while (!FNullEnt(pentGrenade = FIND_ENTITY_BY_CLASSNAME(pentGrenade, "grenade")))
 	{
 		// if grenade is invisible don't care for it
 		if ((pentGrenade->v.effects & EF_NODRAW) || !(pentGrenade->v.flags & (FL_ONGROUND | FL_PARTIALGROUND)) || strcmp(STRING(pentGrenade->v.model) + 9, "smokegrenade.mdl"))
 			continue;
 
+		const Vector entOrigin = GetEntityOrigin(ent);
+
 		// check if visible to the bot
 		if (InFieldOfView(entOrigin - EyePosition()) > pev->fov * 0.33333333333f && !EntityIsVisible(entOrigin))
 			continue;
 
 		const Vector pentOrigin = GetEntityOrigin(pentGrenade);
+		const Vector betweenUs = (entOrigin - pev->origin).Normalize();
 		const Vector betweenNade = (pentOrigin - pev->origin).Normalize();
 		const Vector betweenResult = ((Vector(betweenNade.y, betweenNade.x, 0.0f) * 150.0f + pentOrigin) - pev->origin).Normalize();
 
@@ -568,7 +563,7 @@ int Bot::GetBestWeaponCarried(void)
 	int weaponIndex = 0;
 	int weapons = pev->weapons;
 
-	WeaponSelect* weaponTab = &g_weaponSelect[0];
+	const WeaponSelect* weaponTab = &g_weaponSelect[0];
 
 	// take the shield in account
 	if (HasShield())
@@ -596,12 +591,11 @@ int Bot::GetBestSecondaryWeaponCarried(void)
 	if (HasShield())
 		weapons |= (1 << WEAPON_SHIELDGUN);
 
-	WeaponSelect* weaponTab = &g_weaponSelect[0];
+	const WeaponSelect* weaponTab = &g_weaponSelect[0];
 
 	for (int i = 0; i < Const_NumWeapons; i++)
 	{
-		auto id = weaponTab[*ptr].id;
-
+		const int id = weaponTab[*ptr].id;
 		if ((weapons & (1 << static_cast<int>(weaponTab[*ptr].id))) && (id == WEAPON_USP || id == WEAPON_GLOCK18 || id == WEAPON_DEAGLE || id == WEAPON_P228 || id == WEAPON_ELITE || id == WEAPON_FN57))
 		{
 			weaponIndex = i;
@@ -624,7 +618,7 @@ bool Bot::RateGroundWeapon(edict_t* ent)
 	int groundIndex = 0;
 	int* ptr = g_weaponPrefs[m_personality];
 
-	WeaponSelect* weaponTab = &g_weaponSelect[0];
+	const WeaponSelect* weaponTab = &g_weaponSelect[0];
 
 	for (int i = 0; i < Const_NumWeapons; i++)
 	{
@@ -659,7 +653,7 @@ edict_t* Bot::FindButton(void)
 	{
 		if (strncmp("func_button", STRING(searchEntity->v.classname), 11) == 0 || strncmp("func_rot_button", STRING(searchEntity->v.classname), 15) == 0)
 		{
-			float distance = (pev->origin - GetEntityOrigin(searchEntity)).GetLengthSquared();
+			const float distance = (pev->origin - GetEntityOrigin(searchEntity)).GetLengthSquared();
 			if (distance < nearestDistance)
 			{
 				nearestDistance = distance;
@@ -1367,9 +1361,9 @@ void Bot::PerformWeaponPurchase(void)
 				if (playerMoney <= gunMoney)
 					continue;
 
-				int gunMode = BuyWeaponMode(selectedWeapon->id);
+				const int gunMode = BuyWeaponMode(selectedWeapon->id);
 
-				if (playerMoney < gunMoney + (gunMode * 100))
+				if (playerMoney < gunMoney + (gunMode * 125))
 					continue;
 
 				if (likeGunId[0] == 0)
@@ -1470,7 +1464,7 @@ void Bot::PerformWeaponPurchase(void)
 				if (m_moneyAmount <= (selectedWeapon->price + 125))
 					continue;
 
-				int gunMode = BuyWeaponMode(selectedWeapon->id);
+				const int gunMode = BuyWeaponMode(selectedWeapon->id);
 
 				if (likeGunId == 0)
 				{
@@ -1491,12 +1485,10 @@ void Bot::PerformWeaponPurchase(void)
 
 			if (likeGunId != 0)
 			{
-				WeaponSelect* buyWeapon = &g_weaponSelect[0];
-				int weaponId = likeGunId;
-
+				const WeaponSelect* buyWeapon = &g_weaponSelect[0];
 				for (int i = 0; i < Const_NumWeapons; i++)
 				{
-					if (buyWeapon[i].id == weaponId)
+					if (buyWeapon[i].id == likeGunId)
 					{
 						FakeClientCommand(GetEntity(), "buy;menuselect %d", buyWeapon[i].buyGroup);
 
@@ -2111,7 +2103,7 @@ void Bot::SetConditions(void)
 		// FIXME: it probably should be also team/map dependant
 		if (FNullEnt(m_enemy) && (g_timeRoundMid < engine->GetTime()) && !m_isUsingGrenade && m_personality != PERSONALITY_CAREFUL && m_currentWaypointIndex != g_waypoint->FindNearest(m_lastEnemyOrigin))
 		{
-			desireLevel = 4096.0f - ((1.0f - tempAgression) * csqrt(distance));
+			desireLevel = 4096.0f - ((1.0f - tempAgression) * csqrtf(distance));
 			desireLevel = (100 * desireLevel) / 4096.0f;
 			desireLevel -= retreatLevel;
 
@@ -2634,7 +2626,7 @@ void Bot::CheckGrenadeThrow(void)
 		return;
 	}
 
-	int grenadeToThrow = CheckGrenades();
+	const int grenadeToThrow = CheckGrenades();
 	if (grenadeToThrow == -1)
 	{
 		m_states &= ~(STATE_THROWEXPLODE | STATE_THROWFLASH | STATE_THROWSMOKE);
@@ -2869,7 +2861,7 @@ bool Bot::ReactOnEnemy(void)
 				}
 
 				const Vector enemyVel = m_enemy->v.velocity;
-				const float enemySpeed = fabsf(m_enemy->v.speed);
+				const float enemySpeed = cabsf(m_enemy->v.speed);
 
 				const Vector enemyHead = GetPlayerHeadOrigin(m_enemy);
 				const Vector myVec = pev->origin + pev->velocity * m_frameInterval;
@@ -5122,7 +5114,7 @@ void Bot::RunTask(void)
 		if (m_viewDistance < 500.0f && m_skill > 50)
 		{
 			// go mad!
-			m_moveSpeed = -fabsf((m_viewDistance - 500.0f) * 0.5f);
+			m_moveSpeed = -cabsf((m_viewDistance - 500.0f) * 0.5f);
 
 			if (m_moveSpeed < -pev->maxspeed)
 				m_moveSpeed = -pev->maxspeed;
@@ -5867,7 +5859,7 @@ void Bot::RunTask(void)
 					m_moveSpeed = pev->maxspeed;
 				}
 			}
-			else if (((pev->origin + pev->velocity * m_frameInterval) - m_enemyOrigin).GetLengthSquared() <= SquaredF(fabsf(m_enemy->v.speed) + ebot_zp_escape_distance.GetFloat()))
+			else if (((pev->origin + pev->velocity * m_frameInterval) - m_enemyOrigin).GetLengthSquared() <= SquaredF(cabsf(m_enemy->v.speed) + ebot_zp_escape_distance.GetFloat()))
 			{
 				destination = m_enemyOrigin;
 				m_destOrigin = destination;
@@ -5965,7 +5957,7 @@ void Bot::RunTask(void)
 					m_moveSpeed = pev->maxspeed;
 				}
 			}
-			else if (((pev->origin + pev->velocity * m_frameInterval) - m_enemyOrigin).GetLengthSquared() <= SquaredF(fabsf(m_enemy->v.speed) + ebot_zp_escape_distance.GetFloat()))
+			else if (((pev->origin + pev->velocity * m_frameInterval) - m_enemyOrigin).GetLengthSquared() <= SquaredF(cabsf(m_enemy->v.speed) + ebot_zp_escape_distance.GetFloat()))
 			{
 				destination = m_enemyOrigin;
 				m_destOrigin = destination;
@@ -6058,7 +6050,7 @@ void Bot::RunTask(void)
 
 				m_moveToGoal = false;
 			}
-			else if (((pev->origin + pev->velocity * m_frameInterval) - m_enemyOrigin).GetLengthSquared() <= SquaredF(fabsf(m_enemy->v.speed) + ebot_zp_escape_distance.GetFloat()))
+			else if (((pev->origin + pev->velocity * m_frameInterval) - m_enemyOrigin).GetLengthSquared() <= SquaredF(cabsf(m_enemy->v.speed) + ebot_zp_escape_distance.GetFloat()))
 			{
 				destination = m_enemyOrigin;
 				m_destOrigin = destination;
@@ -7390,7 +7382,7 @@ void Bot::BotAI(void)
 		pev->button |= IN_DUCK;
 
 	// save the previous speed (for checking if stuck)
-	m_prevSpeed = fabsf(m_moveSpeed);
+	m_prevSpeed = cabsf(m_moveSpeed);
 	m_lastDamageType = -1; // reset damage
 }
 
@@ -7562,7 +7554,7 @@ Vector Bot::CheckToss(const Vector& start, Vector end)
 	end = end - pev->velocity;
 	end.z -= 15.0f;
 
-	if (fabsf(end.z - start.z) > 500.0f)
+	if (cabsf(end.z - start.z) > 500.0f)
 		return nullvec;
 
 	Vector midPoint = start + (end - start) * 0.5f;
@@ -7579,8 +7571,8 @@ Vector Bot::CheckToss(const Vector& start, Vector end)
 		return nullvec;
 
 	const float half = 0.5f * gravity;
-	float timeOne = csqrt((midPoint.z - start.z) / half);
-	float timeTwo = csqrt((midPoint.z - end.z) / half);
+	const float timeOne = csqrtf((midPoint.z - start.z) / half);
+	const float timeTwo = csqrtf((midPoint.z - end.z) / half);
 
 	if (timeOne < 0.1)
 		return nullvec;

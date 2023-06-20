@@ -258,7 +258,7 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 	if (!IsValidPlayer(ent))
 		return;
 
-	int clientIndex = ENTINDEX(ent) - 1;
+	const int clientIndex = ENTINDEX(ent) - 1;
 
 	if (menu != nullptr)
 	{
@@ -274,7 +274,7 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 
 		text = tempText;
 
-		while (strlen(text) >= 64)
+		while (cstrlen(text) >= 64)
 		{
 			MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent);
 			WRITE_SHORT(menu->validSlots);
@@ -479,12 +479,12 @@ void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
 	g_isFakeCommand = true;
 
 	int i, pos = 0;
-	int length = strlen(string);
+	const int length = cstrlen(string);
 	int stringIndex = 0;
 
 	while (pos < length)
 	{
-		int start = pos;
+		const int start = pos;
 		int stop = pos;
 
 		while (pos < length && string[pos] != ';')
@@ -549,7 +549,7 @@ const char* GetField(const char* string, int fieldId, bool endLine)
 	int length, i, index = 0, fieldCount = 0, start, stop;
 
 	field[0] = 0; // reset field
-	length = strlen(string); // get length of string
+	length = cstrlen(string); // get length of string
 
 	// while we have not reached end of line
 	while (index < length && fieldCount <= fieldId)
@@ -593,7 +593,7 @@ const char* GetField(const char* string, int fieldId, bool endLine)
 	}
 
 	if (endLine)
-		field[strlen(field) - 1] = 0;
+		field[cstrlen(field) - 1] = 0;
 
 	strtrim(field);
 
@@ -655,7 +655,7 @@ const char* GetModName(void)
 	static char modName[256];
 
 	GET_GAME_DIR(modName); // ask the engine for the MOD directory path
-	int length = strlen(modName); // get the length of the returned string
+	int length = cstrlen(modName); // get the length of the returned string
 
 	// format the returned string to get the last directory name
 	int stop = length - 1;
@@ -1954,7 +1954,7 @@ int GetWeaponReturn(bool needString, const char* weaponAlias, int weaponID)
 	// else search weapon by name and return weapon id
 	for (int i = 0; i < ARRAYSIZE_HLSDK(weaponTab); i++)
 	{
-		if (strncmp(weaponTab[i].alias, weaponAlias, strlen(weaponTab[i].alias)) == 0)
+		if (strncmp(weaponTab[i].alias, weaponAlias, cstrlen(weaponTab[i].alias)) == 0)
 			return weaponTab[i].weaponID;
 	}
 

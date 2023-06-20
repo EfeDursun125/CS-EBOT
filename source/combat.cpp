@@ -729,7 +729,7 @@ bool Bot::DoFirePause(const float distance)
 	if (m_hasEnemiesNear && IsEnemyProtectedByShield(m_nearestEnemy))
 		return true;
 
-	const float angle = (fabsf(pev->punchangle.y) + fabsf(pev->punchangle.x)) * (Math::MATH_PI * 0.00277777777f);
+	const float angle = (cabsf(pev->punchangle.y) + cabsf(pev->punchangle.x)) * (Math::MATH_PI * 0.00277777777f);
 
 	// check if we need to compensate recoil
 	if (tanf(angle) * (distance + (distance * 0.25f)) > 100.0f)
@@ -1244,7 +1244,7 @@ void Bot::CombatFight(void)
 	}
 	else if (GetCurrentTask()->taskID != TASK_CAMP && GetCurrentTask()->taskID != TASK_SEEKCOVER && GetCurrentTask()->taskID != TASK_ESCAPEFROMBOMB)
 	{
-		if (g_gameVersion == HALFLIFE && fabsf(pev->speed) >= (pev->maxspeed * 0.54f) && !(pev->oldbuttons & IN_JUMP) && !(pev->oldbuttons & IN_DUCK))
+		if (g_gameVersion == HALFLIFE && cabsf(pev->speed) >= (pev->maxspeed * 0.54f) && !(pev->oldbuttons & IN_JUMP) && !(pev->oldbuttons & IN_DUCK))
 		{
 			if (m_personality == PERSONALITY_CAREFUL)
 			{

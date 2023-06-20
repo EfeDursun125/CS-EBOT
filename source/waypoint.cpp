@@ -81,13 +81,13 @@ void CreateWaypoint(Vector WayVec, Vector Next, float range, float goalDist)
             {
                 bool isBreakable = IsBreakable(tr.pHit);
                 Vector TargetPosition = tr2.vecEndPos;
-                TargetPosition.z += 19.0f;// +36.0f;
+                TargetPosition.z += 19.0f;// 36.0f;
 
                 const int endindex = g_waypoint->FindNearestInCircle(TargetPosition, range);
 
                 if (!IsValidWaypoint(endindex))
                 {
-                    const Vector targetOrigin = g_waypoint->GetPath(g_waypoint->FindNearest(TargetPosition, 250.0f))->origin;
+                    const Vector targetOrigin = g_waypoint->GetPath(g_waypoint->FindNearestInCircle(TargetPosition, 256.0f))->origin;
 
                     if (!IsZombieMode())
                     {
@@ -133,7 +133,7 @@ void CreateWaypoint(Vector WayVec, Vector Next, float range, float goalDist)
                         }
                     }
 
-                    const int doublecheckindex = g_waypoint->FindNearest(TargetPosition, range);
+                    const int doublecheckindex = g_waypoint->FindNearestInCircle(TargetPosition, range);
                     if (!IsValidWaypoint(doublecheckindex))
                     {
                         g_analyzeputrequirescrouch = false;
@@ -1059,7 +1059,7 @@ void Waypoint::Add(int flags, Vector waypointOrigin, bool autopath)
                     }
 
                     if (IsNodeReachable(newOrigin, m_paths[destIndex]->origin))
-                        AddPath(index, destIndex, csqrt(distance));
+                        AddPath(index, destIndex, csqrtf(distance));
                 }
             }
 
@@ -1365,7 +1365,7 @@ int Waypoint::GetFacingIndex(void)
         angles.ClampAngles();
 
         // skip the waypoints that are too far away from us, and we're not looking at them directly
-        if (to.GetLengthSquared() > SquaredF(500.0f) || fabsf(angles.y) > range)
+        if (to.GetLengthSquared() > SquaredF(500.0f) || cabsf(angles.y) > range)
             continue;
 
         // check if visible, (we're not using visiblity tables here, as they not valid at time of waypoint editing)
@@ -1769,7 +1769,7 @@ bool Waypoint::Load(int mode)
     {
         fp.Read(&header, sizeof(header));
 
-        if (strncmp(header.header, FH_WAYPOINT_NEW, strlen(FH_WAYPOINT_NEW)) == 0 || strncmp(header.header, FH_WAYPOINT, strlen(FH_WAYPOINT)) == 0)
+        if (strncmp(header.header, FH_WAYPOINT_NEW, cstrlen(FH_WAYPOINT_NEW)) == 0 || strncmp(header.header, FH_WAYPOINT, cstrlen(FH_WAYPOINT)) == 0)
         {
             if (stricmp(header.mapName, GetMapName()) && mode == 0)
             {
@@ -1979,7 +1979,7 @@ void Waypoint::SaveOLD(void)
                     else
                         myOrigin.z -= 36.0f;
 
-                    const float timeToReachWaypoint = csqrt(powf(waypointOrigin.x - myOrigin.x, 2.0f) + powf(waypointOrigin.y - myOrigin.y, 2.0f)) / 250.0f;
+                    const float timeToReachWaypoint = csqrtf(powf(waypointOrigin.x - myOrigin.x, 2.0f) + powf(waypointOrigin.y - myOrigin.y, 2.0f)) / 250.0f;
                     m_paths[i]->connectionVelocity[x].x = (waypointOrigin.x - myOrigin.x) / timeToReachWaypoint;
                     m_paths[i]->connectionVelocity[x].y = (waypointOrigin.y - myOrigin.y) / timeToReachWaypoint;
                     m_paths[i]->connectionVelocity[x].z = 2.0f * (waypointOrigin.z - myOrigin.z - 0.5f * 1.0f * powf(timeToReachWaypoint, 2.0f)) / timeToReachWaypoint;
@@ -2039,7 +2039,7 @@ float Waypoint::GetTravelTime(const float maxSpeed, const Vector src, const Vect
     if (src == nullvec || origin == nullvec)
         return 10.0f;
 
-    return (origin - src).GetLengthSquared2D() / SquaredF(fabsf(maxSpeed));
+    return (origin - src).GetLengthSquared2D() / SquaredF(cabsf(maxSpeed));
 }
 
 bool Waypoint::Reachable(edict_t* entity, const int index)
@@ -2438,7 +2438,7 @@ void Waypoint::Think(void)
         if (g_autoWaypoint)
             g_autoWaypoint = false;
 
-        g_hostEntity->v.health = fabsf(static_cast <float> (255.0));
+        g_hostEntity->v.health = cabsf(static_cast <float> (255.0));
 
         if (g_hostEntity->v.button & IN_USE && (g_hostEntity->v.flags & FL_ONGROUND))
         {

@@ -361,7 +361,7 @@ bool Bot::DoWaypointNav(void)
 				else
 					waypointOrigin.z -= 36.0f;
 
-				const float timeToReachWaypoint = csqrt(powf(waypointOrigin.x - myOrigin.x, 2.0f) + powf(waypointOrigin.y - myOrigin.y, 2.0f)) / pev->maxspeed;
+				const float timeToReachWaypoint = csqrtf(powf(waypointOrigin.x - myOrigin.x, 2.0f) + powf(waypointOrigin.y - myOrigin.y, 2.0f)) / pev->maxspeed;
 				pev->velocity.x = (waypointOrigin.x - myOrigin.x) / timeToReachWaypoint;
 				pev->velocity.y = (waypointOrigin.y - myOrigin.y) / timeToReachWaypoint;
 				pev->velocity.z = 2.0f * (waypointOrigin.z - myOrigin.z - 0.5f * pev->gravity * powf(timeToReachWaypoint, 2.0f)) / timeToReachWaypoint;
@@ -381,7 +381,7 @@ bool Bot::DoWaypointNav(void)
 	{
 		if (IsValidWaypoint(m_prevWptIndex[0]) && g_waypoint->GetPath(m_prevWptIndex[0])->flags & WAYPOINT_LADDER)
 		{
-			if (fabsf(m_waypointOrigin.z - pev->origin.z) > 5.0f)
+			if (cabsf(m_waypointOrigin.z - pev->origin.z) > 5.0f)
 				m_waypointOrigin.z += pev->origin.z - m_waypointOrigin.z;
 
 			if (m_waypointOrigin.z > (pev->origin.z + 16.0f))
@@ -430,7 +430,7 @@ bool Bot::DoWaypointNav(void)
 					TraceHull(EyePosition(), m_destOrigin, ignore_monsters, (pev->flags & FL_DUCKING) ? head_hull : human_hull, GetEntity(), &tr);
 
 					// someone is above or below us and is using the ladder already
-					if (client.ent->v.movetype == MOVETYPE_FLY && fabsf(pev->origin.z - client.ent->v.origin.z) > 15.0f && tr.pHit == client.ent)
+					if (client.ent->v.movetype == MOVETYPE_FLY && cabsf(pev->origin.z - client.ent->v.origin.z) > 15.0f && tr.pHit == client.ent)
 					{
 						if (IsValidWaypoint(m_prevWptIndex[0]))
 						{
@@ -680,7 +680,7 @@ bool Bot::UpdateLiftHandling()
 		{
 			if ((m_liftState == LiftState::None || m_liftState == LiftState::WaitingFor || m_liftState == LiftState::LookingButtonOutside) && tr.pHit->v.velocity.z == 0.0f)
 			{
-				if (fabsf(pev->origin.z - tr.vecEndPos.z) < 70.0f)
+				if (cabsf(pev->origin.z - tr.vecEndPos.z) < 70.0f)
 				{
 					m_liftEntity = tr.pHit;
 					m_liftState = LiftState::EnteringIn;
@@ -1107,20 +1107,20 @@ inline const float GF_CostHuman(const int index, const int parent, const int tea
 {
 	const Path* path = g_waypoint->GetPath(index);
 	if (path->flags & WAYPOINT_AVOID)
-		return 65355.0f;
+		return FLT_MAX;
 
 	if (isZombie)
 	{
 		if (path->flags & WAYPOINT_HUMANONLY)
-			return 65355.0f;
+			return FLT_MAX;
 	}
 	else
 	{
 		if (path->flags & WAYPOINT_ZOMBIEONLY)
-			return 65355.0f;
+			return FLT_MAX;
 
 		if (path->flags & WAYPOINT_DJUMP)
-			return 65355.0f;
+			return FLT_MAX;
 	}
 
 	if (path->flags & WAYPOINT_ONLYONE)
@@ -1136,9 +1136,9 @@ inline const float GF_CostHuman(const int index, const int parent, const int tea
 			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || team != client.team)
 				continue;
 
-			float distance = (client.origin - path->origin).GetLengthSquared();
+			const float distance = (client.origin - path->origin).GetLengthSquared();
 			if (distance <= SquaredF(path->radius + 64.0f))
-				return 65355.0f;
+				return FLT_MAX;
 		}
 	}
 
@@ -1150,7 +1150,7 @@ inline const float GF_CostHuman(const int index, const int parent, const int tea
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || team == client.team || !IsZombieEntity(client.ent))
 			continue;
 
-		float distance = ((client.origin + client.ent->v.velocity * g_pGlobals->frametime) - waypointOrigin).GetLengthSquared();
+		const float distance = ((client.origin + client.ent->v.velocity * g_pGlobals->frametime) - waypointOrigin).GetLengthSquared();
 		if (distance <= SquaredF(path->radius + 128.0f))
 			count++;
 
@@ -1172,94 +1172,20 @@ inline const float GF_CostCareful(const int index, const int parent, const int t
 {
 	const Path* path = g_waypoint->GetPath(index);
 	if (path->flags & WAYPOINT_AVOID)
-		return 65355.0f;
+		return FLT_MAX;
 
 	if (isZombie)
 	{
 		if (path->flags & WAYPOINT_HUMANONLY)
-			return 65355.0f;
+			return FLT_MAX;
 	}
 	else
 	{
 		if (path->flags & WAYPOINT_ZOMBIEONLY)
-			return 65355.0f;
+			return FLT_MAX;
 
 		if (path->flags & WAYPOINT_DJUMP)
-			return 65355.0f;
-	}
-
-	if (path->flags & WAYPOINT_ONLYONE)
-	{
-		for (const auto& client : g_clients)
-		{
-			if (client.index < 0)
-				continue;
-
-			if (client.ent == nullptr)
-				continue;
-
-			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || team != client.team)
-				continue;
-
-			float distance = (client.origin - path->origin).GetLengthSquared();
-			if (distance <= SquaredF(path->radius + 64.0f))
-				return 65355.0f;
-		}
-	}
-
-	if (isZombie)
-	{
-		if (path->flags & WAYPOINT_DJUMP)
-		{
-			int count = 0;
-			for (const auto& client : g_clients)
-			{
-				if (client.index < 0)
-					continue;
-
-				if (client.ent == nullptr)
-					continue;
-
-				if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != team)
-					continue;
-
-				if ((client.origin - path->origin).GetLengthSquared() <= SquaredF(512.0f + path->radius))
-					count++;
-				else if (IsVisible(path->origin, client.ent))
-					count++;
-			}
-
-			// don't count me
-			if (count <= 1)
-				return 65355.0f;
-			
-			float baseCost = g_waypoint->GetPathDistance(index, parent);
-			baseCost /= count;
-			return baseCost;
-		}
-	}
-
-	return 1.0f;
-}
-
-inline const float GF_CostNormal(const int index, const int parent, const int team, const float gravity, const bool isZombie)
-{
-	const Path* path = g_waypoint->GetPath(index);
-	if (path->flags & WAYPOINT_AVOID)
-		return 65355.0f;
-
-	if (isZombie)
-	{
-		if (path->flags & WAYPOINT_HUMANONLY)
-			return 65355.0f;
-	}
-	else
-	{
-		if (path->flags & WAYPOINT_ZOMBIEONLY)
-			return 65355.0f;
-
-		if (path->flags & WAYPOINT_DJUMP)
-			return 65355.0f;
+			return FLT_MAX;
 	}
 
 	if (path->flags & WAYPOINT_ONLYONE)
@@ -1277,7 +1203,7 @@ inline const float GF_CostNormal(const int index, const int parent, const int te
 
 			const float distance = (client.origin - path->origin).GetLengthSquared();
 			if (distance <= SquaredF(path->radius + 64.0f))
-				return 65355.0f;
+				return FLT_MAX;
 		}
 	}
 
@@ -1305,7 +1231,81 @@ inline const float GF_CostNormal(const int index, const int parent, const int te
 
 			// don't count me
 			if (count <= 1)
-				return 65355.0f;
+				return FLT_MAX;
+			
+			float baseCost = g_waypoint->GetPathDistance(index, parent);
+			baseCost /= count;
+			return baseCost;
+		}
+	}
+
+	return 1.0f;
+}
+
+inline const float GF_CostNormal(const int index, const int parent, const int team, const float gravity, const bool isZombie)
+{
+	const Path* path = g_waypoint->GetPath(index);
+	if (path->flags & WAYPOINT_AVOID)
+		return FLT_MAX;
+
+	if (isZombie)
+	{
+		if (path->flags & WAYPOINT_HUMANONLY)
+			return FLT_MAX;
+	}
+	else
+	{
+		if (path->flags & WAYPOINT_ZOMBIEONLY)
+			return FLT_MAX;
+
+		if (path->flags & WAYPOINT_DJUMP)
+			return FLT_MAX;
+	}
+
+	if (path->flags & WAYPOINT_ONLYONE)
+	{
+		for (const auto& client : g_clients)
+		{
+			if (client.index < 0)
+				continue;
+
+			if (client.ent == nullptr)
+				continue;
+
+			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || team != client.team)
+				continue;
+
+			const float distance = (client.origin - path->origin).GetLengthSquared();
+			if (distance <= SquaredF(path->radius + 64.0f))
+				return FLT_MAX;
+		}
+	}
+
+	if (isZombie)
+	{
+		if (path->flags & WAYPOINT_DJUMP)
+		{
+			int count = 0;
+			for (const auto& client : g_clients)
+			{
+				if (client.index < 0)
+					continue;
+
+				if (client.ent == nullptr)
+					continue;
+
+				if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != team)
+					continue;
+
+				if ((client.origin - path->origin).GetLengthSquared() <= SquaredF(512.0f + path->radius))
+					count++;
+				else if (IsVisible(path->origin, client.ent))
+					count++;
+			}
+
+			// don't count me
+			if (count <= 1)
+				return FLT_MAX;
 			
 			float baseCost = g_waypoint->GetPathDistance(index, parent);
 			baseCost /= count;
@@ -1323,20 +1323,20 @@ inline const float GF_CostRusher(const int index, const int parent, const int te
 {
 	const Path* path = g_waypoint->GetPath(index);
 	if (path->flags & WAYPOINT_AVOID)
-		return 65355.0f;
+		return FLT_MAX;
 
 	if (isZombie)
 	{
 		if (path->flags & WAYPOINT_HUMANONLY)
-			return 65355.0f;
+			return FLT_MAX;
 	}
 	else
 	{
 		if (path->flags & WAYPOINT_ZOMBIEONLY)
-			return 65355.0f;
+			return FLT_MAX;
 
 		if (path->flags & WAYPOINT_DJUMP)
-			return 65355.0f;
+			return FLT_MAX;
 	}
 
 	if (path->flags & WAYPOINT_ONLYONE)
@@ -1354,19 +1354,19 @@ inline const float GF_CostRusher(const int index, const int parent, const int te
 
 			const float distance = (client.origin - path->origin).GetLengthSquared();
 			if (distance <= SquaredF(path->radius + 64.0f))
-				return 65355.0f;
+				return FLT_MAX;
 		}
 	}
 
 	// rusher bots never wait for boosting
 	if (path->flags & WAYPOINT_DJUMP)
-		return 65355.0f;
+		return FLT_MAX;
 
 	const float baseCost = g_waypoint->GetPathDistance(index, team);
 	if (path->flags & WAYPOINT_CROUCH)
 		return baseCost;
 
-	return engine->RandomFloat(1.0f, baseCost);
+	return 1.0f;
 }
 
 inline const float GF_CostNoHostage(const int index, const int parent, const int team, const float gravity, const bool isZombie)
@@ -1374,35 +1374,35 @@ inline const float GF_CostNoHostage(const int index, const int parent, const int
 	const Path* path = g_waypoint->GetPath(index);
 
 	if (path->flags & WAYPOINT_SPECIFICGRAVITY)
-		return 65355.0f;
+		return FLT_MAX;
 
 	if (path->flags & WAYPOINT_CROUCH)
-		return 65355.0f;
+		return FLT_MAX;
 
 	if (path->flags & WAYPOINT_LADDER)
-		return 65355.0f;
+		return FLT_MAX;
 
 	if (path->flags & WAYPOINT_AVOID)
-		return 65355.0f;
+		return FLT_MAX;
 
 	if (path->flags & WAYPOINT_WAITUNTIL)
-		return 65355.0f;
+		return FLT_MAX;
 
 	if (path->flags & WAYPOINT_JUMP)
-		return 65355.0f;
+		return FLT_MAX;
 
 	if (path->flags & WAYPOINT_DJUMP)
-		return 65355.0f;
+		return FLT_MAX;
 
 	for (int i = 0; i < Const_MaxPathIndex; i++)
 	{
 		const int neighbour = g_waypoint->GetPath(index)->index[i];
 		if (IsValidWaypoint(neighbour) && (path->connectionFlags[neighbour] & PATHFLAG_JUMP || path->connectionFlags[neighbour] & PATHFLAG_DOUBLE))
-			return 65355.0f;
+			return FLT_MAX;
 	}
 
 	if (path->flags & WAYPOINT_AVOID)
-		return 65355.0f;
+		return FLT_MAX;
 
 	float baseCost = g_waypoint->GetPathDistance(index, team);
 	if (g_waypoint->GetPath(index)->flags & WAYPOINT_CROUCH && g_waypoint->GetPath(index)->flags & WAYPOINT_CAMP)
@@ -1411,71 +1411,71 @@ inline const float GF_CostNoHostage(const int index, const int parent, const int
 	return baseCost;
 }
 
-inline const float HF_Distance(int start, int goal)
+inline const float HF_Distance(const int start, const int goal)
 {
 	const Vector startOrigin = g_waypoint->GetPath(start)->origin;
 	const Vector goalOrigin = g_waypoint->GetPath(goal)->origin;
 	return (startOrigin - goalOrigin).GetLengthSquared();
 }
 
-inline const float HF_Distance2D(int start, int goal)
+inline const float HF_Distance2D(const int start, const int goal)
 {
 	const Vector startOrigin = g_waypoint->GetPath(start)->origin;
 	const Vector goalOrigin = g_waypoint->GetPath(goal)->origin;
 	return (startOrigin - goalOrigin).GetLengthSquared2D();
 }
 
-inline const float HF_Chebyshev(int start, int goal)
+inline const float HF_Chebyshev(const int start, const int goal)
 {
 	const Vector startOrigin = g_waypoint->GetPath(start)->origin;
 	const Vector goalOrigin = g_waypoint->GetPath(goal)->origin;
-	return MaxFloat(MaxFloat(fabsf(startOrigin.x - goalOrigin.x), fabsf(startOrigin.y - goalOrigin.y)), fabsf(startOrigin.z - goalOrigin.z));
+	return cmaxf(cmaxf(cabsf(startOrigin.x - goalOrigin.x), cabsf(startOrigin.y - goalOrigin.y)), cabsf(startOrigin.z - goalOrigin.z));
 }
 
-inline const float HF_Chebyshev2D(int start, int goal)
+inline const float HF_Chebyshev2D(const int start, const int goal)
 {
 	const Vector startOrigin = g_waypoint->GetPath(start)->origin;
 	const Vector goalOrigin = g_waypoint->GetPath(goal)->origin;
-	return MaxFloat(fabsf(startOrigin.x - goalOrigin.x), fabsf(startOrigin.y - goalOrigin.y));
+	return cmaxf(cabsf(startOrigin.x - goalOrigin.x), cabsf(startOrigin.y - goalOrigin.y));
 }
 
-inline const float HF_Manhattan(int start, int goal)
+inline const float HF_Manhattan(const int start, const int goal)
 {
 	const Vector startOrigin = g_waypoint->GetPath(start)->origin;
 	const Vector goalOrigin = g_waypoint->GetPath(goal)->origin;
-	return fabsf(startOrigin.x - goalOrigin.x) + fabsf(startOrigin.y - goalOrigin.y) + fabsf(startOrigin.z - goalOrigin.z);
+	return cabsf(startOrigin.x - goalOrigin.x) + cabsf(startOrigin.y - goalOrigin.y) + cabsf(startOrigin.z - goalOrigin.z);
 }
 
-inline const float HF_Manhattan2D(int start, int goal)
+inline const float HF_Manhattan2D(const int start, const int goal)
 {
 	const Vector startOrigin = g_waypoint->GetPath(start)->origin;
 	const Vector goalOrigin = g_waypoint->GetPath(goal)->origin;
-	return fabsf(startOrigin.x - goalOrigin.x) + fabsf(startOrigin.y - goalOrigin.y);
+	return cabsf(startOrigin.x - goalOrigin.x) + cabsf(startOrigin.y - goalOrigin.y);
 }
 
-inline const float HF_Euclidean(int start, int goal)
+inline const float HF_Euclidean(const int start, const int goal)
 {
 	const Vector startOrigin = g_waypoint->GetPath(start)->origin;
 	const Vector goalOrigin = g_waypoint->GetPath(goal)->origin;
 
-	const float x = fabsf(startOrigin.x - goalOrigin.x);
-	const float y = fabsf(startOrigin.y - goalOrigin.y);
-	const float z = fabsf(startOrigin.z - goalOrigin.z);
+	const float x = cabsf(startOrigin.x - goalOrigin.x);
+	const float y = cabsf(startOrigin.y - goalOrigin.y);
+	const float z = cabsf(startOrigin.z - goalOrigin.z);
 
-	const float euclidean = csqrt(powf(x, 2.0f) + powf(y, 2.0f) + powf(z, 2.0f));
-	return 1000.0f * (ceilf(euclidean) - euclidean);
+	const float euclidean = csqrtf(powf(x, 2.0f) + powf(y, 2.0f) + powf(z, 2.0f));
+	return 1000.0f * (cceilf(euclidean) - euclidean);
 }
 
-inline const float HF_Euclidean2D(int start, int goal)
+inline const float HF_Euclidean2D(const int start, const int goal)
 {
 	const Vector startOrigin = g_waypoint->GetPath(start)->origin;
 	const Vector goalOrigin = g_waypoint->GetPath(goal)->origin;
 
-	const float x = fabsf(startOrigin.x - goalOrigin.x);
-	const float y = fabsf(startOrigin.y - goalOrigin.y);
+	const float x = cabsf(startOrigin.x - goalOrigin.x);
+	const float y = cabsf(startOrigin.y - goalOrigin.y);
 
-	const float euclidean = csqrt(powf(x, 2.0f) + powf(y, 2.0f));
-	return 1000.0f * (ceilf(euclidean) - euclidean);
+	const float euclidean = csqrtf(powf(x, 2.0f) + powf(y, 2.0f));
+	return 1000.0f * (cceilf(euclidean) - euclidean);
 }
 
 inline const float GF_CostNav(const NavArea* start, const NavArea* goal, const int index)
@@ -1491,6 +1491,16 @@ inline const float GF_CostNav(const NavArea* start, const NavArea* goal, const i
 inline const float HF_Nav(const NavArea* start, const NavArea* goal)
 {
 	return (g_navmesh->GetCenter(start) - g_navmesh->GetCenter(goal)).GetLengthSquared();
+}
+
+inline const float RandomSeed(const int botindex, const int waypoint)
+{
+	float multiplier = 1.0f;
+	int seed = int(engine->GetTime() * 0.1f) + 1;
+	seed *= botindex;
+	seed *= waypoint;
+	multiplier += (cosf(float(seed)) + 1.0f) * 10.0f;
+	return multiplier;
 }
 
 char* Bot::GetHeuristicName(void)
@@ -1712,8 +1722,8 @@ void Bot::FindPath(int srcIndex, int destIndex)
 		waypoints[i].state = State::New;
 	}
 
-	const float (*gcalc) (int, int, int, float, bool) = nullptr;
-	const float (*hcalc) (int, int) = nullptr;
+	const float (*gcalc) (const int, const int, const int, const float, const bool) = nullptr;
+	const float (*hcalc) (const int, const int) = nullptr;
 
 	if (IsZombieMode() && ebot_zombies_as_path_cost.GetBool() && !m_isZombieBot)
 		gcalc = GF_CostHuman;
@@ -1865,7 +1875,7 @@ void Bot::FindPath(int srcIndex, int destIndex)
 
 			// calculate the F value as F = G + H
 			const float g = currWaypoint->g + gcalc(currentIndex, self, m_team, pev->gravity, m_isZombieBot);
-			const float h = hcalc(self, destIndex);
+			const float h = hcalc(self, destIndex) * RandomSeed(m_index, self);
 			const float f = g + h;
 
 			const auto childWaypoint = &waypoints[self];
@@ -3545,8 +3555,7 @@ void Bot::FacePosition(void)
 	}
 	else
 	{
-		const float accel = Clamp((stiffness * angleDiffYaw) - (damping * m_lookYawVel), -accelerate, accelerate);
-
+		const float accel = cclampf((stiffness * angleDiffYaw) - (damping * m_lookYawVel), -accelerate, accelerate);
 		m_lookYawVel += delta * accel;
 		m_idealAngles.y += delta * m_lookYawVel;
 	}
@@ -3558,8 +3567,7 @@ void Bot::FacePosition(void)
 	}
 	else
 	{
-		const float accel = Clamp(stiffness * angleDiffPitch - (damping * m_lookPitchVel), -accelerate, accelerate);
-
+		const float accel = cclampf(stiffness * angleDiffPitch - (damping * m_lookPitchVel), -accelerate, accelerate);
 		m_lookPitchVel += delta * accel;
 		m_idealAngles.x += delta * m_lookPitchVel;
 	}
@@ -3699,7 +3707,7 @@ bool Bot::IsWaypointOccupied(int index, bool needZeroVelocity)
 
 		const auto path = g_waypoint->GetPath(index);
 		const float length = (client.origin - path->origin).GetLengthSquared();
-		if (length < Clamp(SquaredF(path->radius) * 2.0f, SquaredF(40.0f), SquaredF(90.0f)))
+		if (length < cclampf(SquaredF(path->radius) * 2.0f, SquaredF(40.0f), SquaredF(90.0f)))
 			return true;
 
 		auto bot = g_botManager->GetBot(client.index);
