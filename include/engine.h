@@ -248,7 +248,7 @@ public:
 
     inline float Length(void) const
     {
-        return csqrt(x * x + y * y);
+        return csqrtf(x * x + y * y);
     }
 
     inline Vector2D Normalize(void) const

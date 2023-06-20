@@ -1556,7 +1556,7 @@ public:
 	void CreateAreaAuto(const Vector start, const Vector goal);
 	void DeleteArea(NavArea* area);
 	void ConnectArea(NavArea* start, NavArea* end);
-	void DisconnectArea(NavArea* start, NavArea* end);
+	void DisconnectArea(NavArea* start, const NavArea* end);
 	void OptimizeNavMesh(void);
 
 	NavArea* GetNavArea(int id);

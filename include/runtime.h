@@ -219,7 +219,7 @@ namespace Math
     //
     inline bool FltZero(float entry)
     {
-        return fabsf(entry) < MATH_ONEPSILON;
+        return cabsf(entry) < MATH_ONEPSILON;
     }
 
     //
@@ -242,7 +242,7 @@ namespace Math
     //
     inline bool FltEqual(float entry1, float entry2)
     {
-        return fabsf(entry1 - entry2) < MATH_EQEPSILON;
+        return cabsf(entry1 - entry2) < MATH_EQEPSILON;
     }
 
     //
@@ -554,7 +554,7 @@ public:
     //
     inline float GetLength(void) const
     {
-        return csqrt(x * x + y * y + z * z);
+        return csqrtf(x * x + y * y + z * z);
     }
 
     //
@@ -570,7 +570,7 @@ public:
     //
     inline float GetLength2D(void) const
     {
-        return csqrt(x * x + y * y);
+        return csqrtf(x * x + y * y);
     }
 
     //
@@ -628,7 +628,7 @@ public:
     //
     inline Vector Normalize(void) const
     {
-        const float length = crsqrt(x * x + y * y + z * z);
+        const float length = crsqrtf(x * x + y * y + z * z);
         return Vector(x * length, y * length, z * length);
     }
 
@@ -642,7 +642,7 @@ public:
     //
     inline Vector Normalize2D(void) const
     {
-        const float length = crsqrt(x * x + y * y);
+        const float length = crsqrtf(x * x + y * y);
         return Vector(x * length, y * length, 0.0f);
     }
 
@@ -2049,7 +2049,7 @@ public:
     //
     void ReleaseBuffer(void)
     {
-        ReleaseBuffer(strlen(m_bufferPtr));
+        ReleaseBuffer(cstrlen(m_bufferPtr));
     }
 
     //
@@ -2112,10 +2112,10 @@ public:
     //
     void Append(const char* bufferPtr)
     {
-        UpdateBufferSize(m_stringLength + strlen(bufferPtr) + 1);
+        UpdateBufferSize(m_stringLength + cstrlen(bufferPtr) + 1);
         strcat(m_bufferPtr, bufferPtr);
 
-        m_stringLength = strlen(m_bufferPtr);
+        m_stringLength = cstrlen(m_bufferPtr);
     }
 
     //
@@ -2143,10 +2143,10 @@ public:
     void Append(const String& inputString)
     {
         const char* bufferPtr = inputString.GetBuffer();
-        UpdateBufferSize(m_stringLength + strlen(bufferPtr));
+        UpdateBufferSize(m_stringLength + cstrlen(bufferPtr));
 
         strcat(m_bufferPtr, bufferPtr);
-        m_stringLength = strlen(m_bufferPtr);
+        m_stringLength = cstrlen(m_bufferPtr);
     }
 
     //
@@ -2209,12 +2209,12 @@ public:
             return;
         }
 
-        UpdateBufferSize(strlen(bufferPtr));
+        UpdateBufferSize(cstrlen(bufferPtr));
 
         if (m_bufferPtr != nullptr)
         {
             strcpy(m_bufferPtr, bufferPtr);
-            m_stringLength = strlen(m_bufferPtr);
+            m_stringLength = cstrlen(m_bufferPtr);
         }
         else
             m_stringLength = 0;
