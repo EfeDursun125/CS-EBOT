@@ -1478,7 +1478,7 @@ void Bot::CombatFight(void)
 		if (m_isReloading)
 		{
 			m_moveSpeed = -pev->maxspeed;
-			m_duckTime = engine->GetTime() - 2.0f;
+			m_duckTime = 0.0f;
 		}
 
 		if (!IsInWater() && !IsOnLadder() && (m_moveSpeed > 0.0f || m_strafeSpeed >= 0.0f))

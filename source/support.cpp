@@ -1290,7 +1290,7 @@ bool IsValidPlayer(edict_t* ent)
 	if (FNullEnt(ent))
 		return false;
 
-	if ((ent->v.flags & (FL_CLIENT | FL_FAKECLIENT)) || (strcmp(STRING(ent->v.classname), "player") == 0))
+	if (ent->v.flags & (FL_CLIENT | FL_FAKECLIENT))
 		return true;
 
 	return false;

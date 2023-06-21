@@ -529,8 +529,8 @@ void BotControl::MaintainBotQuota(void)
 	g_botManager->CheckBotNum();
 	if (m_maintainTime < engine->GetTime())
 	{
-		int botNumber = GetBotsNum();
-		int maxClients = engine->GetMaxClients();
+		const int botNumber = GetBotsNum();
+		const int maxClients = engine->GetMaxClients();
 		int desiredBotCount = ebot_quota.GetInt();
 
 		if (ebot_autovacate.GetBool())
@@ -573,7 +573,7 @@ void BotControl::InitQuota(void)
 void BotControl::FillServer(int selection, int personality, int skill, int numToAdd)
 {
 	// always keep one slot
-	int maxClients = ebot_autovacate.GetBool() ? engine->GetMaxClients() - 1 - (IsDedicatedServer() ? 0 : GetHumansNum()) : engine->GetMaxClients();
+	const int maxClients = ebot_autovacate.GetBool() ? engine->GetMaxClients() - 1 - (IsDedicatedServer() ? 0 : GetHumansNum()) : engine->GetMaxClients();
 
 	if (GetBotsNum() >= maxClients - GetHumansNum())
 		return;
@@ -596,7 +596,7 @@ void BotControl::FillServer(int selection, int personality, int skill, int numTo
 	   {"Random"},
 	};
 
-	int toAdd = numToAdd == -1 ? maxClients - (GetHumansNum() + GetBotsNum()) : numToAdd;
+	const int toAdd = numToAdd == -1 ? maxClients - (GetHumansNum() + GetBotsNum()) : numToAdd;
 
 	for (int i = 0; i <= toAdd; i++)
 	{
@@ -913,8 +913,8 @@ void BotControl::CheckTeamEconomics(int team)
 	if (numTeamPlayers <= 1)
 		return;
 
-	// if 80 percent of team have no enough money to purchase primary weapon
-	if ((numTeamPlayers * 80) * 0.01 <= numPoorPlayers)
+	// if 75 percent of team have no enough money to purchase primary weapon
+	if (float(numTeamPlayers * 75) * 0.01f <= float(numPoorPlayers))
 		m_economicsGood[team] = false;
 
 	// winner must buy something!
@@ -977,19 +977,6 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 		sprintf(c_bottomcolor, "%d", CRandomInt(1, 254));
 		SET_CLIENT_KEYVALUE(clientIndex, buffer, "topcolor", c_topcolor);
 		SET_CLIENT_KEYVALUE(clientIndex, buffer, "bottomcolor", c_bottomcolor);
-	}
-	else
-	{
-		SET_CLIENT_KEYVALUE(clientIndex, buffer, "rate", "25000.000000");
-		SET_CLIENT_KEYVALUE(clientIndex, buffer, "cl_updaterate", "66");
-		SET_CLIENT_KEYVALUE(clientIndex, buffer, "cl_lw", "1");
-		SET_CLIENT_KEYVALUE(clientIndex, buffer, "cl_lc", "1");
-		SET_CLIENT_KEYVALUE(clientIndex, buffer, "tracker", "0");
-		SET_CLIENT_KEYVALUE(clientIndex, buffer, "cl_dlmax", "512");
-		SET_CLIENT_KEYVALUE(clientIndex, buffer, "lefthand", "1");
-		SET_CLIENT_KEYVALUE(clientIndex, buffer, "friends", "0");
-		SET_CLIENT_KEYVALUE(clientIndex, buffer, "dm", "0");
-		SET_CLIENT_KEYVALUE(clientIndex, buffer, "ah", "1");
 	}
 
 	if (g_gameVersion != CSVER_VERYOLD && !ebot_ping.GetBool())
@@ -1074,8 +1061,8 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	m_wantedTeam = team;
 	m_wantedClass = member;
 
-	stay_time = 60.0f * RANDOM_FLOAT(30.0f, 160.0f);
-	m_connectTime = engine->GetTime() - stay_time * RANDOM_FLOAT(0.2f, 0.8f);
+	stay_time = 60.0f * engine->RandomFloat(30.0f, 160.0f);
+	m_connectTime = engine->GetTime() - stay_time * engine->RandomFloat(0.2f, 0.8f);
 
 	NewRound();
 }
@@ -1225,6 +1212,7 @@ void Bot::NewRound(void)
 	m_blindButton = 0;
 	m_blindTime = 0.0f;
 	m_jumpTime = 0.0f;
+	m_duckTime = 0.0f;
 	m_isStuck = false;
 	m_jumpFinished = false;
 

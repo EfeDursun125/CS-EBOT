@@ -3878,18 +3878,14 @@ void Bot::BaseUpdate(void)
 		StartGame(); // select team & class
 	else if (!m_isAlive)
 	{
-		if (g_gameVersion == HALFLIFE && !(pev->oldbuttons & IN_ATTACK))
-			pev->button |= IN_ATTACK;
-
-		extern ConVar ebot_chat;
 		extern ConVar ebot_random_join_quit;
-
 		if (ebot_random_join_quit.GetBool() && m_stayTime > 0.0f && m_stayTime < engine->GetTime())
 		{
 			Kick();
 			return;
 		}
 
+		extern ConVar ebot_chat;
 		if (ebot_chat.GetBool() && !RepliesToPlayer() && m_lastChatTime + 10.0f < engine->GetTime() && g_lastChatTime + 5.0f < engine->GetTime()) // bot chatting turned on?
 		{
 			m_lastChatTime = engine->GetTime();
@@ -3921,6 +3917,11 @@ void Bot::BaseUpdate(void)
 					m_sayTextBuffer.lastUsedSentences.RemoveAll();
 			}
 		}
+
+		if (g_gameVersion == HALFLIFE && !(pev->oldbuttons & IN_ATTACK))
+			pev->button |= IN_ATTACK;
+
+		m_aimInterval = engine->GetTime();
 	}
 	else
 	{
@@ -3947,20 +3948,19 @@ void Bot::BaseUpdate(void)
 			if (m_buyingFinished && !ebot_stopbots.GetBool())
 				botMovement = true;
 		}
+
+		if (botMovement)
+		{
+			UpdateProcess();
+			MoveAction();
+			FacePosition();
+			DebugModeMsg();
+		}
+		else
+			m_aimInterval = engine->GetTime();
 	}
 
 	CheckMessageQueue(); // check for pending messages
-
-	if (botMovement && m_isAlive)
-	{
-		UpdateProcess(); // update process can override update looking
-		MoveAction();
-		FacePosition();
-		DebugModeMsg();
-	}
-	else
-		m_aimInterval = engine->GetTime();
-
 	m_frameInterval = 0.03333333333f;
 }
 
@@ -4041,25 +4041,10 @@ void Bot::UpdateLooking(void)
 {
 	if (m_hasEnemiesNear || m_hasEntitiesNear)
 	{
-		if (m_isZombieBot)
-		{
-			if (m_enemyDistance <= SquaredF(128.0f))
-			{
-				m_lookAt = m_enemyOrigin;
-				if (CRandomInt(1, 3) == 1)
-					pev->button |= IN_ATTACK;
-				else
-					pev->button |= IN_ATTACK2;
-				return;
-			}
-		}
-		else
-		{
-			LookAtEnemies();
-			CheckReload();
-			FireWeapon();
-			return;
-		}
+		LookAtEnemies();
+		CheckReload();
+		FireWeapon();
+		return;
 	}
 	else
 	{
@@ -4210,12 +4195,10 @@ void Bot::LookAtAround(void)
 		}
 	}
 
-	Vector bestLookPos;
 	Vector selectRandom;
-
 	if (m_searchTime < engine->GetTime())
 	{
-		bestLookPos = EyePosition();
+		Vector bestLookPos = EyePosition();
 
 		bestLookPos.x += engine->RandomFloat(-1024.0f, 1024.0f);
 		bestLookPos.y += engine->RandomFloat(-1024.0f, 1024.0f);
@@ -4589,6 +4572,9 @@ void Bot::MoveAction(void)
 			pev->button |= IN_MOVERIGHT;
 		else if (m_strafeSpeed < 0.0f)
 			pev->button |= IN_MOVELEFT;
+
+		if (m_duckTime > time)
+			pev->button |= IN_DUCK;
 	}
 }
 
@@ -7048,7 +7034,7 @@ void Bot::BotAI(void)
 		if (!FNullEnt(m_avoid) && m_isStuck && IsValidWaypoint(m_currentWaypointIndex) && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_ONLYONE)
 			FindPath(m_currentWaypointIndex, FindWaypoint(false));
 
-		float minSpeed = pev->flags & FL_DUCKING ? 4.0f : 10.0f;
+		const float minSpeed = pev->flags & FL_DUCKING ? 4.0f : 10.0f;
 		if ((m_moveSpeed < -minSpeed || m_moveSpeed > minSpeed || m_strafeSpeed > minSpeed || m_strafeSpeed < -minSpeed) && m_lastCollTime < engine->GetTime())
 		{
 			if (m_damageTime >= engine->GetTime())
@@ -7070,7 +7056,7 @@ void Bot::BotAI(void)
 				else
 				{
 					// test if there's something ahead blocking the way
-					if (!IsOnLadder() && CantMoveForward(directionNormal, &tr))
+					if (!IsOnLadder() && CantMoveForward(directionNormal))
 					{
 						if (m_firstCollideTime == 0.0f)
 							m_firstCollideTime = engine->GetTime() + 0.5f;
@@ -7549,7 +7535,6 @@ void Bot::ResetDoubleJumpState(void)
 Vector Bot::CheckToss(const Vector& start, Vector end)
 {
 	TraceResult tr;
-	float gravity = engine->GetGravity() * 0.54f;
 
 	end = end - pev->velocity;
 	end.z -= 15.0f;
@@ -7570,6 +7555,7 @@ Vector Bot::CheckToss(const Vector& start, Vector end)
 	if ((midPoint.z < start.z) || (midPoint.z < end.z))
 		return nullvec;
 
+	const float gravity = engine->GetGravity() * 0.5f;
 	const float half = 0.5f * gravity;
 	const float timeOne = csqrtf((midPoint.z - start.z) / half);
 	const float timeTwo = csqrtf((midPoint.z - end.z) / half);
@@ -7592,8 +7578,7 @@ Vector Bot::CheckToss(const Vector& start, Vector end)
 
 	if (tr.flFraction != 1.0f)
 	{
-		float dot = -(tr.vecPlaneNormal | (apex - end).Normalize());
-
+		const float dot = -(tr.vecPlaneNormal | (apex - end).Normalize());
 		if (dot > 0.7f || tr.flFraction < 0.8f) // 60 degrees
 			return nullvec;
 	}
@@ -7606,15 +7591,14 @@ Vector Bot::CheckThrow(const Vector& start, Vector end)
 {
 	Vector nadeVelocity = (end - start);
 	TraceResult tr;
-
-	float gravity = engine->GetGravity() * 0.55f;
+	
 	float time = nadeVelocity.GetLengthSquared() / SquaredF(196.0f);
-
 	if (time < 0.01f)
 		return nullvec;
 	else if (time > 2.0f)
 		time = 1.2f;
 
+	const float gravity = engine->GetGravity() * 0.5f;
 	nadeVelocity = nadeVelocity * (1.0f / time);
 	nadeVelocity.z += gravity * time * 0.5f;
 
@@ -7630,8 +7614,7 @@ Vector Bot::CheckThrow(const Vector& start, Vector end)
 
 	if (tr.flFraction != 1.0f || tr.fAllSolid)
 	{
-		float dot = -(tr.vecPlaneNormal | (apex - end).Normalize());
-
+		const float dot = -(tr.vecPlaneNormal | (apex - end).Normalize());
 		if (dot > 0.7f || tr.flFraction < 0.8f)
 			return nullvec;
 	}
@@ -7694,17 +7677,8 @@ void Bot::RunPlayerMovement(void)
 	// elapses, that bot will behave like a ghost : no movement, but bullets and players can
 	// pass through it. Then, when the next frame will begin, the stucking problem will arise !
 
-	int iNewMsec = int((engine->GetTime() - m_msecInterval) * 1000);
-	if (iNewMsec > 255)
-		iNewMsec = 255;
-
-	byte adjustedMSec = byte(iNewMsec - int(m_frameInterval));
-
+	const byte adjustedMSec = static_cast <byte>(cminf(250.0f, (engine->GetTime() - m_msecInterval) * 1000.0f));
 	m_msecInterval = engine->GetTime();
-
-	if (pev->flags & FL_FROZEN)
-		adjustedMSec = 0;
-
 	PLAYER_RUN_MOVE(pev->pContainingEntity, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, static_cast <unsigned short> (pev->button), pev->impulse, adjustedMSec);
 }
 
@@ -7961,8 +7935,8 @@ void Bot::ReactOnSound(void)
 		if (client.ent->v.flags & FL_DUCKING)
 			continue;
 
-		float distance = (client.soundPosition - pev->origin).GetLengthSquared();
-		float hearingDistance = client.hearingDistance;
+		const float distance = (client.soundPosition - pev->origin).GetLengthSquared();
+		const float hearingDistance = client.hearingDistance;
 
 		if (distance > SquaredF(hearingDistance) || hearingDistance >= 2048.0f || distance > SquaredF(m_maxhearrange))
 			continue;
@@ -8092,7 +8066,7 @@ bool Bot::IsBombDefusing(Vector bombOrigin)
 
 		Bot* bot = g_botManager->GetBot(client.index);
 
-		float bombDistance = (client.origin - bombOrigin).GetLengthSquared();
+		const float bombDistance = (client.origin - bombOrigin).GetLengthSquared();
 		if (bot != nullptr)
 		{
 			if (m_team != bot->m_team || bot->GetCurrentTask()->taskID == TASK_ESCAPEFROMBOMB || bot->GetCurrentTask()->taskID == TASK_CAMP || bot->GetCurrentTask()->taskID == TASK_SEEKCOVER)
@@ -8132,10 +8106,13 @@ void Bot::DefaultStart(void)
 
 void Bot::DefaultUpdate(void)
 {
-	UpdateLooking();
-
 	if (m_isZombieBot)
 	{
+		if (m_isSlowThink)
+			FindEnemyEntities();
+		else
+			FindFriendsAndEnemiens();
+
 		// nearest enemy never resets to nullptr, so bot always know where are humans
 		if (!FNullEnt(m_nearestEnemy) && GetTeam(m_nearestEnemy) != m_team)
 		{
@@ -8144,6 +8121,12 @@ void Bot::DefaultUpdate(void)
 				m_currentWaypointIndex = -1;
 				DeleteSearchNodes();
 				MoveTo(m_enemyOrigin);
+				m_lookAt = m_enemyOrigin;
+				if (CRandomInt(1, 3) == 1)
+					pev->button |= IN_ATTACK2;
+				else
+					pev->button |= IN_ATTACK;
+				return;
 			}
 			else
 				FollowPath(m_enemyOrigin);
@@ -8152,11 +8135,6 @@ void Bot::DefaultUpdate(void)
 			FindGoal();
 		else
 			FollowPath(m_chosenGoalIndex);
-
-		if (m_isSlowThink)
-			FindEnemyEntities();
-		else
-			FindFriendsAndEnemiens();
 	}
 	else
 	{
@@ -8212,6 +8190,8 @@ void Bot::DefaultUpdate(void)
 			FollowPath(m_chosenGoalIndex);
 		}
 	}
+
+	UpdateLooking();
 }
 
 void Bot::DefaultEnd(void)
@@ -8433,7 +8413,7 @@ void Bot::AttackUpdate(void)
 	if (m_isReloading)
 	{
 		m_moveSpeed = -pev->maxspeed;
-		m_duckTime = engine->GetTime() - 2.0f;
+		m_duckTime = 0.0f;
 	}
 
 	if (!IsInWater() && !IsOnLadder() && (m_moveSpeed > 0.0f || m_strafeSpeed >= 0.0f))

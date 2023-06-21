@@ -26,6 +26,7 @@
 
 ConVar ebot_zombies_as_path_cost("ebot_zombie_count_as_path_cost", "1");
 ConVar ebot_aim_type("ebot_aim_type", "1");
+ConVar ebot_avoid_friends("ebot_avoid_friends", "1");
 ConVar ebot_path_smoothing("ebot_path_smoothing", "0");
 
 int Bot::FindGoal(void)
@@ -2070,6 +2071,10 @@ void Bot::DeleteSearchNodes(void)
 
 void Bot::CheckTouchEntity(edict_t* entity)
 {
+	// double check
+	if (FNullEnt(entity))
+		return;
+
 	// If we won't be able to break it, don't try
 	if (entity->v.takedamage != DAMAGE_YES)
 	{
@@ -2157,6 +2162,9 @@ void Bot::CheckTouchEntity(edict_t* entity)
 					continue;
 
 				if (!enemy->m_isAlive)
+					continue;
+
+				if (enemy->m_isZombieBot)
 					continue;
 
 				TraceResult tr3;
@@ -2303,7 +2311,7 @@ int Bot::FindWaypoint(bool skipLag)
 		}
 
 		// if we're still here, find some close nodes
-		float distance = (pev->origin - g_waypoint->GetPath(at)->origin).GetLengthSquared();
+		const float distance = (pev->origin - g_waypoint->GetPath(at)->origin).GetLengthSquared();
 
 		if (distance < lessDist[0])
 		{
@@ -2374,28 +2382,89 @@ void Bot::ResetStuck(void)
 
 void Bot::CheckStuck(void)
 {
-	if (m_hasFriendsNear && pev->solid != SOLID_NOT)
+	if (m_hasFriendsNear && ebot_avoid_friends.GetBool())
 	{
-		if (((pev->origin + pev->velocity * m_frameInterval) - (m_friendOrigin + m_nearestFriend->v.velocity * m_frameInterval)).GetLengthSquared() <= SquaredF(m_nearestFriend->v.maxspeed * 0.33f))
+		const Vector myOrigin = pev->origin + pev->velocity * m_frameInterval;
+		const Vector friendOrigin = m_friendOrigin + m_nearestFriend->v.velocity * m_frameInterval;
+		if ((myOrigin - friendOrigin).GetLengthSquared() <= SquaredF(m_nearestFriend->v.maxspeed * 0.33f))
 		{
 			// use our movement angles, try to predict where we should be next frame
 			Vector right, forward;
 			m_moveAngles.BuildVectors(&forward, &right, nullptr);
 
-			const auto dir = (pev->origin - m_friendOrigin).Normalize2D();
+			const Vector dir = (myOrigin - friendOrigin).Normalize2D();
+			bool moveBack = false;
 
 			// to start strafing, we have to first figure out if the target is on the left side or right side
 			if ((dir | right.Normalize2D()) > 0.0f)
-				m_strafeSpeed = pev->maxspeed;
+			{
+				if (!CheckWallOnRight())
+					m_strafeSpeed = pev->maxspeed;
+				else
+					moveBack = true;
+			}
 			else
-				m_strafeSpeed = -pev->maxspeed;
+			{
+				if (!CheckWallOnLeft())
+					m_strafeSpeed = -pev->maxspeed;
+				else
+					moveBack = true;
+			}
 
-			if (m_stuckWarn >= 10)
+			bool doorStuck = false;
+			if (moveBack || m_stuckWarn >= 10)
 			{
 				if ((dir | forward.Normalize2D()) < 0.0f)
-					m_moveSpeed = -pev->maxspeed;
+				{
+					if (CheckWallOnBehind())
+					{
+						m_moveSpeed = pev->maxspeed;
+						doorStuck = true;
+					}
+					else
+						m_moveSpeed = -pev->maxspeed;
+				}
 				else
-					m_moveSpeed = pev->maxspeed;
+				{
+					if (CheckWallOnForward())
+					{
+						m_moveSpeed = -pev->maxspeed;
+						doorStuck = true;
+					}
+					else
+						m_moveSpeed = pev->maxspeed;
+				}
+			}
+
+			if (IsOnFloor() && m_stuckWarn >= 5)
+			{
+				if (!(m_nearestFriend->v.button & IN_JUMP) && !(m_nearestFriend->v.oldbuttons & IN_JUMP) && ((m_nearestFriend->v.button & IN_DUCK && m_nearestFriend->v.oldbuttons & IN_DUCK) || CanJumpUp(pev->velocity.SkipZ()) || CanJumpUp(dir)))
+				{
+					if (m_jumpTime + 1.0f < engine->GetTime())
+						pev->button |= IN_JUMP;
+				}
+				else if (!(m_nearestFriend->v.button & IN_DUCK) && !(m_nearestFriend->v.oldbuttons & IN_DUCK))
+				{
+					if (m_duckTime < engine->GetTime())
+						m_duckTime = engine->GetTime() + engine->RandomFloat(1.0f, 2.0f);
+				}
+			}
+			
+			if (doorStuck && m_stuckWarn >= 10) // ENOUGH!
+			{
+				extern ConVar ebot_ignore_enemies;
+				if (!ebot_ignore_enemies.GetBool())
+				{
+					const bool friendlyFire = engine->IsFriendlyFireOn();
+					if ((!friendlyFire && m_currentWeapon == WEAPON_KNIFE) || (friendlyFire && IsValidPlayer(m_nearestFriend))) // DOOR STUCK! || DIE HUMAN!
+					{
+						m_lookAt = friendOrigin + (m_nearestFriend->v.view_ofs * 0.9f);
+						if (!(pev->button & IN_ATTACK) && !(pev->oldbuttons & IN_ATTACK))
+							pev->button |= IN_ATTACK;
+					}
+					else
+						SelectWeaponByName("weapon_knife");
+				}
 			}
 		}
 	}
@@ -2954,13 +3023,15 @@ bool Bot::HeadTowardWaypoint(void)
 }
 
 // checks if bot is blocked in his movement direction (excluding doors)
-bool Bot::CantMoveForward(Vector normal, TraceResult* tr)
+bool Bot::CantMoveForward(const Vector normal)
 {
 	// first do a trace from the bot's eyes forward...
 	Vector src = EyePosition();
 	Vector forward = src + normal * 24.0f;
 
 	MakeVectors(Vector(0.0f, pev->angles.y, 0.0f));
+
+	TraceResult* tr;
 
 	// trace from the bot's eyes straight forward...
 	TraceLine(src, forward, true, GetEntity(), tr);
@@ -3044,7 +3115,7 @@ bool Bot::CantMoveForward(Vector normal, TraceResult* tr)
 	return false;  // bot can move forward, return false
 }
 
-bool Bot::CanJumpUp(Vector normal)
+bool Bot::CanJumpUp(const Vector normal)
 {
 	// this function check if bot can jump over some obstacle
 
@@ -3184,6 +3255,36 @@ CheckDuckJump:
 	return tr.flFraction > 1.0f;
 }
 
+bool Bot::CheckWallOnForward(void)
+{
+	TraceResult tr;
+	MakeVectors(pev->angles);
+
+	// do a trace to the forward...
+	TraceLine(pev->origin, pev->origin + g_pGlobals->v_forward * 54.0f, false, false, GetEntity(), &tr);
+
+	// check if the trace hit something...
+	if (tr.flFraction != 1.0f)
+	{
+		m_lastWallOrigin = tr.vecEndPos;
+		return true;
+	}
+	else
+	{
+		TraceResult tr2;
+		TraceLine(tr.vecEndPos, tr.vecEndPos - g_pGlobals->v_up * 54.0f, false, false, GetEntity(), &tr2);
+
+		// we don't want fall
+		if (tr2.flFraction == 1.0f)
+		{
+			m_lastWallOrigin = pev->origin;
+			return true;
+		}
+	}
+
+	return false;
+}
+
 bool Bot::CheckWallOnBehind(void)
 {
 	TraceResult tr;
@@ -3195,7 +3296,7 @@ bool Bot::CheckWallOnBehind(void)
 	// check if the trace hit something...
 	if (tr.flFraction != 1.0f)
 	{
-		m_lastWallOrigin = tr.flFraction;
+		m_lastWallOrigin = tr.vecEndPos;
 		return true;
 	}
 	else
@@ -3225,7 +3326,7 @@ bool Bot::CheckWallOnLeft(void)
 	// check if the trace hit something...
 	if (tr.flFraction != 1.0f)
 	{
-		m_lastWallOrigin = tr.flFraction;
+		m_lastWallOrigin = tr.vecEndPos;
 		return true;
 	}
 	else
@@ -3255,7 +3356,7 @@ bool Bot::CheckWallOnRight(void)
 	// check if the trace hit something...
 	if (tr.flFraction != 1.0f)
 	{
-		m_lastWallOrigin = tr.flFraction;
+		m_lastWallOrigin = tr.vecEndPos;
 		return true;
 	}
 	else
