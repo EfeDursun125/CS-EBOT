@@ -860,8 +860,8 @@ private:
 	void PerformWeaponPurchase(void);
 	int BuyWeaponMode(int weaponId);
 
-	bool CanJumpUp(Vector normal);
-	bool CantMoveForward(Vector normal, TraceResult* tr);
+	bool CanJumpUp(const Vector normal);
+	bool CantMoveForward(const Vector normal);
 
 	void CheckMessageQueue(void);
 	void CheckRadioCommands(void);
@@ -876,6 +876,7 @@ private:
 	void ZmCampPointAction(int mode = 0);
 
 	void CheckSilencer(void);
+	bool CheckWallOnForward(void);
 	bool CheckWallOnBehind(void);
 	bool CheckWallOnLeft(void);
 	bool CheckWallOnRight(void);
