@@ -912,13 +912,13 @@ private:
 	bool HasNextPath(void);
 	float InFieldOfView(const Vector& dest);
 
-	bool IsBombDefusing(Vector bombOrigin);
+	bool IsBombDefusing(const Vector bombOrigin);
 	bool IsWaypointOccupied(int index, bool needZeroVelocity = false);
 
 	bool IsNotAttackLab(edict_t* entity);
 
 	inline bool IsOnLadder(void) { return pev->movetype == MOVETYPE_FLY; }
-	inline bool IsOnFloor(void) { return (pev->flags & (FL_ONGROUND | FL_PARTIALGROUND)) != 0; }
+	inline bool IsOnFloor(void) { return !!(pev->flags & (FL_ONGROUND | FL_PARTIALGROUND)); }
 	inline bool IsInWater(void) { return pev->waterlevel >= 2; }
 
 	float GetWalkSpeed(void);
@@ -1159,6 +1159,7 @@ public:
 
 	float m_searchTime;
 	float m_pauseTime;
+	float m_walkTime;
 
 	int m_heuristic;
 	bool m_2dH;
@@ -1195,11 +1196,14 @@ public:
 	bool IsEnemyViewable(edict_t* player);
 	bool AllowPickupItem(void);
 
-	void CheckStuck(void);
+	void CheckStuck(const float maxSpeed);
 	void ResetStuck(void);
 	void FindItem(void);
 
 	bool IsAttacking(const edict_t* player);
+
+	void SetWalkTime(const float time);
+	float GetMaxSpeed(void);
 
 	// GOAP
 	void DefaultStart(void);
