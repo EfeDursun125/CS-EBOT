@@ -8135,9 +8135,13 @@ void Bot::DefaultUpdate(void)
 			FindGoal();
 		else
 			FollowPath(m_chosenGoalIndex);
+
+		UpdateLooking();
 	}
 	else
 	{
+		UpdateLooking();
+
 		if (m_isSlowThink)
 		{
 			// revert the zoom to normal
@@ -8160,11 +8164,12 @@ void Bot::DefaultUpdate(void)
 		
 		if (IsZombieMode())
 		{
-			if (m_enemyDistance <= SquaredF(256.0f))
+			if (m_hasEnemiesNear && m_enemyDistance <= SquaredF(300.0f))
 			{
 				m_currentWaypointIndex = -1;
 				DeleteSearchNodes();
 				MoveOut(m_enemyOrigin);
+				return;
 			}
 			else if (!GoalIsValid())
 				FindGoal();
@@ -8190,8 +8195,6 @@ void Bot::DefaultUpdate(void)
 			FollowPath(m_chosenGoalIndex);
 		}
 	}
-
-	UpdateLooking();
 }
 
 void Bot::DefaultEnd(void)
