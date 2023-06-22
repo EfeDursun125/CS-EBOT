@@ -8116,7 +8116,7 @@ void Bot::DefaultUpdate(void)
 		// nearest enemy never resets to nullptr, so bot always know where are humans
 		if (!FNullEnt(m_nearestEnemy) && GetTeam(m_nearestEnemy) != m_team)
 		{
-			if (m_enemyDistance <= SquaredF(192.0f))
+			if (m_hasEnemiesNear && m_enemyDistance <= SquaredF(192.0f))
 			{
 				m_currentWaypointIndex = -1;
 				DeleteSearchNodes();
@@ -8129,7 +8129,7 @@ void Bot::DefaultUpdate(void)
 				return;
 			}
 			else
-				FollowPath(m_enemyOrigin);
+				FollowPath(m_nearestEnemy->v.origin);
 		}
 		else if (!GoalIsValid())
 			FindGoal();
