@@ -673,13 +673,13 @@ bool Bot::AllowPickupItem(void)
 	return true;
 }
 
-bool Bot::FindItem(void)
+void Bot::FindItem(void)
 {
 	if (!AllowPickupItem())
 	{
 		m_pickupItem = nullptr;
 		m_pickupType = PICKTYPE_NONE;
-		return false;
+		return;
 	}
 
 	edict_t* ent = nullptr;
@@ -688,11 +688,11 @@ bool Bot::FindItem(void)
 	{
 		while (!FNullEnt(ent = FIND_ENTITY_IN_SPHERE(ent, pev->origin, 512.0f)))
 		{
-			if (ent != m_pickupItem || (ent->v.effects & EF_NODRAW) || IsValidPlayer(ent->v.owner))
+			if (ent != m_pickupItem || ent->v.effects & EF_NODRAW || IsValidPlayer(ent->v.owner))
 				continue; // someone owns this weapon or it hasn't re spawned yet
 
 			if (ItemIsVisible(GetEntityOrigin(ent), const_cast <char*> (STRING(ent->v.classname))))
-				return true;
+				return;
 
 			break;
 		}
@@ -719,7 +719,7 @@ bool Bot::FindItem(void)
 		else if (pev->health < pev->max_health && strncmp("func_healthcharger", STRING(ent->v.classname), 18) == 0 && ent->v.frame == 0)
 		{
 			const auto origin = GetEntityOrigin(ent);
-			if ((pev->origin - origin).GetLengthSquared() <= SquaredF(100.0f))
+			if ((pev->origin - origin).GetLengthSquared() <= SquaredF(128.0f))
 			{
 				if (g_gameVersion == CSVER_XASH)
 					pev->button |= IN_USE;
@@ -740,7 +740,7 @@ bool Bot::FindItem(void)
 		else if (pev->armorvalue < 100 && strncmp("func_recharge", STRING(ent->v.classname), 13) == 0 && ent->v.frame == 0)
 		{
 			const auto origin = GetEntityOrigin(ent);
-			if ((pev->origin - origin).GetLengthSquared() <= SquaredF(100.0f))
+			if ((pev->origin - origin).GetLengthSquared() <= SquaredF(128.0f))
 			{
 				if (g_gameVersion == CSVER_XASH)
 					pev->button |= IN_USE;
@@ -807,9 +807,6 @@ bool Bot::FindItem(void)
 			}
 		}
 
-		if (m_isZombieBot && pickupType != PICKTYPE_GETENTITY)
-			continue;
-
 		if (pickupType == PICKTYPE_NONE)
 			continue;
 
@@ -823,7 +820,7 @@ bool Bot::FindItem(void)
 			if (strncmp("grenade", STRING(ent->v.classname), 7) != 0 || strcmp(STRING(ent->v.model) + 9, "c4.mdl") != 0)
 				continue;
 
-			if (distance > SquaredF(80.0f))
+			if (distance > SquaredF(128.0f))
 				continue;
 		}
 
@@ -939,7 +936,7 @@ bool Bot::FindItem(void)
 
 					PushTask(TASK_GOINGFORCAMP, TASKPRI_GOINGFORCAMP, index, engine->GetTime() + ebot_camp_max.GetFloat(), false);
 					m_campButtons |= IN_DUCK;
-					return false;
+					return;
 				}
 			}
 			else if (pickupType == PICKTYPE_PLANTEDC4)
@@ -947,7 +944,7 @@ bool Bot::FindItem(void)
 				if (OutOfBombTimer())
 				{
 					allowPickup = false;
-					return false;
+					return;
 				}
 
 				allowPickup = !IsBombDefusing(g_waypoint->GetBombPosition());
@@ -986,24 +983,21 @@ bool Bot::FindItem(void)
 				{
 					m_pickupItem = nullptr;
 					m_pickupType = PICKTYPE_NONE;
-					return false;
+					return;
 				}
 			}
 		}
 
 		const Vector pickupOrigin = GetEntityOrigin(pickupItem);
-		if (pickupOrigin.z > EyePosition().z + 12.0f || IsDeadlyDrop(pickupOrigin))
+		if (pickupOrigin == nullvec || pickupOrigin.z > EyePosition().z + 12.0f || IsDeadlyDrop(pickupOrigin))
 		{
 			m_pickupItem = nullptr;
 			m_pickupType = PICKTYPE_NONE;
-
-			return false;
+			return;
 		}
 
 		m_pickupItem = pickupItem;
 	}
-
-	return false;
 }
 
 // this function check if view on last enemy position is blocked - replace with better vector then
@@ -8152,14 +8146,19 @@ void Bot::DefaultUpdate(void)
 		}
 		else
 		{
-			if (FindItem())
+			if (m_itemCheckTime < engine->GetTime())
 			{
-				if (SetProcess(Process::Pickup, "i see good stuff to pick it up", false, 20.0f))
+				FindItem();
+				m_itemCheckTime = engine->GetTime() + g_gameVersion == HALFLIFE ? 1.0f : CRandomInt(1.25f, 2.5f);
+
+				if (!FNullEnt(m_pickupItem) && SetProcess(Process::Pickup, "i see good stuff to pick it up", false, 20.0f))
 					return;
 			}
-
-			CheckReload();
-			FindFriendsAndEnemiens();
+			else
+			{
+				CheckReload();
+				FindFriendsAndEnemiens();
+			}
 		}
 		
 		if (IsZombieMode())
@@ -8427,7 +8426,6 @@ void Bot::AttackUpdate(void)
 		{
 			m_strafeSpeed = -m_strafeSpeed;
 			m_moveSpeed = -m_moveSpeed;
-
 			pev->button &= ~IN_JUMP;
 		}
 	}
@@ -8720,13 +8718,20 @@ void Bot::PickupUpdate(void)
 	{
 		m_pickupItem = nullptr;
 		m_pickupType = PICKTYPE_NONE;
+		FinishCurrentProcess("i can't pickup this item...");
 		return;
 	}
 
-	// is entity deleted???
-	if (FNullEnt(m_pickupItem))
+	if (!m_isSlowThink)
+		FindItem();
+
+	const Vector destination = GetEntityOrigin(m_pickupItem);
+
+	// where are you???
+	if (destination == nullvec)
 	{
 		m_pickupItem = nullptr;
+		m_pickupType = PICKTYPE_NONE;
 		FinishCurrentProcess("pickup item is disappeared...");
 		return;
 	}
@@ -8734,8 +8739,7 @@ void Bot::PickupUpdate(void)
 	FindEnemyEntities();
 	FindFriendsAndEnemiens();
 	UpdateLooking();
-
-	const Vector destination = GetEntityOrigin(m_pickupItem);
+	
 	m_destOrigin = destination;
 	MoveTo(destination);
 
@@ -8756,7 +8760,7 @@ void Bot::PickupUpdate(void)
 
 	case PICKTYPE_WEAPON:
 		// near to weapon?
-		if (itemDistance <= SquaredF(60.0f))
+		if (itemDistance <= SquaredF(64.0f))
 		{
 			int i;
 			for (i = 0; i < 7; i++)
@@ -8822,7 +8826,7 @@ void Bot::PickupUpdate(void)
 			m_pickupItem = nullptr;
 			break;
 		}
-		else if (itemDistance < SquaredF(60.0f)) // near to shield?
+		else if (itemDistance <= SquaredF(64.0f)) // near to shield?
 		{
 			// get current best weapon to check if it's a primary in need to be dropped
 			const int weaponID = GetHighestWeapon();
