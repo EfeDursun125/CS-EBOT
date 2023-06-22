@@ -314,14 +314,23 @@ void Bot::FollowPath(const int targetIndex)
 
 		DoWaypointNav();
 
-		if (IsOnLadder() || m_waypointFlags & WAYPOINT_LADDER)
+		if (pev->flags & FL_DUCKING)
 		{
-			m_moveSpeed = pev->maxspeed * 0.502f;
+			m_moveSpeed = pev->maxspeed;
+			CheckStuck(pev->maxspeed * 0.502f);
+		}
+		else if (IsOnLadder() || m_waypointFlags & WAYPOINT_LADDER)
+		{
+			const float minSpeed = pev->maxspeed * 0.502f;
+			m_moveSpeed = minSpeed;
+
 			if (IsValidWaypoint(m_currentWaypointIndex))
 				m_moveSpeed = (pev->origin - g_waypoint->GetPath(m_currentWaypointIndex)->origin).GetLength();
 
 			if (m_moveSpeed > pev->maxspeed)
 				m_moveSpeed = pev->maxspeed;
+			else if (!IsOnLadder() && m_moveSpeed < minSpeed)
+				m_moveSpeed = minSpeed;
 
 			CheckStuck(m_moveSpeed);
 		}
@@ -368,27 +377,38 @@ bool Bot::DoWaypointNav(void)
 			// who cares about double jump for bots? :)
 			pev->button |= IN_JUMP;
 
-			if (m_desiredVelocity == nullvec || m_desiredVelocity == -1)
+			if (m_desiredVelocity.GetLength2D() <= 1.0f)
 			{
-				Vector myOrigin = GetBottomOrigin(GetEntity()) + pev->velocity * m_frameInterval;
-				Vector waypointOrigin = currentWaypoint->origin + pev->velocity * -m_frameInterval;
+				const Vector myOrigin = GetBottomOrigin(GetEntity());
+				Vector waypointOrigin = currentWaypoint->origin;
 
 				if (currentWaypoint->flags & WAYPOINT_CROUCH)
 					waypointOrigin.z -= 18.0f;
 				else
 					waypointOrigin.z -= 36.0f;
 
-				const float timeToReachWaypoint = csqrtf(powf(waypointOrigin.x - myOrigin.x, 2.0f) + powf(waypointOrigin.y - myOrigin.y, 2.0f)) / pev->maxspeed;
+				const float timeToReachWaypoint = csqrtf(powf(waypointOrigin.x - myOrigin.x, 2.0f) + powf(waypointOrigin.y - myOrigin.y, 2.0f)) / (pev->maxspeed - pev->gravity);
 				pev->velocity.x = (waypointOrigin.x - myOrigin.x) / timeToReachWaypoint;
 				pev->velocity.y = (waypointOrigin.y - myOrigin.y) / timeToReachWaypoint;
 				pev->velocity.z = 2.0f * (waypointOrigin.z - myOrigin.z - 0.5f * pev->gravity * powf(timeToReachWaypoint, 2.0f)) / timeToReachWaypoint;
 
-				const float limit = (pev->maxspeed * 1.25f);
+				const float limit = (pev->maxspeed * 1.28f);
 				if (pev->velocity.z > limit)
 					pev->velocity.z = limit;
+
+				pev->basevelocity = pev->velocity;
+				pev->clbasevelocity = pev->velocity;
+				pev->avelocity = pev->velocity;
+				pev->flFallVelocity = pev->velocity.z;
 			}
 			else
+			{
 				pev->velocity = m_desiredVelocity + m_desiredVelocity * 0.05f;
+				pev->basevelocity = pev->velocity;
+				pev->avelocity = pev->velocity;
+				pev->clbasevelocity = pev->velocity;
+				pev->flFallVelocity = pev->velocity.z;
+			}
 
 			m_desiredVelocity = nullvec;
 		}
@@ -497,8 +517,9 @@ bool Bot::DoWaypointNav(void)
 			}
 		}
 	}
-	else if (currentWaypoint->flags & WAYPOINT_CROUCH)
-		pev->button |= IN_DUCK;
+
+	if (currentWaypoint->flags & WAYPOINT_CROUCH && (!(currentWaypoint->flags & WAYPOINT_CAMP) || m_stuckWarn >= 4))
+		m_duckTime = AddTime(1.0f);
 
 	if (currentWaypoint->flags & WAYPOINT_LIFT)
 	{
@@ -523,7 +544,7 @@ bool Bot::DoWaypointNav(void)
 			// if the door is near enough...
 			if ((pev->origin - GetEntityOrigin(tr.pHit)).GetLengthSquared() <= SquaredF(54.0f))
 			{
-				IgnoreCollisionShortly(); // don't consider being stuck
+				ResetStuck(); // don't consider being stuck
 
 				if (!(pev->oldbuttons & IN_USE && pev->button & IN_USE))
 				{
@@ -550,10 +571,15 @@ bool Bot::DoWaypointNav(void)
 			}
 
 			// if bot hits the door, then it opens, so wait a bit to let it open safely
-			if (pev->velocity.GetLengthSquared2D() < SquaredF(pev->maxspeed * 0.20f) && m_timeDoorOpen < engine->GetTime())
+			if (m_timeDoorOpen < engine->GetTime() && pev->velocity.GetLengthSquared2D() < SquaredF(pev->maxspeed * 0.20f))
 			{
-				SetProcess(Process::Pause, "waiting for door open", false, 1.25f);
-				m_timeDoorOpen = engine->GetTime() + 1.0f; // retry in 1 sec until door is open
+				if (m_isSlowThink)
+				{
+					SetProcess(Process::Pause, "waiting for door open", false, 1.25f);
+					DeleteSearchNodes();
+				}
+
+				m_timeDoorOpen = engine->GetTime() + 3.0f;
 
 				if (++m_tryOpenDoor > 2 && !FNullEnt(m_lastEnemy) && IsWalkableTraceLineClear(pev->origin, GetEntityOrigin(m_lastEnemy)))
 				{
@@ -667,7 +693,7 @@ bool Bot::UpdateLiftHandling()
 
 		pev->button &= ~(IN_FORWARD | IN_BACK | IN_MOVELEFT | IN_MOVERIGHT);
 
-		IgnoreCollisionShortly();
+		ResetStuck();
 	};
 
 	// trace line to door
@@ -2392,7 +2418,7 @@ void Bot::ResetStuck(void)
 
 void Bot::CheckStuck(const float maxSpeed)
 {
-	if (ebot_avoid_friends.GetBool() && m_hasFriendsNear)
+	if (ebot_avoid_friends.GetBool() && m_hasFriendsNear && !(m_waypointFlags & WAYPOINT_FALLRISK))
 	{
 		const Vector myOrigin = pev->origin + pev->velocity * m_frameInterval;
 		const Vector friendOrigin = m_friendOrigin + m_nearestFriend->v.velocity * m_frameInterval;

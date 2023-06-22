@@ -3620,9 +3620,6 @@ void Bot::SetWalkTime(const float time)
 
 float Bot::GetMaxSpeed(void)
 {
-	if (pev->flags & FL_DUCKING)
-		return pev->maxspeed;
-
 	if (!IsOnFloor())
 		return pev->maxspeed;
 
@@ -8369,7 +8366,7 @@ void Bot::AttackUpdate(void)
 	{
 		const Vector& src = pev->origin - Vector(0, 0, 18.0f);
 		if (!(m_visibility & (Visibility::Head | Visibility::Body)) && IsVisible(src, m_nearestEnemy))
-			m_duckTime = engine->GetTime() + 1.0f;
+			m_duckTime = AddTime(1.0f);
 
 		m_moveSpeed = 0.0f;
 		m_strafeSpeed = 0.0f;

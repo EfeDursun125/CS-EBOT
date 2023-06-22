@@ -207,7 +207,7 @@ Vector GetTopOrigin(edict_t* ent)
 	if (FNullEnt(ent))
 		return nullvec;
 
-	Vector origin = GetEntityOrigin(ent);
+	const Vector origin = GetEntityOrigin(ent);
 	Vector topOrigin = origin + ent->v.maxs;
 	if (topOrigin.z < origin.z)
 		topOrigin = origin + ent->v.mins;
@@ -222,7 +222,7 @@ Vector GetBottomOrigin(edict_t* ent)
 	if (FNullEnt(ent))
 		return nullvec;
 
-	Vector origin = GetEntityOrigin(ent);
+	const Vector origin = GetEntityOrigin(ent);
 	Vector bottomOrigin = origin + ent->v.mins;
 	if (bottomOrigin.z > origin.z)
 		bottomOrigin = origin + ent->v.maxs;
@@ -242,7 +242,7 @@ Vector GetPlayerHeadOrigin(edict_t* ent)
 
 	if (!(ent->v.flags & FL_DUCKING))
 	{
-		Vector origin = GetEntityOrigin(ent);
+		const Vector origin = GetEntityOrigin(ent);
 		float hbDistance = headOrigin.z - origin.z;
 		hbDistance *= 0.4f;
 		headOrigin.z -= hbDistance;
