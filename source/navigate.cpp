@@ -313,8 +313,24 @@ void Bot::FollowPath(const int targetIndex)
 		m_moveAngles.x = -m_moveAngles.x; // invert for engine
 
 		DoWaypointNav();
-		CheckStuck();
-		m_moveSpeed = pev->maxspeed;
+
+		if (IsOnLadder() || m_waypointFlags & WAYPOINT_LADDER)
+		{
+			m_moveSpeed = pev->maxspeed * 0.502f;
+			if (IsValidWaypoint(m_currentWaypointIndex))
+				m_moveSpeed = (pev->origin - g_waypoint->GetPath(m_currentWaypointIndex)->origin).GetLength();
+
+			if (m_moveSpeed > pev->maxspeed)
+				m_moveSpeed = pev->maxspeed;
+
+			CheckStuck(m_moveSpeed);
+		}
+		else
+		{
+			const float maxSpeed = GetMaxSpeed();
+			m_moveSpeed = maxSpeed;
+			CheckStuck(maxSpeed);
+		}
 	}
 	else if (!m_isSlowThink)
 	{
@@ -530,7 +546,6 @@ bool Bot::DoWaypointNav(void)
 			{
 				m_pickupItem = button;
 				m_pickupType = PICKTYPE_BUTTON;
-
 				m_navTimeset = engine->GetTime();
 			}
 
@@ -2375,7 +2390,7 @@ void Bot::ResetStuck(void)
 	m_stuckTimer = AddTime(2.0f);
 }
 
-void Bot::CheckStuck(void)
+void Bot::CheckStuck(const float maxSpeed)
 {
 	if (ebot_avoid_friends.GetBool() && m_hasFriendsNear)
 	{
@@ -2394,52 +2409,52 @@ void Bot::CheckStuck(void)
 			if ((dir | right.Normalize2D()) > 0.0f)
 			{
 				if (!CheckWallOnRight())
-					m_strafeSpeed = pev->maxspeed;
+					m_strafeSpeed = maxSpeed;
 				else
 				{
 					moveBack = true;
 					if (!CheckWallOnLeft())
-						m_strafeSpeed = -pev->maxspeed;
+						m_strafeSpeed = -maxSpeed;
 				}
 			}
 			else
 			{
 				if (!CheckWallOnLeft())
-					m_strafeSpeed = -pev->maxspeed;
+					m_strafeSpeed = -maxSpeed;
 				else
 				{
 					moveBack = true;
 					if (!CheckWallOnRight())
-						m_strafeSpeed = pev->maxspeed;
+						m_strafeSpeed = maxSpeed;
 				}
 			}
 
 			bool doorStuck = false;
-			if (moveBack || m_stuckWarn >= 10)
+			if ((moveBack && m_stuckWarn >= 3) || m_stuckWarn >= 10)
 			{
 				if ((dir | forward.Normalize2D()) < 0.0f)
 				{
 					if (CheckWallOnBehind())
 					{
-						m_moveSpeed = pev->maxspeed;
+						m_moveSpeed = maxSpeed;
 						doorStuck = true;
 					}
 					else
-						m_moveSpeed = -pev->maxspeed;
+						m_moveSpeed = -maxSpeed;
 				}
 				else
 				{
 					if (CheckWallOnForward())
 					{
-						m_moveSpeed = -pev->maxspeed;
+						m_moveSpeed = -maxSpeed;
 						doorStuck = true;
 					}
 					else
-						m_moveSpeed = pev->maxspeed;
+						m_moveSpeed = maxSpeed;
 				}
 			}
 
-			if (IsOnFloor() && m_stuckWarn >= 5)
+			if (IsOnFloor() && m_stuckWarn >= 6)
 			{
 				if (!(m_nearestFriend->v.button & IN_JUMP) && !(m_nearestFriend->v.oldbuttons & IN_JUMP) && ((m_nearestFriend->v.button & IN_DUCK && m_nearestFriend->v.oldbuttons & IN_DUCK) || CanJumpUp(pev->velocity.SkipZ()) || CanJumpUp(dir)))
 				{
@@ -2504,9 +2519,9 @@ void Bot::CheckStuck(void)
 	if (!m_isSlowThink)
 		return;
 
-	if (((pev->origin + pev->velocity * m_frameInterval) - m_stuckArea).GetLengthSquared2D() <= (pev->maxspeed * 2.0f))
+	if (((pev->origin + pev->velocity * m_frameInterval) - m_stuckArea).GetLengthSquared2D() <= (maxSpeed * 2.0f))
 	{
-		m_stuckWarn += 1;
+		m_stuckWarn++;
 
 		if (m_stuckWarn >= 20)
 		{

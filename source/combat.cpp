@@ -489,8 +489,10 @@ Vector Bot::GetEnemyPosition(void)
 	// now take in account different parts of enemy body
 	if (m_visibility & (Visibility::Head | Visibility::Body)) // visible head & body
 	{
+		if (!IsZombieMode() && m_currentWeapon == WEAPON_AWP)
+			return targetOrigin;
 		// now check is our skill match to aim at head, else aim at enemy body
-		if (IsZombieMode() || ChanceOf(m_skill) || UsesPistol())
+		else if (IsZombieMode() || ChanceOf(m_skill) || UsesPistol())
 			targetOrigin += m_nearestEnemy->v.view_ofs + Vector(0.0f, 0.0f, GetZOffset(distance));
 		else
 			targetOrigin += Vector(0.0f, 0.0f, GetZOffset(distance));

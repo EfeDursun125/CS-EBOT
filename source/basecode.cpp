@@ -3601,6 +3601,37 @@ void Bot::SelectLeaderEachTeam(int team)
 	}
 }
 
+void Bot::SetWalkTime(const float time)
+{
+	if (g_gameVersion == HALFLIFE)
+		return;
+
+	if (!ebot_walkallow.GetBool())
+		return;
+
+	if (IsZombieMode())
+		return;
+
+	if (m_numEnemiesLeft <= 0)
+		return;
+
+	m_walkTime = AddTime(time);
+}
+
+float Bot::GetMaxSpeed(void)
+{
+	if (pev->flags & FL_DUCKING)
+		return pev->maxspeed;
+
+	if (!IsOnFloor())
+		return pev->maxspeed;
+
+	if (m_walkTime > engine->GetTime())
+		return pev->maxspeed * 0.502f;
+
+	return pev->maxspeed;
+}
+
 float Bot::GetWalkSpeed(void)
 {
 	if (!ebot_walkallow.GetBool() || g_gameVersion == HALFLIFE)
@@ -3612,7 +3643,7 @@ float Bot::GetWalkSpeed(void)
 		pev->flags & FL_DUCKING || pev->button & IN_DUCK || pev->oldbuttons & IN_DUCK || IsInWater() || GetCurrentTask()->taskID == TASK_SEEKCOVER)
 		return pev->maxspeed;
 
-	return pev->maxspeed * 0.4f;
+	return (pev->maxspeed * 0.5f) + (pev->maxspeed * 0.02f) - 18.0f;
 }
 
 bool Bot::IsNotAttackLab(edict_t* entity)
@@ -3634,7 +3665,7 @@ bool Bot::IsNotAttackLab(edict_t* entity)
 		if (renderamt > 160.0f)
 			return false;
 
-		return (SquaredF(renderamt) < (GetEntityOrigin(entity) - pev->origin).GetLengthSquared2D());
+		return (SquaredF(renderamt) < (entity->v.origin - pev->origin).GetLengthSquared2D());
 	}
 
 	return false;
@@ -4060,6 +4091,7 @@ void Bot::LookAtAround(void)
 	if (m_waypointFlags & WAYPOINT_LADDER || IsOnLadder())
 	{
 		m_lookAt = m_destOrigin + pev->view_ofs;
+		m_pauseTime = 0.0f;
 		return;
 	}
 	else if (m_waypointFlags & WAYPOINT_USEBUTTON)
@@ -4077,19 +4109,19 @@ void Bot::LookAtAround(void)
 			else
 			{
 				edict_t* button = FindButton();
-				if (button != nullptr) // no need to look at thanks to the game...
+				if (button != nullptr) // no need to look at, thanks to the game...
 					MDLL_Use(button, GetEntity());
-				if (!(pev->button & IN_USE) && !(pev->oldbuttons & IN_USE))
+				else
 				{
 					m_lookAt = origin;
-					pev->button |= IN_USE;
+					if (!(pev->button & IN_USE) && !(pev->oldbuttons & IN_USE))
+						pev->button |= IN_USE;
 					return;
 				}
 			}
 		}
 	}
-
-	if (m_hasFriendsNear && IsAttacking(m_nearestFriend)) // TODO: check if friend does not holding knife too
+	else if (m_hasFriendsNear && IsAttacking(m_nearestFriend)) // TODO: check if friend does not holding knife too
 	{
 		auto bot = g_botManager->GetBot(m_nearestFriend);
 		if (bot != nullptr)
@@ -4114,16 +4146,17 @@ void Bot::LookAtAround(void)
 
 		if (m_currentWeapon == WEAPON_KNIFE)
 		{
+			SetWalkTime(7.0f);
 			SelectBestWeapon();
 		}
 
 		return;
 	}
 
-	if (m_pauseTime >= engine->GetTime())
+	if (m_pauseTime > engine->GetTime())
 		return;
 
-	if (m_isSlowThink && ChanceOf(m_senseChance)) // no any friends near, who's footsteps is this or fire sounds?
+	if (m_isSlowThink && ChanceOf(m_senseChance)) // who's footsteps is this or fire sounds?
 	{
 		for (const auto& client : g_clients)
 		{
@@ -4137,43 +4170,49 @@ void Bot::LookAtAround(void)
 			if (client.team == m_team)
 				continue;
 
-			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.ent == GetEntity())
+			if (!(client.flags & CFLAG_USED))
 				continue;
 
-			if (client.ent->v.flags & FL_DUCKING)
+			if (!(client.flags & CFLAG_ALIVE))
 				continue;
 
-			if (client.ent->v.speed < client.ent->v.maxspeed * 0.5f)
-				continue;
+			float maxDist = 1280.0f;
+			if (!IsAttacking(client.ent))
+			{
+				if (client.ent->v.flags & FL_DUCKING)
+					continue;
 
-			if ((pev->origin - client.origin).GetLengthSquared() > SquaredF(1280.0f))
+				if (client.ent->v.speed < client.ent->v.maxspeed * 0.66f)
+					continue;
+
+				maxDist = 768.0f;
+			}
+
+			if ((pev->origin - client.origin).GetLengthSquared() > SquaredF(maxDist))
 				continue;
 
 			Vector playerArea;
 			if (m_isZombieBot)
-				playerArea = client.origin;
-			else
 			{
-				const int index = g_waypoint->FindNearestInCircle(client.origin, 999999.0f);
-				if (index != -1)
+				playerArea = client.ent->v.origin + client.ent->v.view_ofs;
+				if (!m_hasEnemiesNear && (FNullEnt(m_nearestEnemy) || GetTeam(m_nearestEnemy) == m_team))
 				{
-					const Vector eyePosition = EyePosition();
-					const Vector waypointOrigin = g_waypoint->GetPath(index)->origin;
-					const float waypointRadius = g_waypoint->GetPath(index)->radius;
-					playerArea.x = waypointOrigin.x + engine->RandomFloat(-waypointRadius, waypointRadius) + ((playerArea.x - eyePosition.x) * 1024.0f);
-					playerArea.y = waypointOrigin.y + engine->RandomFloat(-waypointRadius, waypointRadius) + ((playerArea.y - eyePosition.y) * 1024.0f);
-					playerArea.z = eyePosition.z;
+					m_nearestEnemy = client.ent;
+					DeleteSearchNodes();
 				}
 			}
+			else
+				playerArea = client.ent->v.origin + client.ent->v.view_ofs;
 
 			const int skill = m_personality == PERSONALITY_RUSHER ? 30 : 10;
 			if (m_skill > skill)
 			{
+				SetWalkTime(7.0f);
 				SelectBestWeapon();
 			}
 
+			m_pauseTime = AddTime(engine->RandomFloat(2.0f, 4.0f));
 			m_lookAt = playerArea;
-			m_pauseTime = AddTime(engine->RandomFloat(1.0f, 2.0f));
 
 			return;
 		}
@@ -4183,7 +4222,6 @@ void Bot::LookAtAround(void)
 	if (m_searchTime < engine->GetTime())
 	{
 		Vector bestLookPos = EyePosition();
-
 		bestLookPos.x += engine->RandomFloat(-1024.0f, 1024.0f);
 		bestLookPos.y += engine->RandomFloat(-1024.0f, 1024.0f);
 		bestLookPos.z += engine->RandomFloat(-256.0f, 256.0f);
@@ -7954,7 +7992,7 @@ void Bot::EquipInBuyzone(int iBuyCount)
 	static float lastEquipTime = 0.0f;
 
 	// if bot is in buy zone, try to buy ammo for this weapon...
-	if (lastEquipTime + 15.0f < engine->GetTime() && m_inBuyZone && g_timeRoundStart + engine->RandomFloat(10.0f, 20.0f) + engine->GetBuyTime() < engine->GetTime() && !g_bombPlanted && m_moneyAmount > 700)
+	if (lastEquipTime + 15.0f < engine->GetTime() && m_inBuyZone && g_timeRoundStart + engine->RandomFloat(10.0f, 20.0f) + engine->GetBuyTime() < engine->GetTime() && !g_bombPlanted && m_moneyAmount > 800)
 	{
 		m_buyingFinished = false;
 		m_buyState = iBuyCount;
@@ -7967,7 +8005,7 @@ void Bot::EquipInBuyzone(int iBuyCount)
 	}
 }
 
-bool Bot::IsBombDefusing(Vector bombOrigin)
+bool Bot::IsBombDefusing(const Vector bombOrigin)
 {
 	// this function finds if somebody currently defusing the bomb.
 	if (!g_bombPlanted)
@@ -8029,6 +8067,9 @@ bool Bot::IsBombDefusing(Vector bombOrigin)
 void Bot::DefaultStart(void)
 {
 	ResetStuck();
+
+	if (m_isZombieBot)
+		SelectWeaponByName("weapon_knife");
 }
 
 void Bot::DefaultUpdate(void)
@@ -8161,14 +8202,10 @@ void Bot::AttackUpdate(void)
 
 	if (!m_hasEnemiesNear && !m_hasEntitiesNear)
 	{
-		if (m_personality == PERSONALITY_CAREFUL)
-		{
-			m_moveSpeed = 0.0f;
-			m_strafeSpeed = 0.0f;
-		}
-
 		if (m_enemySeeTime + 1.5f < engine->GetTime() && m_entitySeeTime + 1.5f < engine->GetTime())
 			FinishCurrentProcess("no target exist");
+		else
+			SetWalkTime(7.0f);
 
 		return;
 	}
@@ -8596,7 +8633,7 @@ void Bot::DestroyBreakableStart(void)
 
 void Bot::DestroyBreakableUpdate(void)
 {
-	CheckStuck();
+	CheckStuck(pev->maxspeed);
 
 	if (m_stuckWarn >= 20)
 	{
@@ -8676,7 +8713,7 @@ void Bot::PickupUpdate(void)
 	m_destOrigin = destination;
 
 	MoveTo(destination);
-	CheckStuck();
+	CheckStuck(pev->maxspeed);
 	DeleteSearchNodes();
 
 	// find the distance to the item

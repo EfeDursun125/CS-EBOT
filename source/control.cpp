@@ -1146,6 +1146,7 @@ void Bot::NewRound(void)
 	m_hasProgressBar = false;
 	m_canChooseAimDirection = true;
 
+	m_walkTime = 0.0f;
 	m_timeTeamOrder = 0.0f;
 	m_askCheckTime = 0.0f;
 	m_minSpeed = 260.0f;
