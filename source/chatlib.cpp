@@ -425,7 +425,7 @@ void Bot::ChatSay(bool teamSay, const char* text, ...)
     if (IsNullString(text))
         return;
 
-    // block looping same message.
+    // block looping same message
     if (!IsNullString(m_lastStrings) && m_lastStrings == text)
         return;
 

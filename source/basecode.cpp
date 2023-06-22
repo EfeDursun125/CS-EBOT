@@ -2010,9 +2010,6 @@ void Bot::SetConditions(void)
 	// decrease fear if teammates near
 	int friendlyNum = 0;
 
-	if (m_lastEnemyOrigin != nullvec && m_numFriendsLeft > 0 && m_numEnemiesLeft > 0)
-		friendlyNum = GetNearbyFriendsNearPosition(pev->origin, 320.0f) - GetNearbyEnemiesNearPosition(m_lastEnemyOrigin, 512.0f);
-
 	if (friendlyNum > 0)
 		tempFear = tempFear * 0.5f;
 
@@ -2662,10 +2659,6 @@ void Bot::CheckGrenadeThrow(void)
 		{
 			bool allowThrowing = true;
 
-			// check for teammates
-			if (grenadeToThrow == WEAPON_HEGRENADE && GetGameMode() == MODE_BASE && m_numFriendsLeft > 0 && GetNearbyFriendsNearPosition(targetOrigin, 256.0f) > 0)
-				allowThrowing = false;
-
 			if (allowThrowing && m_seeEnemyTime + 2.0f < engine->GetTime())
 			{
 				Vector enemyPredict = (targetEntity->v.velocity * 0.5f).SkipZ() + targetOrigin;
@@ -2724,9 +2717,6 @@ void Bot::CheckGrenadeThrow(void)
 
 		ITERATE_ARRAY(inRadius, i)
 		{
-			if (m_numFriendsLeft > 0 && GetNearbyFriendsNearPosition(g_waypoint->GetPath(i)->origin, 256.0f) > 0)
-				continue;
-
 			m_throw = g_waypoint->GetPath(i)->origin;
 			Vector src = CheckThrow(EyePosition(), m_throw);
 
@@ -4444,12 +4434,8 @@ void Bot::Think(void)
 
 void Bot::SecondThink(void)
 {
-	m_numEnemiesLeft = GetNearbyEnemiesNearPosition(pev->origin, 99999999.0f);
-
 	if (g_gameVersion != HALFLIFE)
 	{
-		m_numFriendsLeft = GetNearbyFriendsNearPosition(pev->origin, 99999999.0f);
-
 		if (ebot_use_flare.GetBool() && !m_isReloading && !m_isZombieBot && GetGameMode() == MODE_ZP && FNullEnt(m_enemy) && !FNullEnt(m_lastEnemy))
 		{
 			if (pev->weapons & (1 << WEAPON_SMGRENADE) && ChanceOf(40))
@@ -4788,34 +4774,6 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 									m_hostages[i] = nullptr;
 							}
 						}
-					}
-				}
-			}
-			else if ((g_mapType & MAP_DE) && ((g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_GOAL) || m_inBombZone) && FNullEnt(m_enemy))
-			{
-				// is it a terrorist carrying the bomb?
-				if (m_isBomber)
-				{
-					if ((m_states & STATE_SEEINGENEMY) && m_numFriendsLeft > 0 && m_numEnemiesLeft > 0 && GetNearbyFriendsNearPosition(pev->origin, 768.0f) == 0)
-					{
-						// request an help also
-						RadioMessage(Radio::NeedBackup);
-
-						const int index = FindDefendWaypoint(pev->origin);
-						m_campposition = g_waypoint->GetPath(index)->origin;
-						PushTask(TASK_GOINGFORCAMP, TASKPRI_GOINGFORCAMP, index, engine->GetTime() + ebot_camp_max.GetFloat(), true);
-					}
-					else
-						PushTask(TASK_PLANTBOMB, TASKPRI_PLANTBOMB, -1, 0.0, false);
-				}
-				else if (m_team == TEAM_COUNTER && m_timeCamping + 10.0f < engine->GetTime())
-				{
-					if (!g_bombPlanted && ChanceOf(60) && GetNearbyFriendsNearPosition(pev->origin, 250.0f) < 4)
-					{
-						const int index = FindDefendWaypoint(g_waypoint->GetPath(m_currentWaypointIndex)->origin);
-						m_campposition = g_waypoint->GetPath(index)->origin;
-						PushTask(TASK_GOINGFORCAMP, TASKPRI_GOINGFORCAMP, index, engine->GetTime() + ebot_camp_max.GetFloat(), true); // push camp task on to stack
-						m_campButtons |= IN_DUCK;
 					}
 				}
 			}
@@ -5566,10 +5524,6 @@ void Bot::RunTask(void)
 		{
 			TaskComplete();
 
-			// tell teammates to move over here...
-			if (m_numFriendsLeft > 0 && GetNearbyFriendsNearPosition(pev->origin, 768.0f) <= 1)
-				RadioMessage(Radio::RegroupTeam);
-
 			DeleteSearchNodes();
 
 			int index = FindDefendWaypoint(pev->origin);
@@ -5590,20 +5544,6 @@ void Bot::RunTask(void)
 			g_bombPlanted = false;
 
 			RadioMessage(Radio::SectorClear);
-		}
-		else if (m_numEnemiesLeft > 0 && !FNullEnt(m_enemy))
-		{
-			const int friends = m_numFriendsLeft > 0 ? GetNearbyFriendsNearPosition(pev->origin, 768.0f) : 0;
-			if (friends < 2 && defuseRemainingTime < timeToBlowUp)
-			{
-				exceptionCaught = true;
-
-				if ((defuseRemainingTime + 2.0f) > timeToBlowUp)
-					exceptionCaught = false;
-
-				if (m_numFriendsLeft > friends)
-					RadioMessage(Radio::NeedBackup);
-			}
 		}
 		else if (defuseRemainingTime > timeToBlowUp)
 			exceptionCaught = true;
@@ -5636,13 +5576,6 @@ void Bot::RunTask(void)
 			{
 				m_moveToGoal = false;
 				m_checkTerrain = false;
-
-				if (m_isReloading && m_numEnemiesLeft > 0)
-				{
-					const int friendsN = m_numFriendsLeft > 0 ? GetNearbyFriendsNearPosition(pev->origin, 768.0f) : 0;
-					if (friendsN > 2 && GetNearbyEnemiesNearPosition(pev->origin, 768.0f) < friendsN)
-						SelectKnife();
-				}
 
 				m_aimStopTime = 0.0f;
 
@@ -8574,7 +8507,7 @@ void Bot::EscapeUpdate(void)
 		SetProcess(Process::Pause, "i have escaped from the bomb", false, 99999999.0f);
 	else
 	{
-		if (m_numEnemiesLeft <= 0)
+		if (!m_hasEntitiesNear && m_numEnemiesLeft <= 0)
 			SelectKnife();
 
 		if (!GoalIsValid())
@@ -8741,9 +8674,10 @@ void Bot::PickupUpdate(void)
 	UpdateLooking();
 	
 	m_destOrigin = destination;
-	MoveTo(destination);
 
+	MoveTo(destination);
 	CheckStuck();
+	DeleteSearchNodes();
 
 	// find the distance to the item
 	const float itemDistance = (destination - pev->origin).GetLengthSquared();

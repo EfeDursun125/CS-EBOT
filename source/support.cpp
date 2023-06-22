@@ -757,9 +757,7 @@ void RoundInit(void)
 		g_timeRoundStart = engine->GetTime();
 		g_timeRoundMid = g_timeRoundStart + 999999.0f;
 		g_timeRoundEnd = g_timeRoundStart + 999999.0f;
-
 		SetGameMode(MODE_DM);
-		g_mapType |= MAP_DE;
 	}
 }
 
@@ -839,7 +837,6 @@ void AutoLoadGameMode(void)
 			}
 		}
 
-		g_mapType |= MAP_DE;
 		return;
 	}
 

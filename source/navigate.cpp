@@ -51,7 +51,58 @@ int Bot::FindGoal(void)
 	}
 	else if (GetGameMode() == MODE_BASE)
 	{
-		if (g_mapType & MAP_DE)
+		if (g_mapType & MAP_CS)
+		{
+			if (m_team == TEAM_COUNTER)
+			{
+				if (!g_waypoint->m_rescuePoints.IsEmpty() && HasHostage())
+				{
+					if (IsValidWaypoint(m_chosenGoalIndex) && g_waypoint->GetPath(m_chosenGoalIndex)->flags & WAYPOINT_RESCUE)
+						return m_chosenGoalIndex;
+					else
+						return m_chosenGoalIndex = g_waypoint->m_rescuePoints.GetRandomElement();
+				}
+				else
+				{
+					if (!g_waypoint->m_goalPoints.IsEmpty() && (g_timeRoundMid <= engine->GetTime() || CRandomInt(1, 3) <= 2))
+						return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
+					else if (!g_waypoint->m_ctPoints.IsEmpty())
+						return m_chosenGoalIndex = g_waypoint->m_ctPoints.GetRandomElement();
+				}
+			}
+			else
+			{
+				if (!g_waypoint->m_rescuePoints.IsEmpty() && CRandomInt(1, 11) == 1)
+					return m_chosenGoalIndex = g_waypoint->m_rescuePoints.GetRandomElement();
+				else if (!g_waypoint->m_goalPoints.IsEmpty() && CRandomInt(1, 3) == 1)
+					return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
+				else if (!g_waypoint->m_terrorPoints.IsEmpty())
+					return m_chosenGoalIndex = g_waypoint->m_terrorPoints.GetRandomElement();
+			}
+		}
+		else if (g_mapType & MAP_AS)
+		{
+			if (m_team == TEAM_COUNTER)
+			{
+				if (m_isVIP && !g_waypoint->m_goalPoints.IsEmpty())
+					return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
+				else
+				{
+					if (!g_waypoint->m_goalPoints.IsEmpty() && CRandomInt(1, 2) == 1)
+						return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
+					else if (!g_waypoint->m_ctPoints.IsEmpty())
+						return m_chosenGoalIndex = g_waypoint->m_ctPoints.GetRandomElement();
+				}
+			}
+			else
+			{
+				if (!g_waypoint->m_goalPoints.IsEmpty() && CRandomInt(1, 11) == 1)
+					return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
+				else if (!g_waypoint->m_terrorPoints.IsEmpty())
+					return m_chosenGoalIndex = g_waypoint->m_terrorPoints.GetRandomElement();
+			}
+		}
+		else if (g_mapType & MAP_DE)
 		{
 			if (g_bombPlanted)
 			{
@@ -174,11 +225,10 @@ int Bot::FindGoal(void)
 						if (m_isBomber)
 						{
 							m_loosedBombWptIndex = -1;
-							if (!IsValidWaypoint(m_chosenGoalIndex) || !(g_waypoint->GetPath(m_chosenGoalIndex)->flags & WAYPOINT_GOAL))
-							{
-								if (!g_waypoint->m_goalPoints.IsEmpty())
-									return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
-							}
+							if (IsValidWaypoint(m_chosenGoalIndex) && g_waypoint->GetPath(m_chosenGoalIndex)->flags & WAYPOINT_GOAL)
+								return m_chosenGoalIndex;
+							else if (!g_waypoint->m_goalPoints.IsEmpty())
+								return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
 						}
 						else if (!g_waypoint->m_terrorPoints.IsEmpty())
 						{
@@ -190,64 +240,14 @@ int Bot::FindGoal(void)
 				}
 			}
 		}
-		else if (g_mapType & MAP_CS)
-		{
-			static bool ohShit;
-			if (m_team == TEAM_COUNTER)
-			{
-				ohShit = false;
-				if (!g_waypoint->m_rescuePoints.IsEmpty() && HasHostage())
-				{
-					ohShit = true;
-					if (!IsValidWaypoint(m_chosenGoalIndex) || !(g_waypoint->GetPath(m_chosenGoalIndex)->flags & WAYPOINT_RESCUE))
-						return m_chosenGoalIndex = g_waypoint->m_rescuePoints.GetRandomElement();
-				}
-				else
-				{
-					if (!g_waypoint->m_ctPoints.IsEmpty() && CRandomInt(1, 2) == 1)
-						return m_chosenGoalIndex = g_waypoint->m_ctPoints.GetRandomElement();
-					else if (!g_waypoint->m_goalPoints.IsEmpty())
-						return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
-				}
-			}
-			else
-			{
-				if (!g_waypoint->m_rescuePoints.IsEmpty() && (ohShit || CRandomInt(1, 11) == 1))
-					return m_chosenGoalIndex = g_waypoint->m_rescuePoints.GetRandomElement();
-				else if (!g_waypoint->m_goalPoints.IsEmpty())
-					return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
-			}
-		}
-		else if (g_mapType & MAP_AS)
-		{
-			if (m_team == TEAM_COUNTER)
-			{
-				if (m_isVIP && !g_waypoint->m_goalPoints.IsEmpty())
-					return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
-				else
-				{
-					if (!g_waypoint->m_goalPoints.IsEmpty() && CRandomInt(1, 2) == 1)
-						return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
-					else if (!g_waypoint->m_ctPoints.IsEmpty())
-						return m_chosenGoalIndex = g_waypoint->m_ctPoints.GetRandomElement();
-				}
-			}
-			else
-			{
-				if (!g_waypoint->m_goalPoints.IsEmpty() && CRandomInt(1, 11) == 1)
-					return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
-				else if (!g_waypoint->m_terrorPoints.IsEmpty())
-					return m_chosenGoalIndex = g_waypoint->m_terrorPoints.GetRandomElement();
-			}
-		}
 	}
 
-	if (!FNullEnt(m_lastEnemy) && IsAlive(m_lastEnemy))
+	if (!FNullEnt(m_nearestEnemy) && IsAlive(m_nearestEnemy))
 	{
-		const Vector origin = GetEntityOrigin(m_lastEnemy);
+		const Vector origin = GetEntityOrigin(m_nearestEnemy);
 		if (origin != nullvec)
 		{
-			m_chosenGoalIndex = g_waypoint->FindNearest(origin, 9999999.0f, -1, m_lastEnemy);
+			m_chosenGoalIndex = g_waypoint->FindNearest(origin, 9999999.0f, -1, m_nearestEnemy);
 			if (IsValidWaypoint(m_chosenGoalIndex))
 				return m_chosenGoalIndex;
 		}
@@ -1363,7 +1363,7 @@ inline const float GF_CostRusher(const int index, const int parent, const int te
 	if (path->flags & WAYPOINT_DJUMP)
 		return FLT_MAX;
 
-	const float baseCost = g_waypoint->GetPathDistance(index, team);
+	const float baseCost = g_waypoint->GetPathDistance(index, parent);
 	if (path->flags & WAYPOINT_CROUCH)
 		return baseCost;
 
@@ -1372,7 +1372,7 @@ inline const float GF_CostRusher(const int index, const int parent, const int te
 
 inline const float GF_CostNoHostage(const int index, const int parent, const int team, const float gravity, const bool isZombie)
 {
-	const Path* path = g_waypoint->GetPath(index);
+	const Path* path = g_waypoint->GetPath(parent);
 
 	if (path->flags & WAYPOINT_SPECIFICGRAVITY)
 		return FLT_MAX;
@@ -1402,14 +1402,7 @@ inline const float GF_CostNoHostage(const int index, const int parent, const int
 			return FLT_MAX;
 	}
 
-	if (path->flags & WAYPOINT_AVOID)
-		return FLT_MAX;
-
-	float baseCost = g_waypoint->GetPathDistance(index, team);
-	if (g_waypoint->GetPath(index)->flags & WAYPOINT_CROUCH && g_waypoint->GetPath(index)->flags & WAYPOINT_CAMP)
-		baseCost *= 2.0f;
-
-	return baseCost;
+	return g_waypoint->GetPathDistance(index, parent);
 }
 
 inline const float HF_Distance(const int start, const int goal)
@@ -1496,12 +1489,11 @@ inline const float HF_Nav(const NavArea* start, const NavArea* goal)
 
 inline const float RandomSeed(const int botindex, const int waypoint, const int personality)
 {
-	float multiplier = 1.0f;
 	int seed = int(engine->GetTime() * 0.1f) + 1;
 	seed *= waypoint;
 	seed *= botindex;
 	seed *= personality + 1;
-	multiplier += (cosf(float(seed)) + 1.0f) * 10.0f;
+	const float multiplier = 1.0f + ((cosf(float(seed)) + 1.0f) * 10.0f);
 	return multiplier;
 }
 
@@ -1726,9 +1718,15 @@ void Bot::FindPath(int srcIndex, int destIndex)
 
 	const float (*gcalc) (const int, const int, const int, const float, const bool) = nullptr;
 	const float (*hcalc) (const int, const int) = nullptr;
+	bool useSeed = true;
 
 	if (IsZombieMode() && ebot_zombies_as_path_cost.GetBool() && !m_isZombieBot)
 		gcalc = GF_CostHuman;
+	else if (HasHostage())
+	{
+		useSeed = false;
+		gcalc = GF_CostNoHostage;
+	}
 	else if (m_isBomber || m_isVIP || (g_bombPlanted && m_inBombZone))
 	{
 		// move faster...
@@ -1737,10 +1735,6 @@ void Bot::FindPath(int srcIndex, int destIndex)
 		else
 			gcalc = GF_CostCareful;
 	}
-	else if (g_bombPlanted && m_team == TEAM_COUNTER)
-		gcalc = GF_CostRusher;
-	else if (HasHostage())
-		gcalc = GF_CostNoHostage;
 	else if (m_personality == PERSONALITY_CAREFUL)
 		gcalc = GF_CostCareful;
 	else if (m_personality == PERSONALITY_RUSHER)
@@ -1877,7 +1871,7 @@ void Bot::FindPath(int srcIndex, int destIndex)
 
 			// calculate the F value as F = G + H
 			const float g = currWaypoint->g + gcalc(currentIndex, self, m_team, pev->gravity, m_isZombieBot);
-			const float h = hcalc(self, destIndex) * RandomSeed(m_index, self, m_personality);
+			const float h = hcalc(self, destIndex) * useSeed ? RandomSeed(m_index, self, m_personality) : 0.1f;
 			const float f = g + h;
 
 			const auto childWaypoint = &waypoints[self];
@@ -2383,7 +2377,7 @@ void Bot::ResetStuck(void)
 
 void Bot::CheckStuck(void)
 {
-	if (m_hasFriendsNear && ebot_avoid_friends.GetBool())
+	if (ebot_avoid_friends.GetBool() && m_hasFriendsNear)
 	{
 		const Vector myOrigin = pev->origin + pev->velocity * m_frameInterval;
 		const Vector friendOrigin = m_friendOrigin + m_nearestFriend->v.velocity * m_frameInterval;
@@ -2468,8 +2462,37 @@ void Bot::CheckStuck(void)
 					if ((!friendlyFire && m_currentWeapon == WEAPON_KNIFE) || (friendlyFire && IsValidPlayer(m_nearestFriend))) // DOOR STUCK! || DIE HUMAN!
 					{
 						m_lookAt = friendOrigin + (m_nearestFriend->v.view_ofs * 0.9f);
+						m_pauseTime = 0.0f;
 						if (!(pev->button & IN_ATTACK) && !(pev->oldbuttons & IN_ATTACK))
 							pev->button |= IN_ATTACK;
+
+						switch (m_personality)
+						{
+						case PERSONALITY_CAREFUL:
+						{
+							if (friendlyFire)
+								ChatSay("YOU'RE NOT ONE OF US!", false);
+							else
+								ChatSay("I'M STUCK!", false);
+							break;
+						}
+						case PERSONALITY_RUSHER:
+						{
+							if (friendlyFire)
+								ChatSay("DIE HUMAN!", false);
+							else
+								ChatSay("GET OUT OF MY WAY!", false);
+							break;
+						}
+						default:
+						{
+							if (friendlyFire)
+								ChatSay("YOU GAVE ME NO CHOICE!", false);
+							else
+								ChatSay("DOOR STUCK!", false);
+							break;
+						}
+						}
 					}
 					else
 						SelectWeaponByName("weapon_knife");
@@ -2481,7 +2504,7 @@ void Bot::CheckStuck(void)
 	if (!m_isSlowThink)
 		return;
 
-	if ((pev->origin - m_stuckArea).GetLengthSquared2D() <= (pev->maxspeed * 2.0f))
+	if (((pev->origin + pev->velocity * m_frameInterval) - m_stuckArea).GetLengthSquared2D() <= (pev->maxspeed * 2.0f))
 	{
 		m_stuckWarn += 1;
 
@@ -2508,7 +2531,7 @@ void Bot::CheckStuck(void)
 
 	if (m_stuckTimer < engine->GetTime())
 	{
-		m_stuckArea = pev->origin;
+		m_stuckArea = pev->origin + pev->velocity * -m_frameInterval;
 		m_stuckTimer = AddTime(2.0f);
 	}
 }

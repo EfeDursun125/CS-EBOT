@@ -30,102 +30,14 @@ ConVar ebot_zp_escape_distance("ebot_zm_escape_distance", "200");
 ConVar ebot_zombie_speed_factor("ebot_zombie_speed_factor", "0.54");
 ConVar ebot_sb_mode("ebot_sb_mode", "0");
 
-int Bot::GetNearbyFriendsNearPosition(Vector origin, float radius)
-{
-	if (GetGameMode() == MODE_DM)
-		return 0;
-
-	if (origin == nullvec)
-		return 0;
-
-	int count = 0;
-	for (const auto& client : g_clients)
-	{
-		if (client.index < 0)
-			continue;
-
-		if (client.ent == nullptr)
-			continue;
-
-		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != m_team || client.ent == GetEntity())
-			continue;
-
-		if ((client.origin - origin).GetLengthSquared() <= SquaredF(radius))
-			count++;
-	}
-
-	return count;
-}
-
-int Bot::GetNearbyEnemiesNearPosition(Vector origin, float radius)
-{
-	if (origin == nullvec)
-		return 0;
-
-	int count = 0;
-	for (const auto& client : g_clients)
-	{
-		if (client.index < 0)
-			continue;
-
-		if (client.ent == nullptr)
-			continue;
-
-		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team == m_team)
-			continue;
-
-		if ((client.origin - origin).GetLengthSquared() <= SquaredF(radius))
-			count++;
-	}
-
-	return count;
-}
-
-void Bot::FindEnemyEntities(void)
-{
-	m_entityDistance = FLT_MAX;
-	m_entitiesNearCount = 0;
-	m_hasEntitiesNear = false;
-
-	for (int i = engine->GetMaxClients() + 1; i < entityNum; i++)
-	{
-		if (g_entityId[i] == -1 || g_entityAction[i] != 1 || m_team == g_entityTeam[i])
-			continue;
-
-		edict_t* entity = INDEXENT(g_entityId[i]);
-		if (FNullEnt(entity) || !IsAlive(entity) || entity->v.effects & EF_NODRAW || entity->v.takedamage == DAMAGE_NO)
-			continue;
-
-		// simple check
-		TraceResult tr;
-		const Vector origin = GetEntityOrigin(entity);
-		TraceLine(pev->origin, origin, true, true, GetEntity(), &tr);
-		if (tr.flFraction != 1.0f)
-			continue;
-
-		m_entitiesNearCount++;
-		const float distance = (pev->origin - origin).GetLengthSquared();
-		if (distance < m_entityDistance)
-		{
-			m_entityDistance = distance;
-			m_nearestEntity = entity;
-		}
-	}
-
-	m_hasEntitiesNear = m_entitiesNearCount > 0;
-	if (m_hasEntitiesNear)
-	{
-		m_entityOrigin = GetEntityOrigin(m_nearestEntity);
-		m_entitySeeTime = engine->GetTime();
-	}
-}
-
 void Bot::FindFriendsAndEnemiens(void)
 {
 	m_enemyDistance = FLT_MAX;
 	m_friendDistance = FLT_MAX;
 	m_enemiesNearCount = 0;
 	m_friendsNearCount = 0;
+	m_numEnemiesLeft = 0;
+	m_numFriendsLeft = 0;
 	m_hasEnemiesNear = false;
 	m_hasFriendsNear = false;
 
@@ -145,6 +57,8 @@ void Bot::FindFriendsAndEnemiens(void)
 
 		if (client.team == m_team)
 		{
+			m_numFriendsLeft++;
+
 			// simple check
 			TraceResult tr;
 			TraceLine(pev->origin, client.origin, true, true, GetEntity(), &tr);
@@ -161,6 +75,8 @@ void Bot::FindFriendsAndEnemiens(void)
 		}
 		else
 		{
+			m_numEnemiesLeft++;
+
 			if (!IsEnemyViewable(client.ent))
 				continue;
 
@@ -195,6 +111,48 @@ void Bot::FindFriendsAndEnemiens(void)
 	{
 		m_friendOrigin = m_nearestFriend->v.origin;
 		m_friendSeeTime = engine->GetTime();
+	}
+}
+
+void Bot::FindEnemyEntities(void)
+{
+	m_entityDistance = FLT_MAX;
+	m_entitiesNearCount = 0;
+	m_numEntitiesLeft = 0;
+	m_hasEntitiesNear = false;
+
+	for (int i = engine->GetMaxClients() + 1; i < entityNum; i++)
+	{
+		if (g_entityId[i] == -1 || g_entityAction[i] != 1 || m_team == g_entityTeam[i])
+			continue;
+
+		edict_t* entity = INDEXENT(g_entityId[i]);
+		if (FNullEnt(entity) || !IsAlive(entity) || entity->v.effects & EF_NODRAW || entity->v.takedamage == DAMAGE_NO)
+			continue;
+
+		m_numEntitiesLeft++;
+
+		// simple check
+		TraceResult tr;
+		const Vector origin = GetEntityOrigin(entity);
+		TraceLine(pev->origin, origin, true, true, GetEntity(), &tr);
+		if (tr.flFraction != 1.0f)
+			continue;
+
+		m_entitiesNearCount++;
+		const float distance = (pev->origin - origin).GetLengthSquared();
+		if (distance < m_entityDistance)
+		{
+			m_entityDistance = distance;
+			m_nearestEntity = entity;
+		}
+	}
+
+	m_hasEntitiesNear = m_entitiesNearCount > 0;
+	if (m_hasEntitiesNear)
+	{
+		m_entityOrigin = GetEntityOrigin(m_nearestEntity);
+		m_entitySeeTime = engine->GetTime();
 	}
 }
 
