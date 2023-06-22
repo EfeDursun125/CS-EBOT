@@ -946,7 +946,7 @@ private:
 	void RunPlayerMovement(void);
 	void GetValidWaypoint(void);
 	void ChangeWptIndex(const int waypointIndex);
-	bool IsDeadlyDrop(Vector targetOriginPos);
+	bool IsDeadlyDrop(const Vector targetOriginPos);
 	bool CampingAllowed(void);
 	bool OutOfBombTimer(void);
 	void SelectLeaderEachTeam(int team);
@@ -974,10 +974,7 @@ private:
 	void SelectPistol(void);
 	void SelectKnife(void);
 	bool IsFriendInLineOfFire(float distance);
-	bool IsGroupOfEnemies(Vector location, int numEnemies = 2, float radius = 640.0f);
 	bool IsShootableThruObstacle(edict_t* entity);
-	int GetNearbyEnemiesNearPosition(Vector origin, float radius);
-	int GetNearbyFriendsNearPosition(Vector origin, float radius);
 	void SelectWeaponByName(const char* name);
 	void SelectWeaponbyNumber(int num);
 	int GetHighestWeapon(void);
@@ -1106,8 +1103,6 @@ public:
 	float m_connectTime; // for fake query
 
 	int m_checkEnemyNum; // check enemy num idk
-	int m_numFriendsLeft; // number of friends alive
-	int m_numEnemiesLeft; // number of enemies alive
 
 	bool m_isSlowThink; // bool for check is slow think? (every second)
 
@@ -1144,6 +1139,9 @@ public:
 	int m_enemiesNearCount;
 	int m_friendsNearCount;
 	int m_entitiesNearCount;
+	int m_numEnemiesLeft;
+	int m_numFriendsLeft;
+	int m_numEntitiesLeft;
 	float m_enemyDistance;
 	float m_friendDistance;
 	float m_entityDistance;
@@ -1196,10 +1194,10 @@ public:
 
 	bool IsEnemyViewable(edict_t* player);
 	bool AllowPickupItem(void);
-	bool FindItem(void);
 
 	void CheckStuck(void);
 	void ResetStuck(void);
+	void FindItem(void);
 
 	bool IsAttacking(const edict_t* player);
 
