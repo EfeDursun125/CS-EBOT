@@ -779,7 +779,7 @@ void Bot::FireWeapon(void)
 
 	if (ebot_knifemode.GetBool())
 		goto WeaponSelectEnd;
-	else if (!FNullEnt(enemy) && ChanceOf(m_skill) && !IsZombieEntity(enemy) && distance <= SquaredF(128.0f) && (enemy->v.health <= 30 || pev->health > enemy->v.health) && !IsOnLadder() && !IsGroupOfEnemies(enemy->v.origin))
+	else if (!FNullEnt(enemy) && ChanceOf(m_skill) && !IsZombieEntity(enemy) && distance <= SquaredF(128.0f) && (enemy->v.health <= 30 || pev->health > enemy->v.health) && !IsOnLadder() && m_enemiesNearCount <= 1)
 		goto WeaponSelectEnd;
 
 	// loop through all the weapons until terminator is found...
@@ -1849,38 +1849,6 @@ void Bot::CommandTeam(void)
 	}
 
 	m_timeTeamOrder = engine->GetTime() + engine->RandomFloat(10.0f, 30.0f);
-}
-
-bool Bot::IsGroupOfEnemies(Vector location, int numEnemies, float radius)
-{
-	if (m_numEnemiesLeft <= 0)
-		return false;
-
-	if (location == nullvec)
-		return false;
-
-	int numPlayers = 0;
-
-	// search the world for enemy players...
-	for (const auto& client : g_clients)
-	{
-		if (client.index < 0)
-			continue;
-
-		if (client.ent == nullptr)
-			continue;
-
-		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team == m_team)
-			continue;
-
-		if ((client.origin - location).GetLengthSquared() <= SquaredF(radius))
-		{
-			if (numPlayers++ > numEnemies)
-				return true;
-		}
-	}
-
-	return false;
 }
 
 void Bot::CheckReload(void)

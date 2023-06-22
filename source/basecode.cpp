@@ -8149,9 +8149,9 @@ void Bot::DefaultUpdate(void)
 			if (m_itemCheckTime < engine->GetTime())
 			{
 				FindItem();
-				m_itemCheckTime = engine->GetTime() + g_gameVersion == HALFLIFE ? 1.0f : CRandomInt(1.25f, 2.5f);
+				m_itemCheckTime = engine->GetTime() + (g_gameVersion == HALFLIFE ? 1.25f : engine->RandomFloat(1.25f, 2.5f));
 
-				if (!FNullEnt(m_pickupItem) && SetProcess(Process::Pickup, "i see good stuff to pick it up", false, 20.0f))
+				if (GetEntityOrigin(m_pickupItem) != nullvec && SetProcess(Process::Pickup, "i see good stuff to pick it up", true, 20.0f))
 					return;
 			}
 			else
@@ -8399,7 +8399,7 @@ void Bot::AttackUpdate(void)
 	{
 		const Vector& src = pev->origin - Vector(0, 0, 18.0f);
 		if (!(m_visibility & (Visibility::Head | Visibility::Body)) && IsVisible(src, m_nearestEnemy))
-			m_duckTime = engine->GetTime() + (m_frameInterval * 2.0f);
+			m_duckTime = engine->GetTime() + 1.0f;
 
 		m_moveSpeed = 0.0f;
 		m_strafeSpeed = 0.0f;
@@ -8942,5 +8942,8 @@ void Bot::PickupEnd(void)
 
 bool Bot::PickupReq(void)
 {
+	//if (GetEntityOrigin(m_pickupItem) == nullvec)
+	//	return false;
+
 	return AllowPickupItem();
 }

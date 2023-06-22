@@ -1494,12 +1494,13 @@ inline const float HF_Nav(const NavArea* start, const NavArea* goal)
 	return (g_navmesh->GetCenter(start) - g_navmesh->GetCenter(goal)).GetLengthSquared();
 }
 
-inline const float RandomSeed(const int botindex, const int waypoint)
+inline const float RandomSeed(const int botindex, const int waypoint, const int personality)
 {
 	float multiplier = 1.0f;
 	int seed = int(engine->GetTime() * 0.1f) + 1;
-	seed *= botindex;
 	seed *= waypoint;
+	seed *= botindex;
+	seed *= personality + 1;
 	multiplier += (cosf(float(seed)) + 1.0f) * 10.0f;
 	return multiplier;
 }
@@ -1876,7 +1877,7 @@ void Bot::FindPath(int srcIndex, int destIndex)
 
 			// calculate the F value as F = G + H
 			const float g = currWaypoint->g + gcalc(currentIndex, self, m_team, pev->gravity, m_isZombieBot);
-			const float h = hcalc(self, destIndex) * RandomSeed(m_index, self);
+			const float h = hcalc(self, destIndex) * RandomSeed(m_index, self, m_personality);
 			const float f = g + h;
 
 			const auto childWaypoint = &waypoints[self];
@@ -2401,14 +2402,22 @@ void Bot::CheckStuck(void)
 				if (!CheckWallOnRight())
 					m_strafeSpeed = pev->maxspeed;
 				else
+				{
 					moveBack = true;
+					if (!CheckWallOnLeft())
+						m_strafeSpeed = -pev->maxspeed;
+				}
 			}
 			else
 			{
 				if (!CheckWallOnLeft())
 					m_strafeSpeed = -pev->maxspeed;
 				else
+				{
 					moveBack = true;
+					if (!CheckWallOnRight())
+						m_strafeSpeed = pev->maxspeed;
+				}
 			}
 
 			bool doorStuck = false;
@@ -3376,15 +3385,15 @@ bool Bot::CheckWallOnRight(void)
 }
 
 // this function eturns if given location would hurt Bot with falling damage
-bool Bot::IsDeadlyDrop(Vector targetOriginPos)
+bool Bot::IsDeadlyDrop(const Vector targetOriginPos)
 {
-	Vector botPos = pev->origin;
+	const Vector botPos = pev->origin;
 	TraceResult tr;
 
-	Vector move((targetOriginPos - botPos).ToYaw(), 0.0f, 0.0f);
+	const Vector move((targetOriginPos - botPos).ToYaw(), 0.0f, 0.0f);
 	MakeVectors(move);
 
-	Vector direction = (targetOriginPos - botPos).Normalize();  // 1 unit long
+	const Vector direction = (targetOriginPos - botPos).Normalize();  // 1 unit long
 	Vector check = botPos;
 	Vector down = botPos;
 
@@ -3402,7 +3411,7 @@ bool Bot::IsDeadlyDrop(Vector targetOriginPos)
 
 	while (distance > SquaredF(16.0f))
 	{
-		check = check + direction * 16.0f; // move 10 units closer to the goal...
+		check = check + direction * 16.0f; // move 16 units closer to the goal...
 
 		down = check;
 		down.z = down.z - 1000.0f;  // straight down 1000 units
