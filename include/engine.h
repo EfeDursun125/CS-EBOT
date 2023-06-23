@@ -246,21 +246,15 @@ public:
         return x == v.x && y == v.y;
     }
 
-    inline float Length(void) const
+    inline float GetLength(void) const
     {
         return csqrtf(x * x + y * y);
     }
 
     inline Vector2D Normalize(void) const
     {
-        float flLen = Length();
-        if (flLen == 0)
-            return Vector2D(0, 0);
-        else
-        {
-            flLen = 1.0f / flLen;
-            return Vector2D(x * flLen, y * flLen);
-        }
+        const float length = crsqrtf(x * x + y * y);
+        return Vector2D(x * length, y * length);
     }
 
     float x, y;

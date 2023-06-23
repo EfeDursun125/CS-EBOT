@@ -1204,6 +1204,7 @@ public:
 
 	void SetWalkTime(const float time);
 	float GetMaxSpeed(void);
+	float GetTargetDistance(void);
 
 	// GOAP
 	void DefaultStart(void);
