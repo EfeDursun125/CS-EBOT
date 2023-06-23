@@ -1467,7 +1467,7 @@ bool Bot::HasPrimaryWeapon(void)
 // this function returns true, if bot has a tactical shield
 bool Bot::HasShield(void)
 {
-	return strncmp(STRING(pev->viewmodel), "models/shield/v_shield_", 23) == 0;
+	return cstrncmp(STRING(pev->viewmodel), "models/shield/v_shield_", 23) == 0;
 }
 
 // this function returns true, is the tactical shield is drawn
@@ -1495,7 +1495,7 @@ bool Bot::IsEnemyProtectedByShield(edict_t* enemy)
 		return false;
 
 	// check if enemy has shield and this shield is drawn
-	if (strncmp(STRING(enemy->v.viewmodel), "models/shield/v_shield_", 23) == 0 && (enemy->v.weaponanim == 6 || enemy->v.weaponanim == 7))
+	if (cstrncmp(STRING(enemy->v.viewmodel), "models/shield/v_shield_", 23) == 0 && (enemy->v.weaponanim == 6 || enemy->v.weaponanim == 7))
 	{
 		if (::IsInViewCone(pev->origin, enemy))
 			return true;

@@ -1077,7 +1077,7 @@ Bot::~Bot(void)
 	{
 		sprintf(botName, "[E-BOT] %s", (char*)g_botNames[j].name);
 
-		if (strcmp(g_botNames[j].name, GetEntityName(GetEntity())) == 0 || strcmp(botName, GetEntityName(GetEntity())) == 0)
+		if (cstrcmp(g_botNames[j].name, GetEntityName(GetEntity())) == 0 || cstrcmp(botName, GetEntityName(GetEntity())) == 0)
 		{
 			g_botNames[j].isUsed = false;
 			break;

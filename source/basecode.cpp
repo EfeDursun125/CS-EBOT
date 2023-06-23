@@ -210,15 +210,15 @@ bool Bot::ItemIsVisible(Vector destination, char* itemName)
 		// check for standard items
 		if (g_gameVersion == HALFLIFE)
 		{
-			if (tr.flFraction > 0.95f && !FNullEnt(tr.pHit) && strcmp(STRING(tr.pHit->v.classname), itemName) == 0)
+			if (tr.flFraction > 0.95f && !FNullEnt(tr.pHit) && cstrcmp(STRING(tr.pHit->v.classname), itemName) == 0)
 				return true;
 		}
 		else
 		{
-			if (tr.flFraction > 0.97f && !FNullEnt(tr.pHit) && strcmp(STRING(tr.pHit->v.classname), itemName) == 0)
+			if (tr.flFraction > 0.97f && !FNullEnt(tr.pHit) && cstrcmp(STRING(tr.pHit->v.classname), itemName) == 0)
 				return true;
 
-			if (tr.flFraction > 0.95f && !FNullEnt(tr.pHit) && strncmp(STRING(tr.pHit->v.classname), "csdmw_", 6) == 0)
+			if (tr.flFraction > 0.95f && !FNullEnt(tr.pHit) && cstrncmp(STRING(tr.pHit->v.classname), "csdmw_", 6) == 0)
 				return true;
 		}
 
@@ -436,7 +436,7 @@ void Bot::AvoidEntity(void)
 
 	while (!FNullEnt(entity = FIND_ENTITY_BY_CLASSNAME(entity, "grenade")))
 	{
-		if (strcmp(STRING(entity->v.model) + 9, "smokegrenade.mdl") == 0)
+		if (cstrcmp(STRING(entity->v.model) + 9, "smokegrenade.mdl") == 0)
 			continue;
 
 		avoidEntityId[allEntity] = ENTINDEX(entity);
@@ -472,12 +472,12 @@ void Bot::AvoidEntity(void)
 
 		entity = INDEXENT(avoidEntityId[i]);
 
-		if (strcmp(STRING(entity->v.classname), "grenade") == 0)
+		if (cstrcmp(STRING(entity->v.classname), "grenade") == 0)
 		{
-			if (IsZombieMode() && strcmp(STRING(entity->v.model) + 9, "flashbang.mdl") == 0)
+			if (IsZombieMode() && cstrcmp(STRING(entity->v.model) + 9, "flashbang.mdl") == 0)
 				continue;
 
-			if (strcmp(STRING(entity->v.model) + 9, "hegrenade.mdl") == 0 && (GetTeam(entity->v.owner) == m_team && entity->v.owner != GetEntity()))
+			if (cstrcmp(STRING(entity->v.model) + 9, "hegrenade.mdl") == 0 && (GetTeam(entity->v.owner) == m_team && entity->v.owner != GetEntity()))
 				continue;
 		}
 
@@ -485,7 +485,7 @@ void Bot::AvoidEntity(void)
 		if (InFieldOfView(entityOrigin - EyePosition()) > pev->fov * 0.5f && !EntityIsVisible(entityOrigin))
 			continue;
 
-		if (m_skill >= 70 && strcmp(STRING(entity->v.model) + 9, "flashbang.mdl") == 0)
+		if (m_skill >= 70 && cstrcmp(STRING(entity->v.model) + 9, "flashbang.mdl") == 0)
 		{
 			pev->v_angle.y = AngleNormalize((entityOrigin - EyePosition()).ToAngles().y + 180.0f);
 			return;
@@ -535,7 +535,7 @@ bool Bot::IsBehindSmokeClouds(edict_t* ent)
 	while (!FNullEnt(pentGrenade = FIND_ENTITY_BY_CLASSNAME(pentGrenade, "grenade")))
 	{
 		// if grenade is invisible don't care for it
-		if ((pentGrenade->v.effects & EF_NODRAW) || !(pentGrenade->v.flags & (FL_ONGROUND | FL_PARTIALGROUND)) || strcmp(STRING(pentGrenade->v.model) + 9, "smokegrenade.mdl"))
+		if ((pentGrenade->v.effects & EF_NODRAW) || !(pentGrenade->v.flags & (FL_ONGROUND | FL_PARTIALGROUND)) || cstrcmp(STRING(pentGrenade->v.model) + 9, "smokegrenade.mdl"))
 			continue;
 
 		const Vector entOrigin = GetEntityOrigin(ent);
@@ -622,7 +622,7 @@ bool Bot::RateGroundWeapon(edict_t* ent)
 
 	for (int i = 0; i < Const_NumWeapons; i++)
 	{
-		if (strcmp(weaponTab[*ptr].modelName, STRING(ent->v.model) + 9) == 0)
+		if (cstrcmp(weaponTab[*ptr].modelName, STRING(ent->v.model) + 9) == 0)
 		{
 			groundIndex = i;
 			break;
@@ -651,7 +651,7 @@ edict_t* Bot::FindButton(void)
 	// find the nearest button which can open our target
 	while (!FNullEnt(searchEntity = FIND_ENTITY_IN_SPHERE(searchEntity, pev->origin, 512.0f)))
 	{
-		if (strncmp("func_button", STRING(searchEntity->v.classname), 11) == 0 || strncmp("func_rot_button", STRING(searchEntity->v.classname), 15) == 0)
+		if (cstrncmp("func_button", STRING(searchEntity->v.classname), 11) == 0 || cstrncmp("func_rot_button", STRING(searchEntity->v.classname), 15) == 0)
 		{
 			const float distance = (pev->origin - GetEntityOrigin(searchEntity)).GetLengthSquared();
 			if (distance < nearestDistance)
@@ -667,6 +667,12 @@ edict_t* Bot::FindButton(void)
 
 bool Bot::AllowPickupItem(void)
 {
+	if (m_hasEnemiesNear)
+		return false;
+
+	if (m_hasEntitiesNear)
+		return false;
+
 	if (IsOnLadder())
 		return false;
 
@@ -688,7 +694,7 @@ void Bot::FindItem(void)
 	{
 		while (!FNullEnt(ent = FIND_ENTITY_IN_SPHERE(ent, pev->origin, 512.0f)))
 		{
-			if (ent != m_pickupItem || ent->v.effects & EF_NODRAW || IsValidPlayer(ent->v.owner))
+			if (ent != m_pickupItem || ent->v.effects & EF_NODRAW || IsValidPlayer(ent->v.owner) || IsValidPlayer(ent))
 				continue; // someone owns this weapon or it hasn't re spawned yet
 
 			if (ItemIsVisible(GetEntityOrigin(ent), const_cast <char*> (STRING(ent->v.classname))))
@@ -711,12 +717,12 @@ void Bot::FindItem(void)
 	while (!FNullEnt(ent = FIND_ENTITY_IN_SPHERE(ent, pev->origin, 512.0f)))
 	{
 		pickupType = PICKTYPE_NONE;
-		if ((ent->v.effects & EF_NODRAW) || ent == m_itemIgnore)
+		if (ent->v.effects & EF_NODRAW || ent == m_itemIgnore || IsValidPlayer(ent) || ent == GetEntity()) // we can't pickup a player...
 			continue;
 
-		if (pev->health < pev->max_health && strncmp("item_healthkit", STRING(ent->v.classname), 14) == 0)
+		if (pev->health < pev->max_health && cstrncmp("item_healthkit", STRING(ent->v.classname), 14) == 0)
 			pickupType = PICKTYPE_GETENTITY;
-		else if (pev->health < pev->max_health && strncmp("func_healthcharger", STRING(ent->v.classname), 18) == 0 && ent->v.frame == 0)
+		else if (pev->health < pev->max_health && cstrncmp("func_healthcharger", STRING(ent->v.classname), 18) == 0 && ent->v.frame == 0)
 		{
 			const auto origin = GetEntityOrigin(ent);
 			if ((pev->origin - origin).GetLengthSquared() <= SquaredF(128.0f))
@@ -735,9 +741,9 @@ void Bot::FindItem(void)
 			m_moveSpeed = pev->maxspeed;
 			m_strafeSpeed = 0.0f;
 		}
-		else if (pev->armorvalue < 100 && strncmp("item_battery", STRING(ent->v.classname), 12) == 0)
+		else if (pev->armorvalue < 100 && cstrncmp("item_battery", STRING(ent->v.classname), 12) == 0)
 			pickupType = PICKTYPE_GETENTITY;
-		else if (pev->armorvalue < 100 && strncmp("func_recharge", STRING(ent->v.classname), 13) == 0 && ent->v.frame == 0)
+		else if (pev->armorvalue < 100 && cstrncmp("func_recharge", STRING(ent->v.classname), 13) == 0 && ent->v.frame == 0)
 		{
 			const auto origin = GetEntityOrigin(ent);
 			if ((pev->origin - origin).GetLengthSquared() <= SquaredF(128.0f))
@@ -758,7 +764,7 @@ void Bot::FindItem(void)
 		}
 		else if (g_gameVersion == HALFLIFE)
 		{
-			if (m_currentWeapon != WEAPON_SNARK && strncmp("monster_snark", STRING(ent->v.classname), 13) == 0)
+			if (m_currentWeapon != WEAPON_SNARK && cstrncmp("monster_snark", STRING(ent->v.classname), 13) == 0)
 			{
 				m_hasEntitiesNear = true;
 				m_nearestEntity = ent;
@@ -769,26 +775,26 @@ void Bot::FindItem(void)
 				if (!(pev->oldbuttons & IN_ATTACK))
 					pev->button |= IN_ATTACK;
 			}
-			else if (strncmp("weapon_", STRING(ent->v.classname), 7) == 0)
+			else if (cstrncmp("weapon_", STRING(ent->v.classname), 7) == 0)
 				pickupType = PICKTYPE_GETENTITY;
-			else if (strncmp("ammo_", STRING(ent->v.classname), 5) == 0)
+			else if (cstrncmp("ammo_", STRING(ent->v.classname), 5) == 0)
 				pickupType = PICKTYPE_GETENTITY;
-			else if (strncmp("weaponbox", STRING(ent->v.classname), 9) == 0)
+			else if (cstrncmp("weaponbox", STRING(ent->v.classname), 9) == 0)
 				pickupType = PICKTYPE_GETENTITY;
 		}
-		else if (strncmp("hostage_entity", STRING(ent->v.classname), 14) == 0)
+		else if (cstrncmp("hostage_entity", STRING(ent->v.classname), 14) == 0)
 			pickupType = PICKTYPE_HOSTAGE;
-		else if (strncmp("weaponbox", STRING(ent->v.classname), 9) == 0 && strcmp(STRING(ent->v.model) + 9, "backpack.mdl") == 0)
+		else if (cstrncmp("weaponbox", STRING(ent->v.classname), 9) == 0 && cstrcmp(STRING(ent->v.model) + 9, "backpack.mdl") == 0)
 			pickupType = PICKTYPE_DROPPEDC4;
-		else if (strncmp("weaponbox", STRING(ent->v.classname), 9) == 0 && strcmp(STRING(ent->v.model) + 9, "backpack.mdl") == 0 && !m_isUsingGrenade)
+		else if (cstrncmp("weaponbox", STRING(ent->v.classname), 9) == 0 && cstrcmp(STRING(ent->v.model) + 9, "backpack.mdl") == 0 && !m_isUsingGrenade)
 			pickupType = PICKTYPE_DROPPEDC4;
-		else if ((strncmp("weaponbox", STRING(ent->v.classname), 9) == 0 || strncmp("armoury_entity", STRING(ent->v.classname), 14) == 0 || strncmp("csdm", STRING(ent->v.classname), 4) == 0) && !m_isUsingGrenade)
+		else if ((cstrncmp("weaponbox", STRING(ent->v.classname), 9) == 0 || cstrncmp("armoury_entity", STRING(ent->v.classname), 14) == 0 || cstrncmp("csdm", STRING(ent->v.classname), 4) == 0) && !m_isUsingGrenade)
 			pickupType = PICKTYPE_WEAPON;
-		else if (strncmp("weapon_shield", STRING(ent->v.classname), 13) == 0 && !m_isUsingGrenade)
+		else if (cstrncmp("weapon_shield", STRING(ent->v.classname), 13) == 0 && !m_isUsingGrenade)
 			pickupType = PICKTYPE_SHIELDGUN;
-		else if (strncmp("item_thighpack", STRING(ent->v.classname), 14) == 0 && m_team == TEAM_COUNTER && !m_hasDefuser)
+		else if (cstrncmp("item_thighpack", STRING(ent->v.classname), 14) == 0 && m_team == TEAM_COUNTER && !m_hasDefuser)
 			pickupType = PICKTYPE_DEFUSEKIT;
-		else if (strncmp("grenade", STRING(ent->v.classname), 7) == 0 && strcmp(STRING(ent->v.model) + 9, "c4.mdl") == 0)
+		else if (cstrncmp("grenade", STRING(ent->v.classname), 7) == 0 && cstrcmp(STRING(ent->v.model) + 9, "c4.mdl") == 0)
 			pickupType = PICKTYPE_PLANTEDC4;
 		else
 		{
@@ -817,7 +823,7 @@ void Bot::FindItem(void)
 
 		if (!ItemIsVisible(entityOrigin, const_cast <char*> (STRING(ent->v.classname))))
 		{
-			if (strncmp("grenade", STRING(ent->v.classname), 7) != 0 || strcmp(STRING(ent->v.model) + 9, "c4.mdl") != 0)
+			if (cstrncmp("grenade", STRING(ent->v.classname), 7) != 0 || cstrcmp(STRING(ent->v.model) + 9, "c4.mdl") != 0)
 				continue;
 
 			if (distance > SquaredF(128.0f))
@@ -834,32 +840,32 @@ void Bot::FindItem(void)
 			const int secondaryWeaponAmmoMax = g_weaponDefs[g_weaponSelect[secondaryWeaponCarried].id].ammo1Max;
 			const int weaponAmmoMax = g_weaponDefs[g_weaponSelect[weaponCarried].id].ammo1Max;
 
-			if (secondaryWeaponCarried < 7 && (m_ammo[g_weaponSelect[secondaryWeaponCarried].id] > 0.3 * secondaryWeaponAmmoMax) && strcmp(STRING(ent->v.model) + 9, "w_357ammobox.mdl") == 0)
+			if (secondaryWeaponCarried < 7 && (m_ammo[g_weaponSelect[secondaryWeaponCarried].id] > 0.3 * secondaryWeaponAmmoMax) && cstrcmp(STRING(ent->v.model) + 9, "w_357ammobox.mdl") == 0)
 				allowPickup = false;
-			else if (!m_isVIP && weaponCarried >= 7 && (m_ammo[g_weaponSelect[weaponCarried].id] > 0.3 * weaponAmmoMax) && strncmp(STRING(ent->v.model) + 9, "w_", 2) == 0)
+			else if (!m_isVIP && weaponCarried >= 7 && (m_ammo[g_weaponSelect[weaponCarried].id] > 0.3 * weaponAmmoMax) && cstrncmp(STRING(ent->v.model) + 9, "w_", 2) == 0)
 			{
-				if (strcmp(STRING(ent->v.model) + 9, "w_9mmarclip.mdl") == 0 && !(weaponCarried == WEAPON_FAMAS || weaponCarried == WEAPON_AK47 || weaponCarried == WEAPON_M4A1 || weaponCarried == WEAPON_GALIL || weaponCarried == WEAPON_AUG || weaponCarried == WEAPON_SG552))
+				if (cstrcmp(STRING(ent->v.model) + 9, "w_9mmarclip.mdl") == 0 && !(weaponCarried == WEAPON_FAMAS || weaponCarried == WEAPON_AK47 || weaponCarried == WEAPON_M4A1 || weaponCarried == WEAPON_GALIL || weaponCarried == WEAPON_AUG || weaponCarried == WEAPON_SG552))
 					allowPickup = false;
-				else if (strcmp(STRING(ent->v.model) + 9, "w_shotbox.mdl") == 0 && !(weaponCarried == WEAPON_M3 || weaponCarried == WEAPON_XM1014))
+				else if (cstrcmp(STRING(ent->v.model) + 9, "w_shotbox.mdl") == 0 && !(weaponCarried == WEAPON_M3 || weaponCarried == WEAPON_XM1014))
 					allowPickup = false;
-				else if (strcmp(STRING(ent->v.model) + 9, "w_9mmclip.mdl") == 0 && !(weaponCarried == WEAPON_MP5 || weaponCarried == WEAPON_TMP || weaponCarried == WEAPON_P90 || weaponCarried == WEAPON_MAC10 || weaponCarried == WEAPON_UMP45))
+				else if (cstrcmp(STRING(ent->v.model) + 9, "w_9mmclip.mdl") == 0 && !(weaponCarried == WEAPON_MP5 || weaponCarried == WEAPON_TMP || weaponCarried == WEAPON_P90 || weaponCarried == WEAPON_MAC10 || weaponCarried == WEAPON_UMP45))
 					allowPickup = false;
-				else if (strcmp(STRING(ent->v.model) + 9, "w_crossbow_clip.mdl") == 0 && !(weaponCarried == WEAPON_AWP || weaponCarried == WEAPON_G3SG1 || weaponCarried == WEAPON_SCOUT || weaponCarried == WEAPON_SG550))
+				else if (cstrcmp(STRING(ent->v.model) + 9, "w_crossbow_clip.mdl") == 0 && !(weaponCarried == WEAPON_AWP || weaponCarried == WEAPON_G3SG1 || weaponCarried == WEAPON_SCOUT || weaponCarried == WEAPON_SG550))
 					allowPickup = false;
-				else if (strcmp(STRING(ent->v.model) + 9, "w_chainammo.mdl") == 0 && weaponCarried == WEAPON_M249)
+				else if (cstrcmp(STRING(ent->v.model) + 9, "w_chainammo.mdl") == 0 && weaponCarried == WEAPON_M249)
 					allowPickup = false;
 			}
 			else if (m_isVIP || !RateGroundWeapon(ent))
 				allowPickup = false;
-			else if (strcmp(STRING(ent->v.model) + 9, "medkit.mdl") == 0 && (pev->health >= 100))
+			else if (cstrcmp(STRING(ent->v.model) + 9, "medkit.mdl") == 0 && (pev->health >= 100))
 				allowPickup = false;
-			else if ((strcmp(STRING(ent->v.model) + 9, "kevlar.mdl") == 0 || strcmp(STRING(ent->v.model) + 9, "battery.mdl") == 0) && pev->armorvalue >= 100) // armor vest
+			else if ((cstrcmp(STRING(ent->v.model) + 9, "kevlar.mdl") == 0 || cstrcmp(STRING(ent->v.model) + 9, "battery.mdl") == 0) && pev->armorvalue >= 100) // armor vest
 				allowPickup = false;
-			else if (strcmp(STRING(ent->v.model) + 9, "flashbang.mdl") == 0 && (pev->weapons & (1 << WEAPON_FBGRENADE))) // concussion grenade
+			else if (cstrcmp(STRING(ent->v.model) + 9, "flashbang.mdl") == 0 && (pev->weapons & (1 << WEAPON_FBGRENADE))) // concussion grenade
 				allowPickup = false;
-			else if (strcmp(STRING(ent->v.model) + 9, "hegrenade.mdl") == 0 && (pev->weapons & (1 << WEAPON_HEGRENADE))) // explosive grenade
+			else if (cstrcmp(STRING(ent->v.model) + 9, "hegrenade.mdl") == 0 && (pev->weapons & (1 << WEAPON_HEGRENADE))) // explosive grenade
 				allowPickup = false;
-			else if (strcmp(STRING(ent->v.model) + 9, "smokegrenade.mdl") == 0 && (pev->weapons & (1 << WEAPON_SMGRENADE))) // smoke grenade
+			else if (cstrcmp(STRING(ent->v.model) + 9, "smokegrenade.mdl") == 0 && (pev->weapons & (1 << WEAPON_SMGRENADE))) // smoke grenade
 				allowPickup = false;
 		}
 		else if (pickupType == PICKTYPE_SHIELDGUN)
@@ -1012,7 +1018,7 @@ void Bot::GetCampDirection(Vector* dest)
 	// check if the trace hit something...
 	if (tr.flFraction < 1.0f)
 	{
-		float length = (tr.vecEndPos - src).GetLengthSquared();
+		const float length = (tr.vecEndPos - src).GetLengthSquared();
 
 		if (length > SquaredF(10000.0f))
 			return;
@@ -1276,7 +1282,7 @@ bool Bot::IsRestricted(int weaponIndex)
 		const char* banned = STRING(GetWeaponReturn(true, nullptr, weaponIndex));
 
 		// check is this weapon is banned
-		if (strncmp(bannedWeapons[i], banned, bannedWeapons[i].GetLength()) == 0)
+		if (cstrncmp(bannedWeapons[i], banned, bannedWeapons[i].GetLength()) == 0)
 			return true;
 	}
 
@@ -3917,7 +3923,7 @@ void Bot::BaseUpdate(void)
 				// search for last messages, sayed
 				ITERATE_ARRAY(m_sayTextBuffer.lastUsedSentences, i)
 				{
-					if (strncmp(m_sayTextBuffer.lastUsedSentences[i], pickedPhrase, m_sayTextBuffer.lastUsedSentences[i].GetLength()) == 0)
+					if (cstrncmp(m_sayTextBuffer.lastUsedSentences[i], pickedPhrase, m_sayTextBuffer.lastUsedSentences[i].GetLength()) == 0)
 						sayBufferExists = true;
 				}
 
@@ -4131,7 +4137,7 @@ void Bot::LookAtAround(void)
 			}
 		}
 	}
-	else if (!m_isZombieBot && m_hasFriendsNear && IsAttacking(m_nearestFriend) && strncmp(STRING(m_nearestFriend->v.viewmodel), "models/v_knife", 14) != 0)
+	else if (!m_isZombieBot && m_hasFriendsNear && IsAttacking(m_nearestFriend) && cstrncmp(STRING(m_nearestFriend->v.viewmodel), "models/v_knife", 14) != 0)
 	{
 		auto bot = g_botManager->GetBot(m_nearestFriend);
 		if (bot != nullptr)
@@ -4386,7 +4392,7 @@ void Bot::Think(void)
 				// search for last messages, sayed
 				ITERATE_ARRAY(m_sayTextBuffer.lastUsedSentences, i)
 				{
-					if (strncmp(m_sayTextBuffer.lastUsedSentences[i], pickedPhrase, m_sayTextBuffer.lastUsedSentences[i].GetLength()) == 0)
+					if (cstrncmp(m_sayTextBuffer.lastUsedSentences[i], pickedPhrase, m_sayTextBuffer.lastUsedSentences[i].GetLength()) == 0)
 						sayBufferExists = true;
 				}
 
@@ -5866,7 +5872,7 @@ void Bot::RunTask(void)
 
 			while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "grenade")))
 			{
-				if (ent->v.owner == GetEntity() && strcmp(STRING(ent->v.model) + 9, "hegrenade.mdl") == 0)
+				if (ent->v.owner == GetEntity() && cstrcmp(STRING(ent->v.model) + 9, "hegrenade.mdl") == 0)
 				{
 					// set the correct velocity for the grenade
 					if (m_grenade != nullvec && m_grenade.GetLengthSquared() >= SquaredF(100.0f))
@@ -5958,7 +5964,7 @@ void Bot::RunTask(void)
 			edict_t* ent = nullptr;
 			while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "grenade")))
 			{
-				if (ent->v.owner == GetEntity() && strcmp(STRING(ent->v.model) + 9, "flashbang.mdl") == 0)
+				if (ent->v.owner == GetEntity() && cstrcmp(STRING(ent->v.model) + 9, "flashbang.mdl") == 0)
 				{
 					// set the correct velocity for the grenade
 					if (m_grenade != nullvec && m_grenade.GetLengthSquared() >= SquaredF(100.0f))
@@ -6035,7 +6041,7 @@ void Bot::RunTask(void)
 
 			while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "grenade")))
 			{
-				if (ent->v.owner == GetEntity() && strcmp(STRING(ent->v.model) + 9, "smokegrenade.mdl") == 0)
+				if (ent->v.owner == GetEntity() && cstrcmp(STRING(ent->v.model) + 9, "smokegrenade.mdl") == 0)
 				{
 					// set the correct velocity for the grenade
 					if (m_grenade != nullvec && m_grenade.GetLengthSquared() >= SquaredF(100.0f))
@@ -6106,7 +6112,7 @@ void Bot::RunTask(void)
 
 			while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "grenade")))
 			{
-				if (ent->v.owner == GetEntity() && strcmp(STRING(ent->v.model) + 9, "smokegrenade.mdl") == 0)
+				if (ent->v.owner == GetEntity() && cstrcmp(STRING(ent->v.model) + 9, "smokegrenade.mdl") == 0)
 				{
 					// set the correct velocity for the grenade
 					if (m_grenade != nullvec && m_grenade.GetLengthSquared() >= SquaredF(100.0f))
@@ -6330,7 +6336,7 @@ void Bot::RunTask(void)
 			{
 				for (i = 0; i < 7; i++)
 				{
-					if (strcmp(g_weaponSelect[i].modelName, STRING(m_pickupItem->v.model) + 9) == 0)
+					if (cstrcmp(g_weaponSelect[i].modelName, STRING(m_pickupItem->v.model) + 9) == 0)
 						break;
 				}
 
@@ -8743,7 +8749,6 @@ void Bot::PickupUpdate(void)
 
 	MoveTo(destination);
 	CheckStuck(pev->maxspeed);
-	DeleteSearchNodes();
 
 	// find the distance to the item
 	const float itemDistance = (destination - pev->origin).GetLengthSquared();
@@ -8765,7 +8770,7 @@ void Bot::PickupUpdate(void)
 			int i;
 			for (i = 0; i < 7; i++)
 			{
-				if (strcmp(g_weaponSelect[i].modelName, STRING(m_pickupItem->v.model) + 9) == 0)
+				if (cstrcmp(g_weaponSelect[i].modelName, STRING(m_pickupItem->v.model) + 9) == 0)
 					break;
 			}
 
@@ -8938,12 +8943,12 @@ void Bot::PickupUpdate(void)
 void Bot::PickupEnd(void)
 {
 	ResetStuck();
+	m_currentWaypointIndex = -1;
+	FindWaypoint(false);
+	DeleteSearchNodes();
 }
 
 bool Bot::PickupReq(void)
 {
-	//if (GetEntityOrigin(m_pickupItem) == nullvec)
-	//	return false;
-
 	return AllowPickupItem();
 }

@@ -1840,49 +1840,49 @@ void SoundAttachToThreat(edict_t* ent, const char* sample, float volume)
 	if (index < 0 || index >= engine->GetMaxClients())
 		return;
 
-	if (strncmp("player/bhit_flesh", sample, 17) == 0 || strncmp("player/headshot", sample, 15) == 0)
+	if (cstrncmp("player/bhit_flesh", sample, 17) == 0 || cstrncmp("player/headshot", sample, 15) == 0)
 	{
 		// hit/fall sound?
 		g_clients[index].hearingDistance = 768.0f * volume;
 		g_clients[index].timeSoundLasting = engine->GetTime() + 0.5f;
 		g_clients[index].soundPosition = origin;
 	}
-	else if (strncmp("items/gunpickup", sample, 15) == 0)
+	else if (cstrncmp("items/gunpickup", sample, 15) == 0)
 	{
 		// weapon pickup?
 		g_clients[index].hearingDistance = 768.0f * volume;
 		g_clients[index].timeSoundLasting = engine->GetTime() + 0.5f;
 		g_clients[index].soundPosition = origin;
 	}
-	else if (strncmp("weapons/zoom", sample, 12) == 0)
+	else if (cstrncmp("weapons/zoom", sample, 12) == 0)
 	{
 		// sniper zooming?
 		g_clients[index].hearingDistance = 512.0f * volume;
 		g_clients[index].timeSoundLasting = engine->GetTime() + 0.1f;
 		g_clients[index].soundPosition = origin;
 	}
-	else if (strncmp("items/9mmclip", sample, 13) == 0)
+	else if (cstrncmp("items/9mmclip", sample, 13) == 0)
 	{
 		// ammo pickup?
 		g_clients[index].hearingDistance = 512.0f * volume;
 		g_clients[index].timeSoundLasting = engine->GetTime() + 0.1f;
 		g_clients[index].soundPosition = origin;
 	}
-	else if (strncmp("hostage/hos", sample, 11) == 0)
+	else if (cstrncmp("hostage/hos", sample, 11) == 0)
 	{
 		// CT used hostage?
 		g_clients[index].hearingDistance = 1024.0f * volume;
 		g_clients[index].timeSoundLasting = engine->GetTime() + 5.0f;
 		g_clients[index].soundPosition = origin;
 	}
-	else if (strncmp("debris/bustmetal", sample, 16) == 0 || strncmp("debris/bustglass", sample, 16) == 0)
+	else if (cstrncmp("debris/bustmetal", sample, 16) == 0 || cstrncmp("debris/bustglass", sample, 16) == 0)
 	{
 		// broke something?
 		g_clients[index].hearingDistance = 1024.0f * volume;
 		g_clients[index].timeSoundLasting = engine->GetTime() + 2.0f;
 		g_clients[index].soundPosition = origin;
 	}
-	else if (strncmp("doors/doormove", sample, 14) == 0)
+	else if (cstrncmp("doors/doormove", sample, 14) == 0)
 	{
 		// someone opened a door
 		g_clients[index].hearingDistance = 1024.0f * volume;
@@ -1951,7 +1951,7 @@ int GetWeaponReturn(bool needString, const char* weaponAlias, int weaponID)
 	// else search weapon by name and return weapon id
 	for (int i = 0; i < ARRAYSIZE_HLSDK(weaponTab); i++)
 	{
-		if (strncmp(weaponTab[i].alias, weaponAlias, cstrlen(weaponTab[i].alias)) == 0)
+		if (cstrncmp(weaponTab[i].alias, weaponAlias, cstrlen(weaponTab[i].alias)) == 0)
 			return weaponTab[i].weaponID;
 	}
 

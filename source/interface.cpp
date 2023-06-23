@@ -954,42 +954,42 @@ void InitConfig(void)
 				SKIP_COMMENTS();
 				strcpy(command, GetField(line, 0, 1));
 
-				if (strcmp(command, "[KILLED]") == 0)
+				if (cstrcmp(command, "[KILLED]") == 0)
 				{
 					chatType = 0;
 					continue;
 				}
-				else if (strcmp(command, "[BOMBPLANT]") == 0)
+				else if (cstrcmp(command, "[BOMBPLANT]") == 0)
 				{
 					chatType = 1;
 					continue;
 				}
-				else if (strcmp(command, "[DEADCHAT]") == 0)
+				else if (cstrcmp(command, "[DEADCHAT]") == 0)
 				{
 					chatType = 2;
 					continue;
 				}
-				else if (strcmp(command, "[REPLIES]") == 0)
+				else if (cstrcmp(command, "[REPLIES]") == 0)
 				{
 					chatType = 3;
 					continue;
 				}
-				else if (strcmp(command, "[UNKNOWN]") == 0)
+				else if (cstrcmp(command, "[UNKNOWN]") == 0)
 				{
 					chatType = 4;
 					continue;
 				}
-				else if (strcmp(command, "[TEAMATTACK]") == 0)
+				else if (cstrcmp(command, "[TEAMATTACK]") == 0)
 				{
 					chatType = 5;
 					continue;
 				}
-				else if (strcmp(command, "[WELCOME]") == 0)
+				else if (cstrcmp(command, "[WELCOME]") == 0)
 				{
 					chatType = 6;
 					continue;
 				}
-				else if (strcmp(command, "[TEAMKILL]") == 0)
+				else if (cstrcmp(command, "[TEAMKILL]") == 0)
 				{
 					chatType = 7;
 					continue;
@@ -1208,7 +1208,7 @@ int Spawn(edict_t* ent)
 	// and any MOD is supposed to implement one for each of its entities.
 	const char* entityClassname = STRING(ent->v.classname);
 	
-	if (strcmp(entityClassname, "worldspawn") == 0)
+	if (cstrcmp(entityClassname, "worldspawn") == 0)
 	{
 		PRECACHE_SOUND("weapons/xbow_hit1.wav");      // waypoint add
 		PRECACHE_SOUND("weapons/mine_activate.wav");  // waypoint delete
@@ -1227,9 +1227,9 @@ int Spawn(edict_t* ent)
 		g_mapType = 0; // reset map type as worldspawn is the first entity spawned
 		g_worldEdict = ent; // save the world entity for future use
 	}
-	else if (strcmp(entityClassname, "func_door") == 0 || strcmp(entityClassname, "func_door_rotating") == 0)
+	else if (cstrcmp(entityClassname, "func_door") == 0 || cstrcmp(entityClassname, "func_door_rotating") == 0)
 		g_hasDoors = true;
-	else if (strcmp(entityClassname, "player_weaponstrip") == 0)
+	else if (cstrcmp(entityClassname, "player_weaponstrip") == 0)
 	{
 		if ((g_gameVersion == CSVER_VERYOLD || g_gameVersion == HALFLIFE) && (STRING(ent->v.target))[0] == '\0')
 		{
@@ -1250,58 +1250,58 @@ int Spawn(edict_t* ent)
 	{
 		if (g_gameVersion != HALFLIFE)
 		{
-			if (strcmp(entityClassname, "info_player_start") == 0)
+			if (cstrcmp(entityClassname, "info_player_start") == 0)
 			{
 				SET_MODEL(ent, "models/player/urban/urban.mdl");
 				ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
 				ent->v.renderamt = 127; // set its transparency amount
 				ent->v.effects |= EF_NODRAW;
 			}
-			else if (strcmp(entityClassname, "info_player_deathmatch") == 0)
+			else if (cstrcmp(entityClassname, "info_player_deathmatch") == 0)
 			{
 				SET_MODEL(ent, "models/player/terror/terror.mdl");
 				ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
 				ent->v.renderamt = 127; // set its transparency amount
 				ent->v.effects |= EF_NODRAW;
 			}
-			else if (strcmp(entityClassname, "info_vip_start") == 0)
+			else if (cstrcmp(entityClassname, "info_vip_start") == 0)
 			{
 				SET_MODEL(ent, "models/player/vip/vip.mdl");
 				ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
 				ent->v.renderamt = 127; // set its transparency amount
 				ent->v.effects |= EF_NODRAW;
 			}
-			else if (strcmp(entityClassname, "func_vip_safetyzone") == 0 || strcmp(entityClassname, "info_vip_safetyzone") == 0)
+			else if (cstrcmp(entityClassname, "func_vip_safetyzone") == 0 || cstrcmp(entityClassname, "info_vip_safetyzone") == 0)
 				g_mapType |= MAP_AS; // assassination map
-			else if (strcmp(entityClassname, "hostage_entity") == 0)
+			else if (cstrcmp(entityClassname, "hostage_entity") == 0)
 				g_mapType |= MAP_CS; // rescue map
-			else if (strcmp(entityClassname, "func_bomb_target") == 0 || strcmp(entityClassname, "info_bomb_target") == 0)
+			else if (cstrcmp(entityClassname, "func_bomb_target") == 0 || cstrcmp(entityClassname, "info_bomb_target") == 0)
 				g_mapType |= MAP_DE; // defusion map
-			else if (strcmp(entityClassname, "func_escapezone") == 0)
+			else if (cstrcmp(entityClassname, "func_escapezone") == 0)
 				g_mapType |= MAP_ES;
 			// next maps doesn't have map-specific entities, so determine it by name
-			else if (strncmp(GetMapName(), "fy_", 3) == 0) // fun map
+			else if (cstrncmp(GetMapName(), "fy_", 3) == 0) // fun map
 				g_mapType |= MAP_FY;
-			else if (strncmp(GetMapName(), "ka_", 3) == 0) // knife arena map
+			else if (cstrncmp(GetMapName(), "ka_", 3) == 0) // knife arena map
 				g_mapType |= MAP_KA;
-			else if (strncmp(GetMapName(), "awp_", 4) == 0) // awp only map
+			else if (cstrncmp(GetMapName(), "awp_", 4) == 0) // awp only map
 				g_mapType |= MAP_AWP;
-			else if (strncmp(GetMapName(), "he_", 4) == 0) // grenade wars
+			else if (cstrncmp(GetMapName(), "he_", 4) == 0) // grenade wars
 				g_mapType |= MAP_HE;
-			else if (strncmp(GetMapName(), "ze_", 4) == 0) // zombie escape
+			else if (cstrncmp(GetMapName(), "ze_", 4) == 0) // zombie escape
 				g_mapType |= MAP_ZE;
 			else
 				g_mapType |= MAP_DE;
 		}
 		else
 		{
-			if (strcmp(entityClassname, "info_player_start") == 0)
+			if (cstrcmp(entityClassname, "info_player_start") == 0)
 			{
 				ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
 				ent->v.renderamt = 127; // set its transparency amount
 				ent->v.effects |= EF_NODRAW;
 			}
-			else if (strcmp(entityClassname, "info_player_deathmatch") == 0)
+			else if (cstrcmp(entityClassname, "info_player_deathmatch") == 0)
 			{
 				ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
 				ent->v.renderamt = 127; // set its transparency amount
@@ -1387,7 +1387,7 @@ int ClientConnect(edict_t* ent, const char* name, const char* addr, char rejectR
    // callbacks->OnClientConnect (ent, name, addr);
 
 	// check if this client is the listen server client
-	if (strcmp(addr, "loopback") == 0)
+	if (cstrcmp(addr, "loopback") == 0)
 		g_hostEntity = ent; // save the edict of the listen server client...
 
 	LoadEntityData();
@@ -1447,7 +1447,7 @@ void ClientUserInfoChanged(edict_t* ent, char* infobuffer)
 
 	int clientIndex = ENTINDEX(ent) - 1;
 
-	if (strcmp(password, INFOKEY_VALUE(infobuffer, const_cast <char*> (passwordField))) == 0)
+	if (cstrcmp(password, INFOKEY_VALUE(infobuffer, const_cast <char*> (passwordField))) == 0)
 		g_clients[clientIndex].flags |= CFLAG_OWNER;
 	else
 		g_clients[clientIndex].flags &= ~CFLAG_OWNER;
@@ -2650,7 +2650,7 @@ void ClientCommand(edict_t* ent)
 	int clientIndex = ENTINDEX(ent) - 1;
 
 	// check if this player alive, and issue something
-	if ((g_clients[clientIndex].flags & CFLAG_ALIVE) && g_radioSelect[clientIndex] != 0 && strncmp(command, "menuselect", 10) == 0)
+	if ((g_clients[clientIndex].flags & CFLAG_ALIVE) && g_radioSelect[clientIndex] != 0 && cstrncmp(command, "menuselect", 10) == 0)
 	{
 		int radioCommand = atoi(arg1);
 
@@ -2676,7 +2676,7 @@ void ClientCommand(edict_t* ent)
 		}
 		g_radioSelect[clientIndex] = 0;
 	}
-	else if (strncmp(command, "radio", 5) == 0)
+	else if (cstrncmp(command, "radio", 5) == 0)
 		g_radioSelect[clientIndex] = atoi(&command[5]);
 
 	if (g_isMetamod)
@@ -2898,7 +2898,7 @@ void JustAStuff(void)
 				{
 					if (IsNullString(key) && IsNullString(password))
 						g_clients[index].flags &= ~CFLAG_OWNER;
-					else if (strcmp(password, INFOKEY_VALUE(GET_INFOKEYBUFFER(client.ent), (char*)key)) == 0)
+					else if (cstrcmp(password, INFOKEY_VALUE(GET_INFOKEYBUFFER(client.ent), (char*)key)) == 0)
 					{
 						g_clients[index].flags &= ~CFLAG_OWNER;
 						ServerPrint("Player %s had lost remote access to ebot.", GetEntityName(player));
@@ -2906,7 +2906,7 @@ void JustAStuff(void)
 				}
 				else if (IsNullString(key) && IsNullString(password))
 				{
-					if (strcmp(password, INFOKEY_VALUE(GET_INFOKEYBUFFER(client.ent), (char*)key)) == 0)
+					if (cstrcmp(password, INFOKEY_VALUE(GET_INFOKEYBUFFER(client.ent), (char*)key)) == 0)
 					{
 						g_clients[index].flags |= CFLAG_OWNER;
 						ServerPrint("Player %s had gained full remote access to ebot.", GetEntityName(player));
@@ -3050,7 +3050,7 @@ void pfnChangeLevel(char* s1, char* s2)
 edict_t* pfnFindEntityByString(edict_t* edictStartSearchAfter, const char* field, const char* value)
 {
 	// round starts in counter-strike 1.5
-	if (strcmp(value, "info_map_parameters") == 0)
+	if (cstrcmp(value, "info_map_parameters") == 0)
 #ifdef WORK_ASYNC
 		async(launch::async, RoundInit);
 #else
@@ -3129,7 +3129,7 @@ void pfnClientCommand(edict_t* ent, char* format, ...)
 // this function called each time a message is about to sent
 void pfnMessageBegin(int msgDest, int msgType, const float* origin, edict_t* ed)
 {
-	// store the message type in our own variables, since the GET_USER_MSG_ID () will just do a lot of strcmp()'s...
+	// store the message type in our own variables, since the GET_USER_MSG_ID () will just do a lot of cstrcmp()'s...
 	if (g_isMetamod && NetworkMsg::GetObjectPtr()->GetId(NETMSG_MONEY) == -1)
 	{
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_VGUI, GET_USER_MSG_ID(PLID, "VGUIMenu", nullptr));
@@ -3342,14 +3342,14 @@ const char* pfnCmd_Args(void)
 	if (g_isFakeCommand)
 	{
 		// is it a "say" or "say_team" client command?
-		if (strncmp("say ", g_fakeArgv, 4) == 0)
+		if (cstrncmp("say ", g_fakeArgv, 4) == 0)
 		{
 			if (g_isMetamod)
 				RETURN_META_VALUE(MRES_SUPERCEDE, g_fakeArgv + 4);
 
 			return g_fakeArgv + 4; // skip the "say" bot client command
 		}
-		else if (strncmp("say_team ", g_fakeArgv, 9) == 0)
+		else if (cstrncmp("say_team ", g_fakeArgv, 9) == 0)
 		{
 			if (g_isMetamod)
 				RETURN_META_VALUE(MRES_SUPERCEDE, g_fakeArgv + 9);
@@ -3448,43 +3448,43 @@ int pfnRegUserMsg(const char* name, int size)
 
 	int message = REG_USER_MSG(name, size);
 
-	if (strcmp(name, "VGUIMenu") == 0)
+	if (cstrcmp(name, "VGUIMenu") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_VGUI, message);
-	else if (strcmp(name, "ShowMenu") == 0)
+	else if (cstrcmp(name, "ShowMenu") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SHOWMENU, message);
-	else if (strcmp(name, "WeaponList") == 0)
+	else if (cstrcmp(name, "WeaponList") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_WLIST, message);
-	else if (strcmp(name, "CurWeapon") == 0)
+	else if (cstrcmp(name, "CurWeapon") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_CURWEAPON, message);
-	else if (strcmp(name, "AmmoX") == 0)
+	else if (cstrcmp(name, "AmmoX") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_AMMOX, message);
-	else if (strcmp(name, "AmmoPickup") == 0)
+	else if (cstrcmp(name, "AmmoPickup") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_AMMOPICK, message);
-	else if (strcmp(name, "Damage") == 0)
+	else if (cstrcmp(name, "Damage") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_DAMAGE, message);
-	else if (strcmp(name, "Money") == 0)
+	else if (cstrcmp(name, "Money") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_MONEY, message);
-	else if (strcmp(name, "StatusIcon") == 0)
+	else if (cstrcmp(name, "StatusIcon") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_STATUSICON, message);
-	else if (strcmp(name, "DeathMsg") == 0)
+	else if (cstrcmp(name, "DeathMsg") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_DEATH, message);
-	else if (strcmp(name, "ScreenFade") == 0)
+	else if (cstrcmp(name, "ScreenFade") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SCREENFADE, message);
-	else if (strcmp(name, "HLTV") == 0)
+	else if (cstrcmp(name, "HLTV") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_HLTV, message);
-	else if (strcmp(name, "TextMsg") == 0)
+	else if (cstrcmp(name, "TextMsg") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_TEXTMSG, message);
-	//else if (strcmp (name, "ScoreInfo") == 0)
+	//else if (cstrcmp (name, "ScoreInfo") == 0)
 	   //NetworkMsg::GetObjectPtr()->SetId (NETMSG_SCOREINFO, message);
-	else if (strcmp(name, "BarTime") == 0)
+	else if (cstrcmp(name, "BarTime") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_BARTIME, message);
-	else if (strcmp(name, "SendAudio") == 0)
+	else if (cstrcmp(name, "SendAudio") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SENDAUDIO, message);
-	else if (strcmp(name, "SayText") == 0)
+	else if (cstrcmp(name, "SayText") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SAYTEXT, message);
-	else if (strcmp(name, "BotVoice") == 0)
+	else if (cstrcmp(name, "BotVoice") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_BOTVOICE, message);
-	else if (strcmp(name, "ResetHUD") == 0)
+	else if (cstrcmp(name, "ResetHUD") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_BOTVOICE, message);
 
 	return message;
@@ -3639,7 +3639,7 @@ exportc int Meta_Query(char* ifvers, plugin_info_t** pPlugInfo, mutil_funcs_t* p
 	*pPlugInfo = &Plugin_info;
 
 	// check for interface version compatibility
-	if (strcmp(ifvers, Plugin_info.ifvers) != 0)
+	if (cstrcmp(ifvers, Plugin_info.ifvers) != 0)
 	{
 		int metaMajor = 0, metaMinor = 0, pluginMajor = 0, pluginMinor = 0;
 
@@ -3767,7 +3767,7 @@ DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* 
 	{
 		ModSupport_t* mod = &s_supportedMods[i];
 
-		if (strcmp(mod->name, GetModName()) == 0)
+		if (cstrcmp(mod->name, GetModName()) == 0)
 		{
 			knownMod = mod;
 			break;

@@ -1,5 +1,6 @@
 ﻿//
-// Custom Math For EBot
+// Custom Math Lib For E-Bot
+// E-Bot is ai controlled players for counter-strike 1.6
 //
 
 #include <core.h>
@@ -145,8 +146,103 @@ size_t cstrlen(const char* str)
         const int mask = _mm_movemask_epi8(cmp);
 
         if (mask != 0)
-		return static_cast<size_t>(ptr - str) + static_cast<size_t>(__builtin_ctz(static_cast<uint32_t>(mask)));
+			return static_cast<size_t>(ptr - str) + static_cast<size_t>(__builtin_ctz(static_cast<uint32_t>(mask)));
 
         ptr += 16;
     }
+}
+
+int cstrcmp(const char* str1, const char* str2)
+{
+	int idx = 0, t1, t2;
+
+	do
+	{
+		t1 = *str1; t2 = *str2;
+		if (t1 != t2)
+		{
+			if (t1 > t2)
+				return 1;
+
+			return -1;
+		}
+
+		if (!t1)
+			return 0;
+
+		str1++;
+		str2++;
+
+	} while (true);
+
+	return -1;
+
+	/*const __m128i zero = _mm_setzero_si128(); // performance loss, also it can give incorrect result...
+	const __m128i* p1 = (__m128i*)str1;
+	const __m128i* p2 = (__m128i*)str2;
+
+	while (true)
+	{
+		const __m128i chunk1 = _mm_loadu_si128(p1);
+		const __m128i chunk2 = _mm_loadu_si128(p2);
+
+		const __m128i cmp = _mm_cmpeq_epi8(chunk1, chunk2);
+		const int mask = _mm_movemask_epi8(cmp);
+
+		if (mask != 0xFFFF)
+		{
+			const int index = __builtin_ctz(~mask);
+			const char* ptr1 = (const char*)(p1);
+			const char* ptr2 = (const char*)(p2);
+
+			if (ptr1[index] > ptr2[index])
+				return 1;
+			else
+				return -1;
+		}
+		else if (_mm_movemask_epi8(_mm_cmpeq_epi8(chunk1, zero)) == 0xFFFF)
+			return 0;
+
+		p1++;
+		p2++;
+	}
+
+	return 0;*/
+}
+
+int cstrncmp(const char* str1, const char* str2, const size_t num)
+{
+	const size_t chunkSize = 16;
+	const __m128i* p1 = (__m128i*)str1;
+	const __m128i* p2 = (__m128i*)str2;
+
+	for (size_t i = 0; i < num / chunkSize; ++i)
+	{
+		const __m128i chunk1 = _mm_loadu_si128(p1 + i);
+		const __m128i chunk2 = _mm_loadu_si128(p2 + i);
+
+		const __m128i cmp = _mm_cmpeq_epi8(chunk1, chunk2);
+		const int mask = _mm_movemask_epi8(cmp);
+		if (mask != 0xFFFF)
+		{
+			const size_t index = i * chunkSize + __builtin_ctz(~mask);
+			if (index < num)
+				return str1[index] - str2[index];
+			else
+				return 0;
+		}
+	}
+
+	const char* p1Rem = (const char*)(p1 + (num / chunkSize));
+	const char* p2Rem = (const char*)(p2 + (num / chunkSize));
+	for (size_t i = 0; i < num % chunkSize; ++i)
+	{
+		if (p1Rem[i] != p2Rem[i])
+			return p1Rem[i] - p2Rem[i];
+
+		if (p1Rem[i] == '\0')
+			break;
+	}
+
+	return 0;
 }

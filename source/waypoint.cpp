@@ -1769,7 +1769,7 @@ bool Waypoint::Load(int mode)
     {
         fp.Read(&header, sizeof(header));
 
-        if (strncmp(header.header, FH_WAYPOINT_NEW, cstrlen(FH_WAYPOINT_NEW)) == 0 || strncmp(header.header, FH_WAYPOINT, cstrlen(FH_WAYPOINT)) == 0)
+        if (cstrncmp(header.header, FH_WAYPOINT_NEW, cstrlen(FH_WAYPOINT_NEW)) == 0 || cstrncmp(header.header, FH_WAYPOINT, cstrlen(FH_WAYPOINT)) == 0)
         {
             if (stricmp(header.mapName, GetMapName()) && mode == 0)
             {
@@ -1809,7 +1809,7 @@ bool Waypoint::Load(int mode)
             return false;
         }
 
-        if (strncmp(header.author, "EfeDursun125", 12) == 0 || strncmp(header.author, "Mysticpawn", 10) == 0 || strncmp(header.author, "Ark | Mysticpawn", 16) == 0)
+        if (cstrncmp(header.author, "EfeDursun125", 12) == 0 || cstrncmp(header.author, "Mysticpawn", 10) == 0 || cstrncmp(header.author, "Ark | Mysticpawn", 16) == 0)
             sprintf(m_infoBuffer, "Using Official Waypoint File By: %s", header.author);
         else
             sprintf(m_infoBuffer, "Using Waypoint File By: %s", header.author);
@@ -2083,17 +2083,17 @@ bool Waypoint::IsNodeReachable(const Vector src, const Vector destination)
     // check if we go through a func_illusionary, in which case return false
     TraceHull(src, destination, NO_BOTH, HULL_HEAD, g_hostEntity, &tr);
 
-    if (!FNullEnt(tr.pHit) && strcmp("func_illusionary", STRING(tr.pHit->v.classname)) == 0)
+    if (!FNullEnt(tr.pHit) && cstrcmp("func_illusionary", STRING(tr.pHit->v.classname)) == 0)
         return false; // don't add pathnodes through func_illusionaries
 
     // check if this waypoint is "visible"...
     TraceLine(src, destination, true, false, g_hostEntity, &tr);
 
     // if waypoint is visible from current position (even behind head)...
-    if (!FNullEnt(tr.pHit) && (tr.flFraction >= 1.0f || strncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0 || IsBreakable(tr.pHit)))
+    if (!FNullEnt(tr.pHit) && (tr.flFraction >= 1.0f || cstrncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0 || IsBreakable(tr.pHit)))
     {
         // if it's a door check if nothing blocks behind
-        if (strncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0)
+        if (cstrncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0)
         {
             TraceLine(tr.vecEndPos, destination, true, true, tr.pHit, &tr);
 
@@ -2172,17 +2172,17 @@ bool Waypoint::IsNodeReachableWithJump(const Vector src, const Vector destinatio
     // check if we go through a func_illusionary, in which case return false
     TraceHull(src, destination, true, head_hull, g_hostEntity, &tr);
 
-    if (!FNullEnt(tr.pHit) && strcmp("func_illusionary", STRING(tr.pHit->v.classname)) == 0)
+    if (!FNullEnt(tr.pHit) && cstrcmp("func_illusionary", STRING(tr.pHit->v.classname)) == 0)
         return false; // don't add pathnodes through func_illusionaries
 
     // check if this waypoint is "visible"...
     TraceLine(src, destination, true, false, g_hostEntity, &tr);
 
     // if waypoint is visible from current position (even behind head)...
-    if (!FNullEnt(tr.pHit) && (tr.flFraction >= 1.0f || strncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0 || IsBreakable(tr.pHit)))
+    if (!FNullEnt(tr.pHit) && (tr.flFraction >= 1.0f || cstrncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0 || IsBreakable(tr.pHit)))
     {
         // if it's a door check if nothing blocks behind
-        if (strncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0)
+        if (cstrncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0)
         {
             TraceLine(tr.vecEndPos, destination, true, true, tr.pHit, &tr);
 
@@ -3307,7 +3307,7 @@ void Waypoint::SetBombPosition(bool shouldReset)
     edict_t* ent = nullptr;
     while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "grenade")))
     {
-        if (strcmp(STRING(ent->v.model) + 9, "c4.mdl") == 0)
+        if (cstrcmp(STRING(ent->v.model) + 9, "c4.mdl") == 0)
         {
             m_foundBombOrigin = GetEntityOrigin(ent);
             break;

@@ -539,7 +539,7 @@ bool Bot::DoWaypointNav(void)
 	{
 		TraceLine(pev->origin, m_waypointOrigin, ignore_monsters, GetEntity(), &tr);
 
-		if (!FNullEnt(tr.pHit) && FNullEnt(m_liftEntity) && strncmp(STRING(tr.pHit->v.classname), "func_door", 9) == 0)
+		if (!FNullEnt(tr.pHit) && FNullEnt(m_liftEntity) && cstrncmp(STRING(tr.pHit->v.classname), "func_door", 9) == 0)
 		{
 			// if the door is near enough...
 			if ((pev->origin - GetEntityOrigin(tr.pHit)).GetLengthSquared() <= SquaredF(54.0f))
@@ -699,7 +699,7 @@ bool Bot::UpdateLiftHandling()
 	// trace line to door
 	TraceLine(pev->origin, m_waypointOrigin, true, true, GetEntity(), &tr);
 
-	if (tr.flFraction < 1.0f && (m_liftState == LiftState::None || m_liftState == LiftState::WaitingFor || m_liftState == LiftState::LookingButtonOutside) && !FNullEnt(tr.pHit) && strcmp(STRING(tr.pHit->v.classname), "func_door") == 0 && pev->groundentity != tr.pHit)
+	if (tr.flFraction < 1.0f && (m_liftState == LiftState::None || m_liftState == LiftState::WaitingFor || m_liftState == LiftState::LookingButtonOutside) && !FNullEnt(tr.pHit) && cstrcmp(STRING(tr.pHit->v.classname), "func_door") == 0 && pev->groundentity != tr.pHit)
 	{
 		if (m_liftState == LiftState::None)
 		{
@@ -718,7 +718,7 @@ bool Bot::UpdateLiftHandling()
 		TraceLine(path->origin, m_waypointOrigin + Vector(0.0f, 0.0f, -50.0f), true, true, GetEntity(), &tr);
 
 		// if trace result shows us that it is a lift
-		if (!liftClosedDoorExists && !FNullEnt(tr.pHit) && (strcmp(STRING(tr.pHit->v.classname), "func_door") == 0 || strcmp(STRING(tr.pHit->v.classname), "func_plat") == 0 || strcmp(STRING(tr.pHit->v.classname), "func_train") == 0))
+		if (!liftClosedDoorExists && !FNullEnt(tr.pHit) && (cstrcmp(STRING(tr.pHit->v.classname), "func_door") == 0 || cstrcmp(STRING(tr.pHit->v.classname), "func_plat") == 0 || cstrcmp(STRING(tr.pHit->v.classname), "func_train") == 0))
 		{
 			if ((m_liftState == LiftState::None || m_liftState == LiftState::WaitingFor || m_liftState == LiftState::LookingButtonOutside) && tr.pHit->v.velocity.z == 0.0f)
 			{
@@ -746,7 +746,7 @@ bool Bot::UpdateLiftHandling()
 				{
 					TraceLine(path->origin, g_waypoint->GetPath(nextNode)->origin, true, true, GetEntity(), &tr);
 
-					if (!FNullEnt(tr.pHit) && (strcmp(STRING(tr.pHit->v.classname), "func_door") == 0 || strcmp(STRING(tr.pHit->v.classname), "func_plat") == 0 || strcmp(STRING(tr.pHit->v.classname), "func_train") == 0))
+					if (!FNullEnt(tr.pHit) && (cstrcmp(STRING(tr.pHit->v.classname), "func_door") == 0 || cstrcmp(STRING(tr.pHit->v.classname), "func_plat") == 0 || cstrcmp(STRING(tr.pHit->v.classname), "func_train") == 0))
 						m_liftEntity = tr.pHit;
 				}
 
@@ -2115,7 +2115,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 	if (entity->v.takedamage != DAMAGE_YES)
 	{
 		// defuse bomb
-		if (g_bombPlanted && strcmp(STRING(entity->v.model) + 9, "c4.mdl") == 0)
+		if (g_bombPlanted && cstrcmp(STRING(entity->v.model) + 9, "c4.mdl") == 0)
 			SetProcess(Process::Defuse, "trying to defusing the bomb", false, m_hasDefuser ? 6.0f : 12.0f);
 
 		return;
@@ -3106,7 +3106,7 @@ bool Bot::CantMoveForward(const Vector normal)
 	// check if the trace hit something...
 	if (tr->flFraction < 1.0f)
 	{
-		if (strncmp("func_door", STRING(tr->pHit->v.classname), 9) == 0)
+		if (cstrncmp("func_door", STRING(tr->pHit->v.classname), 9) == 0)
 			return false;
 
 		return true;  // bot's head will hit something
@@ -3120,7 +3120,7 @@ bool Bot::CantMoveForward(const Vector normal)
 	TraceLine(src, forward, true, GetEntity(), tr);
 
 	// check if the trace hit something...
-	if (tr->flFraction < 1.0f && strncmp("func_door", STRING(tr->pHit->v.classname), 9) != 0)
+	if (tr->flFraction < 1.0f && cstrncmp("func_door", STRING(tr->pHit->v.classname), 9) != 0)
 		return true;  // bot's body will hit something
 
 	 // bot's head is clear, check at shoulder level...
@@ -3131,7 +3131,7 @@ bool Bot::CantMoveForward(const Vector normal)
 	TraceLine(src, forward, true, GetEntity(), tr);
 
 	// check if the trace hit something...
-	if (tr->flFraction < 1.0f && strncmp("func_door", STRING(tr->pHit->v.classname), 9) != 0)
+	if (tr->flFraction < 1.0f && cstrncmp("func_door", STRING(tr->pHit->v.classname), 9) != 0)
 		return true;  // bot's body will hit something
 
 	 // now check below waist
@@ -3143,7 +3143,7 @@ bool Bot::CantMoveForward(const Vector normal)
 		TraceLine(src, forward, true, GetEntity(), tr);
 
 		// check if the trace hit something...
-		if (tr->flFraction < 1.0f && strncmp("func_door", STRING(tr->pHit->v.classname), 9) != 0)
+		if (tr->flFraction < 1.0f && cstrncmp("func_door", STRING(tr->pHit->v.classname), 9) != 0)
 			return true;  // bot's body will hit something
 
 		src = pev->origin;
@@ -3152,7 +3152,7 @@ bool Bot::CantMoveForward(const Vector normal)
 		TraceLine(src, forward, true, GetEntity(), tr);
 
 		// check if the trace hit something...
-		if (tr->flFraction < 1.0f && strncmp("func_door", STRING(tr->pHit->v.classname), 9) != 0)
+		if (tr->flFraction < 1.0f && cstrncmp("func_door", STRING(tr->pHit->v.classname), 9) != 0)
 			return true;  // bot's body will hit something
 	}
 	else
@@ -3165,7 +3165,7 @@ bool Bot::CantMoveForward(const Vector normal)
 		TraceLine(src, forward, true, GetEntity(), tr);
 
 		// check if the trace hit something...
-		if (tr->flFraction < 1.0f && strncmp("func_door", STRING(tr->pHit->v.classname), 9) != 0)
+		if (tr->flFraction < 1.0f && cstrncmp("func_door", STRING(tr->pHit->v.classname), 9) != 0)
 			return true;  // bot's body will hit something
 
 		 // trace from the left waist to the right forward waist pos
@@ -3175,7 +3175,7 @@ bool Bot::CantMoveForward(const Vector normal)
 		TraceLine(src, forward, true, GetEntity(), tr);
 
 		// check if the trace hit something...
-		if (tr->flFraction < 1.0f && strncmp("func_door", STRING(tr->pHit->v.classname), 9) != 0)
+		if (tr->flFraction < 1.0f && cstrncmp("func_door", STRING(tr->pHit->v.classname), 9) != 0)
 			return true;  // bot's body will hit something
 	}
 
@@ -3831,7 +3831,7 @@ int Bot::FindLoosedBomb(void)
 	// search the bomb on the map
 	while (!FNullEnt(bombEntity = FIND_ENTITY_BY_CLASSNAME(bombEntity, "weaponbox")))
 	{
-		if (strcmp(STRING(bombEntity->v.model) + 9, "backpack.mdl") == 0)
+		if (cstrcmp(STRING(bombEntity->v.model) + 9, "backpack.mdl") == 0)
 		{
 			const Vector bombOrigin = GetEntityOrigin(bombEntity);
 			const int nearestIndex = g_waypoint->FindNearest(bombOrigin, 512.0f, -1, bombEntity);

@@ -84,21 +84,21 @@ void NetworkMsg::Execute(void* p)
         if (m_state < 3) // ignore first 3 fields of message
             break;
 
-        if (strcmp(PTR_TO_STR(p), "#Team_Select") == 0) // team select menu?
+        if (cstrcmp(PTR_TO_STR(p), "#Team_Select") == 0) // team select menu?
             m_bot->m_startAction = CMENU_TEAM;
-        else if (strcmp(PTR_TO_STR(p), "#Team_Select_Spect") == 0) // team select menu?
+        else if (cstrcmp(PTR_TO_STR(p), "#Team_Select_Spect") == 0) // team select menu?
             m_bot->m_startAction = CMENU_TEAM;
-        else if (strcmp(PTR_TO_STR(p), "#IG_Team_Select_Spect") == 0) // team select menu?
+        else if (cstrcmp(PTR_TO_STR(p), "#IG_Team_Select_Spect") == 0) // team select menu?
             m_bot->m_startAction = CMENU_TEAM;
-        else if (strcmp(PTR_TO_STR(p), "#IG_Team_Select") == 0) // team select menu?
+        else if (cstrcmp(PTR_TO_STR(p), "#IG_Team_Select") == 0) // team select menu?
             m_bot->m_startAction = CMENU_TEAM;
-        else if (strcmp(PTR_TO_STR(p), "#IG_VIP_Team_Select") == 0) // team select menu?
+        else if (cstrcmp(PTR_TO_STR(p), "#IG_VIP_Team_Select") == 0) // team select menu?
             m_bot->m_startAction = CMENU_TEAM;
-        else if (strcmp(PTR_TO_STR(p), "#IG_VIP_Team_Select_Spect") == 0) // team select menu?
+        else if (cstrcmp(PTR_TO_STR(p), "#IG_VIP_Team_Select_Spect") == 0) // team select menu?
             m_bot->m_startAction = CMENU_TEAM;
-        else if (strcmp(PTR_TO_STR(p), "#Terrorist_Select") == 0) // T model select?
+        else if (cstrcmp(PTR_TO_STR(p), "#Terrorist_Select") == 0) // T model select?
             m_bot->m_startAction = CMENU_CLASS;
-        else if (strcmp(PTR_TO_STR(p), "#CT_Select") == 0) // CT model select menu?
+        else if (cstrcmp(PTR_TO_STR(p), "#CT_Select") == 0) // CT model select menu?
             m_bot->m_startAction = CMENU_CLASS;
 
         break;
@@ -241,16 +241,16 @@ void NetworkMsg::Execute(void* p)
         case 1:
             if (g_gameVersion != HALFLIFE)
             {
-                if (strcmp(PTR_TO_STR(p), "defuser") == 0)
+                if (cstrcmp(PTR_TO_STR(p), "defuser") == 0)
                     m_bot->m_hasDefuser = (enabled != 0);
-                else if (strcmp(PTR_TO_STR(p), "buyzone") == 0)
+                else if (cstrcmp(PTR_TO_STR(p), "buyzone") == 0)
                 {
                     m_bot->m_inBuyZone = (enabled != 0);
                     m_bot->EquipInBuyzone(0);
                 }
-                else if (strcmp(PTR_TO_STR(p), "vipsafety") == 0)
+                else if (cstrcmp(PTR_TO_STR(p), "vipsafety") == 0)
                     m_bot->m_inVIPZone = (enabled != 0);
-                else if (strcmp(PTR_TO_STR(p), "c4") == 0)
+                else if (cstrcmp(PTR_TO_STR(p), "c4") == 0)
                     m_bot->m_inBombZone = (enabled == 2);
             }
 
