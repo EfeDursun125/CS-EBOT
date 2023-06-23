@@ -21,3 +21,5 @@ extern float cceilf(const float value);
 extern float cfloorf(const float value);
 extern float croundf(const float value);
 extern size_t cstrlen(const char* str);
+extern int cstrcmp(const char* str1, const char* str2);
+extern int cstrncmp(const char* str1, const char* str2, const size_t num);

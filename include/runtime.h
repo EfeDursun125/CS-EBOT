@@ -2618,7 +2618,7 @@ public:
     //
     int Compare(const String& string) const
     {
-        return strcmp(m_bufferPtr, string.m_bufferPtr);
+        return cstrcmp(m_bufferPtr, string.m_bufferPtr);
     }
 
     //
@@ -2633,7 +2633,7 @@ public:
     //
     int Compare(const char* str) const
     {
-        return strcmp(m_bufferPtr, str);
+        return cstrcmp(m_bufferPtr, str);
     }
 
     //

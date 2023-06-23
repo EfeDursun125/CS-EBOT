@@ -2363,16 +2363,15 @@ inline bool FStringNull(int iString)
 #define VIEW_FIELD_NARROW       (float)0.7      // +-45 degrees, more narrow check used to set up ranged attacks
 #define VIEW_FIELD_ULTRA_NARROW (float)0.9      // +-25 degrees, more narrow check used to set up ranged attacks
 
-   // from ebot.h
 extern inline bool IsNullString(const char*);
 
 // Misc useful
 inline bool FStrEq(const char* sz1, const char* sz2)
 {
     if (!sz1 || !sz2)
-        return 0;             // safety check
+        return 0; // safety check
 
-    return (strcmp(sz1, sz2) == 0);
+    return cstrcmp(sz1, sz2) == 0;
 }
 inline bool FClassnameIs(edict_t* pent, const char* szClassname)
 {
