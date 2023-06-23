@@ -2500,43 +2500,37 @@ void Bot::CheckStuck(const float maxSpeed)
 				if (!ebot_ignore_enemies.GetBool())
 				{
 					const bool friendlyFire = engine->IsFriendlyFireOn();
-					if ((!friendlyFire && m_currentWeapon == WEAPON_KNIFE) || (friendlyFire && IsValidPlayer(m_nearestFriend))) // DOOR STUCK! || DIE HUMAN!
+					if ((!friendlyFire && m_currentWeapon == WEAPON_KNIFE) || (friendlyFire && !IsValidBot(m_nearestFriend))) // DOOR STUCK! || DIE HUMAN!
 					{
 						m_lookAt = friendOrigin + (m_nearestFriend->v.view_ofs * 0.9f);
 						m_pauseTime = 0.0f;
 						if (!(pev->button & IN_ATTACK) && !(pev->oldbuttons & IN_ATTACK))
 							pev->button |= IN_ATTACK;
 
-						switch (m_personality)
-						{
-						case PERSONALITY_CAREFUL:
+						if (m_personality == PERSONALITY_CAREFUL)
 						{
 							if (friendlyFire)
-								ChatSay("YOU'RE NOT ONE OF US!", false);
+								ChatSay(false, "YOU'RE NOT ONE OF US!");
 							else
-								ChatSay("I'M STUCK!", false);
-							break;
+								ChatSay(false, "I'M STUCK!");
 						}
-						case PERSONALITY_RUSHER:
+						else if (m_personality == PERSONALITY_RUSHER)
 						{
 							if (friendlyFire)
-								ChatSay("DIE HUMAN!", false);
+								ChatSay(false, "DIE HUMAN!");
 							else
-								ChatSay("GET OUT OF MY WAY!", false);
-							break;
+								ChatSay(false, "GET OUT OF MY WAY!");
 						}
-						default:
+						else
 						{
 							if (friendlyFire)
-								ChatSay("YOU GAVE ME NO CHOICE!", false);
+								ChatSay(false, "YOU GAVE ME NO CHOICE!");
 							else
-								ChatSay("DOOR STUCK!", false);
-							break;
-						}
+								ChatSay(false, "DOOR STUCK!");
 						}
 					}
 					else
-						SelectWeaponByName("weapon_knife");
+						SelectKnife();
 				}
 			}
 		}

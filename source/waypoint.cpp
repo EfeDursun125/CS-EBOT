@@ -1809,7 +1809,7 @@ bool Waypoint::Load(int mode)
             return false;
         }
 
-        if (strncmp(header.author, "EfeDursun125", 13) == 0 || strncmp(header.author, "Mysticpawn", 11) == 0 || strncmp(header.author, "Ark | Mysticpawn", 17) == 0)
+        if (strncmp(header.author, "EfeDursun125", 12) == 0 || strncmp(header.author, "Mysticpawn", 10) == 0 || strncmp(header.author, "Ark | Mysticpawn", 16) == 0)
             sprintf(m_infoBuffer, "Using Official Waypoint File By: %s", header.author);
         else
             sprintf(m_infoBuffer, "Using Waypoint File By: %s", header.author);

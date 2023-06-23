@@ -1123,6 +1123,10 @@ void Bot::CheckMessageQueue(void)
 		{
 			m_buyState = 7;
 			m_buyingFinished = true;
+
+			if (ChanceOf(m_skill) && !m_isBomber && !m_isVIP)
+				SelectWeaponByName("weapon_knife");
+
 			break;
 		}
 
@@ -1170,8 +1174,10 @@ void Bot::CheckMessageQueue(void)
 		if (m_buyState > 6)
 		{
 			m_buyingFinished = true;
-			if (ChanceOf(m_skill))
-				SelectKnife();
+
+			if (ChanceOf(m_skill) && !m_isBomber && !m_isVIP)
+				SelectWeaponByName("weapon_knife");
+
 			return;
 		}
 
@@ -4083,6 +4089,13 @@ void Bot::LookAtEnemies(void)
 		m_lookAt = m_entityOrigin;
 }
 
+float Bot::GetTargetDistance(void)
+{
+	if (m_entityDistance < m_enemyDistance)
+		return m_entityDistance;
+	return m_enemyDistance;
+}
+
 void Bot::LookAtAround(void)
 {
 	if (m_waypointFlags & WAYPOINT_LADDER || IsOnLadder())
@@ -4118,7 +4131,7 @@ void Bot::LookAtAround(void)
 			}
 		}
 	}
-	else if (m_hasFriendsNear && IsAttacking(m_nearestFriend)) // TODO: check if friend does not holding knife too
+	else if (!m_isZombieBot && m_hasFriendsNear && IsAttacking(m_nearestFriend) && strncmp(STRING(m_nearestFriend->v.viewmodel), "models/v_knife", 14) != 0)
 	{
 		auto bot = g_botManager->GetBot(m_nearestFriend);
 		if (bot != nullptr)
@@ -8199,10 +8212,28 @@ void Bot::AttackUpdate(void)
 
 	if (!m_hasEnemiesNear && !m_hasEntitiesNear)
 	{
-		if (m_enemySeeTime + 1.5f < engine->GetTime() && m_entitySeeTime + 1.5f < engine->GetTime())
-			FinishCurrentProcess("no target exist");
-		else
+		float wait = 1.5f;
+		if (IsSniper())
+		{
+			if (!UsesSniper())
+				SelectBestWeapon();
+
+			const float minRange = SquaredF(384.0f);
+			const float distance = GetTargetDistance();
+			if (distance > minRange && !CheckWallOnBehind() && !CheckWallOnForward() && !CheckWallOnLeft() && !CheckWallOnRight())
+			{
+				if (pev->fov == 90.0f && !(pev->button & IN_ATTACK2) && !(pev->oldbuttons & IN_ATTACK2))
+					pev->button |= IN_ATTACK2;
+
+				wait = cclampf(csqrtf(distance) * 0.01f, 5.0f, 15.0f);
+			}
+		}
+
+		if (m_enemySeeTime + wait < engine->GetTime() && m_entitySeeTime + wait < engine->GetTime())
+		{
 			SetWalkTime(7.0f);
+			FinishCurrentProcess("no target exist");
+		}
 
 		return;
 	}
@@ -8544,6 +8575,7 @@ void Bot::EscapeUpdate(void)
 		if (!m_hasEntitiesNear && m_numEnemiesLeft <= 0)
 			SelectKnife();
 
+		m_walkTime = 0.0f; // RUN FOR YOUR LIFE!
 		if (!GoalIsValid())
 		{
 			Vector bombOrigin = g_waypoint->GetBombPosition();

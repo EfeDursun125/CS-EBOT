@@ -435,12 +435,17 @@ void Bot::ChatSay(bool teamSay, const char* text, ...)
 
     if (g_gameVersion != HALFLIFE)
     {
-        if (!teamSay)
+        if (teamSay)
+        {
+            if (m_team == TEAM_TERRORIST)
+                strcpy(botTeam, "(Terrorist)");
+            else if (m_team == TEAM_COUNTER)
+                strcpy(botTeam, "(Counter-Terrorist)");
+            else // WHAT???
+                strcpy(botTeam, "");
+        }
+        else
             strcpy(botTeam, "");
-        else if (m_team == TEAM_TERRORIST)
-            strcpy(botTeam, "(Terrorist)");
-        else if (m_team == TEAM_COUNTER)
-            strcpy(botTeam, "(Counter-Terrorist)");
     }
 
     strcpy(botName, GetEntityName(GetEntity()));

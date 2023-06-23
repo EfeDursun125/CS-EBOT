@@ -859,7 +859,7 @@ WeaponSelectEnd:
 		{
 			if ((distance > SquaredF(768.0f)) && !IsShieldDrawn())
 				pev->button |= IN_ATTACK2; // draw the shield
-			else if (IsShieldDrawn() || (IsValidPlayer(enemy) && (enemy->v.button & IN_RELOAD)))
+			else if (IsShieldDrawn() || (IsValidPlayer(enemy) && enemy->v.button & IN_RELOAD))
 				pev->button |= IN_ATTACK2; // draw out the shield
 
 			m_shieldCheckTime = engine->GetTime() + 2.0f;
@@ -1518,6 +1518,8 @@ bool Bot::IsSniper(void)
 	{
 		if (pev->weapons & (1 << WEAPON_CROSSBOW))
 			return true;
+
+		return false;
 	}
 
 	if (pev->weapons & (1 << WEAPON_AWP))
@@ -1633,12 +1635,24 @@ void Bot::SelectKnife(void)
 		if (m_currentWeapon == WEAPON_CROWBAR)
 			return;
 
+		if (m_weaponSelectDelay > engine->GetTime())
+			return;
+
 		SelectWeaponByName("weapon_crowbar");
 	}
 	else
 	{
 		// already have
 		if (m_currentWeapon == WEAPON_KNIFE)
+			return;
+
+		if (m_isBomber)
+			return;
+
+		if (m_walkTime > engine->GetTime())
+			return;
+
+		if (m_weaponSelectDelay > engine->GetTime())
 			return;
 
 		SelectWeaponByName("weapon_knife");
