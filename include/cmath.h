@@ -1,8 +1,7 @@
 //
-// Custom Math For EBot
+// Custom Math Lib For E-Bot
+// E-Bot is ai controlled players for counter-strike 1.6
 //
-
-#pragma once
 
 extern int CRandomInt(const int min, const int max);
 extern bool ChanceOf(const int number);
@@ -23,3 +22,7 @@ extern float croundf(const float value);
 extern size_t cstrlen(const char* str);
 extern int cstrcmp(const char* str1, const char* str2);
 extern int cstrncmp(const char* str1, const char* str2, const size_t num);
+extern void cstrcpy(char* dest, const char* src);
+extern void cmemcpy(void* dest, const void* src, const size_t size);
+extern void cmemset(void* dest, const int value, const size_t count);
+extern int ctz(unsigned int value);

@@ -1,24 +1,7 @@
 //
-// Copyright (c) 2003-2009, by Yet Another POD-Bot Development Team.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the "Software"),
-// to deal in the Software without restriction, including without limitation
-// the rights to use, copy, modify, merge, publish, distribute, sublicense,
-// and/or sell copies of the Software, and to permit persons to whom the
-// Software is furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
+// E-Bot for Counter-Strike
+// Based on SyPB, fork of YaPB
+// 
 // There are lots of code from:
 //  PODBot-MM, by KWo.
 //  EPODBot, by THE_STORM.
@@ -27,8 +10,6 @@
 //    and others...
 //
 // Huge thanks to them.
-//
-// $Id:$
 //
 
 #ifndef EBOT_INCLUDED
@@ -603,11 +584,8 @@ struct Clients
 	MenuText* menu; // pointer to opened bot menu
 	edict_t* ent; // pointer to actual edict
 	Vector origin; // position in the world
-	Vector soundPosition; // position sound was played
 	int team; // bot team
 	int flags; // client flags
-	float hearingDistance; // distance this sound is heared
-	float timeSoundLasting; // time sound is played/heared
 
 	int wpIndex;
 	int wpIndex2;
@@ -891,7 +869,6 @@ private:
 	bool IsOnAttackDistance(edict_t* targetEntity, float distance);
 
 	bool IsInViewCone(const Vector& origin);
-	void ReactOnSound(void);
 	bool CheckVisibility(edict_t* targetEntity);
 
 	void CheckGrenadeThrow(void);
@@ -1071,7 +1048,7 @@ public:
 	Vector m_doubleJumpOrigin; // origin of double jump
 	Vector m_lastBombPosition; // origin of last remembered bomb position
 	Vector m_goalaimposition; // goal aim position for tracking
-	Vector m_campposition; // camping position
+	Vector m_campPosition; // camping position
 
 	float m_viewDistance; // current view distance
 	float m_maxViewDistance; // maximum view distance
@@ -1163,6 +1140,8 @@ public:
 
 	int m_heuristic;
 	bool m_2dH;
+
+	int m_campIndex;
 
 	Bot(edict_t* bot, int skill, int personality, int team, int member);
 	~Bot(void);
@@ -1662,7 +1641,6 @@ extern void MOD_AddLogEntry(int mode, char* format);
 
 extern void DisplayMenuToClient(edict_t* ent, MenuText* menu);
 extern void DecalTrace(entvars_t* pev, TraceResult* trace, int logotypeIndex);
-extern void SoundAttachToThreat(edict_t* ent, const char* sample, float volume);
 
 extern void TraceLine(const Vector& start, const Vector& end, bool ignoreMonsters, bool ignoreGlass, edict_t* ignoreEntity, TraceResult* ptr);
 extern void TraceLine(const Vector& start, const Vector& end, bool ignoreMonsters, edict_t* ignoreEntity, TraceResult* ptr);
