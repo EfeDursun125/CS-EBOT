@@ -269,6 +269,16 @@
     <ClCompile Include="..\source\control.cpp" />
     <ClCompile Include="..\source\engine.cpp" />
     <ClCompile Include="..\source\globals.cpp" />
+    <ClCompile Include="..\source\goap\attack.cpp" />
+    <ClCompile Include="..\source\goap\camp.cpp" />
+    <ClCompile Include="..\source\goap\default.cpp" />
+    <ClCompile Include="..\source\goap\defuse.cpp" />
+    <ClCompile Include="..\source\goap\destroybreakable.cpp" />
+    <ClCompile Include="..\source\goap\escape.cpp" />
+    <ClCompile Include="..\source\goap\goap.cpp" />
+    <ClCompile Include="..\source\goap\pause.cpp" />
+    <ClCompile Include="..\source\goap\pickup.cpp" />
+    <ClCompile Include="..\source\goap\plant.cpp" />
     <ClCompile Include="..\source\interface.cpp" />
     <ClCompile Include="..\source\navigate.cpp" />
     <ClCompile Include="..\source\navmesh.cpp" />
