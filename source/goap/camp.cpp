@@ -131,9 +131,10 @@ void Bot::CampUpdate(void)
 
 			if (!g_waypoint->m_hmMeshPoints.IsEmpty())
 			{
-				Array <int> MeshWaypoints;
-				if (m_currentProcessTime > engine->GetTime() + 60.0f)
+				if (m_currentProcessTime <= engine->GetTime() + 0.1f || m_currentProcessTime > engine->GetTime() + 60.0f)
 				{
+					Array <int> MeshWaypoints;
+
 					for (int i = 0; i <= g_waypoint->m_hmMeshPoints.GetElementNumber(); i++)
 					{
 						int index;
@@ -166,6 +167,7 @@ void Bot::CampUpdate(void)
 						}
 
 						m_currentProcessTime = AddTime(engine->RandomFloat(4.0f, max));
+						m_campIndex = m_myMeshWaypoint;
 						FindPath(m_currentWaypointIndex, m_myMeshWaypoint);
 					}
 				}
