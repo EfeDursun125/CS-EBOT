@@ -810,7 +810,7 @@ bool NavMesh::LoadNav(void)
 void NavMesh::SaveNav(void)
 {
     NavHeader header;
-    memset(header.author, 0, sizeof(header.author));
+    cmemset(header.author, 0, sizeof(header.author));
 
     char navAuthor[32];
 
@@ -819,7 +819,7 @@ void NavMesh::SaveNav(void)
     else
         sprintf(navAuthor, "E-Bot NavMesh Analyzer");
 
-    strcpy(header.author, navAuthor);
+    cstrcpy(header.author, navAuthor);
 
     // remember the original author
     File rf(CheckSubfolderFile(), "rb");

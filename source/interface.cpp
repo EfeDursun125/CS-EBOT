@@ -1,27 +1,3 @@
-//
-// Copyright (c) 2003-2009, by Yet Another POD-Bot Development Team.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the "Software"),
-// to deal in the Software without restriction, including without limitation
-// the rights to use, copy, modify, merge, publish, distribute, sublicense,
-// and/or sell copies of the Software, and to permit persons to whom the
-// Software is furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-// $Id:$
-//
-
 #include <core.h>
 
 // console vars
@@ -952,7 +928,7 @@ void InitConfig(void)
 			while (fp.GetBuffer(line, 255))
 			{
 				SKIP_COMMENTS();
-				strcpy(command, GetField(line, 0, 1));
+				cstrcpy(command, GetField(line, 0, 1));
 
 				if (cstrcmp(command, "[KILLED]") == 0)
 				{
@@ -2642,7 +2618,7 @@ void ClientCommand(edict_t* ent)
 			if (IsNullString(CMD_ARGS()))
 				continue;
 
-			strcpy(bot->m_sayTextBuffer.sayText, CMD_ARGS());
+			cstrcpy(bot->m_sayTextBuffer.sayText, CMD_ARGS());
 			bot->m_sayTextBuffer.timeNextChat = engine->GetTime() + bot->m_sayTextBuffer.chatDelay;
 		}
 	}
@@ -3061,30 +3037,6 @@ edict_t* pfnFindEntityByString(edict_t* edictStartSearchAfter, const char* field
 		RETURN_META_VALUE(MRES_IGNORED, 0);
 
 	return FIND_ENTITY_BY_STRING(edictStartSearchAfter, field, value);
-}
-
-void pfnEmitSound(edict_t* entity, int channel, const char* sample, float volume, float attenuation, int flags, int pitch)
-{
-	// this function tells the engine that the entity pointed to by "entity", is emitting a sound
-	// which fileName is "sample", at level "channel" (CHAN_VOICE, etc...), with "volume" as
-	// loudness multiplicator (normal volume VOL_NORM is 1.0f), with a pitch of "pitch" (normal
-	// pitch PITCH_NORM is 100.0f), and that this sound has to be attenuated by distance in air
-	// according to the value of "attenuation" (normal attenuation ATTN_NORM is 0.8 ; ATTN_NONE
-	// means no attenuation with distance). Optionally flags "fFlags" can be passed, which I don't
-	// know the heck of the purpose. After we tell the engine to emit the sound, we have to call
-	// SoundAttachToThreat() to bring the sound to the ears of the bots. Since bots have no client DLL
-	// to handle this for them, such a job has to be done manually.
-
-#ifdef WORK_ASYNC
-	async(launch::async, SoundAttachToThreat, entity, sample, volume);
-#else
-	SoundAttachToThreat(entity, sample, volume);
-#endif
-
-	if (g_isMetamod)
-		RETURN_META(MRES_IGNORED);
-
-	(*g_engfuncs.pfnEmitSound) (entity, channel, sample, volume, attenuation, flags, pitch);
 }
 
 void pfnClientCommand(edict_t* ent, char* format, ...)
@@ -3532,7 +3484,7 @@ exportc int GetEntityAPI2(DLL_FUNCTIONS* functionTable, int* /*interfaceVersion*
 	// engine, and then calls the MOD DLL's version of GetEntityAPI to get the REAL gamedll
 	// functions this time (to use in the bot code).
 
-	memset(functionTable, 0, sizeof(DLL_FUNCTIONS));
+	cmemset(functionTable, 0, sizeof(DLL_FUNCTIONS));
 
 	if (!g_isMetamod)
 	{
@@ -3546,7 +3498,7 @@ exportc int GetEntityAPI2(DLL_FUNCTIONS* functionTable, int* /*interfaceVersion*
 		gameDLLFunc.dllapi_table = &g_functionTable;
 		gpGamedllFuncs = &gameDLLFunc;
 
-		memcpy(functionTable, &g_functionTable, sizeof(DLL_FUNCTIONS));
+		cmemcpy(functionTable, &g_functionTable, sizeof(DLL_FUNCTIONS));
 	}
 
 	functionTable->pfnGameInit = GameDLLInit;
@@ -3589,11 +3541,10 @@ exportc int GetNewDLLFunctions(NEW_DLL_FUNCTIONS* functionTable, int* interfaceV
 exportc int GetEngineFunctions(enginefuncs_t* functionTable, int* /*interfaceVersion*/)
 {
 	if (g_isMetamod)
-		memset(functionTable, 0, sizeof(enginefuncs_t));
+		cmemset(functionTable, 0, sizeof(enginefuncs_t));
 
 	functionTable->pfnChangeLevel = pfnChangeLevel;
 	functionTable->pfnFindEntityByString = pfnFindEntityByString;
-	functionTable->pfnEmitSound = pfnEmitSound;
 	functionTable->pfnClientCommand = pfnClientCommand;
 	functionTable->pfnMessageBegin = pfnMessageBegin;
 	functionTable->pfnMessageEnd = pfnMessageEnd;
@@ -3688,7 +3639,7 @@ exportc int Meta_Attach(PLUG_LOADTIME now, metamod_funcs_t* functionTable, meta_
 
 	// keep track of the pointers to engine function tables metamod gives us
 	gpMetaGlobals = pMGlobals;
-	memcpy(functionTable, &gMetaFunctionTable, sizeof(metamod_funcs_t));
+	cmemcpy(functionTable, &gMetaFunctionTable, sizeof(metamod_funcs_t));
 	gpGamedllFuncs = pGamedllFuncs;
 
 	return true; // returning true enables metamod to attach this plugin
@@ -3757,7 +3708,7 @@ DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* 
 	};
 
 	// get the engine functions from the engine...
-	memcpy(&g_engfuncs, functionTable, sizeof(enginefuncs_t));
+	cmemcpy(&g_engfuncs, functionTable, sizeof(enginefuncs_t));
 	g_pGlobals = pGlobals;
 
 	ModSupport_t* knownMod = nullptr;

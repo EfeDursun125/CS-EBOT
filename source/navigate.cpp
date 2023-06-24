@@ -1,27 +1,3 @@
-//
-// Copyright (c) 2003-2009, by Yet Another POD-Bot Development Team.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the "Software"),
-// to deal in the Software without restriction, including without limitation
-// the rights to use, copy, modify, merge, publish, distribute, sublicense,
-// and/or sell copies of the Software, and to permit persons to whom the
-// Software is furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.ebot_aim_spring_stiffness_y
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-// $Id:$
-//
-
 #include <core.h>
 
 ConVar ebot_zombies_as_path_cost("ebot_zombie_count_as_path_cost", "1");
@@ -108,76 +84,56 @@ int Bot::FindGoal(void)
 			{
 				const bool noTimeLeft = OutOfBombTimer();
 
-				if (GetProcess() != Process::Escape)
+				if (noTimeLeft)
+					SetProcess(Process::Escape, "escaping from the bomb", true, 60.0f);
+				else if (m_team == TEAM_COUNTER)
 				{
-					if (noTimeLeft)
-						SetProcess(Process::Escape, "escaping from the bomb", true, 60.0f);
-					else if (m_team == TEAM_COUNTER)
+					const Vector bombOrigin = g_waypoint->GetBombPosition();
+					if (bombOrigin != nullvec)
 					{
-						const Vector bombOrigin = g_waypoint->GetBombPosition();
-						if (bombOrigin != nullvec)
+						if (IsBombDefusing(bombOrigin))
 						{
-							if (IsBombDefusing(bombOrigin))
+							const int index = FindDefendWaypoint(bombOrigin);
+							if (IsValidWaypoint(index))
 							{
-								if (GetCurrentTask()->taskID != TASK_CAMP && GetCurrentTask()->taskID != TASK_GOINGFORCAMP)
-								{
-									m_chosenGoalIndex = FindDefendWaypoint(bombOrigin);
-									if (IsValidWaypoint(m_chosenGoalIndex))
-									{
-										m_campposition = g_waypoint->GetPath(m_chosenGoalIndex)->origin;
-										PushTask(TASK_GOINGFORCAMP, TASKPRI_GOINGFORCAMP, m_chosenGoalIndex, GetBombTimeleft(), true);
-										m_campButtons |= IN_DUCK;
-										return m_chosenGoalIndex;
-									}
-								}
-								else
-									return m_chosenGoalIndex;
-							}
-							else
-							{
-								if (GetCurrentTask()->taskID == TASK_CAMP || GetCurrentTask()->taskID == TASK_GOINGFORCAMP)
-									TaskComplete();
-								else if (g_bombSayString)
-								{
-									ChatMessage(CHAT_PLANTBOMB);
-									g_bombSayString = false;
-								}
-
-								m_chosenGoalIndex = g_waypoint->FindNearest(bombOrigin, 999999.0f);
-								if (IsValidWaypoint(m_chosenGoalIndex))
-									return m_chosenGoalIndex;
+								m_campIndex = index;
+								SetProcess(Process::Camp, "i will protect my teammate", true, AddTime(GetBombTimeleft()));
+								return m_chosenGoalIndex = index;;
 							}
 						}
-					}
-					else
-					{
-						const Vector bombOrigin = g_waypoint->GetBombPosition();
-						if (bombOrigin != nullvec)
+						else
 						{
-							if (IsBombDefusing(bombOrigin))
+							if (g_bombSayString)
 							{
-								if (GetCurrentTask()->taskID == TASK_CAMP || GetCurrentTask()->taskID == TASK_GOINGFORCAMP)
-									TaskComplete();
-
-								m_chosenGoalIndex = g_waypoint->FindNearest(bombOrigin, 999999.0f);
-								if (IsValidWaypoint(m_chosenGoalIndex))
-									return m_chosenGoalIndex;
+								ChatMessage(CHAT_PLANTBOMB);
+								g_bombSayString = false;
 							}
-							else
+
+							const int index = g_waypoint->FindNearest(bombOrigin, 999999.0f);
+							if (IsValidWaypoint(index))
+								return m_chosenGoalIndex = index;
+						}
+					}
+				}
+				else
+				{
+					const Vector bombOrigin = g_waypoint->GetBombPosition();
+					if (bombOrigin != nullvec)
+					{
+						if (IsBombDefusing(bombOrigin))
+						{
+							const int index = g_waypoint->FindNearest(bombOrigin, 999999.0f);
+							if (IsValidWaypoint(index))
+								return m_chosenGoalIndex = index;
+						}
+						else
+						{
+							const int index = FindDefendWaypoint(bombOrigin);
+							if (IsValidWaypoint(index))
 							{
-								if (GetCurrentTask()->taskID != TASK_CAMP && GetCurrentTask()->taskID != TASK_GOINGFORCAMP)
-								{
-									m_chosenGoalIndex = FindDefendWaypoint(bombOrigin);
-									if (IsValidWaypoint(m_chosenGoalIndex))
-									{
-										m_campposition = g_waypoint->GetPath(m_chosenGoalIndex)->origin;
-										PushTask(TASK_GOINGFORCAMP, TASKPRI_GOINGFORCAMP, m_chosenGoalIndex, GetBombTimeleft(), true);
-										m_campButtons |= IN_DUCK;
-										return m_chosenGoalIndex;
-									}
-								}
-								else
-									return m_chosenGoalIndex;
+								m_campIndex = index;
+								SetProcess(Process::Camp, "i will defend the bomb", true, AddTime(GetBombTimeleft()));
+								return m_chosenGoalIndex = index;
 							}
 						}
 					}
@@ -192,19 +148,14 @@ int Bot::FindGoal(void)
 				{
 					if (m_team == TEAM_COUNTER)
 					{
-						if (GetCurrentTask()->taskID != TASK_CAMP && GetCurrentTask()->taskID != TASK_GOINGFORCAMP)
+						const int index = FindDefendWaypoint(g_waypoint->GetPath(m_loosedBombWptIndex)->origin);
+						if (IsValidWaypoint(index))
 						{
-							m_chosenGoalIndex = FindDefendWaypoint(g_waypoint->GetPath(m_loosedBombWptIndex)->origin);
-							if (IsValidWaypoint(m_chosenGoalIndex))
-							{
-								m_campposition = g_waypoint->GetPath(m_chosenGoalIndex)->origin;
-								PushTask(TASK_GOINGFORCAMP, TASKPRI_GOINGFORCAMP, m_chosenGoalIndex, GetBombTimeleft(), true);
-								m_campButtons |= IN_DUCK;
-								return m_chosenGoalIndex;
-							}
+							extern ConVar ebot_camp_max;
+							m_campIndex = index;
+							SetProcess(Process::Camp, "i will defend the dropped bomb", true, AddTime(ebot_camp_max.GetFloat()));
+							return m_chosenGoalIndex = index;
 						}
-						else
-							return m_chosenGoalIndex;
 					}
 					else
 						return m_chosenGoalIndex = m_loosedBombWptIndex;
@@ -215,9 +166,9 @@ int Bot::FindGoal(void)
 					{
 						if (!g_waypoint->m_ctPoints.IsEmpty())
 						{
-							m_chosenGoalIndex = g_waypoint->m_ctPoints.GetRandomElement();
-							if (IsValidWaypoint(m_chosenGoalIndex))
-								return m_chosenGoalIndex;
+							const int index = g_waypoint->m_ctPoints.GetRandomElement();
+							if (IsValidWaypoint(index))
+								return m_chosenGoalIndex = index;
 						}
 					}
 					else
@@ -232,9 +183,9 @@ int Bot::FindGoal(void)
 						}
 						else if (!g_waypoint->m_terrorPoints.IsEmpty())
 						{
-							m_chosenGoalIndex = g_waypoint->m_terrorPoints.GetRandomElement();
-							if (IsValidWaypoint(m_chosenGoalIndex))
-								return m_chosenGoalIndex;
+							const int index = g_waypoint->m_terrorPoints.GetRandomElement();
+							if (IsValidWaypoint(index))
+								return m_chosenGoalIndex = index;
 						}
 					}
 				}
@@ -247,9 +198,9 @@ int Bot::FindGoal(void)
 		const Vector origin = GetEntityOrigin(m_nearestEnemy);
 		if (origin != nullvec)
 		{
-			m_chosenGoalIndex = g_waypoint->FindNearest(origin, 9999999.0f, -1, m_nearestEnemy);
-			if (IsValidWaypoint(m_chosenGoalIndex))
-				return m_chosenGoalIndex;
+			const int index = g_waypoint->FindNearest(origin, 9999999.0f, -1, m_nearestEnemy);
+			if (IsValidWaypoint(index))
+				return m_chosenGoalIndex = index;
 		}
 	}
 
@@ -2535,6 +2486,32 @@ void Bot::CheckStuck(const float maxSpeed)
 			}
 		}
 	}
+	else if (m_stuckWarn >= 3)
+	{
+		bool moveBack = false;
+
+		if (!CheckWallOnRight())
+			m_strafeSpeed = maxSpeed;
+		else
+		{
+			moveBack = true;
+			if (!CheckWallOnLeft())
+				m_strafeSpeed = -maxSpeed;
+		}
+
+		if (!CheckWallOnLeft())
+			m_strafeSpeed = -maxSpeed;
+		else
+		{
+			moveBack = true;
+			if (!CheckWallOnRight())
+				m_strafeSpeed = maxSpeed;
+		}
+
+		if (moveBack && CheckWallOnBehind())
+			m_moveSpeed = maxSpeed;
+	}
+
 
 	if (!m_isSlowThink)
 		return;

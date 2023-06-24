@@ -146,7 +146,7 @@ size_t cstrlen(const char* str)
         const int mask = _mm_movemask_epi8(cmp);
 
         if (mask != 0)
-			return static_cast<size_t>(ptr - str) + static_cast<size_t>(__builtin_ctz(static_cast<uint32_t>(mask)));
+			return static_cast<size_t>(ptr - str) + static_cast<size_t>(ctz(static_cast<uint32_t>(mask)));
 
         ptr += 16;
     }
@@ -191,7 +191,7 @@ int cstrcmp(const char* str1, const char* str2)
 
 		if (mask != 0xFFFF)
 		{
-			const int index = __builtin_ctz(~mask);
+			const int index = cbuiltin_ctz(~mask);
 			const char* ptr1 = (const char*)(p1);
 			const char* ptr2 = (const char*)(p2);
 
@@ -225,7 +225,7 @@ int cstrncmp(const char* str1, const char* str2, const size_t num)
 		const int mask = _mm_movemask_epi8(cmp);
 		if (mask != 0xFFFF)
 		{
-			const size_t index = i * chunkSize + __builtin_ctz(~mask);
+			const size_t index = i * chunkSize + ctz(~mask);
 			if (index < num)
 				return str1[index] - str2[index];
 			else
@@ -245,4 +245,66 @@ int cstrncmp(const char* str1, const char* str2, const size_t num)
 	}
 
 	return 0;
+}
+
+void cstrcpy(char* dest, const char* src)
+{
+	while (*src != '\0')
+	{
+		*dest = *src;
+		dest++;
+		src++;
+	}
+
+	*dest = '\0';
+}
+
+void cmemcpy(void* dest, const void* src, const size_t size)
+{
+	const size_t vectorSize = 16;
+	const size_t numVectors = size / vectorSize;
+
+	__m128i* destVector = (__m128i*)dest;
+	const __m128i* srcVector = (const __m128i*)src;
+
+	for (size_t i = 0; i < numVectors; ++i)
+	{
+		const __m128i data = _mm_loadu_si128(srcVector + i);
+		_mm_storeu_si128(destVector + i, data);
+	}
+
+	const size_t remainingSize = size % vectorSize;
+	if (remainingSize > 0)
+	{
+		const char* srcBytes = (const char*)(srcVector + numVectors);
+		char* destBytes = (char*)(destVector + numVectors);
+		for (size_t i = 0; i < remainingSize; ++i)
+			destBytes[i] = srcBytes[i];
+	}
+}
+
+void cmemset(void* dest, const int value, const size_t count)
+{
+	unsigned char* ptr = static_cast<unsigned char*>(dest);
+	const unsigned char byteValue = static_cast<unsigned char>(value);
+	for (size_t i = 0; i < count; ++i)
+	{
+		*ptr = byteValue;
+		ptr++;
+	}
+}
+
+int ctz(unsigned int value)
+{
+	if (value == 0)
+		return sizeof(unsigned int) * 8;
+
+	int count = 0;
+	while ((value & 1) == 0)
+	{
+		value >>= 1;
+		count++;
+	}
+
+	return count;
 }

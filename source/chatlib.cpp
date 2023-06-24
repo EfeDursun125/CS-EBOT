@@ -1,33 +1,3 @@
-// 
-// Copyright (c) 2003-2021, by HsK-Dev Blog 
-// https://ccnhsk-dev.blogspot.com/ 
-// 
-// And Thank About Yet Another POD-Bot Development Team.
-// Copyright (c) 2003-2009, by Yet Another POD-Bot Development Team.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the "Software"),
-// to deal in the Software without restriction, including without limitation
-// the rights to use, copy, modify, merge, publish, distribute, sublicense,
-// and/or sell copies of the Software, and to permit persons to whom the
-// Software is furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-// $Id:$
-//
-
-// todo: kill that file
-
 #include <core.h>
 
 ConVar ebot_chat("ebot_chat", "1");
@@ -107,7 +77,7 @@ char* HumanizeName(char* name)
     // this function humanize player name (i.e. trim clan and switch to lower case (sometimes))
 
     static char outputName[256]; // create return name buffer
-    strcpy(outputName, name); // copy name to new buffer
+    cstrcpy(outputName, name); // copy name to new buffer
 
     // drop tag marks, 80 percent of time
     if (CRandomInt(1, 100) < 80)
@@ -132,7 +102,7 @@ void Bot::PrepareChatMessage(char* text)
     if (!ebot_chat.GetBool() || IsNullString(text))
         return;
 
-    memset(&m_tempStrings, 0, sizeof(m_tempStrings));
+    cmemset(&m_tempStrings, 0, sizeof(m_tempStrings));
 
     char* textStart = text;
     char* pattern = text;
@@ -361,7 +331,7 @@ bool Bot::CheckKeywords(char* tempMessage, char* reply)
             // check is keyword has occurred in message
             if (strstr(tempMessage, g_replyFactory[i].keywords[j].GetBuffer()) != nullptr)
             {
-                strcpy(reply, g_replyFactory[i].replies.GetRandomElement()); // update final buffer
+                cstrcpy(reply, g_replyFactory[i].replies.GetRandomElement()); // update final buffer
                 return true;
             }
         }
@@ -370,7 +340,7 @@ bool Bot::CheckKeywords(char* tempMessage, char* reply)
     // didn't find a keyword? 80% of the time use some universal reply
     if (ChanceOf(80) && !g_chatFactory[CHAT_NOKW].IsEmpty())
     {
-        strcpy(reply, g_chatFactory[CHAT_NOKW].GetRandomElement().GetBuffer());
+        cstrcpy(reply, g_chatFactory[CHAT_NOKW].GetRandomElement().GetBuffer());
         return true;
     }
 
@@ -381,7 +351,7 @@ bool Bot::CheckKeywords(char* tempMessage, char* reply)
 bool Bot::ParseChat(char* reply)
 {
     char tempMessage[512];
-    strcpy(tempMessage, m_sayTextBuffer.sayText); // copy to safe place
+    cstrcpy(tempMessage, m_sayTextBuffer.sayText); // copy to safe place
 
     // text to uppercase for keyword parsing
     for (int i = 0; i < static_cast <int> (cstrlen(tempMessage)); i++)
@@ -438,17 +408,17 @@ void Bot::ChatSay(bool teamSay, const char* text, ...)
         if (teamSay)
         {
             if (m_team == TEAM_TERRORIST)
-                strcpy(botTeam, "(Terrorist)");
+                cstrcpy(botTeam, "(Terrorist)");
             else if (m_team == TEAM_COUNTER)
-                strcpy(botTeam, "(Counter-Terrorist)");
+                cstrcpy(botTeam, "(Counter-Terrorist)");
             else // WHAT???
-                strcpy(botTeam, "");
+                cstrcpy(botTeam, "");
         }
         else
-            strcpy(botTeam, "");
+            cstrcpy(botTeam, "");
     }
 
-    strcpy(botName, GetEntityName(GetEntity()));
+    cstrcpy(botName, GetEntityName(GetEntity()));
 
     const int index = g_netMsg->GetId(NETMSG_SAYTEXT);
     for (const auto& client : g_clients)

@@ -1,28 +1,4 @@
-﻿//
-// Copyright (c) 2003-2009, by Yet Another POD-Bot Development Team.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the "Software"),
-// to deal in the Software without restriction, including without limitation
-// the rights to use, copy, modify, merge, publish, distribute, sublicense,
-// and/or sell copies of the Software, and to permit persons to whom the
-// Software is furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-// $Id:$
-//
-
-#include <core.h>
+﻿#include <core.h>
 
 //
 // TODO:
@@ -544,7 +520,7 @@ const char* GetField(const char* string, int fieldId, bool endLine)
 	static char field[256];
 
 	// reset the string
-	memset(field, 0, sizeof(field));
+	cmemset(field, 0, sizeof(field));
 
 	int length, i, index = 0, fieldCount = 0, start, stop;
 
@@ -1553,11 +1529,11 @@ const char* GetEntityName(edict_t* entity)
 {
 	static char entityName[256];
 	if (FNullEnt(entity))
-		strcpy(entityName, "NULL");
+		cstrcpy(entityName, "NULL");
 	else if (IsValidPlayer(entity))
-		strcpy(entityName, (char*)STRING(entity->v.netname));
+		cstrcpy(entityName, (char*)STRING(entity->v.netname));
 	else
-		strcpy(entityName, (char*)STRING(entity->v.classname));
+		cstrcpy(entityName, (char*)STRING(entity->v.classname));
 	return &entityName[0];
 }
 
@@ -1565,7 +1541,7 @@ const char* GetEntityName(edict_t* entity)
 const char* GetMapName(void)
 {
 	static char mapName[256];
-	strcpy(mapName, STRING(g_pGlobals->mapname));
+	cstrcpy(mapName, STRING(g_pGlobals->mapname));
 
 	return &mapName[0]; // and return a pointer to it
 }
@@ -1681,23 +1657,23 @@ void AddLogEntry(int logLevel, const char* format, ...)
 	switch (logLevel)
 	{
 	case LOG_DEFAULT:
-		strcpy(levelString, "Log: ");
+		cstrcpy(levelString, "Log: ");
 		break;
 
 	case LOG_WARNING:
-		strcpy(levelString, "Warning: ");
+		cstrcpy(levelString, "Warning: ");
 		break;
 
 	case LOG_ERROR:
-		strcpy(levelString, "Error: ");
+		cstrcpy(levelString, "Error: ");
 		break;
 
 	case LOG_FATAL:
-		strcpy(levelString, "Critical: ");
+		cstrcpy(levelString, "Critical: ");
 		break;
 
 	case LOG_MEMORY:
-		strcpy(levelString, "Memory Error: ");
+		cstrcpy(levelString, "Memory Error: ");
 		ServerPrint("unexpected memory error");
 		break;
 	}
@@ -1798,97 +1774,6 @@ bool FindNearestPlayer(void** pvHolder, edict_t* to, float searchDistance, bool 
 		*pvHolder = reinterpret_cast <void*> (survive);
 
 	return true;
-}
-
-// this function called by the sound hooking code (in emit_sound) enters the played sound into
-// the array associated with the entity
-void SoundAttachToThreat(edict_t* ent, const char* sample, float volume)
-{
-	if (FNullEnt(ent) || IsNullString(sample))
-		return; // reliability check
-
-	const Vector& origin = GetEntityOrigin(ent);
-	int index = ENTINDEX(ent) - 1;
-
-	if (index < 0 || index >= engine->GetMaxClients())
-	{
-		float nearestDistance = FLT_MAX;
-
-		// loop through all players
-		for (const auto& client : g_clients)
-		{
-			if (client.index < 0)
-				continue;
-
-			if (client.ent == nullptr)
-				continue;
-
-			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE))
-				continue;
-
-			const float distance = (client.origin - origin).GetLengthSquared();
-
-			// now find nearest player
-			if (distance < nearestDistance)
-			{
-				index = client.index;
-				nearestDistance = distance;
-			}
-		}
-	}
-
-	if (index < 0 || index >= engine->GetMaxClients())
-		return;
-
-	if (cstrncmp("player/bhit_flesh", sample, 17) == 0 || cstrncmp("player/headshot", sample, 15) == 0)
-	{
-		// hit/fall sound?
-		g_clients[index].hearingDistance = 768.0f * volume;
-		g_clients[index].timeSoundLasting = engine->GetTime() + 0.5f;
-		g_clients[index].soundPosition = origin;
-	}
-	else if (cstrncmp("items/gunpickup", sample, 15) == 0)
-	{
-		// weapon pickup?
-		g_clients[index].hearingDistance = 768.0f * volume;
-		g_clients[index].timeSoundLasting = engine->GetTime() + 0.5f;
-		g_clients[index].soundPosition = origin;
-	}
-	else if (cstrncmp("weapons/zoom", sample, 12) == 0)
-	{
-		// sniper zooming?
-		g_clients[index].hearingDistance = 512.0f * volume;
-		g_clients[index].timeSoundLasting = engine->GetTime() + 0.1f;
-		g_clients[index].soundPosition = origin;
-	}
-	else if (cstrncmp("items/9mmclip", sample, 13) == 0)
-	{
-		// ammo pickup?
-		g_clients[index].hearingDistance = 512.0f * volume;
-		g_clients[index].timeSoundLasting = engine->GetTime() + 0.1f;
-		g_clients[index].soundPosition = origin;
-	}
-	else if (cstrncmp("hostage/hos", sample, 11) == 0)
-	{
-		// CT used hostage?
-		g_clients[index].hearingDistance = 1024.0f * volume;
-		g_clients[index].timeSoundLasting = engine->GetTime() + 5.0f;
-		g_clients[index].soundPosition = origin;
-	}
-	else if (cstrncmp("debris/bustmetal", sample, 16) == 0 || cstrncmp("debris/bustglass", sample, 16) == 0)
-	{
-		// broke something?
-		g_clients[index].hearingDistance = 1024.0f * volume;
-		g_clients[index].timeSoundLasting = engine->GetTime() + 2.0f;
-		g_clients[index].soundPosition = origin;
-	}
-	else if (cstrncmp("doors/doormove", sample, 14) == 0)
-	{
-		// someone opened a door
-		g_clients[index].hearingDistance = 1024.0f * volume;
-		g_clients[index].timeSoundLasting = engine->GetTime() + 3.0f;
-		g_clients[index].soundPosition = origin;
-	}
 }
 
 // this function returning weapon id from the weapon alias and vice versa.

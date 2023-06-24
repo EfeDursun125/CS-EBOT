@@ -1,32 +1,8 @@
-//
-// Copyright (c) 2003-2009, by Yet Another POD-Bot Development Team.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the "Software"),
-// to deal in the Software without restriction, including without limitation
-// the rights to use, copy, modify, merge, publish, distribute, sublicense,
-// and/or sell copies of the Software, and to permit persons to whom the
-// Software is furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-// $Id:$
-//
-
 #include <core.h>
 
 ConVar ebot_quota("ebot_quota", "10");
 ConVar ebot_forceteam("ebot_force_team", "any");
-ConVar ebot_auto_players("ebot_auto_players", "-1"); // i don't even know what is this...
+ConVar ebot_auto_players("ebot_auto_players", "-1"); // make it 1 to bot leave if human joins to team
 ConVar ebot_quota_save("ebot_quota_save", "-1");
 
 ConVar ebot_difficulty("ebot_difficulty", "4");
@@ -55,7 +31,7 @@ BotControl::BotControl(void)
 	m_economicsGood[TEAM_TERRORIST] = true;
 	m_economicsGood[TEAM_COUNTER] = true;
 
-	memset(m_bots, 0, sizeof(m_bots));
+	cmemset(m_bots, 0, sizeof(m_bots));
 	InitQuota();
 }
 
@@ -667,8 +643,8 @@ void BotControl::RemoveMenu(edict_t* ent, int selection)
 		return;
 
 	char tempBuffer[1024], buffer[1024];
-	memset(tempBuffer, 0, sizeof(tempBuffer));
-	memset(buffer, 0, sizeof(buffer));
+	cmemset(tempBuffer, 0, sizeof(tempBuffer));
+	cmemset(buffer, 0, sizeof(buffer));
 
 	int validSlots = (selection == 4) ? (1 << 9) : ((1 << 8) | (1 << 9));
 	for (int i = ((selection - 1) * 8); i < selection * 8; ++i)
@@ -951,9 +927,9 @@ void BotControl::Free(int index)
 Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 {
 	char rejectReason[128];
-	int clientIndex = ENTINDEX(bot);
+	const int clientIndex = ENTINDEX(bot);
 
-	memset(reinterpret_cast <void*> (this), 0, sizeof(*this));
+	cmemset(reinterpret_cast <void*> (this), 0, sizeof(*this));
 
 	pev = &bot->v;
 
@@ -1043,8 +1019,8 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 		break;
 	}
 
-	memset(&m_ammoInClip, 0, sizeof(m_ammoInClip));
-	memset(&m_ammo, 0, sizeof(m_ammo));
+	cmemset(&m_ammoInClip, 0, sizeof(m_ammoInClip));
+	cmemset(&m_ammo, 0, sizeof(m_ammo));
 
 	m_currentWeapon = 0; // current weapon is not assigned at start
 	m_voicePitch = CRandomInt(80, 120); // assign voice pitch
@@ -1189,7 +1165,7 @@ void Bot::NewRound(void)
 	m_aimFlags = 0;
 
 	m_position = nullvec;
-	m_campposition = nullvec;
+	m_campPosition = nullvec;
 
 	m_targetEntity = nullptr;
 	m_followWaitTime = 0.0f;
@@ -1226,8 +1202,8 @@ void Bot::NewRound(void)
 
 	if (!IsAlive(GetEntity())) // if bot died, clear all weapon stuff and force buying again
 	{
-		memset(&m_ammoInClip, 0, sizeof(m_ammoInClip));
-		memset(&m_ammo, 0, sizeof(m_ammo));
+		cmemset(&m_ammoInClip, 0, sizeof(m_ammoInClip));
+		cmemset(&m_ammo, 0, sizeof(m_ammo));
 		m_currentWeapon = 0;
 	}
 
