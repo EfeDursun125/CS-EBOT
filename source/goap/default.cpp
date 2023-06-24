@@ -1,0 +1,124 @@
+#include <core.h>
+
+void Bot::DefaultStart(void)
+{
+	ResetStuck();
+
+	if (m_isZombieBot)
+		SelectWeaponByName("weapon_knife");
+}
+
+void Bot::DefaultUpdate(void)
+{
+	if (m_isZombieBot)
+	{
+		if (m_isSlowThink)
+			FindEnemyEntities();
+		else
+			FindFriendsAndEnemiens();
+
+		// nearest enemy never resets to nullptr, so bot always know where are humans
+		if (!FNullEnt(m_nearestEnemy) && GetTeam(m_nearestEnemy) != m_team)
+		{
+			if (m_hasEnemiesNear && m_enemyDistance <= SquaredF(192.0f))
+			{
+				m_currentWaypointIndex = -1;
+				DeleteSearchNodes();
+				MoveTo(m_enemyOrigin);
+				m_lookAt = m_enemyOrigin;
+				if (CRandomInt(1, 3) == 1)
+					pev->button |= IN_ATTACK2;
+				else
+					pev->button |= IN_ATTACK;
+				return;
+			}
+			else
+				FollowPath(m_nearestEnemy->v.origin);
+		}
+		else if (!GoalIsValid())
+			FindGoal();
+		else
+			FollowPath(m_chosenGoalIndex);
+
+		UpdateLooking();
+	}
+	else
+	{
+		UpdateLooking();
+
+		if (m_isSlowThink)
+		{
+			// revert the zoom to normal
+			if (pev->fov != 90.0f)
+				pev->button |= IN_ATTACK2;
+
+			FindEnemyEntities();
+
+			if (IsValidWaypoint(m_zhCampPointIndex))
+			{
+				m_campIndex = m_zhCampPointIndex;
+				if (SetProcess(Process::Camp, "i will camp until game ends", true, AddTime(9999999.0f)))
+					return;
+			}
+		}
+		else
+		{
+			if (m_itemCheckTime < engine->GetTime())
+			{
+				FindItem();
+				m_itemCheckTime = engine->GetTime() + (g_gameVersion == HALFLIFE ? 1.25f : engine->RandomFloat(1.25f, 2.5f));
+
+				if (GetEntityOrigin(m_pickupItem) != nullvec && SetProcess(Process::Pickup, "i see good stuff to pick it up", true, 20.0f))
+					return;
+			}
+			else
+			{
+				CheckReload();
+				FindFriendsAndEnemiens();
+			}
+		}
+
+		if (IsZombieMode())
+		{
+			if (m_hasEnemiesNear && m_enemyDistance <= SquaredF(300.0f))
+			{
+				m_currentWaypointIndex = -1;
+				DeleteSearchNodes();
+				MoveOut(m_enemyOrigin);
+				return;
+			}
+			else if (!GoalIsValid())
+				FindGoal();
+
+			FollowPath(m_chosenGoalIndex);
+		}
+		else
+		{
+			if (m_hasEnemiesNear)
+			{
+				if (SetProcess(Process::Attack, "i found a target", false, 999999.0f))
+					return;
+			}
+			else if (m_isBomber && m_waypointFlags & WAYPOINT_GOAL && m_navNode == nullptr)
+			{
+				if (SetProcess(Process::Plant, "trying to plant the bomb.", false, 12.0f))
+					return;
+			}
+
+			if (!GoalIsValid())
+				FindGoal();
+
+			FollowPath(m_chosenGoalIndex);
+		}
+	}
+}
+
+void Bot::DefaultEnd(void)
+{
+
+}
+
+bool Bot::DefaultReq(void)
+{
+	return true;
+}
