@@ -207,7 +207,7 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 
 	// set values
 	m_bots[index]->m_index = m_bots[index]->GetIndex();
-	m_bots[index]->m_senseChance = engine->RandomFloat(10.0f, 90.0f);
+	m_bots[index]->m_senseChance = CRandomInt(10, 90);
 
 	return index;
 }
@@ -1089,6 +1089,9 @@ void Bot::NewRound(void)
 	else
 		m_zhCampPointIndex = -1;
 
+	m_spawnTime = engine->GetTime();
+	m_walkTime = 0.0f;
+
 	int i = 0;
 
 	// delete all allocated path nodes
@@ -1098,7 +1101,6 @@ void Bot::NewRound(void)
 	m_weaponSelectDelay = engine->GetTime();
 	m_currentWaypointIndex = -1;
 	m_currentTravelFlags = 0;
-	m_desiredVelocity = nullvec;
 	m_prevGoalIndex = -1;
 	m_chosenGoalIndex = -1;
 	m_myMeshWaypoint = -1;
@@ -1122,10 +1124,8 @@ void Bot::NewRound(void)
 	m_hasProgressBar = false;
 	m_canChooseAimDirection = true;
 
-	m_walkTime = 0.0f;
 	m_timeTeamOrder = 0.0f;
 	m_askCheckTime = 0.0f;
-	m_minSpeed = 260.0f;
 	m_prevSpeed = 0.0f;
 	m_prevOrigin = Vector(9999.0f, 9999.0f, 9999.0f);
 	m_prevTime = engine->GetTime();
@@ -1225,7 +1225,6 @@ void Bot::NewRound(void)
 	m_defendedBomb = false;
 
 	m_timeLogoSpray = AddTime(engine->RandomFloat(0.5f, 2.0f));
-	m_spawnTime = engine->GetTime();
 	m_lastChatTime = engine->GetTime();
 	pev->button = 0;
 

@@ -491,11 +491,14 @@ void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
 
 				while (index < i - start && g_fakeArgv[index] != '"')
 					index++;
+
 				index++;
 			}
 			else
+			{
 				while (index < i - start && g_fakeArgv[index] != ' ')
 					index++;
+			}
 
 			stringIndex++;
 		}
@@ -571,59 +574,9 @@ const char* GetField(const char* string, int fieldId, bool endLine)
 	if (endLine)
 		field[cstrlen(field) - 1] = 0;
 
-	strtrim(field);
+	cstrtrim(field);
 
 	return (&field[0]); // returns the wanted field
-}
-
-void strtrim(char* string)
-{
-	char* ptr = string;
-
-	int length = 0, toggleFlag = 0, increment = 0;
-	int i = 0;
-
-	while (*ptr++)
-		length++;
-
-	for (i = length - 1; i >= 0; i--)
-	{
-#if defined (PLATFORM_WIN32)
-		if (!iswspace(string[i]))
-#else
-		if (!isspace(string[i]))
-#endif
-			break;
-		else
-		{
-			string[i] = 0;
-			length--;
-		}
-	}
-
-	for (i = 0; i < length; i++)
-	{
-#if defined (PLATFORM_WIN32)
-		if (iswspace(string[i]) && !toggleFlag) // win32 crash fx
-#else
-		if (isspace(string[i]) && !toggleFlag)
-#endif
-		{
-			increment++;
-
-			if (increment + i < length)
-				string[i] = string[increment + i];
-		}
-		else
-		{
-			if (!toggleFlag)
-				toggleFlag = 1;
-
-			if (increment)
-				string[i] = string[increment + i];
-		}
-	}
-	string[length] = 0;
 }
 
 const char* GetModName(void)
@@ -671,6 +624,7 @@ void CreatePath(char* path)
 			* ofs = '/';
 		}
 	}
+
 #ifdef PLATFORM_WIN32
 	mkdir(path);
 #else
@@ -692,8 +646,9 @@ void RoundInit(void)
 		if (client.ent == nullptr)
 			continue;
 
-		if (g_botManager->GetBot(client.index) != nullptr)
-			g_botManager->GetBot(client.index)->NewRound();
+		auto bot = g_botManager->GetBot(client.index);
+		if (bot != nullptr)
+			bot->NewRound();
 
 		g_radioSelect[client.index] = 0;
 	}
@@ -1529,7 +1484,7 @@ const char* GetEntityName(edict_t* entity)
 {
 	static char entityName[256];
 	if (FNullEnt(entity))
-		cstrcpy(entityName, "NULL");
+		cstrcpy(entityName, "nullptr");
 	else if (IsValidPlayer(entity))
 		cstrcpy(entityName, (char*)STRING(entity->v.netname));
 	else

@@ -15,12 +15,12 @@ void StripTags(char* buffer)
     // foreach known tag...
     for (index = 0; index < ARRAYSIZE_HLSDK(tagOpen); index++)
     {
-        fieldStart = strstr(buffer, tagOpen[index]) - buffer; // look for a tag start
+        fieldStart = cstrstr(buffer, tagOpen[index]) - buffer; // look for a tag start
 
         // have we found a tag start?
         if (fieldStart >= 0 && fieldStart < 32)
         {
-            fieldStop = strstr(buffer, tagClose[index]) - buffer; // look for a tag stop
+            fieldStop = cstrstr(buffer, tagClose[index]) - buffer; // look for a tag stop
 
             // have we found a tag stop?
             if ((fieldStop > fieldStart) && (fieldStop < 32))
@@ -36,12 +36,12 @@ void StripTags(char* buffer)
     // have we stripped too much (all the stuff)?
     if (cstrlen(buffer) != 0)
     {
-        strtrim(buffer); // if so, string is just a tag
+        cstrtrim(buffer); // if so, string is just a tag
 
         // strip just the tag part..
         for (index = 0; index < ARRAYSIZE_HLSDK(tagOpen); index++)
         {
-            fieldStart = strstr(buffer, tagOpen[index]) - buffer; // look for a tag start
+            fieldStart = cstrstr(buffer, tagOpen[index]) - buffer; // look for a tag start
 
             // have we found a tag start?
             if (fieldStart >= 0 && fieldStart < 32)
@@ -53,7 +53,7 @@ void StripTags(char* buffer)
 
                 buffer[i] = 0x0; // terminate the string
 
-                fieldStart = strstr(buffer, tagClose[index]) - buffer; // look for a tag stop
+                fieldStart = cstrstr(buffer, tagClose[index]) - buffer; // look for a tag stop
 
                 // have we found a tag stop ?
                 if (fieldStart >= 0 && fieldStart < 32)
@@ -69,7 +69,7 @@ void StripTags(char* buffer)
         }
     }
 
-    strtrim(buffer); // to finish, strip eventual blanks after and before the tag marks
+    cstrtrim(buffer); // to finish, strip eventual blanks after and before the tag marks
 }
 
 char* HumanizeName(char* name)
@@ -83,14 +83,14 @@ char* HumanizeName(char* name)
     if (CRandomInt(1, 100) < 80)
         StripTags(outputName);
     else
-        strtrim(outputName);
+        cstrtrim(outputName);
 
     // sometimes switch name to lower characters
     // note: since we're using russian names written in english, we reduce this shit to 6 percent
     if (CRandomInt(1, 100) <= 6)
     {
         for (int i = 0; i < static_cast <int> (cstrlen(outputName)); i++)
-            outputName[i] = static_cast <char> (tolower(outputName[i])); // to lower case
+            outputName[i] = static_cast <char> (ctolower(outputName[i])); // to lower case
     }
 
     return &outputName[0]; // return terminated string
@@ -112,7 +112,7 @@ void Bot::PrepareChatMessage(char* text)
     while (pattern != nullptr)
     {
         // all replacement placeholders start with a %
-        pattern = strstr(textStart, "%");
+        pattern = cstrstr(textStart, "%");
 
         if (pattern != nullptr)
         {
@@ -329,7 +329,7 @@ bool Bot::CheckKeywords(char* tempMessage, char* reply)
         ITERATE_ARRAY(g_replyFactory[i].keywords, j)
         {
             // check is keyword has occurred in message
-            if (strstr(tempMessage, g_replyFactory[i].keywords[j].GetBuffer()) != nullptr)
+            if (cstrstr(tempMessage, g_replyFactory[i].keywords[j].GetBuffer()) != nullptr)
             {
                 cstrcpy(reply, g_replyFactory[i].replies.GetRandomElement()); // update final buffer
                 return true;

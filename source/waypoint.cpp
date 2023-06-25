@@ -706,7 +706,7 @@ void Waypoint::FindInRadius(Array <int>& queueID, float radius, Vector origin)
 
 void Waypoint::SgdWp_Set(const char* modset)
 {
-    if (stricmp(modset, "on") == 0)
+    if (cstricmp(modset, "on") == 0)
     {
         if (m_badMapName)
         {
@@ -732,15 +732,15 @@ void Waypoint::SgdWp_Set(const char* modset)
 
         ChartPrint("[SgdWP] Hold 'E' Call [SgdWP] Menu *******");
     }
-    else if (stricmp(modset, "off") == 0)
+    else if (cstricmp(modset, "off") == 0)
     {
         g_sautoWaypoint = false;
         g_sgdWaypoint = false;
         g_waypointOn = false;
     }
-    else if ((stricmp(modset, "save") == 0 || stricmp(modset, "save_non-check") == 0) && g_sgdWaypoint)
+    else if ((cstricmp(modset, "save") == 0 || cstricmp(modset, "save_non-check") == 0) && g_sgdWaypoint)
     {
-        if (stricmp(modset, "save_non-check") == 0 || g_waypoint->NodesValid())
+        if (cstricmp(modset, "save_non-check") == 0 || g_waypoint->NodesValid())
         {
             Save();
             g_sautoWaypoint = false;
@@ -1747,7 +1747,7 @@ bool Waypoint::Load(int mode)
 
         if (cstrncmp(header.header, FH_WAYPOINT_NEW, cstrlen(FH_WAYPOINT_NEW)) == 0 || cstrncmp(header.header, FH_WAYPOINT, cstrlen(FH_WAYPOINT)) == 0)
         {
-            if (stricmp(header.mapName, GetMapName()) && mode == 0)
+            if (cstricmp(header.mapName, GetMapName()) && mode == 0)
             {
                 m_badMapName = true;
 
@@ -3061,7 +3061,6 @@ void Waypoint::SetGoalVisited(int index)
     if (!IsGoalVisited(index) && (m_paths[index]->flags & WAYPOINT_GOAL))
     {
         const int bombPoint = FindNearest(GetBombPosition());
-
         if (IsValidWaypoint(bombPoint) && bombPoint != index)
             m_visitedGoals.Push(index);
     }
@@ -3135,8 +3134,7 @@ void Waypoint::CreateBasic(void)
     // then terrortist spawnpoints
     while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "info_player_deathmatch")))
     {
-        Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
-
+        const Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
         if (FindNearest(origin, 50.0f) == -1)
             Add(0, Vector(origin.x, origin.y, (origin.z + 36.0f)));
     }
@@ -3144,8 +3142,7 @@ void Waypoint::CreateBasic(void)
     // then add ct spawnpoints
     while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "info_player_start")))
     {
-        Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
-
+        const Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
         if (FindNearest(origin, 50.0f) == -1)
             Add(0, Vector(origin.x, origin.y, (origin.z + 36.0f)));
     }
@@ -3153,8 +3150,7 @@ void Waypoint::CreateBasic(void)
     // then vip spawnpoint
     while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "info_vip_start")))
     {
-        Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
-
+        const Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
         if (FindNearest(origin, 50.0f) == -1)
             Add(0, Vector(origin.x, origin.y, (origin.z + 36.0f)));
     }
@@ -3162,8 +3158,7 @@ void Waypoint::CreateBasic(void)
     // hostage rescue zone
     while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "func_hostage_rescue")))
     {
-        Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
-
+        const Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
         if (FindNearest(origin, 50.0f) == -1)
             Add(4, Vector(origin.x, origin.y, (origin.z + 36.0f)));
     }
@@ -3171,8 +3166,7 @@ void Waypoint::CreateBasic(void)
     // hostage rescue zone (same as above)
     while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "info_hostage_rescue")))
     {
-        Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
-
+        const Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
         if (FindNearest(origin, 50.0f) == -1)
             Add(4, Vector(origin.x, origin.y, (origin.z + 36.0f)));
     }
@@ -3180,8 +3174,7 @@ void Waypoint::CreateBasic(void)
     // bombspot zone
     while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "func_bomb_target")))
     {
-        Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
-
+        const Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
         if (FindNearest(origin, 50.0f) == -1)
             Add(100, Vector(origin.x, origin.y, (origin.z + 36.0f)));
     }
@@ -3189,8 +3182,7 @@ void Waypoint::CreateBasic(void)
     // bombspot zone (same as above)
     while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "info_bomb_target")))
     {
-        Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
-
+        const Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
         if (FindNearest(origin, 50.0f) == -1)
             Add(100, Vector(origin.x, origin.y, (origin.z + 36.0f)));
     }
@@ -3202,8 +3194,7 @@ void Waypoint::CreateBasic(void)
         if ((ent->v.effects & EF_NODRAW) && (ent->v.speed > 0))
             continue;
 
-        Vector origin = GetEntityOrigin(ent);
-
+        const Vector origin = GetEntityOrigin(ent);
         if (FindNearest(origin, 250.0f) == -1 && g_analyzewaypoints == true)
             Add(2, Vector(origin.x, origin.y, (origin.z + 36.0f))); // goal waypoints will be added by analyzer
         else if (FindNearest(origin, 50.0f) == -1)
@@ -3213,8 +3204,7 @@ void Waypoint::CreateBasic(void)
     // vip rescue (safety) zone
     while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "func_vip_safetyzone")))
     {
-        Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
-
+        const Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
         if (FindNearest(origin, 50.0f) == -1)
             Add(100, Vector(origin.x, origin.y, (origin.z + 36.0f)));
     }
@@ -3222,8 +3212,7 @@ void Waypoint::CreateBasic(void)
     // terrorist escape zone
     while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "func_escapezone")))
     {
-        Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
-
+        const Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
         if (FindNearest(origin, 50.0f) == -1)
             Add(100, Vector(origin.x, origin.y, (origin.z + 36.0f)));
     }
@@ -3231,8 +3220,7 @@ void Waypoint::CreateBasic(void)
     // weapons on the map?
     while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "armoury_entity")))
     {
-        Vector origin = GetEntityOrigin(ent);
-
+        const Vector origin = GetEntityOrigin(ent);
         if (FindNearest(origin, 50.0f) == -1)
             Add(0, Vector(origin.x, origin.y, (origin.z + 36.0f)));
     }

@@ -36,13 +36,14 @@ void Bot::FindFriendsAndEnemiens(void)
 			m_numFriendsLeft++;
 
 			// simple check
+			const Vector friendOrigin = client.ent->v.origin + client.ent->v.view_ofs;
 			TraceResult tr;
-			TraceLine(pev->origin, client.origin, true, true, GetEntity(), &tr);
+			TraceLine(pev->origin, friendOrigin, true, true, GetEntity(), &tr);
 			if (tr.flFraction != 1.0f)
 				continue;
 
 			m_friendsNearCount++;
-			const float distance = (pev->origin - client.origin).GetLengthSquared();
+			const float distance = (pev->origin - friendOrigin).GetLengthSquared();
 			if (distance < m_friendDistance)
 			{
 				m_friendDistance = distance;
@@ -455,6 +456,10 @@ Vector Bot::GetEnemyPosition(void)
 {
 	// not even visible?
 	if (m_visibility == Visibility::None)
+		return m_enemyOrigin;
+
+	// return last position
+	if (FNullEnt(m_nearestEnemy))
 		return m_enemyOrigin;
 
 	// get enemy position initially
@@ -1094,8 +1099,6 @@ void Bot::CombatFight(void)
 	{
 		m_moveSpeed = 0.0f;
 		m_strafeSpeed = 0.0f;
-		if (IsValidWaypoint(m_cachedWaypointIndex))
-			ChangeWptIndex(m_cachedWaypointIndex);
 		return;
 	}
 
@@ -1640,6 +1643,9 @@ void Bot::SelectBestWeapon(void)
 	if (m_weaponSelectDelay >= engine->GetTime())
 		return;
 
+	if (!m_hasEnemiesNear && !m_hasEntitiesNear && (m_spawnTime + engine->GetFreezeTime() + 7.0f) > engine->GetTime())
+		return;
+
 	WeaponSelect* selectTab = g_gameVersion == HALFLIFE ? &g_weaponSelectHL[0] : &g_weaponSelect[0];
 
 	int selectIndex = -1;
@@ -1814,6 +1820,7 @@ void Bot::CheckReload(void)
 	if (m_currentWeapon == g_gameVersion == HALFLIFE ? WEAPON_CROWBAR : WEAPON_KNIFE)
 	{
 		m_reloadState = ReloadState::Nothing;
+		m_isReloading = false;
 		return;
 	}
 

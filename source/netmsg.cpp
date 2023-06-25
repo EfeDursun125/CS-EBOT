@@ -178,7 +178,7 @@ void NetworkMsg::Execute(void* p)
         }
         break;
 
-    case NETMSG_DAMAGE:
+    /*case NETMSG_DAMAGE:
         // this message gets sent when the bots are getting damaged.
         switch (m_state)
         {
@@ -198,8 +198,7 @@ void NetworkMsg::Execute(void* p)
             break;
         }
 
-        break;
-
+        break;*/
     case NETMSG_MONEY:
         // this message gets sent when the bots money amount changes
 
@@ -367,9 +366,7 @@ void NetworkMsg::Execute(void* p)
                 m_bot->m_hasProgressBar = false;
         }
         break;
-
-    default:
-        AddLogEntry(LOG_FATAL, "Network message handler error. Call to unrecognized message id (%d).\n", m_message);
     }
+
     m_state++; // and finally update network message state
 }

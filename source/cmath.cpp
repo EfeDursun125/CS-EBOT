@@ -191,7 +191,7 @@ int cstrcmp(const char* str1, const char* str2)
 
 		if (mask != 0xFFFF)
 		{
-			const int index = cbuiltin_ctz(~mask);
+			const int index = ctz(~mask);
 			const char* ptr1 = (const char*)(p1);
 			const char* ptr2 = (const char*)(p2);
 
@@ -307,4 +307,101 @@ int ctz(unsigned int value)
 	}
 
 	return count;
+}
+
+int ctolower(const int value)
+{
+	if (value >= 'A' && value <= 'Z')
+		return value + ('a' - 'A');
+	else
+		return value;
+}
+
+int cstricmp(const char* str1, const char* str2)
+{
+	while (*str1 && *str2)
+	{
+		const int result = ctolower(*str1) - ctolower(*str2);
+		if (result != 0)
+			return result;
+
+		str1++;
+		str2++;
+	}
+
+	return ctolower(*str1) - ctolower(*str2);
+}
+
+bool cspace(const int str)
+{
+	return (str == L' ' || str == L'\t' || str == L'\n' || str == L'\r' || str == L'\f' || str == L'\v');
+}
+
+void cstrtrim(char* string)
+{
+	char* ptr = string;
+
+	int length = 0, toggleFlag = 0, increment = 0;
+	int i = 0;
+
+	while (*ptr++)
+		length++;
+
+	for (i = length - 1; i >= 0; i--)
+	{
+		if (!cspace(string[i]))
+			break;
+		else
+		{
+			string[i] = 0;
+			length--;
+		}
+	}
+
+	for (i = 0; i < length; i++)
+	{
+		if (cspace(string[i]) && !toggleFlag)
+		{
+			increment++;
+
+			if (increment + i < length)
+				string[i] = string[increment + i];
+		}
+		else
+		{
+			if (!toggleFlag)
+				toggleFlag = 1;
+
+			if (increment)
+				string[i] = string[increment + i];
+		}
+	}
+
+	string[length] = 0;
+}
+
+char* cstrstr(char* haystack, const char* needle)
+{
+	const __m128i first = _mm_set1_epi8(needle[0]);
+	const size_t needleLen = cstrlen(needle);
+
+	while (*haystack)
+	{
+		const __m128i chunk = _mm_loadu_si128((__m128i*)haystack);
+		const __m128i cmp = _mm_cmpeq_epi8(chunk, first);
+		int mask = _mm_movemask_epi8(cmp);
+
+		while (mask)
+		{
+			const int index = ctz(mask);
+			if (cstrncmp(haystack + index, needle, needleLen) == 0)
+				return haystack + index;
+
+			mask ^= (1 << index);
+		}
+
+		haystack += 16;
+	}
+
+	return nullptr;
 }
