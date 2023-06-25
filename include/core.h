@@ -687,7 +687,6 @@ private:
 	float m_moveSpeed; // current speed forward/backward
 	float m_strafeSpeed; // current speed sideways
 	float m_tempstrafeSpeed; // temp speed sideways
-	float m_minSpeed; // minimum speed in normal mode
 	float m_oldCombatDesire; // holds old desire for filtering
 
 	bool m_isLeader; // bot is leader of his team
@@ -741,7 +740,6 @@ private:
 	PathNode* m_navNodeStart; // pointer to start of path finding nodes
 	uint8_t m_visibility; // visibility flags
 
-	int m_cachedWaypointIndex; // for zombies
 	int m_currentWaypointIndex; // current waypoint index
 	int m_travelStartIndex; // travel start index to double jump action
 	int m_prevWptIndex[3]; // previous waypoint indices from waypoint find
@@ -750,7 +748,6 @@ private:
 
 	unsigned short m_currentTravelFlags; // connection flags like jumping
 	bool m_jumpFinished; // has bot finished jumping
-	Vector m_desiredVelocity; // desired velocity for jump waypoints
 	float m_navTimeset; // time waypoint chosen by Bot
 
 	unsigned int m_aimFlags; // aiming conditions
@@ -861,7 +858,6 @@ private:
 	void ChooseAimDirection(void);
 	int ChooseBombWaypoint(void);
 
-	bool DoWaypointNav(void);
 	bool UpdateLiftHandling(void);
 	bool UpdateLiftStates(void);
 	bool IsRestricted(int weaponIndex);
@@ -885,7 +881,6 @@ private:
 	void GetCampDirection(Vector* dest);
 	int GetMessageQueue(void);
 	bool GoalIsValid(void);
-	bool HeadTowardWaypoint(void);
 	bool HasNextPath(void);
 	float InFieldOfView(const Vector& dest);
 
@@ -984,7 +979,6 @@ public:
 	int m_moneyAmount; // amount of money in bot's bank
 
 	Personality m_personality;
-	float m_spawnTime; // time this bot spawned
 	float m_timeTeamOrder; // time of last radio command
 
 	bool m_isVIP; // bot is vip?
@@ -1132,16 +1126,21 @@ public:
 	Vector m_friendOrigin;
 	Vector m_entityOrigin;
 
-	float m_senseChance;
+	int m_senseChance;
 
 	float m_searchTime;
 	float m_pauseTime;
 	float m_walkTime;
+	float m_spawnTime;
+
+	float m_frameDelay;
 
 	int m_heuristic;
 	bool m_2dH;
 
 	int m_campIndex;
+
+	Vector m_desiredVelocity;
 
 	Bot(edict_t* bot, int skill, int personality, int team, int member);
 	~Bot(void);
@@ -1178,6 +1177,9 @@ public:
 	void CheckStuck(const float maxSpeed);
 	void ResetStuck(void);
 	void FindItem(void);
+	void DoWaypointNav(void);
+
+	int FindWaypoint(void);
 
 	bool IsAttacking(const edict_t* player);
 
@@ -1243,7 +1245,6 @@ public:
 	void EquipInBuyzone(int buyCount);
 	void PushMessageQueue(int message);
 	void PrepareChatMessage(char* text);
-	int FindWaypoint(bool skipLag = true);
 	bool EntityIsVisible(Vector dest, bool fromBody = false);
 
 	void SetEnemy(edict_t* entity);
@@ -1257,7 +1258,6 @@ public:
 
 	void RemoveCertainTask(BotTask taskID);
 	void ResetTasks(void);
-	void TakeDamage(edict_t* inflictor, int damage, int armor, int bits);
 	void TakeBlinded(Vector fade, int alpha);
 	void PushTask(BotTask taskID, float desire, int data, float time, bool canContinue, bool force = false);
 	void DiscardWeaponForUser(edict_t* user, bool discardC4);
@@ -1616,7 +1616,6 @@ extern Vector GetPlayerHeadOrigin(edict_t* ent);
 extern void FreeLibraryMemory(void);
 extern void RoundInit(void);
 extern void FakeClientCommand(edict_t* fakeClient, const char* format, ...);
-extern void strtrim(char* string);
 extern void CreatePath(char* path);
 extern void ServerCommand(const char* format, ...);
 extern void RegisterCommand(char* command, void funcPtr(void));

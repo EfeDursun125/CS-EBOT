@@ -35,7 +35,6 @@
 #include <sys/types.h>
 
 typedef int socklen_t;
-#define stricmp _stricmp
 
 #define DLL_ENTRYPOINT int STDCALL DllMain (void *, unsigned long dwReason, void *)
 #define DLL_DETACHING (dwReason == 0)
@@ -69,7 +68,6 @@ typedef void (*EntityPtr_t) (entvars_t*);
 #include <sys/socket.h>
 
 #define PASCAL
-#define stricmp strcasecmp
 
 #define DLL_ENTRYPOINT __attribute__((destructor))  void _fini (void)
 #define DLL_DETACHING TRUE
@@ -129,9 +127,11 @@ public:
 };
 #else
 #include <curl/curl.h>
+
 __asm__(".symver dlopen,dlopen@GLIBC_2.1");
 __asm__(".symver dlsym,dlsym@GLIBC_2.0");
 __asm__(".symver dlclose,dlclose@GLIBC_2.0");
+
 class Library
 {
 private:

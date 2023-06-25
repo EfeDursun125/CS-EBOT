@@ -2521,7 +2521,7 @@ public:
         String result;
 
         for (int i = 0; i < GetLength(); i++)
-            result += tolower(m_bufferPtr[i]);
+            result += ctolower(m_bufferPtr[i]);
 
         return result;
     }
@@ -3063,7 +3063,7 @@ public:
     //
     bool Contains(const String& what)
     {
-        return strstr(m_bufferPtr, what.m_bufferPtr) != nullptr;
+        return cstrstr(m_bufferPtr, what.m_bufferPtr) != nullptr;
     }
 
     //
