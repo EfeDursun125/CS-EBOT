@@ -3,8 +3,6 @@
 void Bot::AttackStart(void)
 {
 	DeleteSearchNodes();
-	m_waypointOrigin = nullvec;
-	m_currentWaypointIndex = -1;
 }
 
 void Bot::AttackUpdate(void)
@@ -26,7 +24,7 @@ void Bot::AttackUpdate(void)
 		float wait = 2.0f - (pev->health / pev->max_health);
 
 		if (m_personality == PERSONALITY_CAREFUL)
-			wait = 2.0f;
+			wait = 3.0f - (pev->health / pev->max_health);
 		else if (m_personality == PERSONALITY_RUSHER && (m_currentWeapon == WEAPON_M3 || m_currentWeapon == WEAPON_XM1014 || m_currentWeapon == WEAPON_M249))
 			wait = 0.5f;
 
@@ -257,6 +255,7 @@ void Bot::AttackUpdate(void)
 void Bot::AttackEnd(void)
 {
 	ResetStuck();
+	FindWaypoint();
 }
 
 bool Bot::AttackReq(void)

@@ -231,9 +231,8 @@ void Bot::PickupUpdate(void)
 void Bot::PickupEnd(void)
 {
 	ResetStuck();
-	m_currentWaypointIndex = -1;
-	FindWaypoint(false);
 	DeleteSearchNodes();
+	FindWaypoint();
 }
 
 bool Bot::PickupReq(void)

@@ -26,10 +26,12 @@ void Bot::DefaultUpdate(void)
 				DeleteSearchNodes();
 				MoveTo(m_enemyOrigin);
 				m_lookAt = m_enemyOrigin;
+
 				if (CRandomInt(1, 3) == 1)
 					pev->button |= IN_ATTACK2;
 				else
 					pev->button |= IN_ATTACK;
+
 				return;
 			}
 			else
@@ -115,7 +117,7 @@ void Bot::DefaultUpdate(void)
 
 void Bot::DefaultEnd(void)
 {
-
+	m_isReloading = false;
 }
 
 bool Bot::DefaultReq(void)

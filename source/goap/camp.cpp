@@ -121,8 +121,8 @@ void Bot::CampUpdate(void)
 				float maxRange = zhPath->flags & WAYPOINT_CROUCH ? 100.0f : 230.0f;
 				if (zhPath->campStartX != 0.0f && ((zhPath->origin - pev->origin).GetLengthSquared2D() > SquaredF(maxRange) || (zhPath->origin.z - 64.0f > pev->origin.z)))
 				{
-					FindWaypoint();
 					DeleteSearchNodes();
+					FindWaypoint();
 					return;
 				}
 			}

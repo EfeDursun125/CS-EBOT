@@ -2,7 +2,6 @@
 
 void Bot::EscapeStart(void)
 {
-	m_currentWaypointIndex = -1;
 	DeleteSearchNodes();
 	RadioMessage(Radio::ShesGonnaBlow);
 }
@@ -13,8 +12,8 @@ void Bot::EscapeUpdate(void)
 	FindFriendsAndEnemiens();
 	UpdateLooking();
 
-	if (!g_bombPlanted || DoWaypointNav())
-		SetProcess(Process::Pause, "i have escaped from the bomb", false, 99999999.0f);
+	if (m_currentWaypointIndex == m_chosenGoalIndex)
+		SetProcess(Process::Pause, "i have escaped from the bomb", true, 99999999.0f);
 	else
 	{
 		if (!m_hasEntitiesNear && m_numEnemiesLeft <= 0)
