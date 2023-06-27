@@ -1029,7 +1029,7 @@ bool Bot::IsWeaponBadInDistance(int weaponIndex, float distance)
 {
 	if (g_gameVersion == HALFLIFE)
 	{
-		int weaponID = g_weaponSelect[weaponIndex].id;
+		const int weaponID = g_weaponSelectHL[weaponIndex].id;
 		if (weaponID == WEAPON_CROWBAR)
 			return false;
 

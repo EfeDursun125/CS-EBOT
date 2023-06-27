@@ -650,6 +650,9 @@ bool Bot::AllowPickupItem(void)
 	if (IsOnLadder())
 		return false;
 
+	if (IsZombieMode() && HasPrimaryWeapon() && m_currentWeapon != WEAPON_KNIFE)
+		return false;
+
 	return true;
 }
 
