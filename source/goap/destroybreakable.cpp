@@ -3,6 +3,7 @@
 void Bot::DestroyBreakableStart(void)
 {
 	ResetStuck();
+	SelectBestWeapon();
 }
 
 void Bot::DestroyBreakableUpdate(void)
@@ -30,7 +31,10 @@ void Bot::DestroyBreakableUpdate(void)
 	if (!m_isZombieBot && m_currentWeapon != WEAPON_KNIFE)
 		FireWeapon();
 	else
+	{
+		SelectBestWeapon();
 		KnifeAttack();
+	}
 
 	pev->button |= m_campButtons;
 }
