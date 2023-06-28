@@ -37,10 +37,13 @@ void Bot::DefaultUpdate(void)
 			else
 				FollowPath(m_nearestEnemy->v.origin);
 		}
-		else if (!GoalIsValid())
-			FindGoal();
 		else
+		{
+			if (!GoalIsValid())
+				FindGoal();
+
 			FollowPath(m_chosenGoalIndex);
+		}
 
 		UpdateLooking();
 	}

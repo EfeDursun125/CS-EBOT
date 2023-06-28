@@ -29,27 +29,36 @@ void Bot::AttackUpdate(void)
 			wait = 0.5f;
 
 		// be careful
-		if (IsSniper())
+		if (m_isBomber || m_isVIP)
 		{
-			if (!UsesSniper())
-				SelectBestWeapon();
-
-			const float minRange = SquaredF(384.0f);
-			const float distance = GetTargetDistance();
-			if (distance > minRange)
+			// let my team go first
+			if (m_hasFriendsNear > 0)
+				wait *= 2.0f;
+		}
+		else
+		{
+			if (IsSniper())
 			{
-				if (!CheckWallOnBehind() && !CheckWallOnForward() && !CheckWallOnLeft() && !CheckWallOnRight())
-				{
-					if (pev->fov == 90.0f && !(pev->button & IN_ATTACK2) && !(pev->oldbuttons & IN_ATTACK2))
-						pev->button |= IN_ATTACK2;
+				if (!UsesSniper())
+					SelectBestWeapon();
 
-					wait = cclampf(csqrtf(distance) * 0.01f, 5.0f, 15.0f);
+				const float minRange = SquaredF(384.0f);
+				const float distance = GetTargetDistance();
+				if (distance > minRange)
+				{
+					if (!CheckWallOnBehind() && !CheckWallOnForward() && !CheckWallOnLeft() && !CheckWallOnRight())
+					{
+						if (pev->fov == 90.0f && !(pev->button & IN_ATTACK2) && !(pev->oldbuttons & IN_ATTACK2))
+							pev->button |= IN_ATTACK2;
+
+						wait = cclampf(csqrtf(distance) * 0.01f, 5.0f, 15.0f);
+					}
+					else if (m_hasFriendsNear)
+						wait = 5.0f;
 				}
 				else if (m_hasFriendsNear)
 					wait = 5.0f;
 			}
-			else if (m_hasFriendsNear)
-				wait = 5.0f;
 		}
 
 		if (m_enemySeeTime + wait < engine->GetTime() && m_entitySeeTime + wait < engine->GetTime())
