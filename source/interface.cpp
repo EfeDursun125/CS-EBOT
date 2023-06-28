@@ -1159,12 +1159,6 @@ void GameDLLInit(void)
 	if (!g_isMetamod)
 		RegisterCommand("meta", CommandHandler_NotMM);
 
-#ifdef WORK_ASYNC
-	async(launch::async, DetectCSVersion);
-#else
-	DetectCSVersion();
-#endif
-
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
 

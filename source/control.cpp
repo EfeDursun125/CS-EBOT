@@ -110,8 +110,8 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 			skill = CRandomInt(1, 30);
 		else
 		{
-			int maxSkill = ebot_maxskill.GetInt();
-			int minSkill = (ebot_minskill.GetInt() == 0) ? 1 : ebot_minskill.GetInt();
+			const int maxSkill = ebot_maxskill.GetInt();
+			const int minSkill = (ebot_minskill.GetInt() == 0) ? 1 : ebot_minskill.GetInt();
 
 			if (maxSkill <= 100 && minSkill > 0)
 				skill = CRandomInt(minSkill, maxSkill);
@@ -122,8 +122,7 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 
 	if (personality < 0 || personality > 2)
 	{
-		int randomPrecent = CRandomInt(1, 3);
-
+		const int randomPrecent = CRandomInt(1, 3);
 		if (randomPrecent == 1)
 			personality = PERSONALITY_NORMAL;
 		else if (randomPrecent == 2)
@@ -209,6 +208,10 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 	m_bots[index]->m_index = m_bots[index]->GetIndex();
 	m_bots[index]->m_senseChance = CRandomInt(10, 90);
 
+	// stop updating bots for a bit to avoid possible crash
+	extern float updateTimer;
+	updateTimer = engine->GetTime() + 0.1f;
+
 	return index;
 }
 
@@ -289,7 +292,7 @@ void BotControl::DoJoinQuitStuff(void)
 
 	// add one more
 	if (CRandomInt(1, GetHumansNum()) <= 2);
-	g_botManager->AddRandom();
+		g_botManager->AddRandom();
 
 	g_botManager->AddRandom();
 
@@ -378,6 +381,7 @@ void BotControl::CheckBotNum(void)
 					if (line[i] == 0)
 						break;
 				}
+
 				i++;
 				fp.Seek(-i, SEEK_CUR);
 
@@ -561,7 +565,7 @@ void BotControl::FillServer(int selection, int personality, int skill, int numTo
 	else
 		selection = 5;
 
-	char teamDescs[6][12] =
+	const char teamDescs[6][12] =
 	{
 	   "",
 	   {"Terrorists"},
@@ -1081,6 +1085,9 @@ void Bot::NewRound(void)
 
 	m_spawnTime = engine->GetTime();
 	m_walkTime = 0.0f;
+
+	ResetStuck();
+	m_stuckTimer = engine->GetTime() + engine->GetFreezeTime() + 1.0f;
 
 	int i = 0;
 

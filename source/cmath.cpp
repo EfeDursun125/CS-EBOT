@@ -136,15 +136,19 @@ float croundf(const float value)
 
 size_t cstrlen(const char* str)
 {
-	const char* ptr = str;
-	while (*ptr != '\0')
-		ptr++;
-	return static_cast<size_t>(ptr - str);
+	if (str == nullptr)
+		return 0;
+
+	size_t length = 0;
+	while (str[length] != '\0')
+		length++;
+
+	return length;
 }
 
 int cstrcmp(const char* str1, const char* str2)
 {
-	int idx = 0, t1, t2;
+	int t1, t2;
 
 	do
 	{
@@ -381,7 +385,6 @@ char* cstrncpy(char* dest, const char* src, const size_t count)
 
 char* cstrcat(char* dest, const char* src)
 {
-	return strcat(dest, src);
 	while (*dest != '\0')
 		dest++;
 

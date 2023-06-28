@@ -370,17 +370,17 @@ bool Bot::RepliesToPlayer(void)
     return false;
 }
 
-void Bot::ChatSay(bool teamSay, const char* text, ...)
+void Bot::ChatSay(const bool teamSay, const char* text, ...)
 {
-    // humanize chat
-    if (m_lastChatEnt == GetEntity())
-        return;
-
     if (IsNullString(text))
         return;
 
     // block looping same message
     if (!IsNullString(m_lastStrings) && m_lastStrings == text)
+        return;
+
+    // humanize chat
+    if (m_lastChatEnt == GetEntity())
         return;
 
     char botName[80];

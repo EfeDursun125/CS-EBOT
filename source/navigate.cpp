@@ -326,12 +326,13 @@ void Bot::DoWaypointNav(void)
 				if (m_desiredVelocity == nullvec)
 				{
 					const Vector myOrigin = GetBottomOrigin(GetEntity());
-					Vector waypointOrigin = currentWaypoint->origin;
+					const Vector waypointOrigin = currentWaypoint->origin;
 
-					if (currentWaypoint->flags & WAYPOINT_CROUCH)
+					// we need gap
+					/*if (currentWaypoint->flags & WAYPOINT_CROUCH)
 						waypointOrigin.z -= 18.0f;
 					else
-						waypointOrigin.z -= 36.0f;
+						waypointOrigin.z -= 36.0f;*/
 
 					const float limit = (pev->maxspeed * 1.28f);
 					const float timeToReachWaypoint = csqrtf(powf(waypointOrigin.x - myOrigin.x, 2.0f) + powf(waypointOrigin.y - myOrigin.y, 2.0f)) / (pev->maxspeed - pev->gravity);
@@ -575,36 +576,6 @@ void Bot::DoWaypointNav(void)
 
 		if (m_navNode != nullptr)
 		{
-			if (m_navNode->next != nullptr)
-			{
-				for (int i = 0; i < Const_MaxPathIndex; i++)
-				{
-					const int id = g_waypoint->GetPath(m_currentWaypointIndex)->index[i];
-
-					if (IsValidWaypoint(id) && g_waypoint->IsConnected(id, m_navNode->next->index) && g_waypoint->IsConnected(m_currentWaypointIndex, id))
-					{
-						const int32 flags = g_waypoint->GetPath(id)->flags;
-						if (flags & WAYPOINT_LADDER)
-							continue;
-
-						if (flags & WAYPOINT_FALLRISK)
-							continue;
-
-						if (flags & WAYPOINT_FALLCHECK)
-							continue;
-
-						if (flags & WAYPOINT_JUMP)
-							continue;
-
-						if (!IsWaypointOccupied(id))
-						{
-							m_navNode->index = id;
-							break;
-						}
-					}
-				}
-			}
-
 			const int destIndex = m_navNode->index;
 
 			ChangeWptIndex(destIndex);
@@ -2491,7 +2462,9 @@ void Bot::CheckStuck(const float maxSpeed)
 	if (!m_isSlowThink)
 		return;
 
-	if (((pev->origin + pev->velocity * m_frameInterval) - m_stuckArea).GetLengthSquared2D() <= (maxSpeed * 2.0f))
+	const float distance = ((pev->origin + pev->velocity * m_frameInterval) - m_stuckArea).GetLengthSquared2D();
+	float range = maxSpeed * 2.2f;
+	if (distance < range)
 	{
 		m_stuckWarn++;
 
@@ -2510,6 +2483,14 @@ void Bot::CheckStuck(const float maxSpeed)
 	}
 	else
 	{
+		// are we teleported? O_O
+		if (distance > SquaredF(range))
+		{
+			DeleteSearchNodes();
+			m_currentWaypointIndex = -1;
+			FindWaypoint();
+		}
+
 		if (m_stuckWarn > 0)
 			m_stuckWarn -= 1;
 

@@ -83,13 +83,16 @@ bool Bot::IsInViewCone(const Vector& origin)
 bool Bot::CheckVisibility(edict_t* targetEntity)
 {
 	m_visibility = Visibility::None;
+	if (FNullEnt(targetEntity))
+		return false;
 
 	TraceResult tr;
 	const Vector eyes = EyePosition();
 
 	Vector spot = targetEntity->v.origin;
-	edict_t* self = pev->pContainingEntity;
+	edict_t* self = GetEntity();
 
+	constexpr float vis = 0.95f;
 	bool ignoreGlass = true;
 
 	// zombies can't hit from the glass...
@@ -98,7 +101,7 @@ bool Bot::CheckVisibility(edict_t* targetEntity)
 
 	TraceLine(eyes, spot, true, ignoreGlass, self, &tr);
 
-	if (tr.flFraction >= 1.0f || tr.pHit == targetEntity)
+	if (tr.flFraction > vis || tr.pHit == targetEntity)
 	{
 		m_visibility |= Visibility::Body;
 		m_enemyOrigin = spot;
@@ -108,7 +111,7 @@ bool Bot::CheckVisibility(edict_t* targetEntity)
 	spot.z += 25.0f;
 	TraceLine(eyes, spot, true, ignoreGlass, self, &tr);
 
-	if (tr.flFraction >= 1.0f || tr.pHit == targetEntity)
+	if (tr.flFraction > vis || tr.pHit == targetEntity)
 	{
 		m_visibility |= Visibility::Head;
 		m_enemyOrigin = spot;
@@ -127,7 +130,7 @@ bool Bot::CheckVisibility(edict_t* targetEntity)
 
 	TraceLine(eyes, spot, true, ignoreGlass, self, &tr);
 
-	if (tr.flFraction >= 1.0f || tr.pHit == targetEntity)
+	if (tr.flFraction > vis || tr.pHit == targetEntity)
 	{
 		m_visibility |= Visibility::Other;
 		m_enemyOrigin = spot;
@@ -142,7 +145,7 @@ bool Bot::CheckVisibility(edict_t* targetEntity)
 
 	TraceLine(eyes, spot, true, ignoreGlass, self, &tr);
 
-	if (tr.flFraction >= 1.0f || tr.pHit == targetEntity)
+	if (tr.flFraction > vis || tr.pHit == targetEntity)
 	{
 		m_visibility |= Visibility::Other;
 		m_enemyOrigin = spot;
@@ -153,7 +156,7 @@ bool Bot::CheckVisibility(edict_t* targetEntity)
 	spot = targetEntity->v.origin - Vector(perp.x * edgeOffset, perp.y * edgeOffset, 0);
 	TraceLine(eyes, spot, true, ignoreGlass, self, &tr);
 
-	if (tr.flFraction >= 1.0f || tr.pHit == targetEntity)
+	if (tr.flFraction > vis || tr.pHit == targetEntity)
 	{
 		m_visibility |= Visibility::Other;
 		m_enemyOrigin = spot;
@@ -3614,10 +3617,16 @@ void Bot::ChooseAimDirection(void)
 
 void Bot::BaseUpdate(void)
 {
-	// weird but possible...
-	if (pev == nullptr || FNullEnt(GetEntity()))
+	// weird but possible at start of the server...
+	if (pev == nullptr)
 		return;
 
+	// run playermovement
+	const byte adjustedMSec = static_cast <byte>(cminf(250.0f, (engine->GetTime() - m_msecInterval) * 1000.0f));
+	m_msecInterval = engine->GetTime();
+	PLAYER_RUN_MOVE(GetEntity(), m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, static_cast <unsigned short> (pev->button), pev->impulse, adjustedMSec);
+
+	pev->impulse = 0;
 	pev->button = 0;
 	m_moveSpeed = 0.0f;
 	m_strafeSpeed = 0.0f;
@@ -3732,11 +3741,6 @@ void Bot::BaseUpdate(void)
 	// avoid frame drops
 	m_frameInterval = engine->GetTime() - m_frameDelay;
 	m_frameDelay = engine->GetTime();
-
-	// run playermovement
-	const byte adjustedMSec = static_cast <byte>(cminf(250.0f, (engine->GetTime() - m_msecInterval) * 1000.0f));
-	m_msecInterval = engine->GetTime();
-	PLAYER_RUN_MOVE(pev->pContainingEntity, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, static_cast <unsigned short> (pev->button), pev->impulse, adjustedMSec);
 }
 
 void Bot::CheckSlowThink(void)

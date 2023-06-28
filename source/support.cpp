@@ -1,4 +1,5 @@
 ﻿#include <core.h>
+#include <exception>
 
 //
 // TODO:
@@ -583,8 +584,10 @@ const char* GetModName(void)
 {
 	static char modName[256];
 
-	GET_GAME_DIR(modName); // ask the engine for the MOD directory path
-	int length = cstrlen(modName); // get the length of the returned string
+	// ask the engine for the MOD directory path
+	// get the length of the returned string
+	GET_GAME_DIR(modName);
+	int length = cstrlen(modName);
 
 	// format the returned string to get the last directory name
 	int stop = length - 1;
@@ -694,12 +697,22 @@ void AutoLoadGameMode(void)
 	if (!g_isMetamod)
 		return;
 
+	char* getModeName;
+	try
+	{
+		cstrcpy(getModeName, GetModName());
+	}
+	catch (const std::exception& e)
+	{
+		AddLogEntry(LOG_FATAL, e.what());
+	}
+
 	static int checkShowTextTime = 0;
 	checkShowTextTime++;
 
 	// CS:BTE Support 
-	char* Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/bte_player.ini", GetModName());
-	if (TryFileOpen(Plugin_INI) || TryFileOpen(FormatBuffer("%s/addons/amxmodx/configs/bte_config/bte_blockresource.txt", GetModName())))
+	char* Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/bte_player.ini", getModeName);
+	if (TryFileOpen(Plugin_INI) || TryFileOpen(FormatBuffer("%s/addons/amxmodx/configs/bte_config/bte_blockresource.txt", getModeName)))
 	{
 		const int Const_GameModes = 13;
 		int bteGameModAi[Const_GameModes] =
@@ -738,7 +751,7 @@ void AutoLoadGameMode(void)
 
 		for (int i = 0; i < Const_GameModes; i++)
 		{
-			if (TryFileOpen(FormatBuffer("%s/addons/amxmodx/configs/%s.ini", GetModName(), bteGameINI[i])))
+			if (TryFileOpen(FormatBuffer("%s/addons/amxmodx/configs/%s.ini", getModeName, bteGameINI[i])))
 			{
 				if (bteGameModAi[i] == 2 && i != 5)
 					g_DelayTimer = engine->GetTime() + 20.0f + CVAR_GET_FLOAT("mp_freezetime");
@@ -792,7 +805,7 @@ void AutoLoadGameMode(void)
 
 		for (int i = 0; i < 8; i++)
 		{
-			Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/%s.ini", GetModName(), zpGameVersion[i]);
+			Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/%s.ini", getModeName, zpGameVersion[i]);
 			if (TryFileOpen(Plugin_INI))
 			{
 				float delayTime = CVAR_GET_FLOAT("zp_delay") + 2.2f;
@@ -831,7 +844,7 @@ void AutoLoadGameMode(void)
 
 	for (int i = 0; i < 2; i++)
 	{
-		Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/%s.ini", GetModName(), bbVersion[i]);
+		Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/%s.ini", getModeName, bbVersion[i]);
 		if (TryFileOpen(Plugin_INI))
 		{
 			float delayTime = CVAR_GET_FLOAT("bb_buildtime") + CVAR_GET_FLOAT("bb_preptime") + 2.2f;
@@ -851,7 +864,7 @@ void AutoLoadGameMode(void)
 	}
 
 	// DM:KD
-	Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/plugins-dmkd.ini", GetModName());
+	Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/plugins-dmkd.ini", getModeName);
 	if (TryFileOpen(Plugin_INI))
 	{
 		if (CVAR_GET_FLOAT("DMKD_DMMODE") == 1)
@@ -874,7 +887,7 @@ void AutoLoadGameMode(void)
 	}
 
 	// Zombie Hell
-	Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/zombiehell.cfg", GetModName());
+	Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/zombiehell.cfg", getModeName);
 	if (TryFileOpen(Plugin_INI) && CVAR_GET_FLOAT("zh_zombie_maxslots") > 0)
 	{
 		if (checkShowTextTime < 3 || GetGameMode() != MODE_ZH)
@@ -898,7 +911,7 @@ void AutoLoadGameMode(void)
 
 	for (int i = 0; i < 3; i++)
 	{
-		Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/%s.ini", GetModName(), biohazard[i]);
+		Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/%s.ini", getModeName, biohazard[i]);
 		if (TryFileOpen(Plugin_INI))
 		{
 			float delayTime = CVAR_GET_FLOAT("bh_starttime") + 0.5f;
@@ -1551,40 +1564,47 @@ void CheckWelcomeMessage(void)
 
 void DetectCSVersion(void)
 {
-	const char* const infoBuffer = "Game Registered: %s (0x%d)";
-	if (g_engfuncs.pfnCVarGetPointer("host_ver") != nullptr)
-		g_gameVersion |= CSVER_XASH;
-
-	// switch version returned by dll loader
-	if (g_gameVersion == CSVER_XASH)
-		ServerPrint(infoBuffer, "Xash Engine", sizeof(Bot));
-	else if (g_gameVersion == CSVER_VERYOLD)
-		ServerPrint(infoBuffer, "CS 1.x (WON)", sizeof(Bot));
-	else if (g_gameVersion == CSVER_CZERO)
-		ServerPrint(infoBuffer, "CS: CZ (Steam)", sizeof(Bot));
-	else if (g_gameVersion == HALFLIFE)
-		ServerPrint(infoBuffer, "Half-Life", sizeof(Bot));
-	else if (g_gameVersion == CSVER_CSTRIKE)
+	try
 	{
-		uint8_t* detection = (*g_engfuncs.pfnLoadFileForMe) ("events/galil.sc", nullptr);
+		const char* const infoBuffer = "Game Registered: %s (0x%d)";
+		if (g_engfuncs.pfnCVarGetPointer("host_ver") != nullptr)
+			g_gameVersion = CSVER_XASH;
 
-		if (detection != nullptr)
+		// switch version returned by dll loader
+		if (g_gameVersion == CSVER_XASH)
+			ServerPrint(infoBuffer, "Xash Engine", sizeof(Bot));
+		else if (g_gameVersion == CSVER_VERYOLD)
+			ServerPrint(infoBuffer, "CS 1.x (WON)", sizeof(Bot));
+		else if (g_gameVersion == CSVER_CZERO)
+			ServerPrint(infoBuffer, "CS: CZ (Steam)", sizeof(Bot));
+		else if (g_gameVersion == HALFLIFE)
+			ServerPrint(infoBuffer, "Half-Life", sizeof(Bot));
+		else if (g_gameVersion == CSVER_CSTRIKE)
 		{
-			ServerPrint(infoBuffer, "CS 1.6 (Steam)", sizeof(Bot));
-			g_gameVersion = CSVER_CSTRIKE; // just to be sure
-		}
-		else if (detection == nullptr)
-		{
-			ServerPrint(infoBuffer, "CS 1.5 (WON)", sizeof(Bot));
-			g_gameVersion = CSVER_VERYOLD; // reset it to WON
+			uint8_t* detection = (*g_engfuncs.pfnLoadFileForMe) ("events/galil.sc", nullptr);
+
+			if (detection != nullptr)
+			{
+				ServerPrint(infoBuffer, "CS 1.6 (Steam)", sizeof(Bot));
+				g_gameVersion = CSVER_CSTRIKE; // just to be sure
+			}
+			else if (detection == nullptr)
+			{
+				ServerPrint(infoBuffer, "CS 1.5 (WON)", sizeof(Bot));
+				g_gameVersion = CSVER_VERYOLD; // reset it to WON
+			}
+
+			// if we have loaded the file free it
+			if (detection != nullptr)
+				(*g_engfuncs.pfnFreeFile) (detection);
 		}
 
-		// if we have loaded the file free it
-		if (detection != nullptr)
-			(*g_engfuncs.pfnFreeFile) (detection);
+		engine->GetGameConVarsPointers(); // !!! TODO !!!
 	}
-
-	engine->GetGameConVarsPointers(); // !!! TODO !!!
+	catch (const std::exception& e)
+	{
+		AddLogEntry(LOG_FATAL, e.what());
+	}
 }
 
 void PlaySound(edict_t* ent, const char* name)
@@ -1642,7 +1662,7 @@ void MOD_AddLogEntry(int mod, char* format)
 	if (mod == -1)
 	{
 		sprintf(modName, "E-BOT");
-		int buildVersion[4] = { PRODUCT_VERSION_DWORD };
+		const int buildVersion[4] = { PRODUCT_VERSION_DWORD };
 		for (int i = 0; i < 4; i++)
 			mod_bV16[i] = (uint16)buildVersion[i];
 	}
@@ -1779,6 +1799,7 @@ int GetWeaponReturn(bool needString, const char* weaponAlias, int weaponID)
 			if (weaponTab[i].weaponID == weaponID) // is weapon id found?
 				return MAKE_STRING(weaponTab[i].alias);
 		}
+
 		return MAKE_STRING("(none)"); // return none
 	}
 
