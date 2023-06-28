@@ -183,7 +183,7 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 	else if (ebot_nametag.GetInt() == 1 && addTag)
 		snprintf(botName, sizeof(botName), "[E-BOT] %s", outputName);
 	else
-		strncpy(botName, outputName, sizeof(botName));
+		cstrncpy(botName, outputName, sizeof(botName));
 
 	if (FNullEnt((bot = (*g_engfuncs.pfnCreateFakeClient) (botName))))
 	{
@@ -315,7 +315,6 @@ void BotControl::Think(void)
 			continue;
 
 		bot->BaseUpdate();
-		bot->RunPlayerMovement();
 	}
 }
 
@@ -782,10 +781,7 @@ void BotControl::ListBots(void)
 
 	for (const auto& client : g_clients)
 	{
-		if (client.index < 0)
-			continue;
-
-		if (client.ent == nullptr)
+		if (FNullEnt(client.ent))
 			continue;
 
 		edict_t* player = client.ent;
@@ -815,10 +811,7 @@ int BotControl::GetHumansNum()
 	int count = 0;
 	for (const auto& client : g_clients)
 	{
-		if (client.index < 0)
-			continue;
-
-		if (client.ent == nullptr)
+		if (FNullEnt(client.ent))
 			continue;
 
 		if (m_bots[client.index] == nullptr)
@@ -869,10 +862,7 @@ void BotControl::CheckTeamEconomics(int team)
 	// start calculating
 	for (const auto& client : g_clients)
 	{
-		if (client.index < 0)
-			continue;
-
-		if (client.ent == nullptr)
+		if (FNullEnt(client.ent))
 			continue;
 
 		if (m_bots[client.index] != nullptr && m_bots[client.index]->m_team == team)

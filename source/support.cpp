@@ -640,10 +640,7 @@ void RoundInit(void)
 
 	for (const auto& client : g_clients)
 	{
-		if (client.index < 0)
-			continue;
-
-		if (client.ent == nullptr)
+		if (FNullEnt(client.ent))
 			continue;
 
 		auto bot = g_botManager->GetBot(client.index);
@@ -1397,7 +1394,7 @@ void ChartPrint(const char* format, ...)
 		return;
 	}
 
-	strcat(string, "\n");
+	cstrcat(string, "\n");
 
 	MESSAGE_BEGIN(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG));
 	WRITE_BYTE(HUD_PRINTTALK);
@@ -1427,7 +1424,7 @@ void ClientPrint(edict_t* ent, int dest, const char* format, ...)
 		return;
 	}
 
-	strcat(string, "\n");
+	cstrcat(string, "\n");
 
 	if (dest & 0x3ff)
 		(*g_engfuncs.pfnClientPrintf) (ent, static_cast <PRINT_TYPE> (dest &= ~0x3ff), FormatBuffer("[E-BOT] %s", string));
@@ -1699,13 +1696,10 @@ bool FindNearestPlayer(void** pvHolder, edict_t* to, float searchDistance, bool 
 
 	for (const auto& client : g_clients)
 	{
-		if (client.index < 0)
+		if (FNullEnt(client.ent))
 			continue;
 
-		if (client.ent == nullptr)
-			continue;
-
-		if (client.ent == client.ent)
+		if (client.ent == to)
 			continue;
 
 		if ((sameTeam && client.team != GetTeam(to)) || (isAlive && !IsAlive(client.ent)) || (needBot && !IsValidBot(client.index)) || (needDrawn && (client.ent->v.effects & EF_NODRAW)))

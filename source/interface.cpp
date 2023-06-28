@@ -80,21 +80,18 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 
 	// fill played server with bots
 	else if (cstricmp(arg0, "fillserver") == 0 || cstricmp(arg0, "fill") == 0)
-		g_botManager->FillServer(atoi(arg1), IsNullString(arg2) ? -1 : atoi(arg2), IsNullString(arg3) ? -1 : atoi(arg3), IsNullString(arg4) ? -1 : atoi(arg4));
+		g_botManager->FillServer(catoi(arg1), IsNullString(arg2) ? -1 : catoi(arg2), IsNullString(arg3) ? -1 : catoi(arg3), IsNullString(arg4) ? -1 : catoi(arg4));
 
 	// set entity action with command
 	else if (cstricmp(arg0, "setentityaction") == 0)
-		SetEntityAction(atoi(arg1), atoi(arg2), atoi(arg3));
+		SetEntityAction(catoi(arg1), catoi(arg2), catoi(arg3));
 
 	// swap counter-terrorist and terrorist teams
 	else if (cstricmp(arg0, "swaptteams") == 0 || cstricmp(arg0, "swap") == 0)
 	{
 		for (const auto& client : g_clients)
 		{
-			if (client.index < 0)
-				continue;
-
-			if (client.ent == nullptr)
+			if (FNullEnt(client.ent))
 				continue;
 
 			if (!(client.flags & CFLAG_USED))
@@ -110,7 +107,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 	// select the weapon mode for bots
 	else if (cstricmp(arg0, "weaponmode") == 0 || cstricmp(arg0, "wmode") == 0)
 	{
-		const int selection = atoi(arg1);
+		const int selection = catoi(arg1);
 
 		// check is selected range valid
 		if (selection >= 1 && selection <= 7)
@@ -124,7 +121,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 	{
 		if (!IsNullString(arg1))
 		{
-			const int nominatedMap = atoi(arg1);
+			const int nominatedMap = catoi(arg1);
 
 			// loop through all players
 			for (const auto& bot : g_botManager->m_bots)
@@ -144,7 +141,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		if (IsNullString(arg1))
 			return 1;
 
-		edict_t* cmd = INDEXENT(atoi(arg1) - 1);
+		edict_t* cmd = INDEXENT(catoi(arg1) - 1);
 
 		if (IsValidBot(cmd))
 		{
@@ -263,12 +260,12 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 			ClientPrint(ent, print_withtag, "Please specify health");
 		else
 		{
-			ClientPrint(ent, print_withtag, "E-Bot health is set to %d%%", atoi(arg1));
+			ClientPrint(ent, print_withtag, "E-Bot health is set to %d%%", catoi(arg1));
 
 			for (const auto& bot : g_botManager->m_bots)
 			{
 				if (bot != nullptr)
-					bot->pev->health = cabsf(static_cast <float> (atof(arg1)));
+					bot->pev->health = cabsf(catof(arg1));
 			}
 		}
 	}
@@ -279,7 +276,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 			ClientPrint(ent, print_withtag, "Please specify gravity");
 		else
 		{
-			const float gravity = cabsf(static_cast <float> (atof(arg1)));
+			const float gravity = cabsf(catof(arg1));
 			ClientPrint(ent, print_withtag, "E-Bot gravity is set to %d%%", gravity);
 
 			for (const auto& bot : g_botManager->m_bots)
@@ -496,7 +493,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 
 		// show direction to specified waypoint
 		else if (cstricmp(arg1, "find") == 0)
-			g_waypoint->SetFindIndex(atoi(arg2));
+			g_waypoint->SetFindIndex(catoi(arg2));
 
 		// opens adding waypoint menu
 		else if (cstricmp(arg1, "add") == 0)
@@ -515,7 +512,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 				const int index = g_waypoint->FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
 				if (IsValidWaypoint(index))
 				{
-					g_waypoint->GetPath(index)->campStartX = cabsf(static_cast <float> (atof(arg2)));
+					g_waypoint->GetPath(index)->campStartX = cabsf(catof(arg2));
 					ClientPrint(ent, print_withtag, "Waypoint mesh set to %d", static_cast <int> (g_waypoint->GetPath(index)->campStartX));
 				}
 				else
@@ -533,7 +530,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 				const int index = g_waypoint->FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
 				if (IsValidWaypoint(index))
 				{
-					g_waypoint->GetPath(index)->campStartY = cabsf(static_cast <float> (atof(arg2)));
+					g_waypoint->GetPath(index)->campStartY = cabsf(catof(arg2));
 					ClientPrint(ent, print_withtag, "Waypoint gravity set to %f", g_waypoint->GetPath(index)->campStartY);
 				}
 				else
@@ -602,7 +599,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 
 		// setting waypoint radius
 		else if (cstricmp(arg1, "setradius") == 0)
-			g_waypoint->SetRadius(atoi(arg2));
+			g_waypoint->SetRadius(catoi(arg2));
 
 		// remembers nearest waypoint
 		else if (cstricmp(arg1, "cache") == 0)
@@ -611,7 +608,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		// teleport player to specified waypoint
 		else if (cstricmp(arg1, "teleport") == 0)
 		{
-			const int teleportPoint = atoi(arg2);
+			const int teleportPoint = catoi(arg2);
 			if (teleportPoint < g_numWaypoints)
 			{
 				(*g_engfuncs.pfnSetOrigin) (g_hostEntity, g_waypoint->GetPath(teleportPoint)->origin);
@@ -1484,7 +1481,7 @@ void ClientCommand(edict_t* ent)
 		else if (cstricmp(command, "menuselect") == 0 && !IsNullString(arg1) && g_clients[ENTINDEX(ent) - 1].menu != nullptr)
 		{
 			Clients* client = &g_clients[ENTINDEX(ent) - 1];
-			const int selection = atoi(arg1);
+			const int selection = catoi(arg1);
 
 			if (client->menu == &g_menus[12])
 			{
@@ -2633,7 +2630,7 @@ void ClientCommand(edict_t* ent)
 	// check if this player alive, and issue something
 	if ((g_clients[clientIndex].flags & CFLAG_ALIVE) && g_radioSelect[clientIndex] != 0 && cstrncmp(command, "menuselect", 10) == 0)
 	{
-		int radioCommand = atoi(arg1);
+		int radioCommand = catoi(arg1);
 
 		if (radioCommand != 0)
 		{
@@ -2658,7 +2655,7 @@ void ClientCommand(edict_t* ent)
 		g_radioSelect[clientIndex] = 0;
 	}
 	else if (cstrncmp(command, "radio", 5) == 0)
-		g_radioSelect[clientIndex] = atoi(&command[5]);
+		g_radioSelect[clientIndex] = catoi(&command[5]);
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -2861,10 +2858,7 @@ void JustAStuff(void)
 	{
 		for (const auto& client : g_clients)
 		{
-			if (client.index < 0)
-				continue;
-
-			if (client.ent == nullptr)
+			if (FNullEnt(client.ent))
 				continue;
 
 			edict_t* player = client.ent;

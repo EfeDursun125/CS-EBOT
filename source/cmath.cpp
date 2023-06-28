@@ -136,20 +136,10 @@ float croundf(const float value)
 
 size_t cstrlen(const char* str)
 {
-    const __m128i zero = _mm_setzero_si128();
-    const char* ptr = str;
-
-    while (true)
-    {
-        const __m128i data = _mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr));
-        const __m128i cmp = _mm_cmpeq_epi8(data, zero);
-        const int mask = _mm_movemask_epi8(cmp);
-
-        if (mask != 0)
-			return static_cast<size_t>(ptr - str) + static_cast<size_t>(ctz(static_cast<uint32_t>(mask)));
-
-        ptr += 16;
-    }
+	const char* ptr = str;
+	while (*ptr != '\0')
+		ptr++;
+	return static_cast<size_t>(ptr - str);
 }
 
 int cstrcmp(const char* str1, const char* str2)
@@ -404,4 +394,97 @@ char* cstrstr(char* haystack, const char* needle)
 	}
 
 	return nullptr;
+}
+
+char* cstrncpy(char* dest, const char* src, const size_t count)
+{
+	char* destPtr = dest;
+	const char* srcPtr = src;
+	size_t i = 0;
+
+	for (; i < count && *srcPtr != '\0'; i++, destPtr++, srcPtr++)
+		*destPtr = *srcPtr;
+
+	for (; i < count; i++, destPtr++)
+		*destPtr = '\0';
+
+	return dest;
+}
+
+char* cstrcat(char* dest, const char* src)
+{
+	return strcat(dest, src);
+	while (*dest != '\0')
+		dest++;
+
+	while (*src != '\0')
+	{
+		*dest = *src;
+		dest++;
+		src++;
+	}
+
+	*dest = '\0';
+	return dest;
+}
+
+int catoi(const char* str)
+{
+	int result = 0;
+	int sign = 1;
+	int i = 0;
+
+	while (str[i] == ' ')
+		i++;
+
+	if (str[i] == '-' || str[i] == '+')
+	{
+		sign = (str[i] == '-') ? -1 : 1;
+		i++;
+	}
+
+	while (str[i] >= '0' && str[i] <= '9')
+	{
+		result = result * 10 + (str[i] - '0');
+		i++;
+	}
+
+	result *= sign;
+	return result;
+}
+
+float catof(const char* str)
+{
+	float result = 0.0f;
+	float sign = 1.0f;
+	int i = 0;
+
+	while (str[i] == ' ')
+		i++;
+
+	if (str[i] == '-' || str[i] == '+')
+	{
+		sign = (str[i] == '-') ? -1.0f : 1.0f;
+		i++;
+	}
+
+	while (str[i] >= '0' && str[i] <= '9')
+	{
+		result = result * 10.0f + (str[i] - '0');
+		i++;
+	}
+
+	if (str[i] == '.')
+		i++;
+
+	float factor = 0.1f;
+	while (str[i] >= '0' && str[i] <= '9')
+	{
+		result += (str[i] - '0') * factor;
+		factor *= 0.1f;
+		i++;
+	}
+
+	result *= sign;
+	return result;
 }

@@ -118,22 +118,19 @@ void Bot::PrepareChatMessage(char* text)
         {
             const int length = pattern - textStart;
             if (length > 0)
-                strncpy(m_tempStrings, textStart, length);
+                cstrncpy(m_tempStrings, textStart, length);
 
             pattern++;
 
             // player with most frags?
             if (*pattern == 'f')
             {
-                int highestFrags = -9000; // just pick some start value
+                int highestFrags = -99999; // just pick some start value
                 edict_t* entity = nullptr;
 
                 for (const auto& client : g_clients)
                 {
-                    if (client.index < 0)
-                        continue;
-
-                    if (client.ent == nullptr)
+                    if (FNullEnt(client.ent))
                         continue;
 
                     if (!(client.flags & CFLAG_USED) || client.ent == GetEntity())
@@ -151,16 +148,16 @@ void Bot::PrepareChatMessage(char* text)
                 talkEntity = entity;
 
                 if (!FNullEnt(talkEntity))
-                    strcat(m_tempStrings, HumanizeName(const_cast <char*> (GetEntityName(talkEntity))));
+                    cstrcat(m_tempStrings, HumanizeName(const_cast <char*> (GetEntityName(talkEntity))));
             }
             // mapname?
             else if (*pattern == 'm')
-                strcat(m_tempStrings, GetMapName());
+                cstrcat(m_tempStrings, GetMapName());
             // roundtime?
             else if (*pattern == 'r')
             {
-                int time = static_cast <int> (g_timeRoundEnd - engine->GetTime());
-                strcat(m_tempStrings, FormatBuffer("%02d:%02d", time / 60, time % 60));
+                const int time = static_cast <int> (g_timeRoundEnd - engine->GetTime());
+                cstrcat(m_tempStrings, FormatBuffer("%02d:%02d", time / 60, time % 60));
             }
             // chat reply?
             else if (*pattern == 's')
@@ -168,7 +165,7 @@ void Bot::PrepareChatMessage(char* text)
                 talkEntity = INDEXENT(m_sayTextBuffer.entityIndex);
 
                 if (!FNullEnt(talkEntity))
-                    strcat(m_tempStrings, HumanizeName(const_cast <char*> (GetEntityName(talkEntity))));
+                    cstrcat(m_tempStrings, HumanizeName(const_cast <char*> (GetEntityName(talkEntity))));
             }
             // teammate alive?
             else if (*pattern == 't')
@@ -177,10 +174,7 @@ void Bot::PrepareChatMessage(char* text)
 
                 for (const auto& client : g_clients)
                 {
-                    if (client.index < 0)
-                        continue;
-
-                    if (client.ent == nullptr)
+                    if (FNullEnt(client.ent))
                         continue;
 
                     if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || (client.team != m_team) || (client.ent == GetEntity()))
@@ -199,16 +193,13 @@ void Bot::PrepareChatMessage(char* text)
                         talkEntity = entity;
 
                     if (!FNullEnt(talkEntity))
-                        strcat(m_tempStrings, HumanizeName(const_cast <char*> (GetEntityName(talkEntity))));
+                        cstrcat(m_tempStrings, HumanizeName(const_cast <char*> (GetEntityName(talkEntity))));
                 }
                 else // no teammates alive...
                 {
                     for (const auto& client : g_clients)
                     {
-                        if (client.index < 0)
-                            continue;
-
-                        if (client.ent == nullptr)
+                        if (FNullEnt(client.ent))
                             continue;
 
                         if (!(client.flags & CFLAG_USED) || (client.team != m_team) || (client.ent == GetEntity()))
@@ -224,7 +215,7 @@ void Bot::PrepareChatMessage(char* text)
                         talkEntity = entity;
 
                         if (!FNullEnt(talkEntity))
-                            strcat(m_tempStrings, HumanizeName(const_cast <char*> (GetEntityName(talkEntity))));
+                            cstrcat(m_tempStrings, HumanizeName(const_cast <char*> (GetEntityName(talkEntity))));
                     }
                 }
             }
@@ -234,10 +225,7 @@ void Bot::PrepareChatMessage(char* text)
 
                 for (const auto& client : g_clients)
                 {
-                    if (client.index < 0)
-                        continue;
-
-                    if (client.ent == nullptr)
+                    if (FNullEnt(client.ent))
                         continue;
 
                     if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || (client.team == m_team) || (client.ent == GetEntity()))
@@ -253,16 +241,13 @@ void Bot::PrepareChatMessage(char* text)
                     talkEntity = entity;
 
                     if (!FNullEnt(talkEntity))
-                        strcat(m_tempStrings, HumanizeName(const_cast <char*> (GetEntityName(talkEntity))));
+                        cstrcat(m_tempStrings, HumanizeName(const_cast <char*> (GetEntityName(talkEntity))));
                 }
                 else // no teammates alive...
                 {
                     for (const auto& client : g_clients)
                     {
-                        if (client.index < 0)
-                            continue;
-
-                        if (client.ent == nullptr)
+                        if (FNullEnt(client.ent))
                             continue;
 
                         if (!(client.flags & CFLAG_USED) || (client.team == m_team) || (client.ent == GetEntity()))
@@ -277,7 +262,7 @@ void Bot::PrepareChatMessage(char* text)
                         talkEntity = entity;
 
                         if (!FNullEnt(talkEntity))
-                            strcat(m_tempStrings, HumanizeName(const_cast <char*> (GetEntityName(talkEntity))));
+                            cstrcat(m_tempStrings, HumanizeName(const_cast <char*> (GetEntityName(talkEntity))));
                     }
                 }
             }
@@ -286,16 +271,16 @@ void Bot::PrepareChatMessage(char* text)
                 if (g_gameVersion == CSVER_CZERO)
                 {
                     if (CRandomInt(1, 10) <= 3)
-                        strcat(m_tempStrings, "CZ");
+                        cstrcat(m_tempStrings, "CZ");
                     else
-                        strcat(m_tempStrings, "Condition Zero");
+                        cstrcat(m_tempStrings, "Condition Zero");
                 }
                 else if ((g_gameVersion == CSVER_CSTRIKE) || (g_gameVersion == CSVER_VERYOLD))
                 {
                     if (CRandomInt(1, 10) <= 3)
-                        strcat(m_tempStrings, "CS");
+                        cstrcat(m_tempStrings, "CS");
                     else
-                        strcat(m_tempStrings, "Counter-Strike");
+                        cstrcat(m_tempStrings, "Counter-Strike");
                 }
             }
             else if (*pattern == 'v')
@@ -303,7 +288,7 @@ void Bot::PrepareChatMessage(char* text)
                 talkEntity = m_lastVictim;
 
                 if (!FNullEnt(talkEntity))
-                    strcat(m_tempStrings, HumanizeName(const_cast <char*> (GetEntityName(talkEntity))));
+                    cstrcat(m_tempStrings, HumanizeName(const_cast <char*> (GetEntityName(talkEntity))));
             }
 
             pattern++;
@@ -313,9 +298,8 @@ void Bot::PrepareChatMessage(char* text)
 
     // let the bots make some mistakes...
     char tempString[160];
-    strncpy(tempString, textStart, 159);
-
-    strcat(m_tempStrings, tempString);
+    cstrncpy(tempString, textStart, 159);
+    cstrcat(m_tempStrings, tempString);
 }
 
 // this function checks is string contain keyword, and generates relpy to it
@@ -423,10 +407,7 @@ void Bot::ChatSay(bool teamSay, const char* text, ...)
     const int index = g_netMsg->GetId(NETMSG_SAYTEXT);
     for (const auto& client : g_clients)
     {
-        if (client.index < 0)
-            continue;
-
-        if (client.ent == nullptr)
+        if (FNullEnt(client.ent))
             continue;
 
         if (!(client.flags & CFLAG_USED) || client.ent == GetEntity())

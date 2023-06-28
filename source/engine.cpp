@@ -175,7 +175,7 @@ void Engine::PrintServer(const char* format, ...)
     vsprintf(buffer, format, ap);
     va_end(ap);
 
-    strcat(buffer, "\n");
+    cstrcat(buffer, "\n");
 
     g_engfuncs.pfnServerPrint(buffer);
 }
@@ -211,7 +211,7 @@ void Engine::PrintAllClients(PrintType printType, const char* format, ...)
     }
     else
     {
-        strcat(buffer, "\n");
+        cstrcat(buffer, "\n");
 
         g_engfuncs.pfnMessageBegin(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG), nullptr, nullptr);
         g_engfuncs.pfnWriteByte(printType == PRINT_CENTER ? 4 : 3);
@@ -236,10 +236,7 @@ void Engine::MaintainClients(void)
 {
     for (const auto& client : g_clients)
     {
-        if (client.index < 0)
-            continue;
-
-        if (client.ent == nullptr)
+        if (FNullEnt(client.ent))
             continue;
 
         m_clients[client.index].Maintain(g_engfuncs.pfnPEntityOfEntIndex(client.index));

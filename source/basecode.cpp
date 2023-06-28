@@ -235,10 +235,7 @@ void Bot::ZombieModeAi(void)
 		// zombie improve
 		for (const auto& client : g_clients)
 		{
-			if (client.index < 0)
-				continue;
-
-			if (client.ent == nullptr)
+			if (FNullEnt(client.ent))
 				continue;
 
 			if (!(client.flags & CFLAG_USED))
@@ -3113,10 +3110,7 @@ void Bot::CheckRadioCommands(void)
 					// take nearest enemy to ordering player
 					for (const auto& client : g_clients)
 					{
-						if (client.index < 0)
-							continue;
-
-						if (client.ent == nullptr)
+						if (FNullEnt(client.ent))
 							continue;
 
 						if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team == m_team)
@@ -3298,16 +3292,13 @@ void Bot::CheckRadioCommands(void)
 					// take nearest enemy to ordering player
 					for (const auto& client : g_clients)
 					{
-						if (client.index < 0)
-							continue;
-
-						if (client.ent == nullptr)
+						if (FNullEnt(client.ent))
 							continue;
 
 						if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_USED) || client.team == m_team)
 							continue;
 
-						float dist = (GetEntityOrigin(m_radioEntity) - client.ent->v.origin).GetLengthSquared();
+						const float dist = (GetEntityOrigin(m_radioEntity) - client.ent->v.origin).GetLengthSquared();
 						if (dist < nearestDistance)
 						{
 							nearestDistance = dist;
@@ -3318,7 +3309,7 @@ void Bot::CheckRadioCommands(void)
 
 				DeleteSearchNodes();
 
-				int index = FindDefendWaypoint(GetTopOrigin(m_radioEntity));
+				const int index = FindDefendWaypoint(GetTopOrigin(m_radioEntity));
 				m_campPosition = g_waypoint->GetPath(index)->origin;
 				PushTask(TASK_GOINGFORCAMP, TASKPRI_GOINGFORCAMP, index, engine->GetTime() + 9999.0f, true);
 				m_campButtons |= IN_DUCK;
@@ -3735,6 +3726,9 @@ void Bot::BaseUpdate(void)
 	// avoid frame drops
 	m_frameInterval = engine->GetTime() - m_frameDelay;
 	m_frameDelay = engine->GetTime();
+
+	// update bot
+	RunPlayerMovement();
 }
 
 void Bot::CheckSlowThink(void)
@@ -3937,10 +3931,7 @@ void Bot::LookAtAround(void)
 	{
 		for (const auto& client : g_clients)
 		{
-			if (client.index < 0)
-				continue;
-
-			if (client.ent == nullptr)
+			if (FNullEnt(client.ent))
 				continue;
 
 			// we can see our friends in radar... let bots act like that.
@@ -4100,10 +4091,7 @@ void Bot::CalculatePing(void)
 
 	for (const auto& client : g_clients)
 	{
-		if (client.index < 0)
-			continue;
-
-		if (client.ent == nullptr)
+		if (FNullEnt(client.ent))
 			continue;
 
 		if (!(client.flags & CFLAG_USED))
@@ -7201,6 +7189,11 @@ void Bot::RunPlayerMovement(void)
 	// elapses, that bot will behave like a ghost : no movement, but bullets and players can
 	// pass through it. Then, when the next frame will begin, the stucking problem will arise !
 
+
+	// possible crash... idk why
+	if (pev != nullptr)
+		return;
+
 	const byte adjustedMSec = static_cast <byte>(cminf(250.0f, (engine->GetTime() - m_msecInterval) * 1000.0f));
 	m_msecInterval = engine->GetTime();
 	PLAYER_RUN_MOVE(pev->pContainingEntity, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, static_cast <unsigned short> (pev->button), pev->impulse, adjustedMSec);
@@ -7481,10 +7474,7 @@ bool Bot::IsBombDefusing(const Vector bombOrigin)
 
 	for (const auto& client : g_clients)
 	{
-		if (client.index < 0)
-			continue;
-
-		if (client.ent == nullptr)
+		if (FNullEnt(client.ent))
 			continue;
 
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE))

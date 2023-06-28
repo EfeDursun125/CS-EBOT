@@ -10,7 +10,7 @@ ConVar ebot_analyze_create_camp_waypoints("ebot_analyze_create_camp_waypoints", 
 ConVar ebot_use_old_analyzer("ebot_use_old_analyzer", "0");
 ConVar ebot_analyzer_min_fps("ebot_analyzer_min_fps", "30.0");
 ConVar ebot_analyze_auto_start("ebot_analyze_auto_start", "1");
-ConVar ebot_download_waypoints("ebot_download_waypoints", "0");
+ConVar ebot_download_waypoints("ebot_download_waypoints", "1");
 ConVar ebot_download_waypoints_from("ebot_download_waypoints_from", "https://github.com/EfeDursun125/EBOT-WP/raw/main");
 ConVar ebot_analyze_optimize_waypoints("ebot_analyze_optimize_waypoints", "1");
 ConVar ebot_waypoint_size("ebot_waypoint_size", "7");
@@ -1873,7 +1873,7 @@ void Waypoint::Save(void)
     }
 
     cstrcpy(header.header, FH_WAYPOINT);
-    strncpy(header.mapName, GetMapName(), 31);
+    cstrncpy(header.mapName, GetMapName(), 31);
 
     header.mapName[31] = 0;
     header.fileVersion = FV_WAYPOINT;
@@ -1923,7 +1923,7 @@ void Waypoint::SaveOLD(void)
     }
 
     cstrcpy(header.header, FH_WAYPOINT);
-    strncpy(header.mapName, GetMapName(), 31);
+    cstrncpy(header.mapName, GetMapName(), 31);
 
     header.mapName[31] = 0;
     header.fileVersion = FV_WAYPOINT;

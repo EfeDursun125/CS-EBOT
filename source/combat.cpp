@@ -19,10 +19,7 @@ void Bot::FindFriendsAndEnemiens(void)
 
 	for (const auto& client : g_clients)
 	{
-		if (client.index < 0)
-			continue;
-
-		if (client.ent == nullptr)
+		if (FNullEnt(client.ent))
 			continue;
 
 		if (client.ent == GetEntity())
@@ -149,10 +146,7 @@ void Bot::ResetCheckEnemy()
 
 	for (const auto& client : g_clients)
 	{
-		if (client.index < 0)
-			continue;
-
-		if (client.ent == nullptr)
+		if (FNullEnt(client.ent))
 			continue;
 
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team == m_team)
@@ -573,10 +567,7 @@ bool Bot::IsFriendInLineOfFire(float distance)
 
 	for (const auto& client : g_clients)
 	{
-		if (client.index < 0)
-			continue;
-
-		if (client.ent == nullptr)
+		if (FNullEnt(client.ent))
 			continue;
 
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != m_team || client.ent == GetEntity())
@@ -1767,10 +1758,7 @@ void Bot::CommandTeam(void)
 	// search teammates seen by this bot
 	for (const auto& client : g_clients)
 	{
-		if (client.index < 0)
-			continue;
-
-		if (client.ent == nullptr)
+		if (FNullEnt(client.ent))
 			continue;
 
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != m_team || client.ent == GetEntity())

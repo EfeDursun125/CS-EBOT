@@ -381,7 +381,7 @@ void Bot::DoWaypointNav(void)
 		// special detection if someone is using the ladder (to prevent to have bots-towers on ladders)
 		for (const auto& client : g_clients)
 		{
-			if (client.index < 0 || client.ent == nullptr || !(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || (client.ent->v.movetype != MOVETYPE_FLY) || client.index == m_index)
+			if (FNullEnt(client.ent) || !(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || (client.ent->v.movetype != MOVETYPE_FLY) || client.index == m_index)
 				continue;
 
 			TraceResult tr;
@@ -575,6 +575,33 @@ void Bot::DoWaypointNav(void)
 
 		if (m_navNode != nullptr)
 		{
+			for (int i = 0; i < Const_MaxPathIndex; i++)
+			{
+				const int id = g_waypoint->GetPath(m_currentWaypointIndex)->index[i];
+
+				if (IsValidWaypoint(id) && g_waypoint->IsConnected(id, m_navNode->next->index) && g_waypoint->IsConnected(m_currentWaypointIndex, id))
+				{
+					const int32 flags = g_waypoint->GetPath(id)->flags;
+					if (flags & WAYPOINT_LADDER)
+						continue;
+
+					if (flags & WAYPOINT_FALLRISK)
+						continue;
+
+					if (flags & WAYPOINT_FALLCHECK)
+						continue;
+
+					if (flags & WAYPOINT_JUMP)
+						continue;
+
+					if (!IsWaypointOccupied(id))
+					{
+						m_navNode->index = id;
+						break;
+					}
+				}
+			}
+
 			const int destIndex = m_navNode->index;
 
 			ChangeWptIndex(destIndex);
@@ -819,7 +846,7 @@ bool Bot::UpdateLiftHandling()
 				// iterate though clients, and find if lift already used
 				for (const auto& client : g_clients)
 				{
-					if (client.index < 0 || client.ent == nullptr || !(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != m_team || client.ent == GetEntity() || FNullEnt(client.ent->v.groundentity))
+					if (FNullEnt(client.ent) || !(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != m_team || client.ent == GetEntity() || FNullEnt(client.ent->v.groundentity))
 						continue;
 
 					if (client.ent->v.groundentity == m_liftEntity)
@@ -1091,10 +1118,7 @@ inline const float GF_CostHuman(const int index, const int parent, const int tea
 	{
 		for (const auto& client : g_clients)
 		{
-			if (client.index < 0)
-				continue;
-
-			if (client.ent == nullptr)
+			if (FNullEnt(client.ent))
 				continue;
 
 			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || team != client.team)
@@ -1156,10 +1180,7 @@ inline const float GF_CostCareful(const int index, const int parent, const int t
 	{
 		for (const auto& client : g_clients)
 		{
-			if (client.index < 0)
-				continue;
-
-			if (client.ent == nullptr)
+			if (FNullEnt(client.ent))
 				continue;
 
 			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || team != client.team)
@@ -1178,10 +1199,7 @@ inline const float GF_CostCareful(const int index, const int parent, const int t
 			int count = 0;
 			for (const auto& client : g_clients)
 			{
-				if (client.index < 0)
-					continue;
-
-				if (client.ent == nullptr)
+				if (FNullEnt(client.ent))
 					continue;
 
 				if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != team)
@@ -1230,10 +1248,7 @@ inline const float GF_CostNormal(const int index, const int parent, const int te
 	{
 		for (const auto& client : g_clients)
 		{
-			if (client.index < 0)
-				continue;
-
-			if (client.ent == nullptr)
+			if (FNullEnt(client.ent))
 				continue;
 
 			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || team != client.team)
@@ -1252,10 +1267,7 @@ inline const float GF_CostNormal(const int index, const int parent, const int te
 			int count = 0;
 			for (const auto& client : g_clients)
 			{
-				if (client.index < 0)
-					continue;
-
-				if (client.ent == nullptr)
+				if (FNullEnt(client.ent))
 					continue;
 
 				if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != team)
@@ -1307,10 +1319,7 @@ inline const float GF_CostRusher(const int index, const int parent, const int te
 	{
 		for (const auto& client : g_clients)
 		{
-			if (client.index < 0)
-				continue;
-
-			if (client.ent == nullptr)
+			if (FNullEnt(client.ent))
 				continue;
 
 			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || team != client.team)
@@ -3227,11 +3236,7 @@ void Bot::CheckCloseAvoidance(const Vector& dirNormal)
 	for (const auto& client : g_clients)
 	{
 		// only valid meat
-		if (client.index < 0)
-			continue;
-
-		// valid ???
-		if (client.ent == nullptr)
+		if (FNullEnt(client.ent))
 			continue;
 
 		// need only good meat
@@ -3583,11 +3588,11 @@ bool Bot::IsWaypointOccupied(int index, bool needZeroVelocity)
 
 	for (const auto& client : g_clients)
 	{
-		if (client.index < 0 || client.ent == nullptr || !(client.flags & (CFLAG_USED | CFLAG_ALIVE)) || client.team != m_team || client.ent == GetEntity())
+		if (FNullEnt(client.ent) || !(client.flags & (CFLAG_USED | CFLAG_ALIVE)) || client.team != m_team || client.ent == GetEntity())
 			continue;
 
 		// do not check clients far away from us
-		if ((pev->origin -client.origin).GetLengthSquared() > SquaredF(320.0f))
+		if ((pev->origin - client.origin).GetLengthSquared() > SquaredF(320.0f))
 			continue;
 
 		if (needZeroVelocity && client.ent->v.velocity != nullvec)
