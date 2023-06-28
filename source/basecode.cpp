@@ -3614,6 +3614,10 @@ void Bot::ChooseAimDirection(void)
 
 void Bot::BaseUpdate(void)
 {
+	// weird but possible...
+	if (pev == nullptr || FNullEnt(GetEntity()))
+		return;
+
 	pev->button = 0;
 	m_moveSpeed = 0.0f;
 	m_strafeSpeed = 0.0f;
@@ -3621,8 +3625,10 @@ void Bot::BaseUpdate(void)
 	// is bot movement enabled
 	bool botMovement = false;
 
-	if (m_notStarted) // if the bot hasn't selected stuff to start the game yet, go do that...
-		StartGame(); // select team & class
+	// if the bot hasn't selected stuff to start the game yet, go do that...
+	// select team & class
+	if (m_notStarted)
+		StartGame();
 	else
 	{
 		if (m_slowthinktimer < engine->GetTime())
@@ -3727,8 +3733,10 @@ void Bot::BaseUpdate(void)
 	m_frameInterval = engine->GetTime() - m_frameDelay;
 	m_frameDelay = engine->GetTime();
 
-	// update bot
-	RunPlayerMovement();
+	// run playermovement
+	const byte adjustedMSec = static_cast <byte>(cminf(250.0f, (engine->GetTime() - m_msecInterval) * 1000.0f));
+	m_msecInterval = engine->GetTime();
+	PLAYER_RUN_MOVE(pev->pContainingEntity, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, static_cast <unsigned short> (pev->button), pev->impulse, adjustedMSec);
 }
 
 void Bot::CheckSlowThink(void)
@@ -7171,32 +7179,6 @@ void Bot::MoveToVector(Vector to)
 		return;
 
 	FindPath(m_currentWaypointIndex, g_waypoint->FindNearest(to));
-}
-
-void Bot::RunPlayerMovement(void)
-{
-	// the purpose of this function is to compute, according to the specified computation
-	// method, the msec value which will be passed as an argument of pfnRunPlayerMove. This
-	// function is called every frame for every bot, since the RunPlayerMove is the function
-	// that tells the engine to put the bot character model in movement. This msec value
-	// tells the engine how long should the movement of the model extend inside the current
-	// frame. It is very important for it to be exact, else one can experience bizarre
-	// problems, such as bots getting stuck into each others. That's because the model's
-	// bounding boxes, which are the boxes the engine uses to compute and detect all the
-	// collisions of the model, only exist, and are only valid, while in the duration of the
-	// movement. That's why if you get a pfnRunPlayerMove for one bot that lasts a little too
-	// short in comparison with the frame's duration, the remaining time until the frame
-	// elapses, that bot will behave like a ghost : no movement, but bullets and players can
-	// pass through it. Then, when the next frame will begin, the stucking problem will arise !
-
-
-	// possible crash... idk why
-	if (pev != nullptr)
-		return;
-
-	const byte adjustedMSec = static_cast <byte>(cminf(250.0f, (engine->GetTime() - m_msecInterval) * 1000.0f));
-	m_msecInterval = engine->GetTime();
-	PLAYER_RUN_MOVE(pev->pContainingEntity, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, static_cast <unsigned short> (pev->button), pev->impulse, adjustedMSec);
 }
 
 // this function checks burst mode, and switch it depending distance to to enemy

@@ -166,38 +166,6 @@ int cstrcmp(const char* str1, const char* str2)
 	} while (true);
 
 	return -1;
-
-	/*const __m128i zero = _mm_setzero_si128(); // performance loss, also it can give incorrect result...
-	const __m128i* p1 = (__m128i*)str1;
-	const __m128i* p2 = (__m128i*)str2;
-
-	while (true)
-	{
-		const __m128i chunk1 = _mm_loadu_si128(p1);
-		const __m128i chunk2 = _mm_loadu_si128(p2);
-
-		const __m128i cmp = _mm_cmpeq_epi8(chunk1, chunk2);
-		const int mask = _mm_movemask_epi8(cmp);
-
-		if (mask != 0xFFFF)
-		{
-			const int index = ctz(~mask);
-			const char* ptr1 = (const char*)(p1);
-			const char* ptr2 = (const char*)(p2);
-
-			if (ptr1[index] > ptr2[index])
-				return 1;
-			else
-				return -1;
-		}
-		else if (_mm_movemask_epi8(_mm_cmpeq_epi8(chunk1, zero)) == 0xFFFF)
-			return 0;
-
-		p1++;
-		p2++;
-	}
-
-	return 0;*/
 }
 
 int cstrncmp(const char* str1, const char* str2, const size_t num)

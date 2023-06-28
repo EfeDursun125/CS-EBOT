@@ -575,29 +575,32 @@ void Bot::DoWaypointNav(void)
 
 		if (m_navNode != nullptr)
 		{
-			for (int i = 0; i < Const_MaxPathIndex; i++)
+			if (m_navNode->next != nullptr)
 			{
-				const int id = g_waypoint->GetPath(m_currentWaypointIndex)->index[i];
-
-				if (IsValidWaypoint(id) && g_waypoint->IsConnected(id, m_navNode->next->index) && g_waypoint->IsConnected(m_currentWaypointIndex, id))
+				for (int i = 0; i < Const_MaxPathIndex; i++)
 				{
-					const int32 flags = g_waypoint->GetPath(id)->flags;
-					if (flags & WAYPOINT_LADDER)
-						continue;
+					const int id = g_waypoint->GetPath(m_currentWaypointIndex)->index[i];
 
-					if (flags & WAYPOINT_FALLRISK)
-						continue;
-
-					if (flags & WAYPOINT_FALLCHECK)
-						continue;
-
-					if (flags & WAYPOINT_JUMP)
-						continue;
-
-					if (!IsWaypointOccupied(id))
+					if (IsValidWaypoint(id) && g_waypoint->IsConnected(id, m_navNode->next->index) && g_waypoint->IsConnected(m_currentWaypointIndex, id))
 					{
-						m_navNode->index = id;
-						break;
+						const int32 flags = g_waypoint->GetPath(id)->flags;
+						if (flags & WAYPOINT_LADDER)
+							continue;
+
+						if (flags & WAYPOINT_FALLRISK)
+							continue;
+
+						if (flags & WAYPOINT_FALLCHECK)
+							continue;
+
+						if (flags & WAYPOINT_JUMP)
+							continue;
+
+						if (!IsWaypointOccupied(id))
+						{
+							m_navNode->index = id;
+							break;
+						}
 					}
 				}
 			}
