@@ -915,7 +915,6 @@ private:
 	int GetBestWeaponCarried(void);
 	int GetBestSecondaryWeaponCarried(void);
 
-	void RunPlayerMovement(void);
 	void GetValidWaypoint(void);
 	void ChangeWptIndex(const int waypointIndex);
 	bool IsDeadlyDrop(const Vector targetOriginPos);
