@@ -3051,7 +3051,8 @@ public:
             enginePrintType = 0;
             break;
         }
-        strcat(buffer, "\n");
+
+        cstrcat(buffer, "\n");
 
         // print to client
         g_engfuncs.pfnClientPrintf(m_ent, static_cast <PRINT_TYPE> (enginePrintType), buffer);

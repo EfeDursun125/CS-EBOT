@@ -2006,7 +2006,7 @@ public:
     //
     float ToFloat(void)
     {
-        return static_cast <float> (atof(m_bufferPtr));
+        return catof(m_bufferPtr);
     }
 
     //
@@ -2018,7 +2018,7 @@ public:
     //
     int ToInt(void) const
     {
-        return atoi(m_bufferPtr);
+        return catoi(m_bufferPtr);
     }
 
     //
@@ -2091,8 +2091,7 @@ public:
     void Append(const char* bufferPtr)
     {
         UpdateBufferSize(m_stringLength + cstrlen(bufferPtr) + 1);
-        strcat(m_bufferPtr, bufferPtr);
-
+        cstrcat(m_bufferPtr, bufferPtr);
         m_stringLength = cstrlen(m_bufferPtr);
     }
 
@@ -2122,8 +2121,7 @@ public:
     {
         const char* bufferPtr = inputString.GetBuffer();
         UpdateBufferSize(m_stringLength + cstrlen(bufferPtr));
-
-        strcat(m_bufferPtr, bufferPtr);
+        cstrcat(m_bufferPtr, bufferPtr);
         m_stringLength = cstrlen(m_bufferPtr);
     }
 
