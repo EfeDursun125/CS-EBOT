@@ -1230,7 +1230,7 @@ public:
 	int GetAmmo(void);
 	inline int GetAmmoInClip(void) { return m_ammoInClip[m_currentWeapon]; }
 
-	inline edict_t* GetEntity(void) { return pev->pContainingEntity; };
+	inline edict_t* GetEntity(void) { return ENT(pev); };
 	inline EOFFSET GetOffset(void) { return OFFSET(pev); };
 	inline int GetIndex(void) { return ENTINDEX(GetEntity()); };
 
@@ -1261,7 +1261,7 @@ public:
 	void PushTask(BotTask taskID, float desire, int data, float time, bool canContinue, bool force = false);
 	void DiscardWeaponForUser(edict_t* user, bool discardC4);
 
-	void ChatSay(bool teamSay, const char* text, ...);
+	void ChatSay(const bool teamSay, const char* text, ...);
 
 	void ChatMessage(int type, bool isTeamSay = false);
 	void RadioMessage(int message);

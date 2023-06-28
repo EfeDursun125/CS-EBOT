@@ -3081,6 +3081,7 @@ public:
             hash = (hash << 5) + hash + (*ptr);
             ptr++;
         }
+
         return hash;
     }
 
