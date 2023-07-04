@@ -2052,7 +2052,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 		bool breakIt = false;
 
 		TraceResult tr;
-		TraceHull(pev->origin, m_destOrigin, false, point_hull, GetEntity(), &tr);
+		TraceHull(EyePosition(), m_destOrigin, false, point_hull, GetEntity(), &tr);
 
 		TraceResult tr2;
 		TraceHull(pev->origin, m_destOrigin, false, head_hull, GetEntity(), &tr2);
@@ -2087,7 +2087,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 						continue;
 
 					TraceHull(bot->EyePosition(), m_breakable, false, point_hull, bot->GetEntity(), &tr);
-					TraceHull(bot->EyePosition(), m_breakable, false, head_hull, bot->GetEntity(), &tr2);
+					TraceHull(bot->GetEntity()->v.origin, m_breakable, false, head_hull, bot->GetEntity(), &tr2);
 
 					if (tr.pHit == entity || tr2.pHit == entity)
 					{
@@ -2123,7 +2123,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 					continue;
 
 				TraceHull(enemy->EyePosition(), m_breakable, false, point_hull, enemy->GetEntity(), &tr);
-				TraceHull(enemy->EyePosition(), m_breakable, false, head_hull, enemy->GetEntity(), &tr2);
+				TraceHull(enemy->GetEntity()->v.origin, m_breakable, false, head_hull, enemy->GetEntity(), &tr2);
 
 				if (tr.pHit == entity || tr2.pHit == entity)
 				{
