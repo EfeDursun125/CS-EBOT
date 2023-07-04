@@ -905,7 +905,6 @@ private:
 
 	bool IsShootableBreakable(edict_t* ent);
 	bool RateGroundWeapon(edict_t* ent);
-	bool ReactOnEnemy(void);
 	void ResetCollideState(void);
 	void SetConditions(void);
 	void SetStrafeSpeed(Vector moveDir, float strafeSpeed);
@@ -1181,6 +1180,7 @@ public:
 	int FindWaypoint(void);
 
 	bool IsAttacking(const edict_t* player);
+	bool IsEnemyReachable(void);
 
 	void SetWalkTime(const float time);
 	float GetMaxSpeed(void);
@@ -1477,6 +1477,7 @@ public:
 	bool IsStandVisible(int srcIndex, int destIndex);
 	bool IsDuckVisible(int srcIndex, int destIndex);
 	void CalculateWayzone(int index);
+	Vector GetBottomOrigin(const Path* waypoint);
 
 	bool Download(void);
 	bool Load(int mode = 0);
