@@ -2052,7 +2052,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 		bool breakIt = false;
 
 		TraceResult tr;
-		TraceLine(EyePosition(), m_destOrigin, false, false, GetEntity(), &tr);
+		TraceHull(pev->origin, m_destOrigin, false, point_hull, GetEntity(), &tr);
 
 		TraceResult tr2;
 		TraceHull(pev->origin, m_destOrigin, false, head_hull, GetEntity(), &tr2);
@@ -2063,11 +2063,6 @@ void Bot::CheckTouchEntity(edict_t* entity)
 			m_breakableEntity = entity;
 			m_breakable = tr.pHit == entity ? tr.vecEndPos : ((GetEntityOrigin(entity) * 0.5f) + (tr2.vecEndPos * 0.5f));
 			m_destOrigin = m_breakable;
-
-			if (pev->origin.z > m_breakable.z)
-				m_campButtons = IN_DUCK;
-			else
-				m_campButtons = pev->button & IN_DUCK;
 
 			SetProcess(Process::DestroyBreakable, "trying to destroy a breakable", false, 20.0f);
 
@@ -2091,20 +2086,16 @@ void Bot::CheckTouchEntity(edict_t* entity)
 					if (GetEntity() == bot->GetEntity())
 						continue;
 
-					TraceResult tr3;
-					TraceLine(bot->EyePosition(), m_breakable, true, true, bot->GetEntity(), &tr3);
-					if (tr3.pHit == entity)
+					TraceHull(bot->EyePosition(), m_breakable, false, point_hull, bot->GetEntity(), &tr);
+					TraceHull(bot->EyePosition(), m_breakable, false, head_hull, bot->GetEntity(), &tr2);
+
+					if (tr.pHit == entity || tr2.pHit == entity)
 					{
 						bot->m_breakableEntity = entity;
-						bot->m_breakable = tr3.vecEndPos;
+						bot->m_breakable = tr.pHit == entity ? tr.vecEndPos : ((GetEntityOrigin(entity) * 0.5f) + (tr2.vecEndPos * 0.5f));
 
 						if (bot->m_currentWeapon == WEAPON_KNIFE)
 							bot->m_destOrigin = bot->m_breakable;
-
-						if (bot->pev->origin.z > bot->m_breakable.z)
-							bot->m_campButtons = IN_DUCK;
-						else
-							bot->m_campButtons = bot->pev->button & IN_DUCK;
 
 						bot->SetProcess(Process::DestroyBreakable, "trying to help my friend for destroy a breakable", false, 20.0f);
 					}
@@ -2128,18 +2119,16 @@ void Bot::CheckTouchEntity(edict_t* entity)
 				if (enemy->m_isZombieBot)
 					continue;
 
-				TraceResult tr3;
-				TraceLine(enemy->EyePosition(), m_breakable, true, true, enemy->GetEntity(), &tr3);
-				if (tr3.pHit == entity)
+				if (enemy->m_currentWeapon == WEAPON_KNIFE)
+					continue;
+
+				TraceHull(enemy->EyePosition(), m_breakable, false, point_hull, enemy->GetEntity(), &tr);
+				TraceHull(enemy->EyePosition(), m_breakable, false, head_hull, enemy->GetEntity(), &tr2);
+
+				if (tr.pHit == entity || tr2.pHit == entity)
 				{
 					enemy->m_breakableEntity = entity;
-					enemy->m_breakable = tr3.vecEndPos;
-
-					if (enemy->pev->origin.z > enemy->m_breakable.z)
-						enemy->m_campButtons = IN_DUCK;
-					else
-						enemy->m_campButtons = enemy->pev->button & IN_DUCK;
-
+					enemy->m_breakable = tr.pHit == entity ? tr.vecEndPos : ((GetEntityOrigin(entity) * 0.5f) + (tr2.vecEndPos * 0.5f));
 					enemy->SetProcess(Process::DestroyBreakable, "trying to destroy a breakable for my enemy fall", false, 20.0f);
 				}
 			}
