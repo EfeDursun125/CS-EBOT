@@ -693,6 +693,10 @@ bool Bot::DoFirePause(const float distance)
 // this function will return true if weapon was fired, false otherwise
 void Bot::FireWeapon(void)
 {
+	// try to switch
+	if (m_currentWeapon == WEAPON_KNIFE)
+		SelectBestWeapon();
+
 	const float distance = m_enemyDistance <= m_entityDistance ? m_enemyDistance : m_entityDistance;
 
 	// or if friend in line of fire, stop this too but do not update shoot time
@@ -1260,7 +1264,6 @@ void Bot::CombatFight(void)
 
 		DeleteSearchNodes();
 		m_destOrigin = m_enemyOrigin - m_lastWallOrigin;
-		m_waypointOrigin = nullvec;
 		m_currentWaypointIndex = -1;
 
 		int approach;

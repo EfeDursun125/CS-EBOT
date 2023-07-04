@@ -1662,6 +1662,16 @@ void Waypoint::CalculateWayzone(int index)
         path->radius = 0.0f;
 }
 
+Vector Waypoint::GetBottomOrigin(const Path* waypoint)
+{
+    Vector waypointOrigin = waypoint->origin;
+    if (waypoint->flags & WAYPOINT_CROUCH)
+        waypointOrigin.z -= 18.0f;
+    else
+        waypointOrigin.z -= 36.0f;
+    return waypointOrigin;
+}
+
 void Waypoint::InitTypes()
 {
     m_terrorPoints.RemoveAll();
