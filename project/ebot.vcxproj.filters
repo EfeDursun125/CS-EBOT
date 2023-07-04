@@ -1,0 +1,69 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\source\basecode.cpp" />
+    <ClCompile Include="..\source\callbacks.cpp" />
+    <ClCompile Include="..\source\chatlib.cpp" />
+    <ClCompile Include="..\source\combat.cpp" />
+    <ClCompile Include="..\source\control.cpp" />
+    <ClCompile Include="..\source\engine.cpp" />
+    <ClCompile Include="..\source\globals.cpp" />
+    <ClCompile Include="..\source\interface.cpp" />
+    <ClCompile Include="..\source\navigate.cpp" />
+    <ClCompile Include="..\source\navmesh.cpp" />
+    <ClCompile Include="..\source\netmsg.cpp" />
+    <ClCompile Include="..\source\precomp.cpp" />
+    <ClCompile Include="..\source\cmath.cpp" />
+    <ClCompile Include="..\source\support.cpp" />
+    <ClCompile Include="..\source\waypoint.cpp" />
+    <ClCompile Include="..\source\goap\default.cpp">
+      <Filter>GOAP</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\goap\attack.cpp">
+      <Filter>GOAP</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\goap\defuse.cpp">
+      <Filter>GOAP</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\goap\goap.cpp">
+      <Filter>GOAP</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\goap\plant.cpp">
+      <Filter>GOAP</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\goap\escape.cpp">
+      <Filter>GOAP</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\goap\destroybreakable.cpp">
+      <Filter>GOAP</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\goap\pause.cpp">
+      <Filter>GOAP</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\goap\pickup.cpp">
+      <Filter>GOAP</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\goap\camp.cpp">
+      <Filter>GOAP</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\include\callbacks.h" />
+    <ClInclude Include="..\include\cmath.h" />
+    <ClInclude Include="..\include\compress.h" />
+    <ClInclude Include="..\include\core.h" />
+    <ClInclude Include="..\include\engine.h" />
+    <ClInclude Include="..\include\globals.h" />
+    <ClInclude Include="..\include\platform.h" />
+    <ClInclude Include="..\include\resource.h" />
+    <ClInclude Include="..\include\runtime.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\include\ebot.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="GOAP">
+      <UniqueIdentifier>{23d404aa-be3e-4f97-b62c-d689cf1dd36d}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

@@ -83,7 +83,6 @@
       <AdditionalIncludeDirectories>.\;SDK Path\Include;..\;..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NDEBUG;_XKEYCHECK_H;WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <FunctionLevelLinking>false</FunctionLevelLinking>
       <RuntimeTypeInfo>
       </RuntimeTypeInfo>
@@ -104,17 +103,18 @@
       <EnablePREfast>false</EnablePREfast>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <OmitFramePointers>true</OmitFramePointers>
-      <ExceptionHandling>false</ExceptionHandling>
+      <ExceptionHandling>Sync</ExceptionHandling>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <ControlFlowGuard>false</ControlFlowGuard>
-      <FloatingPointExceptions>false</FloatingPointExceptions>
+      <FloatingPointExceptions>true</FloatingPointExceptions>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <IntelJCCErratum>false</IntelJCCErratum>
       <LanguageStandard_C>stdc11</LanguageStandard_C>
       <EnableMatrixMultiplyLibraryCall>Yes</EnableMatrixMultiplyLibraryCall>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -185,7 +185,7 @@
       <AssemblerListingLocation>.\ebot_debug\asm\</AssemblerListingLocation>
       <ObjectFileName>.\ebot_debug\obj\</ObjectFileName>
       <ProgramDataBaseFileName>.\ebot_debug\inf\</ProgramDataBaseFileName>
-      <WarningLevel>Level4</WarningLevel>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
       <TreatWarningAsError>false</TreatWarningAsError>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
