@@ -63,9 +63,8 @@ void Bot::CampUpdate(void)
 
 	if (IsZombieMode())
 	{
-		if (m_hasEnemiesNear && m_enemyDistance <= SquaredF(300.0f))
+		if (m_hasEnemiesNear && IsEnemyReachable())
 		{
-			SelectBestWeapon();
 			m_currentWaypointIndex = -1;
 			DeleteSearchNodes();
 			MoveOut(m_enemyOrigin);
@@ -73,8 +72,6 @@ void Bot::CampUpdate(void)
 		}
 		else
 		{
-			m_aimFlags |= AIM_CAMP;
-
 			// standing still
 			if (m_hasEnemiesNear && m_currentWeapon != WEAPON_KNIFE && m_personality != PERSONALITY_RUSHER && pev->velocity.GetLengthSquared2D() <= 18.0f)
 			{
@@ -103,8 +100,6 @@ void Bot::CampUpdate(void)
 			if (SetProcess(Process::Attack, "i found a target", false, 999999.0f))
 				return;
 		}
-
-		SelectBestWeapon();
 	}
 
 	FollowPath(m_campIndex);
@@ -118,8 +113,8 @@ void Bot::CampUpdate(void)
 			const Path* zhPath = g_waypoint->GetPath(m_campIndex);
 			if (m_isSlowThink)
 			{
-				float maxRange = zhPath->flags & WAYPOINT_CROUCH ? 100.0f : 230.0f;
-				if (zhPath->campStartX != 0.0f && ((zhPath->origin - pev->origin).GetLengthSquared2D() > SquaredF(maxRange) || (zhPath->origin.z - 64.0f > pev->origin.z)))
+				const float maxRange = zhPath->flags & WAYPOINT_CROUCH ? 125.0f : 200.0f;
+				if (zhPath->campStartX != 0.0f && ((zhPath->origin - pev->origin).GetLengthSquared2D() > SquaredF(maxRange) || (zhPath->origin.z - 54.0f > pev->origin.z)))
 				{
 					DeleteSearchNodes();
 					FindWaypoint();

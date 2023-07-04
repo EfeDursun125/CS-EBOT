@@ -20,7 +20,7 @@ void Bot::DefaultUpdate(void)
 		// nearest enemy never resets to nullptr, so bot always know where are humans
 		if (!FNullEnt(m_nearestEnemy) && GetTeam(m_nearestEnemy) != m_team)
 		{
-			if (m_hasEnemiesNear && m_enemyDistance <= SquaredF(192.0f))
+			if (m_hasEnemiesNear && IsEnemyReachable())
 			{
 				m_currentWaypointIndex = -1;
 				DeleteSearchNodes();
@@ -85,7 +85,7 @@ void Bot::DefaultUpdate(void)
 
 		if (IsZombieMode())
 		{
-			if (m_hasEnemiesNear && m_enemyDistance <= SquaredF(300.0f))
+			if (m_hasEnemiesNear && IsEnemyReachable())
 			{
 				m_currentWaypointIndex = -1;
 				DeleteSearchNodes();
