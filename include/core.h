@@ -781,8 +781,6 @@ private:
 
 	bool m_isReloading; // bot is reloading a gun
 	int m_reloadState; // current reload state
-	int m_voicePitch; // bot voice pitch
-	bool m_zombiePush; // we must push???
 	bool m_allowWalk; // walk for a few seconds
 
 	bool m_duckDefuse; // should or not bot duck to defuse bomb
