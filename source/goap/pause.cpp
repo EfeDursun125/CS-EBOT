@@ -7,10 +7,6 @@ void Bot::PauseStart(void)
 
 void Bot::PauseUpdate(void)
 {
-	const Vector directionOld = (m_destOrigin + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval);
-	m_moveAngles = directionOld.ToAngles();
-	m_moveAngles.ClampAngles();
-
 	if (IsOnFloor() && m_jumpTime + 0.1f < engine->GetTime())
 	{
 		m_moveSpeed = 0.0f;
@@ -28,7 +24,13 @@ void Bot::PauseUpdate(void)
 		}
 	}
 	else
+	{
+		const Vector directionOld = m_destOrigin - pev->origin;
+		m_moveAngles = directionOld.ToAngles();
+		m_moveAngles.ClampAngles();
 		m_moveSpeed = pev->maxspeed;
+		SetStrafeSpeedNoCost(directionOld, pev->maxspeed);
+	}
 }
 
 void Bot::PauseEnd(void)
