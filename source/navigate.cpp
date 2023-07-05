@@ -340,24 +340,11 @@ void Bot::DoWaypointNav(void)
 					const float timeToReachWaypoint = csqrtf(powf(waypointOrigin.x - myOrigin.x, 2.0f) + powf(waypointOrigin.y - myOrigin.y, 2.0f)) / pev->maxspeed;
 					pev->velocity.x = (waypointOrigin.x - myOrigin.x) / timeToReachWaypoint;
 					pev->velocity.y = (waypointOrigin.y - myOrigin.y) / timeToReachWaypoint;
-
-					if ((myOrigin - waypointOrigin).GetLengthSquared() > SquaredF(pev->maxspeed))
-						pev->velocity.z = cclampf(2.0f * (waypointOrigin.z - myOrigin.z - 0.5f * pev->gravity * powf(timeToReachWaypoint, 2.0f)) / timeToReachWaypoint, -pev->maxspeed, pev->maxspeed);
-
-					pev->basevelocity = m_desiredVelocity;
-					pev->clbasevelocity = m_desiredVelocity;
-					pev->avelocity = m_desiredVelocity;
-					pev->flFallVelocity = m_desiredVelocity.z;
+					//pev->velocity.z = cclampf(2.0f * (waypointOrigin.z - myOrigin.z - 0.5f * pev->gravity * powf(timeToReachWaypoint, 2.0f)) / timeToReachWaypoint, -pev->maxspeed, pev->maxspeed);
 				}
 			}
 			else
-			{
 				pev->velocity = m_desiredVelocity;
-				pev->basevelocity = m_desiredVelocity;
-				pev->clbasevelocity = m_desiredVelocity;
-				pev->avelocity = m_desiredVelocity;
-				pev->flFallVelocity = m_desiredVelocity.z;
-			}
 			
 			SetProcess(Process::Pause, "pausing after jump", false, engine->RandomFloat(0.75f, 1.25f));
 			m_jumpFinished = true;
@@ -368,8 +355,12 @@ void Bot::DoWaypointNav(void)
 	{
 		if (cabsf(GetBottomOrigin(GetEntity()).z - g_waypoint->GetBottomOrigin(currentWaypoint).z) > 54.0f)
 			DeleteSearchNodes();
-		else if (m_stuckWarn >= 2)
+		else if (m_stuckWarn >= 3)
+		{
+			m_waypointOrigin = currentWaypoint->origin;
+			m_destOrigin = m_waypointOrigin;
 			autoJump();
+		}
 	}
 	else if (currentWaypoint->flags & WAYPOINT_LADDER || IsOnLadder())
 	{
@@ -588,9 +579,11 @@ void Bot::DoWaypointNav(void)
 
 	if (distance <= desiredDistance)
 	{
-		m_navNode = m_navNode->next;
 		m_currentTravelFlags = 0;
 		m_desiredVelocity = nullvec;
+
+		if (m_navNode != nullptr)
+			m_navNode = m_navNode->next;
 
 		if (m_navNode != nullptr)
 		{
@@ -612,7 +605,6 @@ void Bot::DoWaypointNav(void)
 						// jump directly to the waypoint, otherwise we will fall...
 						m_waypointOrigin = g_waypoint->GetPath(destIndex)->origin;
 						m_destOrigin = m_waypointOrigin;
-
 						autoJump();
 					}
 
@@ -3263,7 +3255,7 @@ void Bot::CheckCloseAvoidance(const Vector& dirNormal)
 				continue;
 		}
 
-		float nearest = (pev->origin - client.ent->v.origin).GetLengthSquared();
+		const float nearest = (pev->origin - client.ent->v.origin).GetLengthSquared();
 		if (nearest <= maxSpeed && nearest < distance)
 		{
 			m_avoid = client.ent;
@@ -3474,12 +3466,12 @@ void Bot::FacePosition(void)
 	pev->angles.y = pev->v_angle.y;
 }
 
-void Bot::SetStrafeSpeed(Vector moveDir, float strafeSpeed)
+void Bot::SetStrafeSpeed(const Vector moveDir, const float strafeSpeed)
 {
 	MakeVectors(pev->angles);
 
-	Vector los = (moveDir - pev->origin).Normalize2D();
-	float dot = los | g_pGlobals->v_forward.SkipZ();
+	const Vector los = (moveDir - pev->origin).Normalize2D();
+	const float dot = los | g_pGlobals->v_forward.SkipZ();
 
 	if (CheckWallOnBehind())
 	{
@@ -3493,13 +3485,25 @@ void Bot::SetStrafeSpeed(Vector moveDir, float strafeSpeed)
 		if ((m_isStuck || pev->speed >= pev->maxspeed) && !IsOnLadder() && m_jumpTime + 5.0f < engine->GetTime() && IsOnFloor())
 			pev->button |= IN_JUMP;
 	}
-	else if (dot > 0 && !CheckWallOnRight())
+	else if (dot > 0.0f && !CheckWallOnRight())
 		m_strafeSpeed = strafeSpeed;
 	else if (!CheckWallOnLeft())
 		m_strafeSpeed = -strafeSpeed;
-	else if (GetCurrentTask()->taskID == TASK_CAMP)
-		m_lastEnemy = nullptr;
 }
+
+void Bot::SetStrafeSpeedNoCost(const Vector moveDir, const float strafeSpeed)
+{
+	MakeVectors(pev->angles);
+
+	const Vector los = (moveDir - pev->origin).Normalize2D();
+	const float dot = los | g_pGlobals->v_forward.SkipZ();
+	
+	if (dot > 0.0f)
+		m_strafeSpeed = strafeSpeed;
+	else
+		m_strafeSpeed = -strafeSpeed;
+}
+
 
 // find hostage improve
 int Bot::FindHostage(void)

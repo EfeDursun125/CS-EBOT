@@ -2783,8 +2783,7 @@ void SetPing(edict_t* to)
 
 	static int sending;
 
-	// missing from sdk
-	static const int SVC_PINGS = 17;
+	MessageSender message(MSG_ONE_UNRELIABLE, 17, nullptr, to, false);
 
 	for (const auto& bot : g_botManager->m_bots)
 	{
@@ -2792,40 +2791,37 @@ void SetPing(edict_t* to)
 			continue;
 
 		const int index = bot->m_index;
+
 		switch (sending)
 		{
 		case 0:
 		{
-			// start a new message
-			MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_PINGS, nullptr, to);
-			WRITE_BYTE((bot->m_pingOffset[sending] * 64) + (1 + 2 * index));
-			WRITE_SHORT(bot->m_ping[sending]);
+			message.BeginMessage();
+			message.WriteByte((bot->m_pingOffset[sending] * 64) + (1 + 2 * index));
+			message.WriteShort(bot->m_ping[sending]);
 			sending++;
 		}
 		case 1:
 		{
-			// append additional data
-			WRITE_BYTE((bot->m_pingOffset[sending] * 128) + (2 + 4 * index));
-			WRITE_SHORT(bot->m_ping[sending]);
+			message.WriteByte((bot->m_pingOffset[sending] * 128) + (2 + 4 * index));
+			message.WriteShort(bot->m_ping[sending]);
 			sending++;
 		}
 		case 2:
 		{
-			// append additional data and end message
-			WRITE_BYTE(4 + 8 * index);
-			WRITE_SHORT(bot->m_ping[sending]);
-			WRITE_BYTE(0);
-			MESSAGE_END();
+			message.WriteByte(4 + 8 * index);
+			message.WriteShort(bot->m_ping[sending]);
+			message.WriteByte(0);
+			message.EndMessage();
 			sending = 0;
 		}
 		}
 	}
 
-	// end message if not yet sent
 	if (sending)
 	{
-		WRITE_BYTE(0);
-		MESSAGE_END();
+		message.WriteByte(0);
+		message.EndMessage();
 	}
 }
 
@@ -3391,7 +3387,7 @@ int pfnRegUserMsg(const char* name, int size)
 	if (g_isMetamod)
 		RETURN_META_VALUE(MRES_IGNORED, 0);
 
-	int message = REG_USER_MSG(name, size);
+	const int message = REG_USER_MSG(name, size);
 
 	if (cstrcmp(name, "VGUIMenu") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_VGUI, message);

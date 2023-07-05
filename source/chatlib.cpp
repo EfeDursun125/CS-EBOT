@@ -431,9 +431,8 @@ void Bot::ChatSay(const bool teamSay, const char* text, ...)
         m_lastStrings[160] = *text;
         m_lastChatEnt = GetEntity();
 
-        MESSAGE_BEGIN(MSG_ONE, index, nullptr, client.ent);
-        WRITE_BYTE(m_index);
-        WRITE_STRING(tempMessage);
-        MESSAGE_END();
+        MessageSender(MSG_ONE, index, nullptr, client.ent)
+            .WriteByte(m_index)
+            .WriteString(tempMessage);
     }
 }

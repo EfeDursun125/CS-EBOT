@@ -6230,25 +6230,24 @@ void Bot::DebugModeMsg(void)
 				m_moveSpeed, m_strafeSpeed,
 				m_stuckWarn, m_isStuck ? "Yes" : "No");
 
-			MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, g_hostEntity);
-			WRITE_BYTE(TE_TEXTMESSAGE);
-			WRITE_BYTE(1);
-			WRITE_SHORT(FixedSigned16(-1, 1 << 13));
-			WRITE_SHORT(FixedSigned16(0, 1 << 13));
-			WRITE_BYTE(0);
-			WRITE_BYTE(m_team == TEAM_COUNTER ? 0 : 255);
-			WRITE_BYTE(100);
-			WRITE_BYTE(m_team != TEAM_COUNTER ? 0 : 255);
-			WRITE_BYTE(0);
-			WRITE_BYTE(255);
-			WRITE_BYTE(255);
-			WRITE_BYTE(255);
-			WRITE_BYTE(0);
-			WRITE_SHORT(FixedUnsigned16(0, 1 << 8));
-			WRITE_SHORT(FixedUnsigned16(0, 1 << 8));
-			WRITE_SHORT(FixedUnsigned16(1.0, 1 << 8));
-			WRITE_STRING(const_cast <const char*> (&outputBuffer[0]));
-			MESSAGE_END();
+			MessageSender(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, g_hostEntity)
+				.WriteByte(TE_TEXTMESSAGE)
+				.WriteByte(1)
+				.WriteShort(FixedSigned16(-1.0f, 1 << 13))
+				.WriteShort(FixedSigned16(0.0f, 1 << 13))
+				.WriteByte(0)
+				.WriteByte(m_team == TEAM_COUNTER ? 0 : 255)
+				.WriteByte(100)
+				.WriteByte(m_team != TEAM_COUNTER ? 0 : 255)
+				.WriteByte(0)
+				.WriteByte(255)
+				.WriteByte(255)
+				.WriteByte(255)
+				.WriteByte(0)
+				.WriteShort(FixedUnsigned16(0.0f, 1 << 8))
+				.WriteShort(FixedUnsigned16(0.0f, 1 << 8))
+				.WriteShort(FixedUnsigned16(1.0f, 1 << 8))
+				.WriteString(const_cast <const char*> (&outputBuffer[0]));
 
 			timeDebugUpdate = engine->GetTime() + 1.0f;
 		}

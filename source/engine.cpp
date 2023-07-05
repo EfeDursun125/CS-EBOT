@@ -190,36 +190,6 @@ float Engine::GetTime(void)
     return g_pGlobals->time;
 }
 
-void Engine::PrintAllClients(PrintType printType, const char* format, ...)
-{
-    char buffer[1024];
-    va_list ap;
-
-    va_start(ap, format);
-    vsprintf(buffer, format, ap);
-    va_end(ap);
-
-    if (printType == PRINT_CONSOLE)
-    {
-        for (int i = 0; i < GetMaxClients(); i++)
-        {
-            const Client& client = GetClientByIndex(i);
-
-            if (client.IsPlayer())
-                client.Print(PRINT_CONSOLE, buffer);
-        }
-    }
-    else
-    {
-        cstrcat(buffer, "\n");
-
-        g_engfuncs.pfnMessageBegin(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG), nullptr, nullptr);
-        g_engfuncs.pfnWriteByte(printType == PRINT_CENTER ? 4 : 3);
-        g_engfuncs.pfnWriteString(buffer);
-        g_engfuncs.pfnMessageEnd();
-    }
-}
-
 #pragma warning (disable : 4172)
 const Entity& Engine::GetEntityByIndex(int index)
 {
@@ -236,55 +206,40 @@ void Engine::MaintainClients(void)
 {
     for (const auto& client : g_clients)
     {
+        if (client.index < 0)
+            continue;
+
         if (FNullEnt(client.ent))
             continue;
 
-        m_clients[client.index].Maintain(g_engfuncs.pfnPEntityOfEntIndex(client.index));
+        m_clients[client.index].Maintain(client.ent);
     }
 }
 
-void Engine::DrawLine(const Client& client, const Vector& start, const Vector& end, const Color& color, int width, int noise, int speed, int life, int lineType)
+void Engine::DrawLine(edict_t* client, const Vector& start, const Vector& end, const Color& color, int width, int noise, int speed, int life, int lineType)
 {
-    if (!client.IsValid())
+    if (!IsValidPlayer(client))
         return;
 
-    g_engfuncs.pfnMessageBegin(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, client);
-    g_engfuncs.pfnWriteByte(TE_BEAMPOINTS);
-
-    g_engfuncs.pfnWriteCoord(start.x);
-    g_engfuncs.pfnWriteCoord(start.y);
-    g_engfuncs.pfnWriteCoord(start.z);
-
-    g_engfuncs.pfnWriteCoord(end.x);
-    g_engfuncs.pfnWriteCoord(end.y);
-    g_engfuncs.pfnWriteCoord(end.z);
-
-    switch (lineType)
-    {
-    case LINE_SIMPLE:
-        g_engfuncs.pfnWriteShort(g_modelIndexLaser);
-        break;
-
-    case LINE_ARROW:
-        g_engfuncs.pfnWriteShort(g_modelIndexArrow);
-        break;
-    }
-
-    g_engfuncs.pfnWriteByte(0);
-    g_engfuncs.pfnWriteByte(10);
-
-    g_engfuncs.pfnWriteByte(life);
-    g_engfuncs.pfnWriteByte(width);
-    g_engfuncs.pfnWriteByte(noise);
-
-    g_engfuncs.pfnWriteByte(color.red);
-    g_engfuncs.pfnWriteByte(color.green);
-    g_engfuncs.pfnWriteByte(color.blue);
-
-    g_engfuncs.pfnWriteByte(color.alpha); // alpha as brightness here
-    g_engfuncs.pfnWriteByte(speed);
-
-    g_engfuncs.pfnMessageEnd();
+    MessageSender(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, g_hostEntity)
+        .WriteByte(TE_BEAMPOINTS)
+        .WriteCoord(start.x)
+        .WriteCoord(start.y)
+        .WriteCoord(start.z)
+        .WriteCoord(end.x)
+        .WriteCoord(end.y)
+        .WriteCoord(end.z)
+        .WriteShort(lineType == LINE_SIMPLE ? g_modelIndexLaser : g_modelIndexArrow)
+        .WriteByte(0)
+        .WriteByte(10)
+        .WriteByte(life)
+        .WriteByte(width)
+        .WriteByte(noise)
+        .WriteByte(color.red)
+        .WriteByte(color.green)
+        .WriteByte(color.blue)
+        .WriteByte(color.alpha)
+        .WriteByte(speed);
 }
 
 void Engine::IssueBotCommand(edict_t* ent, const char* fmt, ...)

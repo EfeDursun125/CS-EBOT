@@ -253,36 +253,35 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 
 		while (cstrlen(text) >= 64)
 		{
-			MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent);
-			WRITE_SHORT(menu->validSlots);
-			WRITE_CHAR(-1);
-			WRITE_BYTE(1);
+			MessageSender message(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent, false);
+			message.BeginMessage();
+			message.WriteShort(menu->validSlots);
+			message.WriteChar(-1);
+			message.WriteByte(1);
 
 			for (int i = 0; i <= 63; i++)
-				WRITE_CHAR(text[i]);
+				message.WriteChar(text[i]);
 
-			MESSAGE_END();
+			message.EndMessage();
 
 			text += 64;
 		}
 
-		MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent);
-		WRITE_SHORT(menu->validSlots);
-		WRITE_CHAR(-1);
-		WRITE_BYTE(0);
-		WRITE_STRING(text);
-		MESSAGE_END();
+		MessageSender(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent)
+			.WriteShort(menu->validSlots)
+			.WriteChar(-1)
+			.WriteByte(0)
+			.WriteString(text);
 
 		g_clients[clientIndex].menu = menu;
 	}
 	else
 	{
-		MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent);
-		WRITE_SHORT(0);
-		WRITE_CHAR(0);
-		WRITE_BYTE(0);
-		WRITE_STRING("");
-		MESSAGE_END();
+		MessageSender(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent)
+			.WriteShort(0)
+			.WriteChar(0)
+			.WriteByte(0)
+			.WriteString("");
 
 		g_clients[clientIndex].menu = nullptr;
 	}
@@ -341,29 +340,36 @@ void DecalTrace(entvars_t* pev, TraceResult* trace, int logotypeIndex)
 
 	if (logotypes[logotypeIndex].Contains("{"))
 	{
-		MESSAGE_BEGIN(MSG_BROADCAST, SVC_TEMPENTITY);
-		WRITE_BYTE(TE_PLAYERDECAL);
-		WRITE_BYTE(ENTINDEX(ENT(pev)));
-		WRITE_COORD(trace->vecEndPos.x);
-		WRITE_COORD(trace->vecEndPos.y);
-		WRITE_COORD(trace->vecEndPos.z);
-		WRITE_SHORT(static_cast <short> (ENTINDEX(trace->pHit)));
-		WRITE_BYTE(decalIndex);
-		MESSAGE_END();
+		MessageSender(MSG_BROADCAST, SVC_TEMPENTITY)
+			.WriteByte(TE_PLAYERDECAL)
+			.WriteByte(ENTINDEX(ENT(pev)))
+			.WriteCoord(trace->vecEndPos.x)
+			.WriteCoord(trace->vecEndPos.y)
+			.WriteCoord(trace->vecEndPos.z)
+			.WriteShort(static_cast <short> (ENTINDEX(trace->pHit)))
+			.WriteByte(decalIndex);
 	}
 	else
 	{
-		MESSAGE_BEGIN(MSG_BROADCAST, SVC_TEMPENTITY);
-		WRITE_BYTE(message);
-		WRITE_COORD(trace->vecEndPos.x);
-		WRITE_COORD(trace->vecEndPos.y);
-		WRITE_COORD(trace->vecEndPos.z);
-		WRITE_BYTE(decalIndex);
-
 		if (entityIndex)
-			WRITE_SHORT(entityIndex);
-
-		MESSAGE_END();
+		{
+			MessageSender(MSG_BROADCAST, SVC_TEMPENTITY)
+				.WriteByte(message)
+				.WriteCoord(trace->vecEndPos.x)
+				.WriteCoord(trace->vecEndPos.y)
+				.WriteCoord(trace->vecEndPos.z)
+				.WriteByte(decalIndex)
+				.WriteShort(entityIndex);
+		}
+		else
+		{
+			MessageSender(MSG_BROADCAST, SVC_TEMPENTITY)
+				.WriteByte(message)
+				.WriteCoord(trace->vecEndPos.x)
+				.WriteCoord(trace->vecEndPos.y)
+				.WriteCoord(trace->vecEndPos.z)
+				.WriteByte(decalIndex);
+		}
 	}
 }
 
@@ -1205,7 +1211,7 @@ int GetEntityWaypoint(edict_t* ent)
 		return g_waypoint->FindNearest(GetEntityOrigin(ent), 999999.0f, -1, ent);
 	}
 
-	int client = ENTINDEX(ent) - 1;
+	const int client = ENTINDEX(ent) - 1;
 	if (g_clients[client].getWPTime < engine->GetTime() + 1.5f || (g_clients[client].wpIndex == -1 && g_clients[client].wpIndex2 == -1))
 		SetEntityWaypoint(ent);
 
@@ -1325,26 +1331,25 @@ void HudMessage(edict_t* ent, bool toCenter, const Color& rgb, char* format, ...
 	vsprintf(buffer, format, ap);
 	va_end(ap);
 
-	MESSAGE_BEGIN(MSG_ONE, SVC_TEMPENTITY, nullptr, ent);
-	WRITE_BYTE(TE_TEXTMESSAGE);
-	WRITE_BYTE(1);
-	WRITE_SHORT(FixedSigned16(-1, 1 << 13));
-	WRITE_SHORT(FixedSigned16(toCenter ? -1.0f : 0.0f, 1 << 13));
-	WRITE_BYTE(2);
-	WRITE_BYTE(static_cast <int> (rgb.red));
-	WRITE_BYTE(static_cast <int> (rgb.green));
-	WRITE_BYTE(static_cast <int> (rgb.blue));
-	WRITE_BYTE(0);
-	WRITE_BYTE(CRandomInt(230, 255));
-	WRITE_BYTE(CRandomInt(230, 255));
-	WRITE_BYTE(CRandomInt(230, 255));
-	WRITE_BYTE(200);
-	WRITE_SHORT(FixedUnsigned16(0.0078125, 1 << 8));
-	WRITE_SHORT(FixedUnsigned16(2, 1 << 8));
-	WRITE_SHORT(FixedUnsigned16(6, 1 << 8));
-	WRITE_SHORT(FixedUnsigned16(0.1f, 1 << 8));
-	WRITE_STRING(const_cast <const char*> (&buffer[0]));
-	MESSAGE_END();
+	MessageSender(MSG_ONE, SVC_TEMPENTITY, nullptr, ent)
+		.WriteByte(TE_TEXTMESSAGE)
+		.WriteByte(1)
+		.WriteShort(FixedSigned16(-1, 1 << 13))
+		.WriteShort(FixedSigned16(toCenter ? -1.0f : 0.0f, 1 << 13))
+		.WriteByte(2)
+		.WriteByte(static_cast <int> (rgb.red))
+		.WriteByte(static_cast <int> (rgb.green))
+		.WriteByte(static_cast <int> (rgb.blue))
+		.WriteByte(0)
+		.WriteByte(CRandomInt(230, 255))
+		.WriteByte(CRandomInt(230, 255))
+		.WriteByte(CRandomInt(230, 255))
+		.WriteByte(200)
+		.WriteShort(FixedUnsigned16(0.0078125, 1 << 8))
+		.WriteShort(FixedUnsigned16(2, 1 << 8))
+		.WriteShort(FixedUnsigned16(6, 1 << 8))
+		.WriteShort(FixedUnsigned16(0.1f, 1 << 8))
+		.WriteString(const_cast <const char*> (&buffer[0]));
 }
 
 void ServerPrint(const char* format, ...)
@@ -1386,10 +1391,9 @@ void CenterPrint(const char* format, ...)
 		return;
 	}
 
-	MESSAGE_BEGIN(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG));
-	WRITE_BYTE(HUD_PRINTCENTER);
-	WRITE_STRING(FormatBuffer("%s\n", string));
-	MESSAGE_END();
+	MessageSender(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG))
+		.WriteByte(HUD_PRINTCENTER)
+		.WriteString(FormatBuffer("%s\n", string));
 }
 
 void ChartPrint(const char* format, ...)
@@ -1409,10 +1413,9 @@ void ChartPrint(const char* format, ...)
 
 	cstrcat(string, "\n");
 
-	MESSAGE_BEGIN(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG));
-	WRITE_BYTE(HUD_PRINTTALK);
-	WRITE_STRING(string);
-	MESSAGE_END();
+	MessageSender(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG))
+		.WriteByte(HUD_PRINTTALK)
+		.WriteString(string);
 }
 
 void ClientPrint(edict_t* ent, int dest, const char* format, ...)

@@ -2870,25 +2870,24 @@ void Waypoint::ShowWaypointMsg(void)
         }
 
         // draw entire message
-        MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, g_hostEntity);
-        WRITE_BYTE(TE_TEXTMESSAGE);
-        WRITE_BYTE(4); // channel
-        WRITE_SHORT(FixedSigned16(0, 1 << 13)); // x
-        WRITE_SHORT(FixedSigned16(0, 1 << 13)); // y
-        WRITE_BYTE(0); // effect
-        WRITE_BYTE(255); // r1
-        WRITE_BYTE(255); // g1
-        WRITE_BYTE(255); // b1
-        WRITE_BYTE(1); // a1
-        WRITE_BYTE(255); // r2
-        WRITE_BYTE(255); // g2
-        WRITE_BYTE(255); // b2
-        WRITE_BYTE(255); // a2
-        WRITE_SHORT(0); // fadeintime
-        WRITE_SHORT(0); // fadeouttime
-        WRITE_SHORT(FixedUnsigned16(1.1f, 1 << 8)); // holdtime
-        WRITE_STRING(tempMessage);
-        MESSAGE_END();
+        MessageSender(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, g_hostEntity)
+            .WriteByte(TE_TEXTMESSAGE)
+            .WriteByte(4) // channel
+            .WriteShort(FixedSigned16(0, 1 << 13)) // x
+            .WriteShort(FixedSigned16(0, 1 << 13)) // y
+            .WriteByte(0) // effect
+            .WriteByte(255) // r1
+            .WriteByte(255) // g1
+            .WriteByte(255) // b1
+            .WriteByte(1) // a1
+            .WriteByte(255) // r2
+            .WriteByte(255) // g2
+            .WriteByte(255) // b2
+            .WriteByte(255) // a2
+            .WriteShort(0) // fadeintime
+            .WriteShort(0) // fadeouttime
+            .WriteShort(FixedUnsigned16(1.1f, 1 << 8)) // holdtime
+            .WriteString(tempMessage);
     }
     else if (m_pathDisplayTime + 2.0f > engine->GetTime()) // what???
         m_pathDisplayTime = 0.0f;
