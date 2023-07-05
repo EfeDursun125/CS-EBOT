@@ -1632,6 +1632,7 @@ extern enginefuncs_t g_engfuncs;
 #define RANDOM_LONG       (*g_engfuncs.pfnRandomLong)
 #define RANDOM_FLOAT      (*g_engfuncs.pfnRandomFloat)
 #define GETPLAYERAUTHID   (*g_engfuncs.pfnGetPlayerAuthId)
+
 inline void MESSAGE_BEGIN(int msg_dest, int msg_type, const float* pOrigin = nullptr, edict_t* ed = nullptr)
 {
     (*g_engfuncs.pfnMessageBegin) (msg_dest, msg_type, pOrigin, ed);
@@ -1646,6 +1647,125 @@ inline void MESSAGE_BEGIN(int msg_dest, int msg_type, const float* pOrigin = nul
 #define WRITE_COORD      (*g_engfuncs.pfnWriteCoord)
 #define WRITE_STRING   (*g_engfuncs.pfnWriteString)
 #define WRITE_ENTITY   (*g_engfuncs.pfnWriteEntity)
+
+class MessageSender
+{
+public:
+    MessageSender() : msg_dest_(0), msg_type_(0), pOrigin_(nullptr), ed_(nullptr), isMessageStarted(false), isMessageEnded(false) {}
+
+    MessageSender(int msg_dest, int msg_type, const float* pOrigin = nullptr, edict_t* ed = nullptr, const bool autoCall = true) : msg_dest_(msg_dest), msg_type_(msg_type), pOrigin_(pOrigin), ed_(ed), isMessageStarted(false), isMessageEnded(false)
+    {
+        if (autoCall)
+            BeginMessage();
+    }
+
+    MessageSender& WriteByte(const int value)
+    {
+        if (MessageAvailable())
+            (*g_engfuncs.pfnWriteByte)(value);
+
+        return *this;
+    }
+
+    MessageSender& WriteChar(const int value)
+    {
+        if (MessageAvailable())
+            (*g_engfuncs.pfnWriteChar)(value);
+
+        return *this;
+    }
+
+    MessageSender& WriteShort(const int value)
+    {
+        if (MessageAvailable())
+            (*g_engfuncs.pfnWriteShort)(value);
+
+        return *this;
+    }
+
+    MessageSender& WriteLong(const int value)
+    {
+        if (MessageAvailable())
+            (*g_engfuncs.pfnWriteLong)(value);
+
+        return *this;
+    }
+
+    MessageSender& WriteAngle(const float value)
+    {
+        if (MessageAvailable())
+            (*g_engfuncs.pfnWriteAngle)(value);
+
+        return *this;
+    }
+
+    MessageSender& WriteCoord(const float value)
+    {
+        if (MessageAvailable())
+            (*g_engfuncs.pfnWriteCoord)(value);
+
+        return *this;
+    }
+
+    MessageSender& WriteString(const char* value)
+    {
+        if (MessageAvailable())
+            (*g_engfuncs.pfnWriteString)(value);
+
+        return *this;
+    }
+
+    MessageSender& WriteEntity(const int value)
+    {
+        if (MessageAvailable())
+            (*g_engfuncs.pfnWriteEntity)(value);
+
+        return *this;
+    }
+
+    void BeginMessage()
+    {
+        if (!isMessageStarted)
+        {
+            (*g_engfuncs.pfnMessageBegin)(msg_dest_, msg_type_, pOrigin_, ed_);
+            isMessageStarted = true;
+            isMessageEnded = false;
+        }
+    }
+
+    void EndMessage()
+    {
+        if (isMessageStarted && !isMessageEnded)
+        {
+            (*g_engfuncs.pfnMessageEnd)();
+            isMessageEnded = true;
+            isMessageStarted = false;
+        }
+    }
+
+    ~MessageSender()
+    {
+        if (isMessageStarted && !isMessageEnded)
+            EndMessage();
+    }
+
+private:
+    int msg_dest_;
+    int msg_type_;
+    const float* pOrigin_;
+    edict_t* ed_;
+    bool isMessageStarted;
+    bool isMessageEnded;
+
+    bool MessageAvailable()
+    {
+        if (isMessageStarted && !isMessageEnded)
+            return true;
+
+        return false;
+    }
+};
+
 #define CVAR_REGISTER  (*g_engfuncs.pfnCVarRegister)
 #define CVAR_GET_FLOAT (*g_engfuncs.pfnCVarGetFloat)
 #define CVAR_GET_STRING (*g_engfuncs.pfnCVarGetString)
@@ -2289,18 +2409,22 @@ inline edict_t* ENT(EOFFSET eoffset)
 {
     return (*g_engfuncs.pfnPEntityOfEntOffset) (eoffset);
 }
+
 inline EOFFSET OFFSET(EOFFSET eoffset)
 {
     return eoffset;
 }
+
 inline EOFFSET OFFSET(const edict_t* pent)
 {
     return (*g_engfuncs.pfnEntOffsetOfPEntity) (pent);
 }
+
 inline EOFFSET OFFSET(entvars_t* pev)
 {
     return OFFSET(ENT(pev));
 }
+
 inline entvars_t* VARS(entvars_t* pev)
 {
     return pev;
@@ -2318,14 +2442,17 @@ inline entvars_t* VARS(EOFFSET eoffset)
 {
     return VARS(ENT(eoffset));
 }
+
 inline int ENTINDEX(edict_t* pentEdict)
 {
     return (*g_engfuncs.pfnIndexOfEdict) (pentEdict);
 }
+
 inline edict_t* INDEXENT(int iEdictNum)
 {
     return (*g_engfuncs.pfnPEntityOfEntIndex) (iEdictNum);
 }
+
 inline void MESSAGE_BEGIN(int msg_dest, int msg_type, const float* pOrigin, entvars_t* ent)
 {
     (*g_engfuncs.pfnMessageBegin) (msg_dest, msg_type, pOrigin, ENT(ent));
@@ -3193,15 +3320,13 @@ public:
 
     int GetMaxClients(void);
 
-    void PrintAllClients(PrintType printType, const char* format, ...);
-
     const Entity& GetEntityByIndex(int index);
 
     const Client& GetClientByIndex(int index);
 
     void MaintainClients(void);
 
-    void DrawLine(const Client& client, const Vector& start, const Vector& end, const Color& color, int width, int noise, int speed, int life, int lineType = LINE_SIMPLE);
+    void DrawLine(edict_t* client, const Vector& start, const Vector& end, const Color& color, int width, int noise, int speed, int life, int lineType = LINE_SIMPLE);
 
     // find registered message id
     FORCEINLINE int FindMessageId(int type)

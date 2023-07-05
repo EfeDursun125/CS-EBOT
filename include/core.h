@@ -907,7 +907,8 @@ private:
 	bool RateGroundWeapon(edict_t* ent);
 	void ResetCollideState(void);
 	void SetConditions(void);
-	void SetStrafeSpeed(Vector moveDir, float strafeSpeed);
+	void SetStrafeSpeed(const Vector moveDir, const float strafeSpeed);
+	void SetStrafeSpeedNoCost(const Vector moveDir, const float strafeSpeed);
 	void StartGame(void);
 	void TaskComplete(void);
 	bool GetBestNextWaypoint(void);
