@@ -25,7 +25,7 @@ void Bot::PauseUpdate(void)
 	}
 	else
 	{
-		const Vector directionOld = m_destOrigin - pev->origin;
+		const Vector directionOld = m_destOrigin - (pev->origin + pev->velocity * m_frameInterval);
 		m_moveAngles = directionOld.ToAngles();
 		m_moveAngles.ClampAngles();
 		m_moveSpeed = pev->maxspeed;

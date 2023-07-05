@@ -22,6 +22,7 @@ void Bot::DefaultUpdate(void)
 		{
 			if (m_hasEnemiesNear && IsEnemyReachable())
 			{
+				ResetStuck();
 				m_currentWaypointIndex = -1;
 				DeleteSearchNodes();
 				MoveTo(m_enemyOrigin);
@@ -87,6 +88,7 @@ void Bot::DefaultUpdate(void)
 		{
 			if (m_hasEnemiesNear && IsEnemyReachable())
 			{
+				ResetStuck();
 				m_currentWaypointIndex = -1;
 				DeleteSearchNodes();
 				MoveOut(m_enemyOrigin);
