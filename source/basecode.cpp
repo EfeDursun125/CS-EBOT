@@ -2544,17 +2544,17 @@ bool Bot::IsEnemyReachable(void)
 				m_isEnemyReachable = true;
 				goto last;
 			}
-			else
+			else if (currentWaypoint->flags & WAYPOINT_FALLRISK || currentWaypoint->flags & WAYPOINT_ZOMBIEPUSH)
+			{
 				m_isEnemyReachable = false;
-
-			if (currentWaypoint->flags & WAYPOINT_FALLRISK)
 				goto last;
+			}
 
 			const float enemyDistance = (pev->origin - m_enemyOrigin).GetLengthSquared();
 
 			if (pev->flags & FL_DUCKING)
 			{
-				if (enemyDistance <= SquaredF(32.0f) || !HasNextPath())
+				if (enemyDistance < SquaredF(54.0f))
 					m_isEnemyReachable = true;
 
 				pev->speed = pev->maxspeed;
@@ -2569,7 +2569,7 @@ bool Bot::IsEnemyReachable(void)
 				TraceResult tr;
 				TraceHull(pev->origin, m_enemyOrigin, true, head_hull, GetEntity(), &tr);
 
-				if (tr.flFraction == 1.0f || (!FNullEnt(tr.pHit) && tr.pHit == m_nearestEnemy))
+				if (tr.flFraction == 1.0f || (enemyDistance < SquaredF(125.0f) && tr.pHit == m_nearestEnemy))
 				{
 					m_isEnemyReachable = true;
 					goto last;
@@ -2578,15 +2578,15 @@ bool Bot::IsEnemyReachable(void)
 			else
 			{
 				float radius = pev->maxspeed;
-				if (!(currentWaypoint->flags & WAYPOINT_FALLCHECK) && !(currentWaypoint->flags & WAYPOINT_FALLRISK))
+				if (!(currentWaypoint->flags & WAYPOINT_FALLCHECK))
 					radius += currentWaypoint->radius * 4.0f;
 
-				if (enemyDistance <= SquaredF(radius))
+				if (enemyDistance < SquaredF(radius))
 				{
 					TraceResult tr;
 					TraceHull(pev->origin, m_enemyOrigin, true, head_hull, GetEntity(), &tr);
 
-					if (tr.flFraction == 1.0f || (!FNullEnt(tr.pHit) && tr.pHit == m_nearestEnemy))
+					if (tr.flFraction == 1.0f)
 					{
 						m_isEnemyReachable = true;
 						goto last;
@@ -2601,6 +2601,11 @@ bool Bot::IsEnemyReachable(void)
 				m_isEnemyReachable = true;
 				goto last;
 			}
+			else if (currentWaypoint->flags & WAYPOINT_FALLRISK)
+			{
+				m_isEnemyReachable = false;
+				goto last;
+			}
 
 			const Vector enemyVel = m_nearestEnemy->v.velocity;
 			const float enemySpeed = cabsf(m_nearestEnemy->v.speed);
@@ -2612,7 +2617,7 @@ bool Bot::IsEnemyReachable(void)
 
 			extern ConVar ebot_zp_escape_distance;
 			const float escapeDist = SquaredF(enemySpeed + ebot_zp_escape_distance.GetFloat());
-
+			
 			if (pev->flags & FL_DUCKING) // danger...
 			{
 				if (enemyDistance < escapeDist)
@@ -2621,15 +2626,13 @@ bool Bot::IsEnemyReachable(void)
 					goto last;
 				}
 			}
-			else if (currentWaypoint->flags & WAYPOINT_FALLRISK)
-				goto last;
-			else if (GetCurrentTask()->taskID == TASK_CAMP)
+			else if (GetProcess() == Process::Camp)
 			{
 				if (enemyIndex == m_zhCampPointIndex)
 					m_isEnemyReachable = true;
 				else
 				{
-					if (enemyDistance <= escapeDist)
+					if (enemyDistance < escapeDist)
 					{
 						for (int j = 0; j < Const_MaxPathIndex; j++)
 						{
@@ -2660,10 +2663,16 @@ bool Bot::IsEnemyReachable(void)
 
 				goto last;
 			}
-			else if (enemyDistance <= escapeDist)
+			else if (enemyDistance < escapeDist)
 			{
-				m_isEnemyReachable = true;
-				goto last;
+				TraceResult tr;
+				TraceHull(pev->origin, m_enemyOrigin, true, head_hull, GetEntity(), &tr);
+
+				if (tr.flFraction == 1.0f)
+				{
+					m_isEnemyReachable = true;
+					goto last;
+				}
 			}
 		}
 
@@ -3763,16 +3772,10 @@ void Bot::CheckSlowThink(void)
 	if (m_isZombieBot)
 	{
 		m_isBomber = false;
-		if (m_damageTime + 10.0f > engine->GetTime() && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_ZOMBIEPUSH)
-			m_zombiePush = true;
-		else
-			m_zombiePush = false;
-
 		SelectKnife();
 	}
 	else
 	{
-		m_zombiePush = false;
 		if (pev->weapons & (1 << WEAPON_C4))
 			m_isBomber = true;
 		else

@@ -2774,23 +2774,24 @@ void SetPing(edict_t* to)
 	if (!(to->v.flags & FL_CLIENT))
 		return;
 
-	// update timer if someone lookin' at scoreboard
-	if (to->v.button & IN_SCORE || to->v.oldbuttons & IN_SCORE)
-		g_fakePingUpdate = engine->GetTime() + 2.0f;
-
 	if (g_fakePingUpdate < engine->GetTime())
-		return;
+	{
+		// update timer if someone lookin' at scoreboard
+		if (to->v.button & IN_SCORE || to->v.oldbuttons & IN_SCORE)
+			g_fakePingUpdate = engine->GetTime() + 2.0f;
+		else
+			return;
+	}
 
 	static int sending;
-
-	MessageSender message(MSG_ONE_UNRELIABLE, 17, nullptr, to, false);
+	static MessageSender message(MSG_ONE_UNRELIABLE, 17, nullptr, to, false);
 
 	for (const auto& bot : g_botManager->m_bots)
 	{
 		if (bot == nullptr)
 			continue;
 
-		const int index = bot->m_index;
+		const int index = bot->m_index - 1;
 
 		switch (sending)
 		{
@@ -2829,11 +2830,7 @@ void UpdateClientData(const struct edict_s* ent, int sendweapons, struct clientd
 {
 	extern ConVar ebot_ping;
 	if (ebot_ping.GetBool())
-#ifdef WORK_ASYNC
-		async(launch::async, SetPing, const_cast <edict_t*> (ent));
-#else
 		SetPing(const_cast <edict_t*> (ent));
-#endif
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);

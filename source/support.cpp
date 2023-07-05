@@ -178,7 +178,6 @@ Vector GetBoxOrigin(edict_t* ent)
 	return ent->v.absmin + (ent->v.size * 0.5);
 }
 
-// Get Entity Top/Bottom Origin
 Vector GetTopOrigin(edict_t* ent)
 {
 	if (FNullEnt(ent))
@@ -209,7 +208,6 @@ Vector GetBottomOrigin(edict_t* ent)
 	return bottomOrigin;
 }
 
-// Get Player Head Origin 
 Vector GetPlayerHeadOrigin(edict_t* ent)
 {
 	if (FNullEnt(ent))

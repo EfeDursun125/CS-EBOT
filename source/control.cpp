@@ -1017,7 +1017,6 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	cmemset(&m_ammo, 0, sizeof(m_ammo));
 
 	m_currentWeapon = 0; // current weapon is not assigned at start
-	m_voicePitch = CRandomInt(80, 120); // assign voice pitch
 
 	m_agressionLevel = m_baseAgressionLevel;
 	m_fearLevel = m_baseFearLevel;
@@ -1087,6 +1086,7 @@ void Bot::NewRound(void)
 	m_walkTime = 0.0f;
 
 	ResetStuck();
+	m_stuckArea = pev->origin;
 	m_stuckTimer = engine->GetTime() + engine->GetFreezeTime() + 1.0f;
 
 	int i = 0;

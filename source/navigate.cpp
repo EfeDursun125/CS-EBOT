@@ -1994,10 +1994,10 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 	for (int i = 0; i < g_numWaypoints; i++)
 	{
 		if (waypoints[i].state == State::Closed)
+	if (!PossiblePath.IsEmpty())
 			PossiblePath.Push(i);
 	}
 
-	if (!PossiblePath.IsEmpty())
 	{
 		const int index = PossiblePath.GetRandomElement();
 		FindShortestPath(srcIndex, index);
@@ -2467,8 +2467,11 @@ void Bot::CheckStuck(const float maxSpeed)
 			m_moveSpeed = maxSpeed;
 	}
 
+	if (m_isSlowThink)
+		return;
+
 	const float distance = ((pev->origin + pev->velocity * m_frameInterval) - m_stuckArea).GetLengthSquared2D();
-	float range = ((maxSpeed * 2.2f) + (m_stuckWarn + m_stuckWarn));
+	const float range = ((maxSpeed * 2.0f) + (m_stuckWarn + m_stuckWarn));
 	if (distance < range)
 	{
 		m_stuckWarn++;
@@ -2489,7 +2492,7 @@ void Bot::CheckStuck(const float maxSpeed)
 	else
 	{
 		// are we teleported? O_O
-		if (distance > SquaredF(range))
+		if (distance > SquaredF(range) && !IsVisible(m_destOrigin, GetEntity()))
 		{
 			DeleteSearchNodes();
 			m_currentWaypointIndex = -1;
