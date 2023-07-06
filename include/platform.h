@@ -123,8 +123,8 @@ public:
         return m_ptr != nullptr;
     }
 };
+
 #else
-#include <curl/curl.h>
 
 class Library
 {
