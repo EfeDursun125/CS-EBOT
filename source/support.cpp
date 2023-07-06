@@ -1126,10 +1126,11 @@ int SetEntityWaypoint(edict_t* ent, int mode)
 				needCheckNewWaypoint = true;
 			else if (distance >= SquaredF(32.0f))
 			{
-				Vector wpOrigin = g_waypoint->GetPath(wpIndex)->origin;
+				const Path* pointer = g_waypoint->GetPath(wpIndex);
+				const Vector wpOrigin = pointer->origin;
 				distance = (wpOrigin - origin).GetLengthSquared();
 
-				if (distance > SquaredF(g_waypoint->GetPath(wpIndex)->radius + 32.0f))
+				if (distance > static_cast <float> (Squared(pointer->radius + 32)))
 					needCheckNewWaypoint = true;
 				else
 				{

@@ -207,6 +207,7 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 	// set values
 	m_bots[index]->m_index = m_bots[index]->GetIndex();
 	m_bots[index]->m_senseChance = CRandomInt(10, 90);
+	m_bots[index]->SwitchChatterIcon(false);
 
 	return index;
 }

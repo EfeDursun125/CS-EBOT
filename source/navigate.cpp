@@ -321,30 +321,25 @@ void Bot::DoWaypointNav(void)
 			// who cares about double jump for bots? :)
 			pev->button |= (IN_DUCK | IN_JUMP);
 
-			if (m_desiredVelocity == nullvec)
+			if (ebot_use_old_jump_method.GetBool())
 			{
-				if (ebot_use_old_jump_method.GetBool())
-				{
-					pev->velocity.x = (m_waypointOrigin.x - (pev->origin.x + pev->velocity.x * (m_frameInterval * 2.0f))) * (2.0f + cabsf((pev->maxspeed * 0.004) - pev->gravity));
-					pev->velocity.y = (m_waypointOrigin.y - (pev->origin.y + pev->velocity.y * (m_frameInterval * 2.0f))) * (2.0f + cabsf((pev->maxspeed * 0.004) - pev->gravity));
+				pev->velocity.x = (m_waypointOrigin.x - (pev->origin.x + pev->velocity.x * (m_frameInterval * 2.0f))) * (2.0f + cabsf((pev->maxspeed * 0.004) - pev->gravity));
+				pev->velocity.y = (m_waypointOrigin.y - (pev->origin.y + pev->velocity.y * (m_frameInterval * 2.0f))) * (2.0f + cabsf((pev->maxspeed * 0.004) - pev->gravity));
 
-					// poor bots can't jump :(
-					if (pev->gravity >= 0.88f)
-						pev->velocity.z *= (cabsf(pev->gravity - 0.88f) + pev->gravity + m_frameInterval);
-				}
-				else
-				{
-					const Vector myOrigin = GetBottomOrigin(GetEntity());
-					const Vector waypointOrigin = g_waypoint->GetBottomOrigin(currentWaypoint);
-
-					const float timeToReachWaypoint = csqrtf(powf(waypointOrigin.x - myOrigin.x, 2.0f) + powf(waypointOrigin.y - myOrigin.y, 2.0f)) / pev->maxspeed;
-					pev->velocity.x = (waypointOrigin.x - myOrigin.x) / timeToReachWaypoint;
-					pev->velocity.y = (waypointOrigin.y - myOrigin.y) / timeToReachWaypoint;
-					//pev->velocity.z = cclampf(2.0f * (waypointOrigin.z - myOrigin.z - 0.5f * pev->gravity * powf(timeToReachWaypoint, 2.0f)) / timeToReachWaypoint, -pev->maxspeed, pev->maxspeed);
-				}
+				// poor bots can't jump :(
+				if (pev->gravity >= 0.88f)
+					pev->velocity.z *= (cabsf(pev->gravity - 0.88f) + pev->gravity + m_frameInterval);
 			}
 			else
-				pev->velocity = m_desiredVelocity;
+			{
+				const Vector myOrigin = GetBottomOrigin(GetEntity());
+				const Vector waypointOrigin = g_waypoint->GetBottomOrigin(currentWaypoint);
+
+				const float timeToReachWaypoint = csqrtf(powf(waypointOrigin.x - myOrigin.x, 2.0f) + powf(waypointOrigin.y - myOrigin.y, 2.0f)) / pev->maxspeed;
+				pev->velocity.x = (waypointOrigin.x - myOrigin.x) / timeToReachWaypoint;
+				pev->velocity.y = (waypointOrigin.y - myOrigin.y) / timeToReachWaypoint;
+				//pev->velocity.z = cclampf(2.0f * (waypointOrigin.z - myOrigin.z - 0.5f * pev->gravity * powf(timeToReachWaypoint, 2.0f)) / timeToReachWaypoint, -pev->maxspeed, pev->maxspeed);
+			}
 			
 			SetProcess(Process::Pause, "pausing after jump", false, engine->RandomFloat(0.75f, 1.25f));
 			m_jumpFinished = true;
@@ -562,8 +557,8 @@ void Bot::DoWaypointNav(void)
 				desiredDistance = SquaredF(24.0f);
 			else if (IsWaypointOccupied(m_currentWaypointIndex))
 				desiredDistance = SquaredF(96.0f);
-			else if (currentWaypoint->radius > 8.0f)
-				desiredDistance = SquaredF(currentWaypoint->radius);
+			else if (currentWaypoint->radius > 8)
+				desiredDistance = static_cast <float> (Squared(currentWaypoint->radius));
 
 			// check if waypoint has a special travelflag, so they need to be reached more precisely
 			for (int i = 0; i < Const_MaxPathIndex; i++)
@@ -580,7 +575,6 @@ void Bot::DoWaypointNav(void)
 	if (distance <= desiredDistance)
 	{
 		m_currentTravelFlags = 0;
-		m_desiredVelocity = nullvec;
 
 		if (m_navNode != nullptr)
 			m_navNode = m_navNode->next;
@@ -598,7 +592,6 @@ void Bot::DoWaypointNav(void)
 				{
 					m_jumpFinished = false;
 					m_currentTravelFlags = currentWaypoint->connectionFlags[i];
-					m_desiredVelocity = currentWaypoint->connectionVelocity[i];
 
 					if (m_currentTravelFlags & PATHFLAG_JUMP)
 					{
@@ -1114,7 +1107,7 @@ inline const float GF_CostHuman(const int index, const int parent, const int tea
 				continue;
 
 			const float distance = (client.origin - path->origin).GetLengthSquared();
-			if (distance <= SquaredF(path->radius + 64.0f))
+			if (distance <= SquaredI(path->radius + 64))
 				return FLT_MAX;
 		}
 	}
@@ -1128,7 +1121,7 @@ inline const float GF_CostHuman(const int index, const int parent, const int tea
 			continue;
 
 		const float distance = ((client.ent->v.origin + client.ent->v.velocity * g_pGlobals->frametime) - waypointOrigin).GetLengthSquared();
-		if (distance <= SquaredF(path->radius + 128.0f))
+		if (distance <= SquaredI(path->radius + 128))
 			count++;
 
 		totalDistance += distance;
@@ -1176,7 +1169,7 @@ inline const float GF_CostCareful(const int index, const int parent, const int t
 				continue;
 
 			const float distance = (client.origin - path->origin).GetLengthSquared();
-			if (distance <= SquaredF(path->radius + 64.0f))
+			if (distance <= SquaredI(path->radius + 64))
 				return FLT_MAX;
 		}
 	}
@@ -1194,7 +1187,7 @@ inline const float GF_CostCareful(const int index, const int parent, const int t
 				if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != team)
 					continue;
 
-				if ((client.origin - path->origin).GetLengthSquared() <= SquaredF(512.0f + path->radius))
+				if ((client.origin - path->origin).GetLengthSquared() <= SquaredI(512 + path->radius))
 					count++;
 				else if (IsVisible(path->origin, client.ent))
 					count++;
@@ -1244,7 +1237,7 @@ inline const float GF_CostNormal(const int index, const int parent, const int te
 				continue;
 
 			const float distance = (client.origin - path->origin).GetLengthSquared();
-			if (distance <= SquaredF(path->radius + 64.0f))
+			if (distance <= SquaredI(path->radius + 64))
 				return FLT_MAX;
 		}
 	}
@@ -1262,7 +1255,7 @@ inline const float GF_CostNormal(const int index, const int parent, const int te
 				if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != team)
 					continue;
 
-				if ((client.origin - path->origin).GetLengthSquared() <= SquaredF(512.0f + path->radius))
+				if ((client.origin - path->origin).GetLengthSquared() <= SquaredI(512 + path->radius))
 					count++;
 				else if (IsVisible(path->origin, client.ent))
 					count++;
@@ -1315,7 +1308,7 @@ inline const float GF_CostRusher(const int index, const int parent, const int te
 				continue;
 
 			const float distance = (client.origin - path->origin).GetLengthSquared();
-			if (distance <= SquaredF(path->radius + 64.0f))
+			if (distance <= SquaredI(path->radius + 64))
 				return FLT_MAX;
 		}
 	}
@@ -1823,7 +1816,7 @@ void Bot::FindPath(int srcIndex, int destIndex)
 			}
 			else if (flags & WAYPOINT_SPECIFICGRAVITY)
 			{
-				if (pev->gravity * (1600.0f - 800.0f) < g_waypoint->GetPath(self)->campStartY)
+				if (pev->gravity * (1600.0f - 800.0f) < g_waypoint->GetPath(self)->gravity)
 					continue;
 			}
 
@@ -1968,7 +1961,7 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 			}
 			else if (flags & WAYPOINT_SPECIFICGRAVITY)
 			{
-				if (pev->gravity * (1600.0f - 800.0f) < g_waypoint->GetPath(self)->campStartY)
+				if (pev->gravity * (1600.0f - 800.0f) < g_waypoint->GetPath(self)->gravity)
 					continue;
 			}
 
@@ -2517,11 +2510,11 @@ void Bot::CheckStuck(const float maxSpeed)
 
 void Bot::SetWaypointOrigin(void)
 {
-	const int myIndex = m_currentWaypointIndex;
-	const int32 myFlags = g_waypoint->GetPath(myIndex)->flags;
-	m_waypointOrigin = g_waypoint->GetPath(myIndex)->origin;
+	const Path* pointer = g_waypoint->GetPath(m_currentWaypointIndex);
+	const int32 myFlags = pointer->flags;
+	m_waypointOrigin = pointer->origin;
 
-	const float radius = g_waypoint->GetPath(myIndex)->radius;
+	const float radius = static_cast <float> (pointer->radius);
 	if (radius > 0)
 	{
 		MakeVectors(Vector(pev->angles.x, AngleNormalize(pev->angles.y + engine->RandomFloat(-90.0f, 90.0f)), 0.0f));
@@ -3606,7 +3599,7 @@ bool Bot::IsWaypointOccupied(int index, bool needZeroVelocity)
 
 		const auto path = g_waypoint->GetPath(index);
 		const float length = (client.origin - path->origin).GetLengthSquared();
-		if (length < cclampf(SquaredF(path->radius) * 2.0f, SquaredF(40.0f), SquaredF(90.0f)))
+		if (length < cclampf(static_cast <float> (Squared(path->radius) * 2), SquaredF(40.0f), SquaredF(90.0f)))
 			return true;
 
 		auto bot = g_botManager->GetBot(client.index);

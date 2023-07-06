@@ -910,8 +910,8 @@ WeaponSelectEnd:
 		{
 			pev->button |= IN_ATTACK;  // use primary attack
 			const float baseDelay = delay[chosenWeaponIndex].primaryBaseDelay;
-			const float minDelay = delay[chosenWeaponIndex].primaryMinDelay[abs((m_skill / CRandomInt(15, 20)) - 5)];
-			const float maxDelay = delay[chosenWeaponIndex].primaryMaxDelay[abs((m_skill / CRandomInt(20, 30)) - 5)];
+			const float minDelay = delay[chosenWeaponIndex].primaryMinDelay[cabs((m_skill / CRandomInt(15, 20)) - 5)];
+			const float maxDelay = delay[chosenWeaponIndex].primaryMaxDelay[cabs((m_skill / CRandomInt(20, 30)) - 5)];
 			delayTime = baseDelay + engine->RandomFloat(minDelay, maxDelay);
 			m_zoomCheckTime = engine->GetTime();
 		}

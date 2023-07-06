@@ -376,10 +376,6 @@ void Bot::ZmCampPointAction(int mode)
 		m_timeCamping = AddTime(9999.0f);
 		PushTask(TASK_CAMP, TASKPRI_CAMP, -1, m_timeCamping, true);
 
-		m_camp.x = g_waypoint->GetPath(m_zhCampPointIndex)->campStartX;
-		m_camp.y = g_waypoint->GetPath(m_zhCampPointIndex)->campStartY;
-		m_camp.z = 0;
-
 		m_aimFlags |= AIM_CAMP;
 		m_campDirection = 0;
 
@@ -1049,8 +1045,27 @@ void Bot::GetCampDirection(Vector* dest)
 	}
 }
 
+void Bot::SwitchChatterIcon(const bool show)
+{
+	if (g_gameVersion == CSVER_VERYOLD || g_gameVersion == CSVER_XASH)
+		return;
+
+	const int id = g_netMsg->GetId(NETMSG_BOTVOICE);
+	for (int i = 0; i < engine->GetMaxClients(); i++)
+	{
+		edict_t* ent = INDEXENT(i);
+
+		if (!IsValidPlayer(ent) || IsValidBot(ent) || GetTeam(ent) != m_team)
+			continue;
+
+		MessageSender(MSG_ONE, id, nullptr, ent)
+			.WriteByte(show) // switch on/off
+			.WriteByte(GetIndex());
+	}
+}
+
 // this function inserts the radio message into the message queue
-void Bot::RadioMessage(int message)
+void Bot::RadioMessage(const int message)
 {
 	if (g_gameVersion == HALFLIFE)
 		return;
@@ -2576,7 +2591,7 @@ bool Bot::IsEnemyReachable(void)
 			{
 				float radius = pev->maxspeed;
 				if (!(currentWaypoint->flags & WAYPOINT_FALLCHECK))
-					radius += currentWaypoint->radius * 4.0f;
+					radius += static_cast <float> (currentWaypoint->radius * 4);
 
 				if (enemyDistance < SquaredF(radius))
 				{
@@ -3998,8 +4013,9 @@ void Bot::LookAtAround(void)
 		const int index = g_waypoint->FindNearestInCircle(bestLookPos, 999999.0f);
 		if (IsValidWaypoint(index))
 		{
-			const Vector waypointOrigin = g_waypoint->GetPath(index)->origin;
-			const float waypointRadius = g_waypoint->GetPath(index)->radius;
+			const Path* pointer = g_waypoint->GetPath(index);
+			const Vector waypointOrigin = pointer->origin;
+			const float waypointRadius = static_cast <float> (pointer->radius);
 			selectRandom.x = waypointOrigin.x + engine->RandomFloat(-waypointRadius, waypointRadius);
 			selectRandom.y = waypointOrigin.y + engine->RandomFloat(-waypointRadius, waypointRadius);
 			selectRandom.z = waypointOrigin.z + 36.0f;
@@ -4035,8 +4051,9 @@ void Bot::LookAtAround(void)
 		if (IsValidWaypoint(index))
 		{
 			const Vector eyePosition = EyePosition();
-			const Vector waypointOrigin = g_waypoint->GetPath(index)->origin;
-			const float waypointRadius = g_waypoint->GetPath(index)->radius;
+			const Path* pointer = g_waypoint->GetPath(index);
+			const Vector waypointOrigin = pointer->origin;
+			const float waypointRadius = static_cast <float> (pointer->radius);
 			m_lookAt.x = waypointOrigin.x + engine->RandomFloat(-waypointRadius, waypointRadius) + ((m_destOrigin.x - eyePosition.x) * 1024.0f);
 			m_lookAt.y = waypointOrigin.y + engine->RandomFloat(-waypointRadius, waypointRadius) + ((m_destOrigin.y - eyePosition.y) * 1024.0f);
 			m_lookAt.z = waypointOrigin.z + 36.0f;
@@ -4177,7 +4194,7 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 		// we're stuck while trying reach to human camp waypoint?
 		if (m_isStuck)
 		{
-			if (IsValidWaypoint(m_zhCampPointIndex) && (g_waypoint->GetPath(m_zhCampPointIndex)->origin - pev->origin).GetLengthSquared() < SquaredF(8.0f + g_waypoint->GetPath(m_zhCampPointIndex)->radius))
+			if (IsValidWaypoint(m_zhCampPointIndex) && (g_waypoint->GetPath(m_zhCampPointIndex)->origin - pev->origin).GetLengthSquared() < SquaredF(8.0f + static_cast <float> (g_waypoint->GetPath(m_zhCampPointIndex)->radius)))
 			{
 				TraceResult tr2;
 				TraceLine(pev->origin, g_waypoint->GetPath(m_zhCampPointIndex)->origin, false, false, GetEntity(), &tr2);
@@ -4336,10 +4353,6 @@ void Bot::TaskNormal(int i, int destIndex, Vector src)
 						MakeVectors(pev->v_angle);
 
 						PushTask(TASK_CAMP, TASKPRI_CAMP, -1, m_timeCamping, true);
-
-						src.x = g_waypoint->GetPath(m_currentWaypointIndex)->campStartX;
-						src.y = g_waypoint->GetPath(m_currentWaypointIndex)->campStartY;
-						src.z = 0;
 
 						m_camp = src;
 						m_aimFlags |= AIM_CAMP;
@@ -4503,33 +4516,6 @@ void Bot::RunTask(void)
 
 			if (destIndex != m_currentWaypointIndex && IsValidWaypoint(destIndex))
 				FindPath(m_currentWaypointIndex, destIndex);
-		}
-
-		// bots skill higher than 50?
-		if (m_skill > 50 && engine->IsFootstepsOn())
-		{
-			// then make him move slow if near enemy
-			if (!(m_currentTravelFlags & PATHFLAG_JUMP) && !m_isStuck && !m_isReloading &&
-				m_currentWeapon != WEAPON_KNIFE &&
-				m_currentWeapon != WEAPON_HEGRENADE &&
-				m_currentWeapon != WEAPON_C4 &&
-				m_currentWeapon != WEAPON_FBGRENADE &&
-				m_currentWeapon != WEAPON_SHIELDGUN &&
-				m_currentWeapon != WEAPON_SMGRENADE)
-			{
-				if (IsValidWaypoint(m_currentWaypointIndex))
-				{
-					if (g_waypoint->GetPath(m_currentWaypointIndex)->radius < 32 && !IsOnLadder() && !IsInWater() && m_seeEnemyTime + 4.0f > engine->GetTime() && m_skill < 80)
-						pev->button |= IN_DUCK;
-				}
-
-				if (!FNullEnt(m_lastEnemy) && IsAlive(m_lastEnemy) && (m_lastEnemyOrigin - pev->origin).GetLengthSquared() <= SquaredF(768.0f) && !(pev->flags & FL_DUCKING))
-				{
-					m_moveSpeed = GetWalkSpeed();
-					if (m_currentWeapon == WEAPON_KNIFE)
-						SelectBestWeapon();
-				}
-			}
 		}
 		break;
 
@@ -4700,11 +4686,6 @@ void Bot::RunTask(void)
 			m_campPosition = g_waypoint->GetPath(m_blindCampPoint)->origin;
 			PushTask(TASK_GOINGFORCAMP, TASKPRI_GOINGFORCAMP, -1, engine->GetTime() + ebot_camp_max.GetFloat(), true);
 
-			if (g_waypoint->GetPath(m_blindCampPoint)->vis.crouch <= g_waypoint->GetPath(m_blindCampPoint)->vis.stand)
-				m_campButtons |= IN_DUCK;
-			else
-				m_campButtons &= ~IN_DUCK;
-
 			m_blindCampPoint = -1;
 		}
 
@@ -4837,7 +4818,7 @@ void Bot::RunTask(void)
 		{
 			auto zhPath = g_waypoint->GetPath(m_zhCampPointIndex);
 			float maxRange = zhPath->flags & WAYPOINT_CROUCH ? 100.0f : 230.0f;
-			if (zhPath->campStartX != 0.0f && ((zhPath->origin - pev->origin).GetLengthSquared2D() > SquaredF(maxRange) || (zhPath->origin.z - 64.0f > pev->origin.z)))
+			if (zhPath->mesh != 0 && ((zhPath->origin - pev->origin).GetLengthSquared2D() > SquaredF(maxRange) || (zhPath->origin.z - 64.0f > pev->origin.z)))
 			{
 				m_zhCampPointIndex = -1;
 				TaskComplete();
@@ -4855,10 +4836,10 @@ void Bot::RunTask(void)
 						int index;
 						g_waypoint->m_hmMeshPoints.GetAt(i, index);
 
-						if (g_waypoint->GetPath(index)->campStartX == 0.0f)
+						if (g_waypoint->GetPath(index)->mesh == 0)
 							continue;
 
-						if (zhPath->campStartX != g_waypoint->GetPath(index)->campStartX)
+						if (zhPath->mesh != g_waypoint->GetPath(index)->mesh)
 							continue;
 
 						MeshWaypoints.Push(index);
@@ -4896,20 +4877,6 @@ void Bot::RunTask(void)
 			{
 				destination.z = 0;
 
-				// switch from 1 direction to the other
-				if (m_campDirection < 1)
-				{
-					destination.x = g_waypoint->GetPath(m_currentWaypointIndex)->campStartX;
-					destination.y = g_waypoint->GetPath(m_currentWaypointIndex)->campStartY;
-					m_campDirection ^= 1;
-				}
-				else
-				{
-					destination.x = g_waypoint->GetPath(m_currentWaypointIndex)->campEndX;
-					destination.y = g_waypoint->GetPath(m_currentWaypointIndex)->campEndY;
-					m_campDirection ^= 1;
-				}
-
 				// find a visible waypoint to this direction...
 				// i know this is ugly hack, but i just don't want to break compatiability
 				int numFoundPoints = 0;
@@ -4921,7 +4888,7 @@ void Bot::RunTask(void)
 				for (i = 0; i < g_numWaypoints; i++)
 				{
 					// skip invisible waypoints or current waypoint
-					if (i == m_currentWaypointIndex || g_waypoint->IsVisible(m_currentWaypointIndex, i))
+					if (i == m_currentWaypointIndex)
 						continue;
 
 					Vector dotB = (g_waypoint->GetPath(i)->origin - pev->origin).Normalize2D();
@@ -5852,7 +5819,7 @@ void Bot::RunTask(void)
 			m_moveSpeed = pev->maxspeed;
 
 		// find the distance to the item
-		float itemDistance = (destination - pev->origin).GetLengthSquared();
+		const float itemDistance = (destination - pev->origin).GetLengthSquared();
 
 		switch (m_pickupType)
 		{
@@ -5903,8 +5870,7 @@ void Bot::RunTask(void)
 				else
 				{
 					// primary weapon
-					int weaponID = GetHighestWeapon();
-
+					const int weaponID = GetHighestWeapon();
 					if ((weaponID > 6) || HasShield())
 					{
 						SelectWeaponbyNumber(weaponID);
@@ -5918,7 +5884,7 @@ void Bot::RunTask(void)
 
 				if (IsValidWaypoint(m_currentWaypointIndex))
 				{
-					if (itemDistance > SquaredF(g_waypoint->GetPath(m_currentWaypointIndex)->radius))
+					if (itemDistance > SquaredF(static_cast <float> (g_waypoint->GetPath(m_currentWaypointIndex)->radius)))
 					{
 						SetEntityWaypoint(GetEntity());
 						m_currentWaypointIndex = -1;
@@ -5940,8 +5906,7 @@ void Bot::RunTask(void)
 			else if (itemDistance < SquaredF(60.0f)) // near to shield?
 			{
 				// get current best weapon to check if it's a primary in need to be dropped
-				int weaponID = GetHighestWeapon();
-
+				const int weaponID = GetHighestWeapon();
 				if (weaponID > 6)
 				{
 					SelectWeaponbyNumber(weaponID);

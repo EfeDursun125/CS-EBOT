@@ -33,6 +33,16 @@ float SquaredF(const float value)
 	return value * value;
 }
 
+float SquaredI(const int value)
+{
+	return static_cast <float> (value * value);
+}
+
+int Squared(const int value)
+{
+	return value * value;
+}
+
 float AddTime(const float time)
 {
 	return g_pGlobals->time + time;

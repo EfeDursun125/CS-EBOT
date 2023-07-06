@@ -512,8 +512,8 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 				const int index = g_waypoint->FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
 				if (IsValidWaypoint(index))
 				{
-					g_waypoint->GetPath(index)->campStartX = cabsf(catof(arg2));
-					ClientPrint(ent, print_withtag, "Waypoint mesh set to %d", static_cast <int> (g_waypoint->GetPath(index)->campStartX));
+					g_waypoint->GetPath(index)->mesh = static_cast <int16> (cabsf(catof(arg2)));
+					ClientPrint(ent, print_withtag, "Waypoint mesh set to %d", static_cast <int> (g_waypoint->GetPath(index)->mesh));
 				}
 				else
 					ClientPrint(ent, print_withtag, "Waypoint is not valid");
@@ -530,8 +530,8 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 				const int index = g_waypoint->FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
 				if (IsValidWaypoint(index))
 				{
-					g_waypoint->GetPath(index)->campStartY = cabsf(catof(arg2));
-					ClientPrint(ent, print_withtag, "Waypoint gravity set to %f", g_waypoint->GetPath(index)->campStartY);
+					g_waypoint->GetPath(index)->mesh = cabsf(catof(arg2));
+					ClientPrint(ent, print_withtag, "Waypoint gravity set to %f", g_waypoint->GetPath(index)->mesh);
 				}
 				else
 					ClientPrint(ent, print_withtag, "Waypoint is not valid");
@@ -574,10 +574,6 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 				CenterPrint("Waypoints are saved!");
 			}
 		}
-
-		// remove waypoint and all corresponding files from hard disk
-		else if (cstricmp(arg1, "erase") == 0)
-			g_waypoint->EraseFromHardDisk();
 
 		// load all waypoints again (overrides all changes, that wasn't saved)
 		else if (cstricmp(arg1, "load") == 0)
@@ -690,13 +686,6 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 
 		// display status
 		ServerPrint("Auto-Waypoint %s", g_autoWaypoint ? "Enabled" : "Disabled");
-	}
-
-	else if (cstricmp(arg0, "sgdwaypoint") == 0 || cstricmp(arg0, "sgdwp") == 0)
-	{
-		if (IsDedicatedServer() || FNullEnt(g_hostEntity))
-			return 2;
-		g_waypoint->SgdWp_Set(arg1);
 	}
 	return 0; // command is not handled by bot
 
@@ -1359,6 +1348,12 @@ int ClientConnect(edict_t* ent, const char* name, const char* addr, char rejectR
 
 	LoadEntityData();
 
+	for (const auto& bot : g_botManager->m_bots)
+	{
+		if (bot != nullptr)
+			bot->SwitchChatterIcon(false);
+	}
+
 	if (g_isMetamod)
 		RETURN_META_VALUE(MRES_IGNORED, 0);
 
@@ -1839,7 +1834,7 @@ void ClientCommand(edict_t* ent)
 
 				g_waypointOn = true;  // turn waypoints on in case
 
-				const int radiusValue[] = { 0, 8, 16, 32, 48, 64, 80, 96, 128 };
+				const int16 radiusValue[] = { 0, 8, 16, 32, 48, 64, 80, 96, 128 };
 
 				if ((selection >= 1) && (selection <= 9))
 					g_waypoint->SetRadius(radiusValue[selection - 1]);
@@ -2672,13 +2667,6 @@ void SetNeg(void)
 	g_clients[-1].team = TEAM_COUNT;
 }
 
-#ifdef WORK_ASYNC
-void ThreadedVis(void)
-{
-	g_waypoint->InitializeVisibility();
-}
-#endif
-
 void ServerActivate(edict_t* pentEdictList, int edictCount, int clientMax)
 {
 	// this function is called when the server has fully loaded and is about to manifest itself
@@ -2715,18 +2703,10 @@ void ServerActivate(edict_t* pentEdictList, int edictCount, int clientMax)
 	secondTimer = 0.0f;
 	updateTimer = 0.0f;
 
-#ifdef WORK_ASYNC
-	async(launch::async, ThreadedVis);
-#else
-	g_waypoint->InitializeVisibility();
-#endif
-
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
 
 	(*g_functionTable.pfnServerActivate) (pentEdictList, edictCount, clientMax);
-
-	g_waypoint->InitializeVisibility();
 }
 
 void ServerDeactivate(void)
