@@ -1595,6 +1595,7 @@ extern bool IsWeaponShootingThroughWall(int id);
 extern bool IsValidBot(edict_t* ent);
 extern bool IsValidBot(int index);
 extern bool IsValidPlayer(edict_t* ent);
+extern bool IsFakeClient(edict_t* ent);
 extern bool OpenConfig(const char* fileName, char* errorIfNotExists, File* outFile);
 extern bool FindNearestPlayer(void** holder, edict_t* to, float searchDistance = 4096.0, bool sameTeam = false, bool needBot = false, bool needAlive = false, bool needDrawn = false);
 

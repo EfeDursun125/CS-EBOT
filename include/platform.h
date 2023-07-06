@@ -1,5 +1,6 @@
 #ifndef PLATFORM_INCLUDED
 #define PLATFORM_INCLUDED
+#endif
 
 // detects the build platform
 #if defined (__linux__) || defined (__debian__) || defined (__linux) || (__x86_64__) || defined (__amd64__)
@@ -64,13 +65,9 @@ typedef void (*EntityPtr_t) (entvars_t*);
 #include <dlfcn.h>
 #include <errno.h>
 #include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-
-#define PASCAL
 
 #define DLL_ENTRYPOINT __attribute__((destructor))  void _fini (void)
-#define DLL_DETACHING TRUE
+#define DLL_DETACHING true
 #define DLL_RETENTRY return
 #define DLL_GIVEFNPTRSTODLL extern "C" void __attribute__((visibility("default")))
 
@@ -88,6 +85,7 @@ typedef void (*EntityPtr_t) (entvars_t*);
 #ifdef PLATFORM_WIN32
 #include "urlmon.h"
 #pragma comment(lib, "urlmon.lib")
+
 class Library
 {
 private:
@@ -169,5 +167,4 @@ public:
         return m_ptr != nullptr;
     }
 };
-#endif
 #endif
