@@ -6,6 +6,8 @@
 extern int CRandomInt(const int min, const int max);
 extern bool ChanceOf(const int number);
 extern float SquaredF(const float value);
+extern float SquaredI(const int value);
+extern int Squared(const int value);
 extern float AddTime(const float time);
 extern float cclampf(const float a, const float b, const float c);
 extern float cmaxf(const float a, const float b);

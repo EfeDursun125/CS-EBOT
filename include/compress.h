@@ -9,7 +9,7 @@ protected:
     unsigned long int m_textSize;
     unsigned long int m_codeSize;
 
-    uint8_t m_textBuffer[N + F - 1];
+    byte m_textBuffer[N + F - 1];
     int m_matchPosition;
     int m_matchLength;
 
@@ -33,7 +33,7 @@ private:
 
         int compare = 1;
 
-        uint8_t* key = &m_textBuffer[node];
+        byte* key = &m_textBuffer[node];
         int temp = N + 1 + key[0];
 
         m_right[node] = m_left[node] = NIL;
@@ -140,18 +140,34 @@ public:
     {
         m_textSize = 0;
         m_codeSize = 0;
+
+        m_matchPosition = 0;
+        m_matchLength = 0;
+
+        cmemset(m_textBuffer, 0, sizeof(m_textBuffer));
+        cmemset(m_right, 0, sizeof(m_right));
+        cmemset(m_left, 0, sizeof(m_right));
+        cmemset(m_parent, 0, sizeof(m_parent));
     }
 
     ~Compressor(void)
     {
         m_textSize = 0;
         m_codeSize = 0;
+
+        m_matchPosition = 0;
+        m_matchLength = 0;
+
+        cmemset(m_textBuffer, 0, sizeof(m_textBuffer));
+        cmemset(m_right, 0, sizeof(m_right));
+        cmemset(m_left, 0, sizeof(m_left));
+        cmemset(m_parent, 0, sizeof(m_parent));
     }
 
-    int InternalEncode(char* fileName, uint8_t* header, int headerSize, uint8_t* buffer, int bufferSize)
+    int InternalEncode(const char* fileName, byte* header, int headerSize, byte* buffer, int bufferSize)
     {
-        int i, length, node, strPtr, lastMatchLength, codeBufferPtr, bufferPtr = 0;
-        uint8_t codeBuffer[17], mask, bit;
+        int i, bit, length, node, strPtr, lastMatchLength, codeBufferPtr, bufferPtr = 0;
+        byte codeBuffer[17], mask;
 
         File fp(fileName, "wb");
 
@@ -195,8 +211,8 @@ public:
             }
             else
             {
-                codeBuffer[codeBufferPtr++] = (uint8_t)m_matchPosition;
-                codeBuffer[codeBufferPtr++] = (uint8_t)(((m_matchPosition >> 4) & 0xf0) | (m_matchLength - (THRESHOLD + 1)));
+                codeBuffer[codeBufferPtr++] = (unsigned char)m_matchPosition;
+                codeBuffer[codeBufferPtr++] = (unsigned char)(((m_matchPosition >> 4) & 0xf0) | (m_matchLength - (THRESHOLD + 1)));
             }
 
             if ((mask <<= 1) == 0)
@@ -249,13 +265,11 @@ public:
         return m_codeSize;
     }
 
-    int InternalDecode(char* fileName, int headerSize, uint8_t* buffer, int bufferSize)
+    int InternalDecode(const char* fileName, int headerSize, byte* buffer, int bufferSize)
     {
-        int i, j, k, node;
-        uint32_t flags;
+        int i, j, k, node, bit;
+        unsigned int flags;
         int bufferPtr = 0;
-
-        uint8_t bit;
 
         File fp(fileName, "rb");
 
@@ -274,17 +288,15 @@ public:
         {
             if (((flags >>= 1) & 256) == 0)
             {
-                if ((bit = static_cast <uint8_t> (fp.GetCharacter())) == EOF)
+                if ((bit = fp.GetCharacter()) == EOF)
                     break;
-
                 flags = bit | 0xff00;
             }
 
             if (flags & 1)
             {
-                if ((bit = static_cast <uint8_t> (fp.GetCharacter())) == EOF)
+                if ((bit = fp.GetCharacter()) == EOF)
                     break;
-
                 buffer[bufferPtr++] = bit;
 
                 if (bufferPtr > bufferSize)
@@ -317,24 +329,23 @@ public:
                 }
             }
         }
-
         fp.Close();
 
         return bufferPtr;
     }
 
     // external decoder
-    static int Uncompress(char* fileName, int headerSize, uint8_t* buffer, int bufferSize)
+    static int Uncompress(const char* fileName, int headerSize, byte* buffer, int bufferSize)
     {
-        Compressor kDecompress = Compressor();
-        return kDecompress.InternalDecode(fileName, headerSize, buffer, bufferSize);
+        static Compressor compressor = Compressor();
+        return compressor.InternalDecode(fileName, headerSize, buffer, bufferSize);
     }
 
     // external encoder
-    static int Compress(char* fileName, uint8_t* header, int headerSize, uint8_t* buffer, int bufferSize)
+    static int Compress(const char* fileName, byte* header, int headerSize, byte* buffer, int bufferSize)
     {
-        Compressor kCompress = Compressor();
-        return kCompress.InternalEncode(fileName, header, headerSize, buffer, bufferSize);
+        static Compressor compressor = Compressor();
+        return compressor.InternalEncode(fileName, header, headerSize, buffer, bufferSize);
     }
 };
 

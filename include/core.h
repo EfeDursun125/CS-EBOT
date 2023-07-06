@@ -431,11 +431,10 @@ struct BotProfile
 };
 
 // bot known file 
-const char FH_WAYPOINT_NEW[] = "EBOTWAY!";
+const char FH_WAYPOINT_NEW[] = "EBOTWP";
 const char FH_WAYPOINT[] = "PODWAY!";
-const char FH_VISTABLE[] = "PODVIS!";
 
-const int FV_WAYPOINT = 7;
+const int FV_WAYPOINT = 125;
 
 // some hardcoded desire defines used to override calculated ones
 const float TASKPRI_NORMAL = 35.0f;
@@ -637,13 +636,13 @@ struct WaypointHeader
 
 struct NavHeader
 {
-	int32 fileVersion;
-	int32 navNumber;
+	int16 fileVersion;
+	int16 navNumber;
 	char author[32];
 };
 
 // define general waypoint structure
-struct Path
+struct PathOLD
 {
 	int32 pathNumber;
 	int32 flags;
@@ -663,9 +662,20 @@ struct Path
 	struct Vis_t { uint16 stand, crouch; } vis;
 };
 
+struct Path
+{
+	Vector origin;
+	int32 flags;
+	int16 radius;
+	int16 mesh;
+	int16 index[Const_MaxPathIndex];
+	uint16 connectionFlags[Const_MaxPathIndex];
+	float gravity;
+};
+
 struct NavArea
 {
-	int index;
+	int16 index;
 	int32 flags;
 	Array <NavArea*> connections;
 	Array <float> bakedDist;
@@ -1134,8 +1144,6 @@ public:
 
 	int m_campIndex;
 
-	Vector m_desiredVelocity;
-
 	Bot(edict_t* bot, int skill, int personality, int team, int member);
 	~Bot(void);
 
@@ -1260,7 +1268,8 @@ public:
 	void ChatSay(const bool teamSay, const char* text, ...);
 
 	void ChatMessage(int type, bool isTeamSay = false);
-	void RadioMessage(int message);
+	void SwitchChatterIcon(const bool show);
+	void RadioMessage(const int message);
 
 	void Kill(void);
 	void Kick(void);
@@ -1400,9 +1409,7 @@ private:
 
 	int m_cacheWaypointIndex;
 	int m_lastJumpWaypoint;
-	int m_visibilityIndex;
 	Vector m_lastWaypoint;
-	uint8_t m_visLUT[Const_MaxWaypoints][Const_MaxWaypoints / 4];
 
 	int m_lastDeclineWaypoint;
 
@@ -1428,8 +1435,6 @@ private:
 	Array <int> m_otherPoints;
 
 public:
-	bool m_redoneVisibility;
-
 	Waypoint(void);
 	~Waypoint(void);
 
@@ -1454,10 +1459,9 @@ public:
 	void Delete(void);
 	void DeleteByIndex(int index);
 	void ToggleFlags(int toggleFlag);
-	void SetRadius(int radius);
+	void SetRadius(const int16 radius);
 	bool IsConnected(int pointA, int pointB);
 	bool IsConnected(int num);
-	void InitializeVisibility(void);
 	void CreatePath(char dir);
 	void DeletePath(void);
 	void DeletePathByIndex(int nodeFrom, int nodeTo);
@@ -1469,9 +1473,6 @@ public:
 	void SgdWp_Set(const char* modset);
 
 	float GetTravelTime(const float maxSpeed, const Vector src, const Vector origin);
-	bool IsVisible(int srcIndex, int destIndex);
-	bool IsStandVisible(int srcIndex, int destIndex);
-	bool IsDuckVisible(int srcIndex, int destIndex);
 	void CalculateWayzone(int index);
 	Vector GetBottomOrigin(const Path* waypoint);
 
@@ -1487,11 +1488,10 @@ public:
 	void ShowWaypointMsg(void);
 	bool NodesValid(void);
 	void CreateBasic(void);
-	void EraseFromHardDisk(void);
 
 	float GetPathDistance(int srcIndex, int destIndex);
 
-	Path* GetPath(int id);
+	Path* GetPath(const int id);
 	char* GetWaypointInfo(int id);
 	char* GetInfo(void) { return m_infoBuffer; }
 
@@ -1505,7 +1505,7 @@ public:
 
 	Vector GetBombPosition(void) { return m_foundBombOrigin; }
 	void SetBombPosition(bool shouldReset = false);
-	String CheckSubfolderFile(void);
+	String CheckSubfolderFile(const bool pwf = true);
 	String CheckSubfolderFileOLD(void);
 };
 
