@@ -3,10 +3,10 @@
 #endif
 
 // detects the build platform
-#if defined (__linux__) || defined (__debian__) || defined (__linux) || (__x86_64__) || defined (__amd64__)
-#define PLATFORM_LINUX
-#elif defined (_WIN32)
+#ifdef _WIN32
 #define PLATFORM_WIN32
+#else
+#define PLATFORM_LINUX
 #endif
 
 // detects the compiler
@@ -125,10 +125,6 @@ public:
 };
 #else
 #include <curl/curl.h>
-
-__asm__(".symver dlopen,dlopen@GLIBC_2.1");
-__asm__(".symver dlsym,dlsym@GLIBC_2.0");
-__asm__(".symver dlclose,dlclose@GLIBC_2.0");
 
 class Library
 {

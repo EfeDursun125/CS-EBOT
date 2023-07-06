@@ -15,6 +15,11 @@
 #ifndef EBOT_INCLUDED
 #define EBOT_INCLUDED
 
+// reduce glibc version...
+#ifndef _WIN32
+#include <glibc.h>
+#endif
+
 #include <stdio.h>
 #include <memory.h>
 #include <cmath.h>
@@ -34,14 +39,6 @@ using namespace Math;
 #include <time.h>
 
 #include <runtime.h>
-
-//#define WORK_ASYNC
-
-#ifdef WORK_ASYNC
-#include <future>
-#endif
-
-using namespace std;
 
 const int checkEntityNum = 20;
 const int checkEnemyNum = 128;

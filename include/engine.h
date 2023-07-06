@@ -902,7 +902,6 @@ enum
     kRenderFxClampMinScale,      // Keep this sprite from getting very small (SPRITES only!)
 };
 
-
 typedef int func_t;
 
 typedef unsigned char uint8_t;
@@ -1054,9 +1053,6 @@ typedef enum
     GINFO_DLL_FILENAME,
     GINFO_REALDLL_FULLPATH,
 } ginfo_t;
-
-
-
 
 typedef struct cvar_s
 {

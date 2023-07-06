@@ -305,22 +305,8 @@ namespace Math
     //
     void inline SineCosine(float radians, float& sine, float& cosine)
     {
-#if defined (PLATFORM_WIN32)
-        __asm
-        {
-            fld uint32_t ptr[radians]
-            fsincos
-
-            mov edx, uint32_t ptr[cosine]
-            mov eax, uint32_t ptr[sine]
-
-            fstp uint32_t ptr[edx]
-            fstp uint32_t ptr[eax]
-        }
-#else
         sine = sinf(radians);
         cosine = cosf(radians);
-#endif
     }
 }
 
@@ -2502,7 +2488,7 @@ public:
         String result;
 
         for (int i = 0; i < GetLength(); i++)
-            result += toupper(m_bufferPtr[i]);
+            result += ctoupper(m_bufferPtr[i]);
 
         return result;
     }
@@ -3353,7 +3339,7 @@ public:
         va_list ap;
 
         va_start(ap, format);
-        int written = vfprintf(m_handle, format, ap);
+        const int written = vfprintf(m_handle, format, ap);
         va_end(ap);
 
         return written;
@@ -3615,12 +3601,9 @@ private:
     {
         static char timeFormatStr[32];
         cmemset(timeFormatStr, 0, sizeof(char) * 32);
-
         time_t tick = time(&tick);
-        tm* time = localtime(&tick);
-
+        const tm* time = localtime(&tick);
         sprintf(timeFormatStr, "%02i:%02i:%02i", time->tm_hour, time->tm_min, time->tm_sec);
-
         return &timeFormatStr[0];
     }
 
