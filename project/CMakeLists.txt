@@ -51,7 +51,6 @@ add_library(${PROJECT_NAME} SHARED ${EBOT_SRC})
 target_link_libraries(${PROJECT_NAME}
     ${CMAKE_DL_LIBS}
     ${CMAKE_THREAD_LIBS_INIT}
-    "-L/path/to/libcurl/libraries -lcurl"
 )
 
 # Set library properties
