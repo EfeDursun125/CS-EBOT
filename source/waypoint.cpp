@@ -1720,8 +1720,7 @@ bool Waypoint::Download(void)
 
         if (pURLDownloadToFile != nullptr)
         {
-            HRESULT hr = pURLDownloadToFile(nullptr, FormatBuffer("%s/%s.ewp", ebot_download_waypoints_from.GetString(), GetMapName()), (char*)CheckSubfolderFile(), 0, nullptr);
-            if (SUCCEEDED(hr))
+            if (SUCCEEDED(pURLDownloadToFile(nullptr, FormatBuffer("%s/%s.ewp", ebot_download_waypoints_from.GetString(), GetMapName()), (char*)CheckSubfolderFile(), 0, nullptr)))
             {
                 FreeLibrary(hUrlMon);
                 return true;
@@ -1821,10 +1820,13 @@ bool Waypoint::Load(int mode)
 
         fp.Close();
     }
-    else if (ebot_download_waypoints.GetBool() && Download())
+    else if (ebot_download_waypoints.GetBool())
     {
-        Load();
-        sprintf(m_infoBuffer, "%s.ewp is downloaded from the internet", GetMapName());
+        if (Download())
+        {
+            Load();
+            sprintf(m_infoBuffer, "%s.ewp is downloaded from the internet", GetMapName());
+        }
     }
     else
     {
