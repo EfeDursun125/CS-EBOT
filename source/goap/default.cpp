@@ -73,7 +73,7 @@ void Bot::DefaultUpdate(void)
 			if (m_itemCheckTime < engine->GetTime())
 			{
 				FindItem();
-				m_itemCheckTime = engine->GetTime() + (g_gameVersion == HALFLIFE ? 1.25f : engine->RandomFloat(1.25f, 2.5f));
+				m_itemCheckTime = AddTime(g_gameVersion == HALFLIFE ? 1.25f : engine->RandomFloat(1.25f, 2.5f));
 
 				if (GetEntityOrigin(m_pickupItem) != nullvec && SetProcess(Process::Pickup, "i see good stuff to pick it up", true, 20.0f))
 					return;

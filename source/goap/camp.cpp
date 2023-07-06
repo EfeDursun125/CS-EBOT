@@ -49,7 +49,7 @@ void Bot::CampUpdate(void)
 		if (m_itemCheckTime < engine->GetTime())
 		{
 			FindItem();
-			m_itemCheckTime = engine->GetTime() + engine->RandomFloat(1.25f, 2.5f);
+			m_itemCheckTime = AddTime(engine->RandomFloat(1.25f, 2.5f));
 
 			if (GetEntityOrigin(m_pickupItem) != nullvec && SetProcess(Process::Pickup, "i see good stuff to pick it up", true, 20.0f))
 				return;
@@ -115,7 +115,7 @@ void Bot::CampUpdate(void)
 			if (m_isSlowThink)
 			{
 				const float maxRange = zhPath->flags & WAYPOINT_CROUCH ? 125.0f : 200.0f;
-				if (zhPath->campStartX != 0.0f && ((zhPath->origin - pev->origin).GetLengthSquared2D() > SquaredF(maxRange) || (zhPath->origin.z - 54.0f > pev->origin.z)))
+				if (zhPath->mesh != 0 && ((zhPath->origin - pev->origin).GetLengthSquared2D() > SquaredF(maxRange) || (zhPath->origin.z - 54.0f > pev->origin.z)))
 				{
 					DeleteSearchNodes();
 					FindWaypoint();
@@ -136,10 +136,10 @@ void Bot::CampUpdate(void)
 						int index;
 						g_waypoint->m_hmMeshPoints.GetAt(i, index);
 
-						if (g_waypoint->GetPath(index)->campStartX == 0.0f)
+						if (g_waypoint->GetPath(index)->mesh == 0)
 							continue;
 
-						if (zhPath->campStartX != g_waypoint->GetPath(index)->campStartX)
+						if (zhPath->mesh != g_waypoint->GetPath(index)->mesh)
 							continue;
 
 						MeshWaypoints.Push(index);

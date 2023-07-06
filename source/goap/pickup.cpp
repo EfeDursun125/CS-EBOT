@@ -102,7 +102,7 @@ void Bot::PickupUpdate(void)
 
 			if (IsValidWaypoint(m_currentWaypointIndex))
 			{
-				if (itemDistance > SquaredF(g_waypoint->GetPath(m_currentWaypointIndex)->radius))
+				if (itemDistance > static_cast <float> (Squared(g_waypoint->GetPath(m_currentWaypointIndex)->radius)))
 				{
 					SetEntityWaypoint(GetEntity());
 					m_currentWaypointIndex = -1;
@@ -131,7 +131,7 @@ void Bot::PickupUpdate(void)
 
 				if (IsValidWaypoint(m_currentWaypointIndex))
 				{
-					if (itemDistance > SquaredF(g_waypoint->GetPath(m_currentWaypointIndex)->radius))
+					if (itemDistance > static_cast <float> (Squared(g_waypoint->GetPath(m_currentWaypointIndex)->radius)))
 					{
 						SetEntityWaypoint(GetEntity());
 						m_currentWaypointIndex = -1;
@@ -178,9 +178,6 @@ void Bot::PickupUpdate(void)
 					break;
 				}
 			}
-
-			m_itemCheckTime = engine->GetTime() + 0.1f;
-			m_lastCollTime = engine->GetTime() + 0.1f; // also don't consider being stuck
 		}
 		break;
 
@@ -219,7 +216,7 @@ void Bot::PickupUpdate(void)
 
 				m_pickupItem = nullptr;
 				m_pickupType = PICKTYPE_NONE;
-				m_buttonPushTime = engine->GetTime() + 3.0f;
+				m_buttonPushTime = AddTime(engine->GetTime());
 				FinishCurrentProcess("i have pushed the button");
 			}
 		}
