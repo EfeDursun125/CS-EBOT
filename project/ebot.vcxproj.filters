@@ -57,6 +57,7 @@
     <ClInclude Include="..\include\platform.h" />
     <ClInclude Include="..\include\resource.h" />
     <ClInclude Include="..\include\runtime.h" />
+    <ClInclude Include="..\include\glibc.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\include\ebot.rc" />

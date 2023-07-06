@@ -20,9 +20,6 @@ else()
     message(STATUS "Clang not found using default C compiler, this might cause E-Bot crashes")
 endif()
 
-# Set minimum required glibc version to 2.12
-set(CMAKE_SYSTEM_VERSION 2.12)
-
 # Set build type and library suffix
 set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_SHARED_LIBRARY_SUFFIX ".so")
@@ -37,23 +34,26 @@ set(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -m32")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib)
 
 # Include directories
-include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}/../include
-)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 
 # Source files
 file(GLOB_RECURSE EBOT_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/goap/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../source/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../source/goap/*.cpp
 )
 
 # Create the library
 add_library(${PROJECT_NAME} SHARED ${EBOT_SRC})
 
+find_package(CURL REQUIRED)
+
 # Link libraries
 target_link_libraries(${PROJECT_NAME}
     ${CMAKE_DL_LIBS}
     ${CMAKE_THREAD_LIBS_INIT}
+    PRIVATE CURL::libcurl
 )
 
 # Set library properties
