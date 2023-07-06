@@ -6251,6 +6251,9 @@ void Bot::DebugModeMsg(void)
 		if (m_destOrigin != nullvec)
 			engine->DrawLine(g_hostEntity, pev->origin, m_destOrigin, Color(0, 0, 255, 255), 10, 0, 5, 1, LINE_SIMPLE);
 
+		if (m_stuckArea != nullvec && m_stuckTimer + 1.5f < engine->GetTime())
+			engine->DrawLine(g_hostEntity, pev->origin, m_stuckArea, Color(255, 0, 0, 255), 10, 0, 5, 1, LINE_SIMPLE);
+
 		// now draw line from source to destination
 		PathNode* node = &m_navNode[0];
 

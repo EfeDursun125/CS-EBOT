@@ -1083,7 +1083,7 @@ void Bot::NewRound(void)
 
 	ResetStuck();
 	m_stuckArea = pev->origin;
-	m_stuckTimer = engine->GetTime() + engine->GetFreezeTime() + 1.0f;
+	m_stuckTimer = AddTime(engine->GetFreezeTime() + 1.28f);
 
 	int i = 0;
 

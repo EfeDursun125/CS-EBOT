@@ -629,10 +629,6 @@ bool Bot::UpdateLiftHandling()
 	{
 		m_moveSpeed = 0.0f;
 		m_strafeSpeed = 0.0f;
-
-		m_navTimeset = engine->GetTime();
-		m_aimFlags |= AIM_NAVPOINT;
-
 		pev->button &= ~(IN_FORWARD | IN_BACK | IN_MOVELEFT | IN_MOVERIGHT);
 
 		ResetStuck();
@@ -2316,7 +2312,7 @@ void Bot::ResetStuck(void)
 {
 	m_isStuck = false;
 	m_stuckWarn = 0;
-	m_stuckTimer = AddTime(2.0f);
+	m_stuckTimer = AddTime(1.28f);
 	m_jumpFinished = false;
 }
 
@@ -2397,7 +2393,7 @@ void Bot::CheckStuck(const float maxSpeed)
 						m_duckTime = engine->GetTime() + engine->RandomFloat(1.0f, 2.0f);
 				}
 			}
-			
+
 			if (doorStuck && m_stuckWarn >= 10) // ENOUGH!
 			{
 				extern ConVar ebot_ignore_enemies;
@@ -2470,8 +2466,16 @@ void Bot::CheckStuck(const float maxSpeed)
 			m_moveSpeed = maxSpeed;
 	}
 
-	if (m_isSlowThink)
+	if (!m_isSlowThink)
+	{
+		if (m_stuckTimer < engine->GetTime())
+		{
+			m_stuckArea = (pev->origin + pev->velocity * -m_frameInterval);
+			m_stuckTimer = AddTime(1.28f);
+		}
+
 		return;
+	}
 
 	const float distance = ((pev->origin + pev->velocity * m_frameInterval) - m_stuckArea).GetLengthSquared2D();
 	const float range = ((maxSpeed * 2.0f) + (m_stuckWarn + m_stuckWarn) + m_friendsNearCount);
@@ -2508,13 +2512,8 @@ void Bot::CheckStuck(const float maxSpeed)
 		if (m_stuckWarn < 5)
 			m_isStuck = false;
 	}
-
-	if (m_stuckTimer < engine->GetTime())
-	{
-		m_stuckArea = (pev->origin + pev->velocity * -m_frameInterval);
-		m_stuckTimer = AddTime(2.0f);
-	}
 }
+	
 
 void Bot::SetWaypointOrigin(void)
 {
