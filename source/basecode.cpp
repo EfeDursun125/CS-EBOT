@@ -1757,7 +1757,7 @@ void Bot::SetConditions(void)
 	if (m_itemCheckTime < engine->GetTime() || !FNullEnt(m_pickupItem))
 	{
 		FindItem();
-		m_itemCheckTime = engine->GetTime() + g_gameVersion == HALFLIFE ? 1.0f : CRandomInt(2.0f, 4.0f);
+		m_itemCheckTime = engine->GetTime() + g_gameVersion == HALFLIFE ? 1.0f : engine->RandomFloat(2.0f, 4.0f);
 	}
 
 	float tempFear = m_fearLevel;
@@ -3642,7 +3642,7 @@ void Bot::BaseUpdate(void)
 			m_isSlowThink = true;
 			CheckSlowThink();
 			if (m_slowthinktimer < engine->GetTime())
-				m_slowthinktimer = engine->GetTime() + CRandomInt(0.9f, 1.1f);
+				m_slowthinktimer = AddTime(engine->RandomFloat(0.9f, 1.1f));
 		}
 		else
 			m_isSlowThink = false;
@@ -3751,10 +3751,10 @@ void Bot::CheckSlowThink(void)
 		{
 			extern ConVar ebot_stay_min;
 			extern ConVar ebot_stay_max;
-			m_stayTime = engine->GetTime() + RANDOM_FLOAT(ebot_stay_min.GetFloat(), ebot_stay_max.GetFloat());
+			m_stayTime = AddTime(engine->RandomFloat(ebot_stay_min.GetFloat(), ebot_stay_max.GetFloat()));
 		}
 		else
-			m_stayTime = engine->GetTime() + 999999.0f;
+			m_stayTime = AddTime(999999.0f);
 	}
 
 	edict_t* ent = GetEntity();
@@ -3783,14 +3783,14 @@ void Bot::CheckSlowThink(void)
 			if (m_personality == PERSONALITY_RUSHER)
 				m_randomattacktimer = 0.0f;
 			else
-				m_randomattacktimer = engine->GetTime() + engine->RandomFloat(0.1f, 10.0f);
+				m_randomattacktimer = AddTime(engine->RandomFloat(0.1f, 10.0f));
 		}
 		else if (m_personality == PERSONALITY_RUSHER)
-			m_randomattacktimer = engine->GetTime() + engine->RandomFloat(0.1f, 30.0f);
+			m_randomattacktimer = AddTime(engine->RandomFloat(0.1f, 30.0f));
 		else if (m_personality == PERSONALITY_CAREFUL)
-			m_randomattacktimer = engine->GetTime() + engine->RandomFloat(10.0f, 100.0f);
+			m_randomattacktimer = AddTime(engine->RandomFloat(10.0f, 100.0f));
 		else
-			m_randomattacktimer = engine->GetTime() + engine->RandomFloat(0.15f, 75.0f);
+			m_randomattacktimer = AddTime(engine->RandomFloat(0.15f, 75.0f));
 
 		if (m_currentWeapon == WEAPON_KNIFE)
 		{
@@ -3801,7 +3801,6 @@ void Bot::CheckSlowThink(void)
 		}
 	}
 
-	// do not add before bot joins a team, makes them stuck in spectator
 	pev->flags |= (FL_CLIENT | FL_FAKECLIENT | FL_DORMANT);
 }
 
