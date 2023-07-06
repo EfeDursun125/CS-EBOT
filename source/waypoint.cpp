@@ -1642,33 +1642,10 @@ bool Waypoint::Download(void)
         FreeLibrary(hUrlMon);
     }
 #else
-    if (curl_version_info(CURLVERSION_NOW) != nullptr)
-    {
-        CURL* curl;
-        CURLcode res;
-
-        curl_global_init(CURL_GLOBAL_DEFAULT);
-        curl = curl_easy_init();
-
-        if (curl)
-        {
-            curl_easy_setopt(curl, CURLOPT_URL, FormatBuffer("%s/%s.ewp", ebot_download_waypoints_from.GetString(), GetMapName()));
-            curl_easy_setopt(curl, CURLOPT_WRITEDATA, (char*)CheckSubfolderFile(false));
-
-            res = curl_easy_perform(curl);
-            if (res != CURLE_OK)
-            {
-                curl_easy_cleanup(curl);
-                curl_global_cleanup();
-                return false;
-            }
-
-            curl_easy_cleanup(curl);
-            return true;
-        }
-
-        curl_global_cleanup();
-    }
+    std::string command = "wget -O \"" + std::string(CheckSubfolderFile(false))) + "\" \"" + std::string(FormatBuffer("%s/%s.ewp", ebot_download_waypoints_from.GetString(), GetMapName())) + "\"";
+    const int result = std::system(command.c_str());
+    if (result == 0)
+        return true;
 #endif
     return false;
 }
