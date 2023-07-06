@@ -59,6 +59,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_STANDARD 11
     CXX_STANDARD_REQUIRED ON
     POSITION_INDEPENDENT_CODE ON
+    OUTPUT_NAME "ebot"
 )
 
 # Set installation directories
