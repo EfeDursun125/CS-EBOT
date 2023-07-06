@@ -68,6 +68,7 @@ void Bot::CampUpdate(void)
 			m_currentWaypointIndex = -1;
 			DeleteSearchNodes();
 			MoveOut(m_enemyOrigin);
+			CheckStuck(pev->maxspeed);
 			return;
 		}
 		else

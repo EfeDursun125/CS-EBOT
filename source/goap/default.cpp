@@ -22,7 +22,6 @@ void Bot::DefaultUpdate(void)
 		{
 			if (m_hasEnemiesNear && IsEnemyReachable())
 			{
-				ResetStuck();
 				m_currentWaypointIndex = -1;
 				DeleteSearchNodes();
 				MoveTo(m_enemyOrigin);
@@ -32,6 +31,8 @@ void Bot::DefaultUpdate(void)
 					pev->button |= IN_ATTACK2;
 				else
 					pev->button |= IN_ATTACK;
+
+				CheckStuck(pev->maxspeed);
 
 				return;
 			}
@@ -88,10 +89,10 @@ void Bot::DefaultUpdate(void)
 		{
 			if (m_hasEnemiesNear && IsEnemyReachable())
 			{
-				ResetStuck();
 				m_currentWaypointIndex = -1;
 				DeleteSearchNodes();
 				MoveOut(m_enemyOrigin);
+				CheckStuck(pev->maxspeed);
 				return;
 			}
 			else if (!GoalIsValid())
