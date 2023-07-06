@@ -47,13 +47,11 @@ file(GLOB_RECURSE EBOT_SRC
 # Create the library
 add_library(${PROJECT_NAME} SHARED ${EBOT_SRC})
 
-find_package(CURL REQUIRED)
-
 # Link libraries
 target_link_libraries(${PROJECT_NAME}
-    PRIVATE CURL::libcurl
     ${CMAKE_DL_LIBS}
     ${CMAKE_THREAD_LIBS_INIT}
+    "-L/path/to/libcurl/libraries -lcurl"
 )
 
 # Set library properties
@@ -66,4 +64,3 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 # Set installation directories
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../include/ DESTINATION include)
-
