@@ -1711,34 +1711,53 @@ void Waypoint::InitTypes()
 bool Waypoint::Download(void)
 {
 #ifdef PLATFORM_WIN32
-    HRESULT hr = URLDownloadToFile(nullptr, FormatBuffer("%s/%s.ewp", ebot_download_waypoints_from.GetString(), GetMapName()), (char*)CheckSubfolderFile(), 0, nullptr);
-    if (SUCCEEDED(hr))
-        return true;
-#else
-    CURL* curl;
-    CURLcode res;
-
-    curl_global_init(CURL_GLOBAL_DEFAULT);
-    curl = curl_easy_init();
-
-    if (curl)
+    // could be missing or corrupted?
+    HMODULE hUrlMon = LoadLibrary("urlmon.dll");
+    if (hUrlMon != nullptr)
     {
-        curl_easy_setopt(curl, CURLOPT_URL, FormatBuffer("%s/%s.ewp", ebot_download_waypoints_from.GetString(), GetMapName()));
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, (char*)CheckSubfolderFile());
+        typedef HRESULT(WINAPI* URLDownloadToFileFn)(LPUNKNOWN, LPCSTR, LPCSTR, DWORD, LPBINDSTATUSCALLBACK);
+        URLDownloadToFileFn pURLDownloadToFile = reinterpret_cast<URLDownloadToFileFn>(GetProcAddress(hUrlMon, "URLDownloadToFileA"));
 
-        res = curl_easy_perform(curl);
-        if (res != CURLE_OK)
+        if (pURLDownloadToFile != nullptr)
         {
-            curl_easy_cleanup(curl);
-            curl_global_cleanup();
-            return false;
+            HRESULT hr = pURLDownloadToFile(nullptr, FormatBuffer("%s/%s.ewp", ebot_download_waypoints_from.GetString(), GetMapName()), (char*)CheckSubfolderFile(), 0, nullptr);
+            if (SUCCEEDED(hr))
+            {
+                FreeLibrary(hUrlMon);
+                return true;
+            }
         }
 
-        curl_easy_cleanup(curl);
-        return true;
+        FreeLibrary(hUrlMon);
     }
-    
-    curl_global_cleanup();
+#else
+    if (curl_version_info() != nullptr)
+    {
+        CURL* curl;
+        CURLcode res;
+
+        curl_global_init(CURL_GLOBAL_DEFAULT);
+        curl = curl_easy_init();
+
+        if (curl)
+        {
+            curl_easy_setopt(curl, CURLOPT_URL, FormatBuffer("%s/%s.ewp", ebot_download_waypoints_from.GetString(), GetMapName()));
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, (char*)CheckSubfolderFile());
+
+            res = curl_easy_perform(curl);
+            if (res != CURLE_OK)
+            {
+                curl_easy_cleanup(curl);
+                curl_global_cleanup();
+                return false;
+            }
+
+            curl_easy_cleanup(curl);
+            return true;
+        }
+
+        curl_global_cleanup();
+    }
 #endif
     return false;
 }
