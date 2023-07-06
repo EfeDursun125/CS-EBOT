@@ -1711,7 +1711,7 @@ void Waypoint::InitTypes()
 bool Waypoint::Download(void)
 {
 #ifdef PLATFORM_WIN32
-    // could be missing or corrupted?
+    // could be missing or corrupted? then avoid crash...
     HMODULE hUrlMon = LoadLibrary("urlmon.dll");
     if (hUrlMon != nullptr)
     {
@@ -1731,7 +1731,7 @@ bool Waypoint::Download(void)
         FreeLibrary(hUrlMon);
     }
 #else
-    if (curl_version_info() != nullptr)
+    if (curl_version_info(CURLVERSION_NOW) != nullptr)
     {
         CURL* curl;
         CURLcode res;
