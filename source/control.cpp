@@ -1341,9 +1341,7 @@ void Bot::StartGame(void)
 	else if (m_startAction == CMENU_CLASS)
 	{
 		m_startAction = CMENU_IDLE;  // switch back to idle
-
-		int maxChoice = g_gameVersion == CSVER_CZERO ? 5 : 4;
-		m_wantedClass = CRandomInt(1, maxChoice);
+		m_wantedClass = CRandomInt(1, g_gameVersion == CSVER_CZERO ? 5 : 4);
 
 		// select the class the bot wishes to use...
 		FakeClientCommand(GetEntity(), "menuselect %d", m_wantedClass);

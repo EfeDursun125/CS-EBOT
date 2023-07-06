@@ -174,36 +174,12 @@ int cstrcmp(const char* str1, const char* str2)
 
 int cstrncmp(const char* str1, const char* str2, const size_t num)
 {
-	const size_t chunkSize = 16;
-	const __m128i* p1 = (__m128i*)str1;
-	const __m128i* p2 = (__m128i*)str2;
-
-	for (size_t i = 0; i < num / chunkSize; ++i)
+	for (size_t i = 0; i < num; ++i)
 	{
-		const __m128i chunk1 = _mm_loadu_si128(p1 + i);
-		const __m128i chunk2 = _mm_loadu_si128(p2 + i);
-
-		const __m128i cmp = _mm_cmpeq_epi8(chunk1, chunk2);
-		const int mask = _mm_movemask_epi8(cmp);
-		if (mask != 0xFFFF)
-		{
-			const size_t index = i * chunkSize + ctz(~mask);
-			if (index < num)
-				return str1[index] - str2[index];
-			else
-				return 0;
-		}
-	}
-
-	const char* p1Rem = (const char*)(p1 + (num / chunkSize));
-	const char* p2Rem = (const char*)(p2 + (num / chunkSize));
-	for (size_t i = 0; i < num % chunkSize; ++i)
-	{
-		if (p1Rem[i] != p2Rem[i])
-			return p1Rem[i] - p2Rem[i];
-
-		if (p1Rem[i] == '\0')
-			break;
+		if (str1[i] != str2[i])
+			return (str1[i] < str2[i]) ? -1 : 1;
+		else if (str1[i] == '\0')
+			return 0;
 	}
 
 	return 0;
@@ -223,26 +199,10 @@ void cstrcpy(char* dest, const char* src)
 
 void cmemcpy(void* dest, const void* src, const size_t size)
 {
-	const size_t vectorSize = 16;
-	const size_t numVectors = size / vectorSize;
-
-	__m128i* destVector = (__m128i*)dest;
-	const __m128i* srcVector = (const __m128i*)src;
-
-	for (size_t i = 0; i < numVectors; ++i)
-	{
-		const __m128i data = _mm_loadu_si128(srcVector + i);
-		_mm_storeu_si128(destVector + i, data);
-	}
-
-	const size_t remainingSize = size % vectorSize;
-	if (remainingSize > 0)
-	{
-		const char* srcBytes = (const char*)(srcVector + numVectors);
-		char* destBytes = (char*)(destVector + numVectors);
-		for (size_t i = 0; i < remainingSize; ++i)
-			destBytes[i] = srcBytes[i];
-	}
+	char* dest2 = static_cast<char*>(dest);
+	const char* src2 = static_cast<const char*>(src);
+	for (size_t i = 0; i < size; ++i)
+		dest2[i] = src2[i];
 }
 
 void cmemset(void* dest, const int value, const size_t count)
@@ -275,8 +235,14 @@ int ctolower(const int value)
 {
 	if (value >= 'A' && value <= 'Z')
 		return value + ('a' - 'A');
-	else
-		return value;
+	return value;
+}
+
+int ctoupper(const int value)
+{
+	if (value >= 'a' && value <= 'z')
+		return value - 'a' + 'A';
+	return value;
 }
 
 int cstricmp(const char* str1, const char* str2)
@@ -342,27 +308,26 @@ void cstrtrim(char* string)
 	string[length] = 0;
 }
 
-char* cstrstr(char* haystack, const char* needle)
+char* cstrstr(char* str1, const char* str2)
 {
-	const __m128i first = _mm_set1_epi8(needle[0]);
-	const size_t needleLen = cstrlen(needle);
+	if (*str2 == '\0')
+		return str1;
 
-	while (*haystack)
+	while (*str1 != '\0')
 	{
-		const __m128i chunk = _mm_loadu_si128((__m128i*)haystack);
-		const __m128i cmp = _mm_cmpeq_epi8(chunk, first);
-		int mask = _mm_movemask_epi8(cmp);
+		const char* p1 = str1;
+		const char* p2 = str2;
 
-		while (mask)
+		while (*p1 != '\0' && *p2 != '\0' && *p1 == *p2)
 		{
-			const int index = ctz(mask);
-			if (cstrncmp(haystack + index, needle, needleLen) == 0)
-				return haystack + index;
-
-			mask ^= (1 << index);
+			p1++;
+			p2++;
 		}
 
-		haystack += 16;
+		if (*p2 == '\0')
+			return str1;
+
+		str1++;
 	}
 
 	return nullptr;

@@ -3801,7 +3801,8 @@ void Bot::CheckSlowThink(void)
 		}
 	}
 
-	pev->flags |= (FL_CLIENT | FL_FAKECLIENT | FL_DORMANT);
+	if (m_isAlive && (m_team == TEAM_COUNTER || m_team == TEAM_TERRORIST))
+		pev->flags |= (FL_CLIENT | FL_FAKECLIENT | FL_DORMANT);
 }
 
 bool Bot::IsAttacking(const edict_t* player)
@@ -6251,7 +6252,7 @@ void Bot::DebugModeMsg(void)
 		if (m_destOrigin != nullvec)
 			engine->DrawLine(g_hostEntity, pev->origin, m_destOrigin, Color(0, 0, 255, 255), 10, 0, 5, 1, LINE_SIMPLE);
 
-		if (m_stuckArea != nullvec && m_stuckTimer + 1.5f < engine->GetTime())
+		if (m_stuckArea != nullvec && m_stuckWarn > 0)
 			engine->DrawLine(g_hostEntity, pev->origin, m_stuckArea, Color(255, 0, 0, 255), 10, 0, 5, 1, LINE_SIMPLE);
 
 		// now draw line from source to destination

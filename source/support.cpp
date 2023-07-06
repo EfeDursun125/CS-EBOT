@@ -1513,7 +1513,6 @@ const char* GetMapName(void)
 {
 	static char mapName[256];
 	cstrcpy(mapName, STRING(g_pGlobals->mapname));
-
 	return &mapName[0]; // and return a pointer to it
 }
 
@@ -1546,6 +1545,7 @@ void RegisterCommand(char* command, void funcPtr(void))
 {
 	if (IsNullString(command) || funcPtr == nullptr)
 		return; // reliability check
+
 	REG_SVR_COMMAND(command, funcPtr); // ask the engine to register this new command
 }
 
@@ -1558,8 +1558,8 @@ void CheckWelcomeMessage(void)
 
 	if (receiveTime > 0.0f && receiveTime < engine->GetTime())
 	{
-		int buildVersion[4] = { PRODUCT_VERSION_DWORD };
-		int bV16[4] = { buildVersion[0], buildVersion[1], buildVersion[2], buildVersion[3] };
+		const int buildVersion[4] = { PRODUCT_VERSION_DWORD };
+		const int bV16[4] = { buildVersion[0], buildVersion[1], buildVersion[2], buildVersion[3] };
 
 		ChartPrint("----- [%s %s] by %s -----", PRODUCT_NAME, PRODUCT_VERSION, PRODUCT_AUTHOR);
 		ChartPrint("***** Build: (%u.%u.%u.%u) *****", bV16[0], bV16[1], bV16[2], bV16[3]);
