@@ -230,7 +230,7 @@ Vector GetPlayerHeadOrigin(edict_t* ent)
 
 void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 {
-	if (!IsValidPlayer(ent))
+	if (!IsValidPlayer(ent) || IsFakeClient(ent))
 		return;
 
 	const int clientIndex = ENTINDEX(ent) - 1;
@@ -851,8 +851,7 @@ void AutoLoadGameMode(void)
 		Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/%s.ini", getModeName, bbVersion[i]);
 		if (TryFileOpen(Plugin_INI))
 		{
-			float delayTime = CVAR_GET_FLOAT("bb_buildtime") + CVAR_GET_FLOAT("bb_preptime") + 2.2f;
-
+			const float delayTime = CVAR_GET_FLOAT("bb_buildtime") + CVAR_GET_FLOAT("bb_preptime") + 2.2f;
 			if (delayTime > 0)
 			{
 				if (checkShowTextTime < 3 || GetGameMode() != MODE_ZP)
@@ -918,8 +917,7 @@ void AutoLoadGameMode(void)
 		Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/%s.ini", getModeName, biohazard[i]);
 		if (TryFileOpen(Plugin_INI))
 		{
-			float delayTime = CVAR_GET_FLOAT("bh_starttime") + 0.5f;
-
+			const float delayTime = CVAR_GET_FLOAT("bh_starttime") + 0.5f;
 			if (delayTime > 0)
 			{
 				if (checkShowTextTime < 3 || GetGameMode() != MODE_ZP)
@@ -934,22 +932,18 @@ void AutoLoadGameMode(void)
 		}
 	}
 
-	static auto dmActive = g_engfuncs.pfnCVarGetPointer("csdm_active");
-	static auto freeForAll = g_engfuncs.pfnCVarGetPointer("mp_freeforall");
-
-	if (dmActive && freeForAll)
+	auto dmActive = g_engfuncs.pfnCVarGetPointer("csdm_active");
+	if (dmActive != nullptr && dmActive->value > 0.0f)
 	{
-		if (dmActive->value > 0.0f)
+		auto freeForAll = g_engfuncs.pfnCVarGetPointer("mp_freeforall");
+		if (freeForAll != nullptr && freeForAll->value > 0.0f)
 		{
-			if (freeForAll->value > 0.0f)
-			{
-				if (checkShowTextTime < 3 || GetGameMode() != MODE_DM)
-					ServerPrint("*** E-BOT Auto Game Mode Setting: CSDM-DM ***");
+			if (checkShowTextTime < 3 || GetGameMode() != MODE_DM)
+				ServerPrint("*** E-BOT Auto Game Mode Setting: CSDM-DM ***");
 
-				SetGameMode(MODE_DM);
-				g_mapType |= MAP_DE;
-				return;
-			}
+			SetGameMode(MODE_DM);
+			g_mapType |= MAP_DE;
+			return;
 		}
 	}
 
@@ -1052,7 +1046,6 @@ int GetTeam(edict_t* ent)
 		return player_team;
 	}
 
-	int client = ENTINDEX(ent);
 	if (ebot_ignore_enemies.GetBool())
 		player_team = TEAM_COUNTER;
 	else if (GetGameMode() == MODE_ZP)
@@ -1064,10 +1057,11 @@ int GetTeam(edict_t* ent)
 		else
 			player_team = *((int*)ent->pvPrivateData + OFFSET_TEAM) - 1;
 	}
-	else if (GetGameMode() == MODE_DM)
+	else if (GetGameMode() == MODE_DM || GetGameMode() == MODE_NOTEAM)
+	{
+		const int client = ENTINDEX(ent);
 		player_team = client * client;
-	else if (GetGameMode() == MODE_NOTEAM)
-		player_team = 2;
+	}
 	else
 		player_team = *((int*)ent->pvPrivateData + OFFSET_TEAM) - 1;
 
@@ -1238,6 +1232,17 @@ bool IsValidPlayer(edict_t* ent)
 	return false;
 }
 
+bool IsFakeClient(edict_t* ent)
+{
+	if (FNullEnt(ent))
+		return false;
+
+	if (ent->v.flags & FL_FAKECLIENT)
+		return true;
+
+	return false;
+}
+
 bool IsValidBot(edict_t* ent)
 {
 	if (g_botManager->GetIndex(ent) != -1)
@@ -1319,7 +1324,7 @@ bool TryFileOpen(char* fileName)
 
 void HudMessage(edict_t* ent, bool toCenter, const Color& rgb, char* format, ...)
 {
-	if (!IsValidPlayer(ent) || IsValidBot(ent))
+	if (!IsValidPlayer(ent) || IsFakeClient(ent))
 		return;
 
 	va_list ap;

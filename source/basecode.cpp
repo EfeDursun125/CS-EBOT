@@ -92,7 +92,7 @@ bool Bot::CheckVisibility(edict_t* targetEntity)
 	Vector spot = targetEntity->v.origin;
 	edict_t* self = GetEntity();
 
-	constexpr float vis = 0.95f;
+	constexpr float vis = 0.9f;
 	bool ignoreGlass = true;
 
 	// zombies can't hit from the glass...
@@ -168,9 +168,6 @@ bool Bot::CheckVisibility(edict_t* targetEntity)
 
 bool Bot::IsEnemyViewable(edict_t* player)
 {
-	if (IsNotAttackLab(player))
-		return false;
-
 	return CheckVisibility(player);
 }
 
@@ -3621,10 +3618,6 @@ void Bot::ChooseAimDirection(void)
 
 void Bot::BaseUpdate(void)
 {
-	// weird but possible at start of the server...
-	if (pev == nullptr)
-		return;
-
 	// run playermovement
 	const byte adjustedMSec = static_cast <byte>(cminf(250.0f, (engine->GetTime() - m_msecInterval) * 1000.0f));
 	m_msecInterval = engine->GetTime();
@@ -3809,9 +3802,7 @@ void Bot::CheckSlowThink(void)
 	}
 
 	// do not add before bot joins a team, makes them stuck in spectator
-	// do not add it, it makes bot can't switch weapons 
-	// 
-	// pev->flags |= FL_DORMANT;
+	pev->flags |= (FL_CLIENT | FL_FAKECLIENT | FL_DORMANT);
 }
 
 bool Bot::IsAttacking(const edict_t* player)
@@ -4107,7 +4098,7 @@ void Bot::CalculatePing(void)
 		if (!(client.flags & CFLAG_USED))
 			continue;
 
-		if (IsValidBot(client.index))
+		if (IsFakeClient(client.ent))
 			continue;
 
 		numHumans++;

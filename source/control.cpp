@@ -208,10 +208,6 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 	m_bots[index]->m_index = m_bots[index]->GetIndex();
 	m_bots[index]->m_senseChance = CRandomInt(10, 90);
 
-	// stop updating bots for a bit to avoid possible crash
-	extern float updateTimer;
-	updateTimer = engine->GetTime() + 0.1f;
-
 	return index;
 }
 
@@ -967,7 +963,7 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	}
 
 	MDLL_ClientPutInServer(bot);
-	bot->v.flags |= FL_CLIENT;
+	bot->v.flags |= (FL_CLIENT | FL_FAKECLIENT);
 
 	// initialize all the variables for this bot...
 	m_notStarted = true;  // hasn't joined game yet

@@ -149,7 +149,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 			ClientPrint(cmd, print_withtag, "E-Bot %s executing command %s", GetEntityName(ent), &arg2[0]);
 		}
 		else
-			ClientPrint(cmd, print_withtag, "Player is NOT Bot!");
+			ClientPrint(cmd, print_withtag, "Player is NOT a E-Bot!");
 	}
 
 	// display current time on the server
@@ -1405,7 +1405,7 @@ void ClientUserInfoChanged(edict_t* ent, char* infobuffer)
 	const char* passwordField = ebot_password_key.GetString();
 	const char* password = ebot_password.GetString();
 
-	if (IsNullString(passwordField) || IsNullString(password) || IsValidBot(ent))
+	if (IsNullString(passwordField) || IsNullString(password) || IsFakeClient(ent))
 	{
 		if (g_isMetamod)
 			RETURN_META(MRES_IGNORED);
@@ -3050,7 +3050,7 @@ void pfnClientCommand(edict_t* ent, char* format, ...)
 	va_end(ap);
 
 	// is the target entity an official bot, or a third party bot ?
-	if (IsValidBot(ent) || (ent->v.flags & FL_DORMANT))
+	if (IsFakeClient(ent) || ent->v.flags & FL_DORMANT)
 	{
 		if (g_isMetamod)
 			RETURN_META(MRES_SUPERCEDE); // prevent bots to be forced to issue client commands
@@ -3100,7 +3100,7 @@ void pfnMessageBegin(int msgDest, int msgType, const float* origin, edict_t* ed)
 		const int index = g_botManager->GetIndex(ed);
 
 		// is this message for a bot?
-		if (index != -1 && !(ed->v.flags & FL_DORMANT) && g_botManager->GetBot(index)->GetEntity() == ed)
+		if (index != -1  && g_botManager->GetBot(index)->GetEntity() == ed)
 		{
 			NetworkMsg::GetObjectPtr()->Reset();
 			NetworkMsg::GetObjectPtr()->SetBot(g_botManager->GetBot(index));

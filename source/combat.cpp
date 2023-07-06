@@ -51,7 +51,7 @@ void Bot::FindFriendsAndEnemiens(void)
 		{
 			m_numEnemiesLeft++;
 
-			if (!IsEnemyViewable(client.ent))
+			if (!CheckVisibility(client.ent))
 				continue;
 
 			// we don't know this enemy, where it can be?
@@ -61,6 +61,9 @@ void Bot::FindFriendsAndEnemiens(void)
 					continue;
 
 				if (IsBehindSmokeClouds(client.ent))
+					continue;
+
+				if (IsNotAttackLab(client.ent))
 					continue;
 			}
 

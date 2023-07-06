@@ -2404,35 +2404,38 @@ void Bot::CheckStuck(const float maxSpeed)
 				if (!ebot_ignore_enemies.GetBool())
 				{
 					const bool friendlyFire = engine->IsFriendlyFireOn();
-					if ((!friendlyFire && m_currentWeapon == WEAPON_KNIFE) || (friendlyFire && !IsValidBot(m_nearestFriend))) // DOOR STUCK! || DIE HUMAN!
+					if ((!friendlyFire && m_currentWeapon == WEAPON_KNIFE) || (friendlyFire && !IsFakeClient(m_nearestFriend))) // DOOR STUCK! || DIE HUMAN!
 					{
 						m_lookAt = friendOrigin + (m_nearestFriend->v.view_ofs * 0.9f);
 						m_pauseTime = 0.0f;
 						if (!(pev->button & IN_ATTACK) && !(pev->oldbuttons & IN_ATTACK))
 							pev->button |= IN_ATTACK;
 
-						// WHO SAID BOT'S DON'T HAVE A FEELINGS?
-						// then show it, or act as...
-						if (m_personality == PERSONALITY_CAREFUL)
+						if (!IsZombieMode())
 						{
-							if (friendlyFire)
-								ChatSay(false, "YOU'RE NOT ONE OF US!");
+							// WHO SAID BOT'S DON'T HAVE A FEELINGS?
+							// then show it, or act as...
+							if (m_personality == PERSONALITY_CAREFUL)
+							{
+								if (friendlyFire)
+									ChatSay(false, "YOU'RE NOT ONE OF US!");
+								else
+									ChatSay(false, "I'M STUCK!");
+							}
+							else if (m_personality == PERSONALITY_RUSHER)
+							{
+								if (friendlyFire)
+									ChatSay(false, "DIE HUMAN!");
+								else
+									ChatSay(false, "GET OUT OF MY WAY!");
+							}
 							else
-								ChatSay(false, "I'M STUCK!");
-						}
-						else if (m_personality == PERSONALITY_RUSHER)
-						{
-							if (friendlyFire)
-								ChatSay(false, "DIE HUMAN!");
-							else
-								ChatSay(false, "GET OUT OF MY WAY!");
-						}
-						else
-						{
-							if (friendlyFire)
-								ChatSay(false, "YOU GAVE ME NO CHOICE!");
-							else
-								ChatSay(false, "DOOR STUCK!");
+							{
+								if (friendlyFire)
+									ChatSay(false, "YOU GAVE ME NO CHOICE!");
+								else
+									ChatSay(false, "DOOR STUCK!");
+							}
 						}
 					}
 					else
@@ -2471,7 +2474,7 @@ void Bot::CheckStuck(const float maxSpeed)
 		return;
 
 	const float distance = ((pev->origin + pev->velocity * m_frameInterval) - m_stuckArea).GetLengthSquared2D();
-	const float range = ((maxSpeed * 2.0f) + (m_stuckWarn + m_stuckWarn));
+	const float range = ((maxSpeed * 2.0f) + (m_stuckWarn + m_stuckWarn) + m_friendsNearCount);
 	if (distance < range)
 	{
 		m_stuckWarn++;
@@ -2492,7 +2495,7 @@ void Bot::CheckStuck(const float maxSpeed)
 	else
 	{
 		// are we teleported? O_O
-		if (distance > SquaredF(range) && !IsVisible(m_destOrigin, GetEntity()))
+		if (distance > SquaredF(range - m_friendsNearCount) && !IsVisible(m_destOrigin, GetEntity()))
 		{
 			DeleteSearchNodes();
 			m_currentWaypointIndex = -1;
