@@ -82,7 +82,10 @@ enum class Process
 	Defuse,
 	Pause,
 	DestroyBreakable,
-	Pickup
+	Pickup,
+	ThrowHE,
+	ThrowFB,
+	ThrowSM
 };
 
 // supported cs's
@@ -728,7 +731,6 @@ private:
 
 	float m_timeDoorOpen; // time to next door open check
 	float m_lastChatTime; // time bot last chatted
-	float m_timeLogoSpray; // time bot last spray logo
 	float m_knifeAttackTime; // time to rush with knife (at the beginning of the round)
 	bool m_defendedBomb; // defend action issued
 
@@ -747,11 +749,11 @@ private:
 	PathNode* m_navNodeStart; // pointer to start of path finding nodes
 	uint8_t m_visibility; // visibility flags
 
-	int m_currentWaypointIndex; // current waypoint index
-	int m_travelStartIndex; // travel start index to double jump action
-	int m_prevWptIndex[3]; // previous waypoint indices from waypoint find
+	int16 m_currentWaypointIndex; // current waypoint index
+	int16 m_travelStartIndex; // travel start index to double jump action
+	int16 m_prevWptIndex[3]; // previous waypoint indices from waypoint find
 	int32 m_waypointFlags; // current waypoint flags
-	int m_loosedBombWptIndex; // nearest to loosed bomb waypoint
+	int16 m_loosedBombWptIndex; // nearest to loosed bomb waypoint
 
 	unsigned short m_currentTravelFlags; // connection flags like jumping
 	bool m_jumpFinished; // has bot finished jumping
@@ -867,7 +869,7 @@ private:
 	bool UpdateLiftStates(void);
 	bool IsRestricted(int weaponIndex);
 
-	bool IsOnAttackDistance(edict_t* targetEntity, float distance);
+	bool IsOnAttackDistance(edict_t* targetEntity, const float distance);
 
 	bool IsInViewCone(const Vector& origin);
 	bool CheckVisibility(edict_t* targetEntity);
@@ -1200,6 +1202,9 @@ public:
 	void PauseStart(void);
 	void DestroyBreakableStart(void);
 	void PickupStart(void);
+	void ThrowHEStart(void);
+	void ThrowFBStart(void);
+	void ThrowSMStart(void);
 
 	void DefaultUpdate(void);
 	void AttackUpdate(void);
@@ -1210,6 +1215,9 @@ public:
 	void PauseUpdate(void);
 	void DestroyBreakableUpdate(void);
 	void PickupUpdate(void);
+	void ThrowHEUpdate(void);
+	void ThrowFBUpdate(void);
+	void ThrowSMUpdate(void);
 
 	void DefaultEnd(void);
 	void AttackEnd(void);
@@ -1220,6 +1228,9 @@ public:
 	void PauseEnd(void);
 	void DestroyBreakableEnd(void);
 	void PickupEnd(void);
+	void ThrowHEEnd(void);
+	void ThrowFBEnd(void);
+	void ThrowSMEnd(void);
 
 	bool DefaultReq(void);
 	bool AttackReq(void);
@@ -1230,6 +1241,9 @@ public:
 	bool PauseReq(void);
 	bool DestroyBreakableReq(void);
 	bool PickupReq(void);
+	bool ThrowHEReq(void);
+	bool ThrowFBReq(void);
+	bool ThrowSMReq(void);
 
 	int GetAmmo(void);
 	inline int GetAmmoInClip(void) { return m_ammoInClip[m_currentWeapon]; }
@@ -1246,7 +1260,7 @@ public:
 	void UpdateAI(void);
 	void NewRound(void);
 	void EquipInBuyzone(int buyCount);
-	void PushMessageQueue(int message);
+	void PushMessageQueue(const int message);
 	void PrepareChatMessage(char* text);
 	bool EntityIsVisible(Vector dest, bool fromBody = false);
 
@@ -1307,7 +1321,6 @@ protected:
 
 public:
 	Bot* m_bots[32]; // all available bots
-	
 
 	Array <String> m_savedBotNames; // storing the bot names
 	Array <String> m_avatars; // storing the steam ids
@@ -1443,14 +1456,14 @@ public:
 	void Analyze(void);
 	void AnalyzeDeleteUselessWaypoints(void);
 	void InitTypes();
-	void AddPath(const int addIndex, const int pathIndex, const int type = 0);
+	void AddPath(const int16 addIndex, const int16 pathIndex, const int type = 0);
 
 	int GetFacingIndex(void);
-	int FindFarest(const Vector& origin, float maxDistance = 99999.0f);
-	int FindNearestInCircle(const Vector& origin, float maxDistance = 99999.0f);
+	int16 FindFarest(const Vector& origin, const float maxDistance = 99999.0f);
+	int16 FindNearestInCircle(const Vector& origin, const float maxDistance = 99999.0f);
 	int FindNearest(Vector origin, float minDistance = 99999.0f, int flags = -1, edict_t* entity = nullptr, int* findWaypointPoint = (int*)-2, int mode = -1);
-	void FindInRadius(Vector origin, float radius, int* holdTab, int* count);
-	void FindInRadius(Array <int>& queueID, float radius, Vector origin);
+	void FindInRadius(const Vector origin, const float radius, int* holdTab, int* count);
+	void FindInRadius(Array <int>& queueID, const float radius, const Vector origin);
 
 	void ChangeZBCampPoint(Vector origin);
 	bool IsZBCampPoint(int pointID, bool checkMesh = true);
@@ -1489,10 +1502,10 @@ public:
 	bool NodesValid(void);
 	void CreateBasic(void);
 
-	float GetPathDistance(int srcIndex, int destIndex);
+	float GetPathDistance(int16 srcIndex, int16 destIndex);
 
-	Path* GetPath(const int id);
-	char* GetWaypointInfo(int id);
+	Path* GetPath(const int16 id);
+	char* GetWaypointInfo(int16 id);
 	char* GetInfo(void) { return m_infoBuffer; }
 
 	int AddGoalScore(int index, int other[4]);
@@ -1568,9 +1581,8 @@ extern bool IsZombieEntity(edict_t* ent);
 extern void SetGameMode(int gamemode);
 extern bool IsZombieMode(void);
 extern bool IsDeathmatchMode(void);
-extern bool IsValidWaypoint(int index);
+extern bool IsValidWaypoint(int16 index);
 extern unsigned int GetPlayerPriority(edict_t* player);
-extern edict_t* FindEntityInSphere(edict_t* startEnt, const Vector& vecCenter, const float flRadius);
 
 extern int GetEntityWaypoint(edict_t* ent);
 extern int SetEntityWaypoint(edict_t* ent, int mode = -1);
@@ -1636,7 +1648,6 @@ extern void AddLogEntry(int logLevel, const char* format, ...);
 extern void MOD_AddLogEntry(int mode, char* format);
 
 extern void DisplayMenuToClient(edict_t* ent, MenuText* menu);
-extern void DecalTrace(entvars_t* pev, TraceResult* trace, int logotypeIndex);
 
 extern void TraceLine(const Vector& start, const Vector& end, bool ignoreMonsters, bool ignoreGlass, edict_t* ignoreEntity, TraceResult* ptr);
 extern void TraceLine(const Vector& start, const Vector& end, bool ignoreMonsters, edict_t* ignoreEntity, TraceResult* ptr);

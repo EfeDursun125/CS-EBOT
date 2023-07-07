@@ -77,7 +77,8 @@ extern WeaponSelect g_weaponSelect[Const_NumWeapons + 1];
 extern WeaponSelect g_weaponSelectHL[Const_NumWeaponsHL + 1];
 extern WeaponProperty g_weaponDefs[Const_MaxWeapons + 1];
 
-extern Clients g_clients[33];
+extern edict_t* g_entities[2048];
+extern Clients g_clients[32];
 extern MenuText g_menus[28];
 extern Task g_taskFilters[];
 

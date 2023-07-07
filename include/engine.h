@@ -1472,9 +1472,9 @@ inline void MESSAGE_BEGIN(int msg_dest, int msg_type, const float* pOrigin = nul
 class MessageSender
 {
 public:
-    MessageSender() : msg_dest_(0), msg_type_(0), pOrigin_(nullptr), ed_(nullptr), isMessageStarted(false), isMessageEnded(false) {}
+    MessageSender() : msg_dest_(0), msg_type_(0), pOrigin_(nullptr), ed_(nullptr), isMessageStarted(false), isMessageEnded(true) {}
 
-    MessageSender(int msg_dest, int msg_type, const float* pOrigin = nullptr, edict_t* ed = nullptr, const bool autoCall = true) : msg_dest_(msg_dest), msg_type_(msg_type), pOrigin_(pOrigin), ed_(ed), isMessageStarted(false), isMessageEnded(false)
+    MessageSender(int msg_dest, int msg_type, const float* pOrigin = nullptr, edict_t* ed = nullptr, const bool autoCall = true) : msg_dest_(msg_dest), msg_type_(msg_type), pOrigin_(pOrigin), ed_(ed), isMessageStarted(false), isMessageEnded(true)
     {
         if (autoCall)
             BeginMessage();
@@ -1556,7 +1556,7 @@ public:
 
     void EndMessage()
     {
-        if (isMessageStarted && !isMessageEnded)
+        if (isMessageStarted)
         {
             (*g_engfuncs.pfnMessageEnd)();
             isMessageEnded = true;
@@ -2280,10 +2280,9 @@ inline void MESSAGE_BEGIN(int msg_dest, int msg_type, const float* pOrigin, entv
 }
 
 // Testing the three types of "entity" for nullity
-#define eoNullEntity 0
 inline bool FNullEnt(EOFFSET eoffset)
 {
-    return eoffset == eoNullEntity;
+    return eoffset == 0;
 }
 inline bool FNullEnt(entvars_t* pev)
 {
@@ -2302,8 +2301,6 @@ inline bool FStringNull(int iString)
 }
 
 #define cchMapNameMost 32
-
-#define SAFE_FUNCTION_CALL(pfn,args) try { pfn args; } catch (...)  { }
 
 // Dot products for view cone checking
 #define VIEW_FIELD_FULL         (float)-1.0f     // +-180 degrees
@@ -3039,23 +3036,9 @@ enum NetMsg
     NETMSG_NUM = 21
 };
 
-struct MessageBlock
-{
-    int bot;
-    int state;
-    int msg;
-    int regMsgs[NETMSG_NUM];
-};
-
 class Engine : public Singleton <Engine>
 {
     friend class Client;
-
-    // bot client command
-    bool m_isBotCommand;
-    char m_arguments[256];
-    int m_argumentCount;
-    MessageBlock m_msgBlock;
 
 private:
     Client m_clients[32];
@@ -3145,12 +3128,6 @@ public:
     void MaintainClients(void);
 
     void DrawLine(edict_t* client, const Vector& start, const Vector& end, const Color& color, int width, int noise, int speed, int life, int lineType = LINE_SIMPLE);
-
-    // find registered message id
-    FORCEINLINE int FindMessageId(int type)
-    {
-        return m_msgBlock.regMsgs[type];
-    }
 };
 
 #define engine Engine::GetReference ()
