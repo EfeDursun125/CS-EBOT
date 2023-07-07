@@ -1,7 +1,11 @@
 # CS 1.6 E-BOT ![GitHub all releases](https://img.shields.io/github/downloads/EfeDursun125/CS-EBOT/total)
+[Click HERE To Join EBOT Discord Server](http://discord.gg/v7PesBamXt)
+
+
 AI Bot for Counter-Strike based on SyPB
 
 This bot can be used for default gamemodes, deathmatch and zombie.
+
 
 # E-Bot Requires VCRedist (For Windows)
 If you see badf load on console (when you type "meta list") install this.
