@@ -341,7 +341,7 @@ void Bot::DoWaypointNav(void)
 				//pev->velocity.z = cclampf(2.0f * (waypointOrigin.z - myOrigin.z - 0.5f * pev->gravity * powf(timeToReachWaypoint, 2.0f)) / timeToReachWaypoint, -pev->maxspeed, pev->maxspeed);
 			}
 			
-			SetProcess(Process::Pause, "pausing after jump", false, engine->RandomFloat(0.75f, 1.25f));
+			SetProcess(Process::Pause, "pausing after jump", false, CRandomFloat(0.75f, 1.25f));
 			m_jumpFinished = true;
 		}
 	};
@@ -536,7 +536,7 @@ void Bot::DoWaypointNav(void)
 	}
 
 	float distance;
-	float desiredDistance = SquaredF(8.0f);
+	float desiredDistance = SquaredF(4.0f);
 
 	if (IsOnLadder() || currentWaypoint->flags & WAYPOINT_LADDER)
 	{
@@ -548,7 +548,7 @@ void Bot::DoWaypointNav(void)
 		distance = (pev->origin - m_destOrigin).GetLengthSquared2D();
 
 		if (m_currentTravelFlags & PATHFLAG_JUMP)
-			desiredDistance = SquaredF(8.0f);
+			desiredDistance = SquaredF(4.0f);
 		else
 		{
 			if (currentWaypoint->flags & WAYPOINT_LIFT)
@@ -557,20 +557,23 @@ void Bot::DoWaypointNav(void)
 				desiredDistance = SquaredF(24.0f);
 			else if (IsWaypointOccupied(m_currentWaypointIndex))
 				desiredDistance = SquaredF(96.0f);
-			else if (currentWaypoint->radius > 8)
-				desiredDistance = static_cast <float> (Squared(currentWaypoint->radius));
+			else if (currentWaypoint->radius > 4)
+				desiredDistance = SquaredI(currentWaypoint->radius);
 
 			// check if waypoint has a special travelflag, so they need to be reached more precisely
 			for (int i = 0; i < Const_MaxPathIndex; i++)
 			{
 				if (currentWaypoint->connectionFlags[i] != 0)
 				{
-					desiredDistance = SquaredF(8.0f);
+					desiredDistance = SquaredF(4.0f);
 					break;
 				}
 			}
 		}
 	}
+
+	if (desiredDistance < SquaredF(22.0f) && desiredDistance < SquaredF(30.0f) && ((pev->origin + pev->velocity * m_frameInterval) - m_destOrigin).GetLengthSquared() >= desiredDistance)
+		desiredDistance = desiredDistance + 1.0f;
 
 	if (distance <= desiredDistance)
 	{
@@ -604,6 +607,15 @@ void Bot::DoWaypointNav(void)
 					break;
 				}
 			}
+		}
+	}
+	else
+	{
+		if (HasNextPath() && m_navNode->next->index == m_chosenGoalIndex && IsWaypointOccupied(m_chosenGoalIndex, true))
+		{
+			m_chosenGoalIndex = -1;
+			DeleteSearchNodes();
+			FindWaypoint();
 		}
 	}
 }
@@ -1816,7 +1828,7 @@ void Bot::FindPath(int srcIndex, int destIndex)
 			}
 			else if (flags & WAYPOINT_SPECIFICGRAVITY)
 			{
-				if (pev->gravity * (1600.0f - 800.0f) < g_waypoint->GetPath(self)->gravity)
+				if (pev->gravity * (1600.0f - engine->GetGravity()) < g_waypoint->GetPath(self)->gravity)
 					continue;
 			}
 
@@ -1961,7 +1973,7 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 			}
 			else if (flags & WAYPOINT_SPECIFICGRAVITY)
 			{
-				if (pev->gravity * (1600.0f - 800.0f) < g_waypoint->GetPath(self)->gravity)
+				if (pev->gravity * (1600.0f - engine->GetGravity()) < g_waypoint->GetPath(self)->gravity)
 					continue;
 			}
 
@@ -2383,7 +2395,7 @@ void Bot::CheckStuck(const float maxSpeed)
 				else if (!(m_nearestFriend->v.button & IN_DUCK) && !(m_nearestFriend->v.oldbuttons & IN_DUCK))
 				{
 					if (m_duckTime < engine->GetTime())
-						m_duckTime = engine->GetTime() + engine->RandomFloat(1.0f, 2.0f);
+						m_duckTime = engine->GetTime() + CRandomFloat(1.0f, 2.0f);
 				}
 			}
 
@@ -2506,7 +2518,6 @@ void Bot::CheckStuck(const float maxSpeed)
 			m_isStuck = false;
 	}
 }
-	
 
 void Bot::SetWaypointOrigin(void)
 {
@@ -2514,10 +2525,10 @@ void Bot::SetWaypointOrigin(void)
 	const int32 myFlags = pointer->flags;
 	m_waypointOrigin = pointer->origin;
 
-	const float radius = static_cast <float> (pointer->radius);
-	if (radius > 0)
+	if (pointer->radius > 4)
 	{
-		MakeVectors(Vector(pev->angles.x, AngleNormalize(pev->angles.y + engine->RandomFloat(-90.0f, 90.0f)), 0.0f));
+		const float radius = static_cast<float>(pointer->radius);
+		MakeVectors(Vector(pev->angles.x, AngleNormalize(pev->angles.y + CRandomFloat(-90.0f, 90.0f)), 0.0f));
 		int sPoint = -1;
 
 		if (&m_navNode[0] != nullptr && m_navNode->next != nullptr)
@@ -2526,7 +2537,7 @@ void Bot::SetWaypointOrigin(void)
 			for (int i = 0; i < 5; i++)
 			{
 				waypointOrigin[i] = m_waypointOrigin;
-				waypointOrigin[i] += Vector(engine->RandomFloat(-radius, radius), engine->RandomFloat(-radius, radius), 0.0f);
+				waypointOrigin[i] += Vector(CRandomFloat(-radius, radius), CRandomFloat(-radius, radius), 0.0f);
 			}
 
 			float sDistance = FLT_MAX;
@@ -3431,7 +3442,7 @@ void Bot::FacePosition(void)
 	{
 		m_lookYawVel = 0.0f;
 		m_idealAngles.y = direction.y;
-		m_aimStopTime = AddTime(engine->RandomFloat(0.25f, 1.25f));
+		m_aimStopTime = AddTime(CRandomFloat(0.25f, 1.25f));
 	}
 	else
 	{
@@ -3599,7 +3610,7 @@ bool Bot::IsWaypointOccupied(int index, bool needZeroVelocity)
 
 		const auto path = g_waypoint->GetPath(index);
 		const float length = (client.origin - path->origin).GetLengthSquared();
-		if (length < cclampf(static_cast <float> (Squared(path->radius) * 2), SquaredF(40.0f), SquaredF(90.0f)))
+		if (length < cclampf(static_cast<float>(Squared(path->radius) * 2), SquaredF(40.0f), SquaredF(90.0f)))
 			return true;
 
 		auto bot = g_botManager->GetBot(client.index);

@@ -25,7 +25,7 @@ void StripTags(char* buffer)
             // have we found a tag stop?
             if ((fieldStop > fieldStart) && (fieldStop < 32))
             {
-                for (i = fieldStart; i < length - (fieldStop + static_cast <int> (cstrlen(tagClose[index])) - fieldStart); i++)
+                for (i = fieldStart; i < length - (fieldStop + static_cast<int>(cstrlen(tagClose[index])) - fieldStart); i++)
                     buffer[i] = buffer[i + (fieldStop + cstrlen(tagClose[index]) - fieldStart)]; // overwrite the buffer with the stripped string
 
                 buffer[i] = 0x0; // terminate the string
@@ -48,7 +48,7 @@ void StripTags(char* buffer)
             {
                 fieldStop = fieldStart + cstrlen(tagOpen[index]); // set the tag stop
 
-                for (i = fieldStart; i < length - static_cast <int> (cstrlen(tagOpen[index])); i++)
+                for (i = fieldStart; i < length - static_cast<int>(cstrlen(tagOpen[index])); i++)
                     buffer[i] = buffer[i + cstrlen(tagOpen[index])]; // overwrite the buffer with the stripped string
 
                 buffer[i] = 0x0; // terminate the string
@@ -60,8 +60,8 @@ void StripTags(char* buffer)
                 {
                     fieldStop = fieldStart + cstrlen(tagClose[index]); // set the tag stop
 
-                    for (i = fieldStart; i < length - static_cast <int> (cstrlen(tagClose[index])); i++)
-                        buffer[i] = buffer[i + static_cast <int> (cstrlen(tagClose[index]))]; // overwrite the buffer with the stripped string
+                    for (i = fieldStart; i < length - static_cast<int>(cstrlen(tagClose[index])); i++)
+                        buffer[i] = buffer[i + static_cast<int>(cstrlen(tagClose[index]))]; // overwrite the buffer with the stripped string
 
                     buffer[i] = 0; // terminate the string
                 }
@@ -72,25 +72,23 @@ void StripTags(char* buffer)
     cstrtrim(buffer); // to finish, strip eventual blanks after and before the tag marks
 }
 
+// this function humanize player name (i.e. trim clan and switch to lower case (sometimes))
 char* HumanizeName(char* name)
 {
-    // this function humanize player name (i.e. trim clan and switch to lower case (sometimes))
-
     static char outputName[256]; // create return name buffer
     cstrcpy(outputName, name); // copy name to new buffer
 
-    // drop tag marks, 80 percent of time
-    if (CRandomInt(1, 100) < 80)
+    // drop tag marks, 75 percent of time
+    if (CRandomInt(1, 100) < 75)
         StripTags(outputName);
     else
         cstrtrim(outputName);
 
     // sometimes switch name to lower characters
-    // note: since we're using russian names written in english, we reduce this shit to 6 percent
-    if (CRandomInt(1, 100) <= 6)
+    if (CRandomInt(1, 100) < 50)
     {
-        for (int i = 0; i < static_cast <int> (cstrlen(outputName)); i++)
-            outputName[i] = static_cast <char> (ctolower(outputName[i])); // to lower case
+        for (int i = 0; i < static_cast<int>(cstrlen(outputName)); i++)
+            outputName[i] = static_cast<char>(ctolower(outputName[i])); // to lower case
     }
 
     return &outputName[0]; // return terminated string
@@ -136,7 +134,7 @@ void Bot::PrepareChatMessage(char* text)
                     if (!(client.flags & CFLAG_USED) || client.ent == GetEntity())
                         continue;
 
-                    const int frags = static_cast <int> (client.ent->v.frags);
+                    const int frags = static_cast<int>(client.ent->v.frags);
 
                     if (frags > highestFrags)
                     {
@@ -148,7 +146,7 @@ void Bot::PrepareChatMessage(char* text)
                 talkEntity = entity;
 
                 if (!FNullEnt(talkEntity))
-                    cstrcat(m_tempStrings, HumanizeName(const_cast <char*> (GetEntityName(talkEntity))));
+                    cstrcat(m_tempStrings, HumanizeName(const_cast<char*>(GetEntityName(talkEntity))));
             }
             // mapname?
             else if (*pattern == 'm')
@@ -156,7 +154,7 @@ void Bot::PrepareChatMessage(char* text)
             // roundtime?
             else if (*pattern == 'r')
             {
-                const int time = static_cast <int> (g_timeRoundEnd - engine->GetTime());
+                const int time = static_cast<int>(g_timeRoundEnd - engine->GetTime());
                 cstrcat(m_tempStrings, FormatBuffer("%02d:%02d", time / 60, time % 60));
             }
             // chat reply?
@@ -165,7 +163,7 @@ void Bot::PrepareChatMessage(char* text)
                 talkEntity = INDEXENT(m_sayTextBuffer.entityIndex);
 
                 if (!FNullEnt(talkEntity))
-                    cstrcat(m_tempStrings, HumanizeName(const_cast <char*> (GetEntityName(talkEntity))));
+                    cstrcat(m_tempStrings, HumanizeName(const_cast<char*>(GetEntityName(talkEntity))));
             }
             // teammate alive?
             else if (*pattern == 't')
@@ -338,7 +336,7 @@ bool Bot::ParseChat(char* reply)
     cstrcpy(tempMessage, m_sayTextBuffer.sayText); // copy to safe place
 
     // text to uppercase for keyword parsing
-    for (int i = 0; i < static_cast <int> (cstrlen(tempMessage)); i++)
+    for (int i = 0; i < static_cast<int>(cstrlen(tempMessage)); i++)
         tempMessage[i] = toupper(tempMessage[i]);
 
     return CheckKeywords(tempMessage, reply);

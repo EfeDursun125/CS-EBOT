@@ -512,8 +512,8 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 				const int index = g_waypoint->FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
 				if (IsValidWaypoint(index))
 				{
-					g_waypoint->GetPath(index)->mesh = static_cast <int16> (cabsf(catof(arg2)));
-					ClientPrint(ent, print_withtag, "Waypoint mesh set to %d", static_cast <int> (g_waypoint->GetPath(index)->mesh));
+					g_waypoint->GetPath(index)->mesh = static_cast<int16>(cabsf(catof(arg2)));
+					ClientPrint(ent, print_withtag, "Waypoint mesh set to %d", g_waypoint->GetPath(index)->mesh);
 				}
 				else
 					ClientPrint(ent, print_withtag, "Waypoint is not valid");

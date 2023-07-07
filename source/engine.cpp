@@ -5,11 +5,6 @@ ConVar::ConVar(const char* name, const char* initval, VarType type)
     engine->RegisterVariable(name, initval, type, this);
 }
 
-float Engine::RandomFloat(float low, float high)
-{
-    return RANDOM_FLOAT(low, high);
-}
-
 void Engine::RegisterVariable(const char* variable, const char* value, VarType varType, ConVar* self)
 {
     VarPair newVariable;
@@ -129,7 +124,7 @@ float Engine::GetRoundTime(void)
 {
     // we have no idea
     if (m_gameVars[GVAR_ROUNDTIME] == nullptr)
-        return engine->RandomFloat(120.0f, 300.0f);
+        return CRandomFloat(120.0f, 300.0f);
 
     return m_gameVars[GVAR_ROUNDTIME]->value;
 }
@@ -147,7 +142,7 @@ int Engine::GetGravity(void)
     if (m_gameVars[GVAR_GRAVITY] == nullptr)
         return 800;
 
-    return static_cast <int> (m_gameVars[GVAR_GRAVITY]->value);
+    return static_cast<int>(m_gameVars[GVAR_GRAVITY]->value);
 }
 
 int Engine::GetDeveloperLevel(void)
@@ -155,7 +150,7 @@ int Engine::GetDeveloperLevel(void)
     if (m_gameVars[GVAR_DEVELOPER] == nullptr)
         return 0;
 
-    return static_cast <int> (m_gameVars[GVAR_DEVELOPER]->value);
+    return static_cast<int>(m_gameVars[GVAR_DEVELOPER]->value);
 }
 
 bool Engine::IsFriendlyFireOn(void)

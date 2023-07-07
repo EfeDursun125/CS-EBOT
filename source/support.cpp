@@ -55,7 +55,7 @@ void TraceHull(const Vector& start, const Vector& end, bool ignoreMonsters, int 
 
 uint16 FixedUnsigned16(float value, float scale)
 {
-	int output = (static_cast <int> (value * scale));
+	int output = (static_cast<int>(value * scale));
 
 	if (output < 0)
 		output = 0;
@@ -68,7 +68,7 @@ uint16 FixedUnsigned16(float value, float scale)
 
 short FixedSigned16(float value, float scale)
 {
-	int output = (static_cast <int> (value * scale));
+	int output = (static_cast<int>(value * scale));
 
 	if (output > 32767)
 		output = 32767;
@@ -76,7 +76,7 @@ short FixedSigned16(float value, float scale)
 	if (output < -32768)
 		output = -32768;
 
-	return static_cast <short> (output);
+	return static_cast<short>(output);
 }
 
 bool IsAlive(const edict_t* ent)
@@ -344,7 +344,7 @@ void DecalTrace(entvars_t* pev, TraceResult* trace, int logotypeIndex)
 			.WriteCoord(trace->vecEndPos.x)
 			.WriteCoord(trace->vecEndPos.y)
 			.WriteCoord(trace->vecEndPos.z)
-			.WriteShort(static_cast <short> (ENTINDEX(trace->pHit)))
+			.WriteShort(static_cast<short>(ENTINDEX(trace->pHit)))
 			.WriteByte(decalIndex);
 	}
 	else
@@ -899,7 +899,7 @@ void AutoLoadGameMode(void)
 		SetGameMode(MODE_ZH);
 
 		extern ConVar ebot_quota;
-		ebot_quota.SetInt(static_cast <int> (CVAR_GET_FLOAT("zh_zombie_maxslots")));
+		ebot_quota.SetInt(static_cast<int>(CVAR_GET_FLOAT("zh_zombie_maxslots")));
 		g_mapType |= MAP_DE;
 		return;
 	}
@@ -1130,7 +1130,7 @@ int SetEntityWaypoint(edict_t* ent, int mode)
 				const Vector wpOrigin = pointer->origin;
 				distance = (wpOrigin - origin).GetLengthSquared();
 
-				if (distance > static_cast <float> (Squared(pointer->radius + 32)))
+				if (distance > SquaredI(pointer->radius + 32))
 					needCheckNewWaypoint = true;
 				else
 				{
@@ -1341,9 +1341,9 @@ void HudMessage(edict_t* ent, bool toCenter, const Color& rgb, char* format, ...
 		.WriteShort(FixedSigned16(-1, 1 << 13))
 		.WriteShort(FixedSigned16(toCenter ? -1.0f : 0.0f, 1 << 13))
 		.WriteByte(2)
-		.WriteByte(static_cast <int> (rgb.red))
-		.WriteByte(static_cast <int> (rgb.green))
-		.WriteByte(static_cast <int> (rgb.blue))
+		.WriteByte(static_cast<int>(rgb.red))
+		.WriteByte(static_cast<int>(rgb.green))
+		.WriteByte(static_cast<int>(rgb.blue))
 		.WriteByte(0)
 		.WriteByte(CRandomInt(230, 255))
 		.WriteByte(CRandomInt(230, 255))
@@ -1353,7 +1353,7 @@ void HudMessage(edict_t* ent, bool toCenter, const Color& rgb, char* format, ...
 		.WriteShort(FixedUnsigned16(2, 1 << 8))
 		.WriteShort(FixedUnsigned16(6, 1 << 8))
 		.WriteShort(FixedUnsigned16(0.1f, 1 << 8))
-		.WriteString(const_cast <const char*> (&buffer[0]));
+		.WriteString(const_cast<const char*>(&buffer[0]));
 }
 
 void ServerPrint(const char* format, ...)
@@ -1447,9 +1447,9 @@ void ClientPrint(edict_t* ent, int dest, const char* format, ...)
 	cstrcat(string, "\n");
 
 	if (dest & 0x3ff)
-		(*g_engfuncs.pfnClientPrintf) (ent, static_cast <PRINT_TYPE> (dest &= ~0x3ff), FormatBuffer("[E-BOT] %s", string));
+		(*g_engfuncs.pfnClientPrintf) (ent, static_cast<PRINT_TYPE>(dest &= ~0x3ff), FormatBuffer("[E-BOT] %s", string));
 	else
-		(*g_engfuncs.pfnClientPrintf) (ent, static_cast <PRINT_TYPE> (dest), string);
+		(*g_engfuncs.pfnClientPrintf) (ent, static_cast<PRINT_TYPE>(dest), string);
 }
 
 // this function returns true if server is running under linux, and false otherwise returns windows

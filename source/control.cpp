@@ -302,7 +302,7 @@ void BotControl::DoJoinQuitStuff(void)
 	if (min > max)
 		max = min * 1.5f;
 
-	m_randomJoinTime = AddTime(engine->RandomFloat(min, max));
+	m_randomJoinTime = AddTime(CRandomFloat(min, max));
 }
 
 void BotControl::Think(void)
@@ -665,28 +665,28 @@ void BotControl::RemoveMenu(edict_t* ent, int selection)
 	switch (selection)
 	{
 	case 1:
-		g_menus[14].validSlots = validSlots & static_cast <unsigned int> (-1);
+		g_menus[14].validSlots = validSlots & static_cast<unsigned int>(-1);
 		g_menus[14].menuText = tempBuffer;
 
 		DisplayMenuToClient(ent, &g_menus[14]);
 		break;
 
 	case 2:
-		g_menus[15].validSlots = validSlots & static_cast <unsigned int> (-1);
+		g_menus[15].validSlots = validSlots & static_cast<unsigned int>(-1);
 		g_menus[15].menuText = tempBuffer;
 
 		DisplayMenuToClient(ent, &g_menus[15]);
 		break;
 
 	case 3:
-		g_menus[16].validSlots = validSlots & static_cast <unsigned int> (-1);
+		g_menus[16].validSlots = validSlots & static_cast<unsigned int>(-1);
 		g_menus[16].menuText = tempBuffer;
 
 		DisplayMenuToClient(ent, &g_menus[16]);
 		break;
 
 	case 4:
-		g_menus[17].validSlots = validSlots & static_cast <unsigned int> (-1);
+		g_menus[17].validSlots = validSlots & static_cast<unsigned int>(-1);
 		g_menus[17].menuText = tempBuffer;
 
 		DisplayMenuToClient(ent, &g_menus[17]);
@@ -789,7 +789,7 @@ void BotControl::ListBots(void)
 
 		// is this player slot valid
 		if (IsValidBot(player))
-			ServerPrintNoTag("[%-3.1d] %-9.13s %-17.18s %-3.4s %-3.1d %-3.1d", client.index, GetEntityName(player), GetBot(player)->m_personality == PERSONALITY_RUSHER ? "Rusher" : GetBot(player)->m_personality == PERSONALITY_NORMAL ? "Normal" : "Careful", GetTeam(player) != 0 ? "CT" : "TR", GetBot(player)->m_skill, static_cast <int> (player->v.frags));
+			ServerPrintNoTag("[%-3.1d] %-9.13s %-17.18s %-3.4s %-3.1d %-3.1d", client.index, GetEntityName(player), GetBot(player)->m_personality == PERSONALITY_RUSHER ? "Rusher" : GetBot(player)->m_personality == PERSONALITY_NORMAL ? "Normal" : "Careful", GetTeam(player) != 0 ? "CT" : "TR", GetBot(player)->m_skill, static_cast<int>(player->v.frags));
 	}
 }
 
@@ -979,7 +979,7 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	m_msecInterval = engine->GetTime();
 
 	// assign how talkative this bot will be
-	m_sayTextBuffer.chatDelay = engine->RandomFloat(3.8f, 10.0f);
+	m_sayTextBuffer.chatDelay = CRandomFloat(3.8f, 10.0f);
 	m_sayTextBuffer.chatProbability = CRandomInt(1, 100);
 
 	m_isAlive = false;
@@ -993,20 +993,20 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	{
 	case 1:
 		m_personality = PERSONALITY_RUSHER;
-		m_baseAgressionLevel = engine->RandomFloat(0.8f, 1.2f);
-		m_baseFearLevel = engine->RandomFloat(0.0f, 0.5f);
+		m_baseAgressionLevel = CRandomFloat(0.8f, 1.2f);
+		m_baseFearLevel = CRandomFloat(0.0f, 0.5f);
 		break;
 
 	case 2:
 		m_personality = PERSONALITY_CAREFUL;
-		m_baseAgressionLevel = engine->RandomFloat(0.0f, 0.3f);
-		m_baseFearLevel = engine->RandomFloat(0.75f, 1.0f);
+		m_baseAgressionLevel = CRandomFloat(0.0f, 0.3f);
+		m_baseFearLevel = CRandomFloat(0.75f, 1.0f);
 		break;
 
 	default:
 		m_personality = PERSONALITY_NORMAL;
-		m_baseAgressionLevel = engine->RandomFloat(0.4f, 0.8f);
-		m_baseFearLevel = engine->RandomFloat(0.4f, 0.8f);
+		m_baseAgressionLevel = CRandomFloat(0.4f, 0.8f);
+		m_baseFearLevel = CRandomFloat(0.4f, 0.8f);
 		break;
 	}
 
@@ -1027,8 +1027,8 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	m_wantedTeam = team;
 	m_wantedClass = member;
 
-	stay_time = 60.0f * engine->RandomFloat(30.0f, 160.0f);
-	m_connectTime = engine->GetTime() - stay_time * engine->RandomFloat(0.2f, 0.8f);
+	stay_time = 60.0f * CRandomFloat(30.0f, 160.0f);
+	m_connectTime = engine->GetTime() - stay_time * CRandomFloat(0.2f, 0.8f);
 
 	NewRound();
 }
@@ -1201,7 +1201,7 @@ void Bot::NewRound(void)
 		m_currentWeapon = 0;
 	}
 
-	m_nextBuyTime = AddTime(engine->RandomFloat(0.6f, 1.2f));
+	m_nextBuyTime = AddTime(CRandomFloat(0.6f, 1.2f));
 	m_inBombZone = false;
 
 	m_shieldCheckTime = 0.0f;
@@ -1218,7 +1218,7 @@ void Bot::NewRound(void)
 	m_radioOrder = 0;
 	m_defendedBomb = false;
 
-	m_timeLogoSpray = AddTime(engine->RandomFloat(0.5f, 2.0f));
+	m_timeLogoSpray = AddTime(CRandomFloat(0.5f, 2.0f));
 	m_lastChatTime = engine->GetTime();
 	pev->button = 0;
 
@@ -1256,7 +1256,7 @@ void Bot::NewRound(void)
 	PushTask(TASK_NORMAL, TASKPRI_NORMAL, -1, 1.0f, true);
 
 	// hear range based on difficulty
-	m_maxhearrange = float(m_skill * engine->RandomFloat(7.0f, 15.0f));
+	m_maxhearrange = float(m_skill * CRandomFloat(7.0f, 15.0f));
 	m_moveSpeed = pev->maxspeed;
 
 	m_tempstrafeSpeed = CRandomInt(1, 2) == 1 ? pev->maxspeed : -pev->maxspeed;

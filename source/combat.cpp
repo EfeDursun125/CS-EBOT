@@ -273,7 +273,7 @@ bool Bot::LookupEnemy(void)
 			continue;
 
 		if (m_blindRecognizeTime < engine->GetTime() && IsBehindSmokeClouds(entity))
-			m_blindRecognizeTime = engine->GetTime() + engine->RandomFloat(2.0f, 3.0f);
+			m_blindRecognizeTime = engine->GetTime() + CRandomFloat(2.0f, 3.0f);
 
 		if (m_blindRecognizeTime >= engine->GetTime())
 			continue;
@@ -670,7 +670,7 @@ bool Bot::DoFirePause(const float distance)
 	if (tanf(angle) * (distance + (distance * 0.25f)) > 100.0f)
 	{
 		if (m_firePause < (engine->GetTime() - 0.4))
-			m_firePause = engine->GetTime() + engine->RandomFloat(0.4f, (0.4f + 1.2f * ((100 - m_skill)) * 0.01f));
+			m_firePause = engine->GetTime() + CRandomFloat(0.4f, (0.4f + 1.2f * ((100 - m_skill)) * 0.01f));
 
 		return true;
 	}
@@ -912,7 +912,7 @@ WeaponSelectEnd:
 			const float baseDelay = delay[chosenWeaponIndex].primaryBaseDelay;
 			const float minDelay = delay[chosenWeaponIndex].primaryMinDelay[cabs((m_skill / CRandomInt(15, 20)) - 5)];
 			const float maxDelay = delay[chosenWeaponIndex].primaryMaxDelay[cabs((m_skill / CRandomInt(20, 30)) - 5)];
-			delayTime = baseDelay + engine->RandomFloat(minDelay, maxDelay);
+			delayTime = baseDelay + CRandomFloat(minDelay, maxDelay);
 			m_zoomCheckTime = engine->GetTime();
 		}
 
@@ -1218,7 +1218,7 @@ void Bot::CombatFight(void)
 			}
 			else
 			{
-				if (!(g_mapType & MAP_KA) && engine->RandomFloat(1.0f, pev->health) <= 20.0f)
+				if (!(g_mapType & MAP_KA) && CRandomFloat(1.0f, pev->health) <= 20.0f)
 				{
 					const int seekindex = FindCoverWaypoint(999999.0f);
 					if (IsValidWaypoint(seekindex))
@@ -1276,7 +1276,7 @@ void Bot::CombatFight(void)
 			approach = 29;
 		else
 		{
-			approach = static_cast <int> (pev->health * m_agressionLevel);
+			approach = static_cast<int>(pev->health * m_agressionLevel);
 			if (UsesSniper() && approach > 49)
 				approach = 49;
 		}
@@ -1361,7 +1361,7 @@ void Bot::CombatFight(void)
 				if (ChanceOf(30))
 					m_combatStrafeDir = (m_combatStrafeDir == 1 ? 0 : 1);
 
-				m_strafeSetTime = engine->GetTime() + engine->RandomFloat(0.5f, 3.0f);
+				m_strafeSetTime = engine->GetTime() + CRandomFloat(0.5f, 3.0f);
 			}
 
 			if (m_combatStrafeDir == 0)
@@ -1584,13 +1584,13 @@ bool Bot::UsesBadPrimary(void)
 void Bot::ThrowFireNade(void)
 {
 	if (pev->weapons & (1 << WEAPON_HEGRENADE))
-		PushTask(TASK_THROWHEGRENADE, TASKPRI_THROWGRENADE, -1, engine->RandomFloat(0.6f, 0.9f), false);
+		PushTask(TASK_THROWHEGRENADE, TASKPRI_THROWGRENADE, -1, CRandomFloat(0.6f, 0.9f), false);
 }
 
 void Bot::ThrowFrostNade(void)
 {
 	if (pev->weapons & (1 << WEAPON_FBGRENADE))
-		PushTask(TASK_THROWFBGRENADE, TASKPRI_THROWGRENADE, -1, engine->RandomFloat(0.6f, 0.9f), false);
+		PushTask(TASK_THROWFBGRENADE, TASKPRI_THROWGRENADE, -1, CRandomFloat(0.6f, 0.9f), false);
 }
 
 int Bot::CheckGrenades(void)
@@ -1798,7 +1798,7 @@ void Bot::CommandTeam(void)
 			RadioMessage(Radio::TakingFire);
 	}
 
-	m_timeTeamOrder = engine->GetTime() + engine->RandomFloat(10.0f, 30.0f);
+	m_timeTeamOrder = engine->GetTime() + CRandomFloat(10.0f, 30.0f);
 }
 
 void Bot::CheckReload(void)
