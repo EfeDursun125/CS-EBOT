@@ -193,5 +193,8 @@ bool Bot::CampReq(void)
 	if (!IsValidWaypoint(m_campIndex))
 		return false;
 
+	if (!IsZombieMode() && IsWaypointOccupied(m_campIndex, false))
+		return false;
+
 	return CampingAllowed();
 }

@@ -29,7 +29,7 @@ void Bot::PauseUpdate(void)
 		m_moveAngles = directionOld.ToAngles();
 		m_moveAngles.ClampAngles();
 		m_moveSpeed = pev->maxspeed;
-		SetStrafeSpeedNoCost(directionOld, pev->maxspeed);
+		SetStrafeSpeedNoCost(directionOld, -pev->maxspeed);
 	}
 }
 

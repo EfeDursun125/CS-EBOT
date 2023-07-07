@@ -66,6 +66,8 @@ void Bot::AttackUpdate(void)
 			SetWalkTime(7.0f);
 			FinishCurrentProcess("no target exist");
 		}
+		else
+			CheckGrenadeThrow();
 
 		return;
 	}

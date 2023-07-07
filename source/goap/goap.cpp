@@ -60,6 +60,15 @@ void Bot::StartProcess(const Process process)
 	case Process::Camp:
 		CampStart();
 		break;
+	case Process::ThrowHE:
+		ThrowHEStart();
+		break;
+	case Process::ThrowFB:
+		ThrowFBStart();
+		break;
+	case Process::ThrowSM:
+		ThrowSMStart();
+		break;
 	}
 }
 
@@ -92,6 +101,15 @@ void Bot::EndProcess(const Process process)
 		break;
 	case Process::Camp:
 		CampEnd();
+		break;
+	case Process::ThrowHE:
+		ThrowHEEnd();
+		break;
+	case Process::ThrowFB:
+		ThrowFBEnd();
+		break;
+	case Process::ThrowSM:
+		ThrowSMEnd();
 		break;
 	}
 }
@@ -126,6 +144,15 @@ void Bot::UpdateProcess(void)
 		break;
 	case Process::Camp:
 		CampUpdate();
+		break;
+	case Process::ThrowHE:
+		ThrowHEUpdate();
+		break;
+	case Process::ThrowFB:
+		ThrowFBUpdate();
+		break;
+	case Process::ThrowSM:
+		ThrowSMUpdate();
 		break;
 	default:
 		SetProcess(Process::Default, "unknown process");
@@ -199,6 +226,12 @@ bool Bot::IsReadyForTheProcess(const Process process)
 		return PickupReq();
 	case Process::Camp:
 		return CampReq();
+	case Process::ThrowHE:
+		return ThrowHEReq();
+	case Process::ThrowFB:
+		return ThrowFBReq();
+	case Process::ThrowSM:
+		return ThrowSMReq();
 	}
 
 	return true;
@@ -228,6 +261,12 @@ char* Bot::GetProcessName(const Process process)
 		return "PICKUP ITEM";
 	case Process::Camp:
 		return "CAMP";
+	case Process::ThrowHE:
+		return "THROW HE GRENADE";
+	case Process::ThrowFB:
+		return "THROW FB GRENADE";
+	case Process::ThrowSM:
+		return "THROW SM GRENADE";
 	}
 
 	return "UNKNOWN";

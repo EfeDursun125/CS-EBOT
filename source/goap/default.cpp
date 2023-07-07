@@ -13,7 +13,10 @@ void Bot::DefaultUpdate(void)
 	if (m_isZombieBot)
 	{
 		if (m_isSlowThink)
+		{
+			CheckGrenadeThrow();
 			FindEnemyEntities();
+		}
 		else
 			FindFriendsAndEnemiens();
 
