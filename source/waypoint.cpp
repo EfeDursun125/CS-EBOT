@@ -1752,20 +1752,6 @@ bool Waypoint::Download(void)
     return false;
 }
 
-#ifdef PLATFORM_LINUX
-// The WriteCallback function is called by cURL when there is data to be written
-// This is necessary for compatibility with older versions of cURL, which do not
-// support the CURLOPT_WRITEDATA option directly (linux)
-size_t WriteCallback(void* contents, size_t size, size_t nmemb, FILE* stream)
-{
-    const size_t written = fwrite(contents, size, nmemb, stream);
-    if (written < nmemb)
-        ServerPrint("Error: fwrite wrote fewer items than expected: %zu out of %zu\n", written, nmemb);
-
-    return written;
-}
-#endif
-
 bool Waypoint::Load(int mode)
 {
     m_badMapName = false;
