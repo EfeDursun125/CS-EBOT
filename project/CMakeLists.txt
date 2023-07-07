@@ -27,7 +27,7 @@ set(CMAKE_SHARED_LIBRARY_SUFFIX ".so")
 # Set compiler flags
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32 -Ofast")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w -m32 -msse3 -pthread -Ofast -fvisibility=hidden -fno-exceptions -fno-rtti -Wno-parentheses -pipe -mtune=generic -funroll-loops -fomit-frame-pointer -fno-stack-protector -fvisibility-inlines-hidden -fexceptions")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w -m32 -msse3 -mssse3 -mfpmath=sse -pthread -Ofast -fvisibility=hidden -fno-exceptions -fno-rtti -Wno-parentheses -pipe -mtune=generic -funroll-loops -fomit-frame-pointer -fno-stack-protector -fvisibility-inlines-hidden -fexceptions -floop-nest-optimize -fcf-protection=none")
 set(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -m32")
 
 # Set output directory for the library
@@ -38,8 +38,6 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 
 # Source files
 file(GLOB_RECURSE EBOT_SRC
-    ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/source/goap/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../source/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../source/goap/*.cpp
 )
@@ -61,6 +59,26 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     PREFIX ""
     OUTPUT_NAME "ebot"
 )
+
+# List of paths to check for the curl library
+set(CURL_PATHS
+    /usr/lib/i386-linux-gnu
+    /usr/local/lib/i386-linux-gnu
+    /opt/local/lib/i386-linux-gnu
+    /some/other/path
+)
+
+# Find the curl library
+find_library(CURL_LIB NAMES curl PATHS ${CURL_PATHS} NO_DEFAULT_PATH)
+
+# If the curl library is found, add a preprocessor definition
+if (CURL_LIB)
+    message(STATUS "Found libcurl: ${CURL_LIB}")
+    add_definitions(-DCURL_AVAILABLE)
+    target_link_libraries(${PROJECT_NAME} ${CURL_LIB})
+else()
+    message(STATUS "libcurl not found or not compatible, skipping")
+endif()
 
 # Set installation directories
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
