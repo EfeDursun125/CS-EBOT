@@ -27,7 +27,7 @@ set(CMAKE_SHARED_LIBRARY_SUFFIX ".so")
 # Set compiler flags
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32 -Ofast")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w -m32 -msse3 -mssse3 -mfpmath=sse -pthread -Ofast -fvisibility=hidden -fno-exceptions -fno-rtti -Wno-parentheses -pipe -mtune=generic -funroll-loops -fomit-frame-pointer -fno-stack-protector -fvisibility-inlines-hidden -fexceptions -floop-nest-optimize -fcf-protection=none")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w -m32 -msse3 -mssse3 -mfpmath=sse -pthread -Ofast -fvisibility=hidden -fno-exceptions -fno-rtti -Wno-parentheses -pipe -mtune=generic -funroll-loops -fomit-frame-pointer -fno-stack-protector -fvisibility-inlines-hidden -fexceptions -fcf-protection=none")
 set(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -m32")
 
 # Set output directory for the library
