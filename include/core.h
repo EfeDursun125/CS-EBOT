@@ -22,7 +22,7 @@
 
 #include <stdio.h>
 #include <memory.h>
-#include <cmath.h>
+#include <clib.h>
 
 using namespace std;
 
@@ -1443,7 +1443,7 @@ public:
 	void Analyze(void);
 	void AnalyzeDeleteUselessWaypoints(void);
 	void InitTypes();
-	void AddPath(int addIndex, int pathIndex, float distance, int type = 0);
+	void AddPath(const int addIndex, const int pathIndex, const int type = 0);
 
 	int GetFacingIndex(void);
 	int FindFarest(const Vector& origin, float maxDistance = 99999.0f);
@@ -1455,14 +1455,14 @@ public:
 	void ChangeZBCampPoint(Vector origin);
 	bool IsZBCampPoint(int pointID, bool checkMesh = true);
 
-	void Add(int flags, Vector waypointOrigin = nullvec, bool autopath = true);
+	void Add(const int flags, const Vector waypointOrigin = nullvec);
 	void Delete(void);
 	void DeleteByIndex(int index);
 	void ToggleFlags(int toggleFlag);
 	void SetRadius(const int16 radius);
 	bool IsConnected(int pointA, int pointB);
 	bool IsConnected(int num);
-	void CreatePath(char dir);
+	void CreatePath(const int dir);
 	void DeletePath(void);
 	void DeletePathByIndex(int nodeFrom, int nodeTo);
 	void CacheWaypoint(void);

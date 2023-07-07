@@ -274,7 +274,7 @@ namespace Math
     //
     inline float AngleMod(float angle)
     {
-        return 360.0f / 65536.0f * (static_cast <int> (angle * (65536.0f / 360.0f)) & 65535);
+        return 360.0f / 65536.0f * (static_cast<int>(angle * (65536.0f / 360.0f)) & 65535);
     }
 
     //
@@ -290,7 +290,7 @@ namespace Math
     //
     inline float AngleNormalize(float angle)
     {
-        return 360.0f / 65536.0f * (static_cast <int> ((angle + 180.0f) * (65536.0f / 360.0f)) & 65535) - 180.0f;
+        return 360.0f / 65536.0f * (static_cast<int>((angle + 180.0f) * (65536.0f / 360.0f)) & 65535) - 180.0f;
     }
 
     //
@@ -1821,7 +1821,7 @@ private:
     //
     void MoveItems(int destIndex, int sourceIndex)
     {
-        memmove(m_bufferPtr + destIndex, m_bufferPtr + sourceIndex, sizeof(char) * (m_stringLength - sourceIndex + 1));
+        cmemmove(m_bufferPtr + destIndex, m_bufferPtr + sourceIndex, sizeof(char) * (m_stringLength - sourceIndex + 1));
     }
 
     //
@@ -2251,7 +2251,7 @@ public:
 
     operator char* (void)
     {
-        return const_cast <char*> (GetBuffer());
+        return const_cast<char*>(GetBuffer());
     }
 
     operator int(void)
@@ -2261,7 +2261,7 @@ public:
 
     operator long(void)
     {
-        return static_cast <long> (ToInt());
+        return static_cast<long>(ToInt());
     }
 
     operator float(void)
@@ -2271,7 +2271,7 @@ public:
 
     operator double(void)
     {
-        return static_cast <double> (ToFloat());
+        return static_cast<double>(ToFloat());
     }
 
     friend String operator + (const String& s1, const String& s2)
@@ -2796,13 +2796,13 @@ public:
 
         if (str != m_bufferPtr)
         {
-            int first = int(str - GetBuffer());
+            const int first = static_cast<int>(str - GetBuffer());
             char* buffer = GetBuffer(GetLength());
 
             str = buffer + first;
-            int length = GetLength() - first;
+            const int length = GetLength() - first;
 
-            memmove(buffer, str, (length + 1) * sizeof(char));
+            cmemmove(buffer, str, (length + 1) * sizeof(char));
             ReleaseBuffer(length);
         }
         return *this;
@@ -2847,7 +2847,7 @@ public:
 
         if (last != nullptr)
         {
-            int i = last - m_bufferPtr;
+            const int i = last - m_bufferPtr;
             Delete(i, m_stringLength - i);
         }
     }
@@ -2908,7 +2908,7 @@ public:
         if (string.m_stringLength == 0)
             return m_stringLength;
 
-        int numInsertChars = string.m_stringLength;
+        const int numInsertChars = string.m_stringLength;
         InsertSpace(index, numInsertChars);
 
         for (int i = 0; i < numInsertChars; i++)
@@ -2949,6 +2949,7 @@ public:
             position++;
             num++;
         }
+
         return num;
     }
 
@@ -3014,6 +3015,7 @@ public:
             MoveItems(index, index + count);
             m_stringLength -= count;
         }
+
         return m_stringLength;
     }
 
@@ -3270,7 +3272,7 @@ public:
     //
     inline uint8_t GetCharacter(void) const
     {
-        return  static_cast <uint8_t> (fgetc(m_handle));
+        return static_cast<uint8_t>(fgetc(m_handle));
     }
 
     //
@@ -3287,7 +3289,7 @@ public:
     //
     inline bool GetBuffer(String& buffer, int count = 256) const
     {
-        char* tempBuffer = new char[static_cast <uint32_t> (count)];
+        char* tempBuffer = new char[static_cast<uint32_t>(count)];
         buffer.SetEmpty();
 
         if (tempBuffer == nullptr)
@@ -3374,7 +3376,7 @@ public:
     //
     inline bool PutCharacter(uint8_t character) const
     {
-        return fputc(static_cast <int> (character), m_handle) != EOF;
+        return fputc(static_cast<int>(character), m_handle) != EOF;
     }
 
     //

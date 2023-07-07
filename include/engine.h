@@ -2508,12 +2508,12 @@ namespace SDK_Utils
 {
     inline const char* GetStringFromOffset(int offset)
     {
-        return static_cast <const char*> (g_pGlobals->pStringBase + offset);
+        return static_cast<const char*>(g_pGlobals->pStringBase + offset);
     }
 
     inline int MakeStringByOffset(const char* str)
     {
-        return reinterpret_cast <int> (str) - reinterpret_cast <int> (GetStringFromOffset(0));
+        return reinterpret_cast<int>(str) - reinterpret_cast<int>(GetStringFromOffset(0));
     }
 };
 
@@ -2592,7 +2592,7 @@ public:
 
     inline int GetInt(void)
     {
-        return static_cast <int> (m_eptr->value);
+        return static_cast<int>(m_eptr->value);
     }
 
     inline int GetFlags(void)
@@ -2622,7 +2622,7 @@ public:
 
     inline void SetInt(int val)
     {
-        SetFloat(static_cast <float> (val));
+        SetFloat(static_cast<float>(val));
     }
 
     inline void SetString(const char* val)
@@ -3003,7 +3003,7 @@ public:
         cstrcat(buffer, "\n");
 
         // print to client
-        g_engfuncs.pfnClientPrintf(m_ent, static_cast <PRINT_TYPE> (enginePrintType), buffer);
+        g_engfuncs.pfnClientPrintf(m_ent, static_cast<PRINT_TYPE>(enginePrintType), buffer);
     }
 
     inline bool HasFlag(int clientFlags);
@@ -3100,9 +3100,6 @@ public:
 public:
     // sends bot command
     void IssueBotCommand(edict_t* ent, const char* fmt, ...);
-
-    // generates random float based on low and high value
-    float RandomFloat(float low, float high);
 
     // pushes global convar to list that will be registered by engine
     void RegisterVariable(const char* variable, const char* value, VarType varType, ConVar* self);
