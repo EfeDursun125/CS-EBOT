@@ -1060,6 +1060,8 @@ void Bot::NewRound(void)
 		return;
 	}
 
+	SelectWeaponByName("weapon_knife");
+
 	SetProcess(Process::Default, "i have respawned");
 	m_rememberedProcess = Process::Default;
 	m_rememberedProcessTime = 0.0f;
@@ -1067,7 +1069,7 @@ void Bot::NewRound(void)
 	if (ebot_always_use_2d.GetBool())
 		m_2dH = true;
 	else
-		m_2dH = CRandomInt(0, 1);
+		m_2dH = static_cast<bool>(CRandomInt(0, 1));
 
 	if (ebot_heuristic_type.GetInt() >= 1 && ebot_heuristic_type.GetInt() <= 4)
 		m_heuristic = ebot_heuristic_type.GetInt();
@@ -1218,7 +1220,6 @@ void Bot::NewRound(void)
 	m_radioOrder = 0;
 	m_defendedBomb = false;
 
-	m_timeLogoSpray = AddTime(CRandomFloat(0.5f, 2.0f));
 	m_lastChatTime = engine->GetTime();
 	pev->button = 0;
 

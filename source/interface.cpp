@@ -177,11 +177,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 			"+---------------------------------------------------------------------------------+\n"
 			" The E-BOT for Counter-Strike 1.6 " PRODUCT_SUPPORT_VERSION "\n"
 			" Made by " PRODUCT_AUTHOR ", Based on SyPB & YaPB\n"
-#ifdef WORK_ASYNC
-			" Website: " PRODUCT_URL ", ASYNC Build: Yes\n"
-#else
 			" Website: " PRODUCT_URL ", ASYNC Build: No\n"
-#endif
 			"+---------------------------------------------------------------------------------+\n";
 
 		HudMessage(ent, true, Color(CRandomInt(33, 255), CRandomInt(33, 255), CRandomInt(33, 255)), aboutData);
@@ -189,11 +185,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 
 	// displays version information
 	else if (cstricmp(arg0, "version") == 0 || cstricmp(arg0, "ver") == 0)
-#ifdef WORK_ASYNC
-		async(launch::async, ebotVersionMSG, ent);
-#else
 		ebotVersionMSG(ent);
-#endif
 
 	// display some sort of help information
 	else if (cstricmp(arg0, "?") == 0 || cstricmp(arg0, "help") == 0)
@@ -817,52 +809,19 @@ void LoadEntityData(void)
 	}
 }
 
-#ifdef WORK_ASYNC
-void ThreadAddBot(void)
-{
-	g_botManager->AddRandom();
-}
-#endif
-
 void AddBot(void)
 {
-#ifdef WORK_ASYNC
-	async(launch::async, ThreadAddBot);
-#else
 	g_botManager->AddRandom();
-#endif
 }
-
-#ifdef WORK_ASYNC
-void ThreadAddBotTR(void)
-{
-	g_botManager->AddBotAPI("", -1, 1);
-}
-#endif
 
 void AddBot_TR(void)
 {
-#ifdef WORK_ASYNC
-	async(launch::async, ThreadAddBotTR);
-#else
 	g_botManager->AddBotAPI("", -1, 1);
-#endif
 }
-
-#ifdef WORK_ASYNC
-void ThreadAddBotCT(void)
-{
-	g_botManager->AddBotAPI("", -1, 2);
-}
-#endif
 
 void AddBot_CT(void)
 {
-#ifdef WORK_ASYNC
-	async(launch::async, ThreadAddBotCT);
-#else
 	g_botManager->AddBotAPI("", -1, 2);
-#endif
 }
 
 void InitConfig(void)
@@ -1306,11 +1265,7 @@ void Touch(edict_t* pentTouched, edict_t* pentOther)
 	// is called twice, once for each entity moving.
 
 	if (!FNullEnt(pentOther))
-#ifdef WORK_ASYNC
-		async(launch::async, ThreadedTouch, pentTouched, pentOther);
-#else
 		ThreadedTouch(pentTouched, pentOther);
-#endif
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -2652,21 +2607,6 @@ void ClientCommand(edict_t* ent)
 	(*g_functionTable.pfnClientCommand) (ent);
 }
 
-void SetNeg(void)
-{
-	// now you will understand why g_clients set to 33 and not 32
-	// define -1 as not valid player, so if something goes wrong game not gonna crash
-	g_clients[-1].flags = 0;
-	g_clients[-1].ent = nullptr;
-	g_clients[-1].origin = nullvec;
-	g_clients[-1].wpIndex = -1;
-	g_clients[-1].wpIndex2 = -1;
-	g_clients[-1].getWpOrigin = nullvec;
-	g_clients[-1].getWPTime = 0.0f;
-	g_clients[-1].index = -1;
-	g_clients[-1].team = TEAM_COUNT;
-}
-
 void ServerActivate(edict_t* pentEdictList, int edictCount, int clientMax)
 {
 	// this function is called when the server has fully loaded and is about to manifest itself
@@ -2676,14 +2616,8 @@ void ServerActivate(edict_t* pentEdictList, int edictCount, int clientMax)
 	// loading the bot profiles, and drawing the world map (ie, filling the navigation hashtable).
 	// Once this function has been called, the server can be considered as "running".
 
-	SetNeg();
-
 	// initialize all config files
-#ifdef WORK_ASYNC
-	async(launch::async, InitConfig);
-#else
 	InitConfig();
-#endif
 
 	// do level initialization stuff here...
 	g_waypoint->Initialize();
@@ -2919,13 +2853,6 @@ void FrameThread(void)
 	secondTimer = AddTime(ut);
 }
 
-#ifdef WORK_ASYNC
-void ThreadedThink(void)
-{
-	g_botManager->Think();
-}
-#endif
-
 void StartFrame(void)
 {
 	// this function starts a video frame. It is called once per video frame by the engine. If
@@ -2937,13 +2864,7 @@ void StartFrame(void)
 	// player population decreases, we should fill the server with other bots.
 
 	if (secondTimer < engine->GetTime())
-	{
-#ifdef WORK_ASYNC
-		async(launch::async, FrameThread);
-#else
 		FrameThread();
-#endif
-	}
 	else
 	{
 		if (g_analyzenavmesh)
@@ -2956,11 +2877,7 @@ void StartFrame(void)
 
 	if (updateTimer < engine->GetTime())
 	{
-#ifdef WORK_ASYNC
-		async(launch::async, ThreadedThink);
-#else
 		g_botManager->Think();
-#endif
 
 		if (g_gameVersion != CSVER_VERYOLD)
 			updateTimer = AddTime(0.03333333333f);
@@ -2993,11 +2910,7 @@ edict_t* pfnFindEntityByString(edict_t* edictStartSearchAfter, const char* field
 {
 	// round starts in counter-strike 1.5
 	if (cstrcmp(value, "info_map_parameters") == 0)
-#ifdef WORK_ASYNC
-		async(launch::async, RoundInit);
-#else
 		RoundInit();
-#endif
 
 	if (g_isMetamod)
 		RETURN_META_VALUE(MRES_IGNORED, 0);
@@ -3030,7 +2943,7 @@ void pfnClientCommand(edict_t* ent, char* format, ...)
 	va_end(ap);
 
 	// is the target entity an official bot, or a third party bot ?
-	if (IsFakeClient(ent) || ent->v.flags & FL_DORMANT)
+	if (IsFakeClient(ent))
 	{
 		if (g_isMetamod)
 			RETURN_META(MRES_SUPERCEDE); // prevent bots to be forced to issue client commands

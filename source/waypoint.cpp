@@ -14,9 +14,8 @@ ConVar ebot_analyze_create_camp_waypoints("ebot_analyze_create_camp_waypoints", 
 ConVar ebot_use_old_analyzer("ebot_use_old_analyzer", "0");
 ConVar ebot_analyzer_min_fps("ebot_analyzer_min_fps", "30.0");
 ConVar ebot_analyze_auto_start("ebot_analyze_auto_start", "1");
-ConVar ebot_download_waypoints("ebot_download_waypoints", "1");
+ConVar ebot_download_waypoints("ebot_download_waypoints", "0");
 ConVar ebot_download_waypoints_from("ebot_download_waypoints_from", "https://github.com/EfeDursun125/EBOT-WP/raw/main");
-ConVar ebot_analyze_optimize_waypoints("ebot_analyze_optimize_waypoints", "1");
 ConVar ebot_waypoint_size("ebot_waypoint_size", "7");
 ConVar ebot_waypoint_r("ebot_waypoint_r", "0");
 ConVar ebot_waypoint_g("ebot_waypoint_g", "255");
@@ -42,10 +41,12 @@ void Waypoint::Initialize(void)
     m_lastWaypoint = nullvec;
 }
 
-void CreateWaypoint(Vector WayVec, Vector Next, float range, float goalDist)
+void CreateWaypoint(Vector WayVec, Vector Next, float range, const float goalDist)
 {
+    Next.z += 19.0f;
     TraceResult tr;
     TraceHull(Next, Next, NO_BOTH, HULL_HEAD, g_hostEntity, &tr);
+    Next.z -= 19.0f;
 
     range *= 0.75f;
     if (tr.flFraction == 1.0f || IsBreakable(tr.pHit))
@@ -157,7 +158,7 @@ void AnalyzeThread(void)
             return;
 
         static float magicTimer;
-        for (int i = 0; i < g_numWaypoints; i++)
+        for (int16 i = 0; i < g_numWaypoints; i++)
         {
             if (g_expanded[i])
                 continue;
@@ -168,8 +169,8 @@ void AnalyzeThread(void)
             if ((ebot_analyzer_min_fps.GetFloat() + g_pGlobals->frametime) <= 1.0f / g_pGlobals->frametime)
                 magicTimer = engine->GetTime() + g_pGlobals->frametime * 0.054f; // pause
 
-            Vector WayVec = g_waypoint->GetPath(i)->origin;
-            float range = ebot_analyze_distance.GetFloat();
+            const Vector WayVec = g_waypoint->GetPath(i)->origin;
+            const float range = ebot_analyze_distance.GetFloat();
 
             for (int dir = 0; dir < 8; dir++)
             {
@@ -259,7 +260,7 @@ void AnalyzeThread(void)
             g_waypointOn = false;
             g_waypoint->AnalyzeDeleteUselessWaypoints();
             
-            for (int i = 0; i < g_numWaypoints; i++)
+            /*for (int i = 0; i < g_numWaypoints; i++)
             {
                 auto origin = g_waypoint->GetPath(i)->origin;
                 if (g_waypoint->GetPath(i)->flags & WAYPOINT_CROUCH)
@@ -283,7 +284,7 @@ void AnalyzeThread(void)
 
             g_waypoint->Save();
             g_waypoint->Load();
-            ServerCommand("exec addons/ebot/ebot.cfg");
+            ServerCommand("exec addons/ebot/ebot.cfg");*/
         }
 
         return;
@@ -311,11 +312,7 @@ void Waypoint::Analyze(void)
     if (g_numWaypoints <= 0)
         return;
 
-#ifdef WORK_ASYNC
-    async(launch::async, AnalyzeThread);
-#else
     AnalyzeThread();
-#endif
 }
 
 void Waypoint::AnalyzeDeleteUselessWaypoints(void)
@@ -379,7 +376,7 @@ void Waypoint::AnalyzeDeleteUselessWaypoints(void)
     CenterPrint("Waypoints are saved!");
 }
 
-void Waypoint::AddPath(const int addIndex, const int pathIndex, const int type)
+void Waypoint::AddPath(const int16 addIndex, const int16 pathIndex, const int type)
 {
     if (!IsValidWaypoint(addIndex) || !IsValidWaypoint(pathIndex) || addIndex == pathIndex)
         return;
@@ -387,14 +384,14 @@ void Waypoint::AddPath(const int addIndex, const int pathIndex, const int type)
     Path* path = m_paths[addIndex];
 
     // don't allow paths get connected twice
-    for (int i = 0; i < Const_MaxPathIndex; i++)
+    for (int16 i = 0; i < Const_MaxPathIndex; i++)
     {
         if (path->index[i] == pathIndex)
             return;
     }
 
     // check for free space in the connection indices
-    for (int i = 0; i < Const_MaxPathIndex; i++)
+    for (int16 i = 0; i < Const_MaxPathIndex; i++)
     {
         if (path->index[i] == -1)
         {
@@ -416,16 +413,45 @@ void Waypoint::AddPath(const int addIndex, const int pathIndex, const int type)
         }
     }
 
-    CenterPrint("No space remaining, remove other connections");
+    // there wasn't any free space. try exchanging it with a long-distance path
+    float maxDistance = FLT_MAX;
+    int16 slotID = -1;
+
+    for (int16 i = 0; i < Const_MaxPathIndex; i++)
+    {
+        const float distance = (path->origin - g_waypoint->GetPath(path->index[i])->origin).GetLengthSquared();
+        if (distance > maxDistance)
+        {
+            maxDistance = distance;
+            slotID = i;
+        }
+    }
+
+    if (slotID != -1)
+    {
+        path->index[slotID] = static_cast<int16>(pathIndex);
+
+        if (type == 1)
+        {
+            path->connectionFlags[slotID] |= PATHFLAG_JUMP;
+            path->flags |= WAYPOINT_JUMP;
+            path->radius = 4;
+        }
+        else if (type == 2)
+        {
+            path->connectionFlags[slotID] |= PATHFLAG_DOUBLE;
+            path->flags |= WAYPOINT_DJUMP;
+        }
+    }
 }
 
 // find the farest node to that origin, and return the index to this node
-int Waypoint::FindFarest(const Vector& origin, float maxDistance)
+int16 Waypoint::FindFarest(const Vector& origin, const float maxDistance)
 {
-    int index = -1;
+    int16 index = -1;
     float squaredDistance = SquaredF(maxDistance);
 
-    for (int i = 0; i < g_numWaypoints; i++)
+    for (int16 i = 0; i < g_numWaypoints; i++)
     {
         const float distance = (m_paths[i]->origin - origin).GetLengthSquared();
         if (distance > squaredDistance)
@@ -439,12 +465,12 @@ int Waypoint::FindFarest(const Vector& origin, float maxDistance)
 }
 
 // find the farest node to that origin, and return the index to this node
-int Waypoint::FindNearestInCircle(const Vector& origin, float maxDistance)
+int16 Waypoint::FindNearestInCircle(const Vector& origin, const float maxDistance)
 {
-    int index = -1;
+    int16 index = -1;
     float maxDist = SquaredF(maxDistance);
 
-    for (int i = 0; i < g_numWaypoints; i++)
+    for (int16 i = 0; i < g_numWaypoints; i++)
     {
         const float distance = (m_paths[i]->origin - origin).GetLengthSquared();
         if (distance < maxDist)
@@ -648,14 +674,15 @@ int Waypoint::FindNearest(Vector origin, float minDistance, int flags, edict_t* 
 }
 
 // returns all waypoints within radius from position
-void Waypoint::FindInRadius(Vector origin, float radius, int* holdTab, int* count)
+void Waypoint::FindInRadius(const Vector origin, const float radius, int* holdTab, int* count)
 {
     int maxCount = *count;
     *count = 0;
+    const float squared = SquaredF(radius);
 
     for (int i = 0; i < g_numWaypoints; i++)
     {
-        if ((m_paths[i]->origin - origin).GetLengthSquared() < SquaredF(radius))
+        if ((m_paths[i]->origin - origin).GetLengthSquared() < squared)
         {
             *holdTab++ = i;
             *count += 1;
@@ -668,11 +695,12 @@ void Waypoint::FindInRadius(Vector origin, float radius, int* holdTab, int* coun
     *count -= 1;
 }
 
-void Waypoint::FindInRadius(Array <int>& queueID, float radius, Vector origin)
+void Waypoint::FindInRadius(Array <int>& queueID, const float radius, const Vector origin)
 {
+    const float squared = SquaredF(radius);
     for (int i = 0; i < g_numWaypoints; i++)
     {
-        if ((m_paths[i]->origin - origin).GetLengthSquared() < SquaredF(radius))
+        if ((m_paths[i]->origin - origin).GetLengthSquared() < squared)
             queueID.Push(i);
     }
 }
@@ -985,7 +1013,7 @@ void Waypoint::Add(const int flags, const Vector waypointOrigin)
     }
     else
     {
-        const float addDist = SquaredF(ebot_analyze_distance.GetFloat() * 3.0f);
+        const float addDist = SquaredF(ebot_analyze_distance.GetFloat() * 1.9f);
 
         // calculate all the paths to this new waypoint
         for (i = 0; i < g_numWaypoints; i++)
@@ -2319,7 +2347,7 @@ bool Waypoint::IsNodeReachableWithJump(const Vector src, const Vector destinatio
 }
 
 // this function returns path information for waypoint pointed by id
-char* Waypoint::GetWaypointInfo(int id)
+char* Waypoint::GetWaypointInfo(int16 id)
 {
     Path* path = GetPath(id);
 
@@ -2330,7 +2358,7 @@ char* Waypoint::GetWaypointInfo(int id)
     bool jumpPoint = false;
 
     // iterate through connections and find, if it's a jump path
-    for (int i = 0; i < Const_MaxPathIndex; i++)
+    for (int16 i = 0; i < Const_MaxPathIndex; i++)
     {
         // check if we got a valid connection
         if (path->index[i] != -1 && (path->connectionFlags[i] & PATHFLAG_JUMP))
@@ -3013,7 +3041,7 @@ bool Waypoint::NodesValid(void)
     return haveError ? false : true;
 }
 
-float Waypoint::GetPathDistance(int srcIndex, int destIndex)
+float Waypoint::GetPathDistance(int16 srcIndex, int16 destIndex)
 {
     if (srcIndex == -1 || destIndex == -1)
         return FLT_MAX;
@@ -3031,7 +3059,7 @@ void Waypoint::SetGoalVisited(int index)
 
     if (!IsGoalVisited(index) && (m_paths[index]->flags & WAYPOINT_GOAL))
     {
-        const int bombPoint = FindNearest(GetBombPosition());
+        const int16 bombPoint = FindNearest(GetBombPosition());
         if (IsValidWaypoint(bombPoint) && bombPoint != index)
             m_visitedGoals.Push(index);
     }
@@ -3197,7 +3225,7 @@ void Waypoint::CreateBasic(void)
     }
 }
 
-Path* Waypoint::GetPath(const int id)
+Path* Waypoint::GetPath(const int16 id)
 {
     if (!IsValidWaypoint(id))
         return m_paths[1];

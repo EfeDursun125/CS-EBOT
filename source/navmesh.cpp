@@ -668,8 +668,8 @@ Vector NavMesh::GetClosestPosition(NavArea* area, const Vector origin)
 
     for (int i = 0; i < 4; i++)
     {
-        Vector edgeStart = area->corners[i];
-        Vector edgeEnd = area->corners[(i + 1) % 4];
+        const Vector edgeStart = area->corners[i];
+        const Vector edgeEnd = area->corners[(i + 1) % 4];
 
         // calculate the distance from the origin to the edge
         const float dist = DistanceToLineSegmentSquared(origin, edgeStart, edgeEnd);
@@ -852,7 +852,7 @@ void NavMesh::SaveNav(void)
 
 NavArea* NavMesh::GetNavArea(int id)
 {
-    if (id < 0 || id > g_numNavAreas)
+    if (id < 0 || id >= g_numNavAreas)
         return m_area[id];
 
     return m_area[id];

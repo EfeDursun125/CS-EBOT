@@ -301,11 +301,7 @@ void Bot::DoWaypointNav(void)
 {
 	if (!IsValidWaypoint(m_currentWaypointIndex))
 	{
-		if (m_navNode != nullptr)
-			m_currentWaypointIndex = m_navNode->index;
-		else
-			FindWaypoint();
-
+		FindWaypoint();
 		return;
 	}
 
@@ -2667,7 +2663,7 @@ int Bot::FindDefendWaypoint(const Vector& origin)
 				continue;
 		}
 
-		if (!IsWaypointOccupied(index))
+		if (!IsWaypointOccupied(index, false))
 		{
 			TraceResult tr{};
 			TraceLine(g_waypoint->GetPath(index)->origin, origin, true, true, GetEntity(), &tr);

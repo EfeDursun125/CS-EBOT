@@ -378,7 +378,8 @@ void Bot::ChatSay(const bool teamSay, const char* text, ...)
         return;
 
     // humanize chat
-    if (m_lastChatEnt == GetEntity())
+    edict_t* me = GetEntity();
+    if (m_lastChatEnt == me)
         return;
 
     char botName[80];
@@ -400,14 +401,14 @@ void Bot::ChatSay(const bool teamSay, const char* text, ...)
             cstrcpy(botTeam, "");
     }
 
-    cstrcpy(botName, GetEntityName(GetEntity()));
+    cstrcpy(botName, GetEntityName(me));
 
     for (const auto& client : g_clients)
     {
         if (FNullEnt(client.ent))
             continue;
 
-        if (!(client.flags & CFLAG_USED) || client.ent == GetEntity())
+        if (!(client.flags & CFLAG_USED) || client.ent == me)
             continue;
 
         if (teamSay && client.team != m_team)
@@ -426,7 +427,7 @@ void Bot::ChatSay(const bool teamSay, const char* text, ...)
         }
 
         m_lastStrings[160] = *text;
-        m_lastChatEnt = GetEntity();
+        m_lastChatEnt = me;
 
         MessageSender(MSG_ONE, g_netMsg->GetId(NETMSG_SAYTEXT), nullptr, client.ent)
             .WriteByte(m_index - 1)

@@ -87,7 +87,7 @@ enginefuncs_t g_engfuncs;
 WeaponProperty g_weaponDefs[Const_MaxWeapons + 1];
 
 // max players is 32
-Clients g_clients[33];
+Clients g_clients[32];
 
 edict_t* g_worldEdict = nullptr;
 edict_t* g_hostEntity = nullptr;

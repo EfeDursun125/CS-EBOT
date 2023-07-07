@@ -444,7 +444,7 @@ void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
 	// supply directly the whole string as if you were typing it in the bot's "console". It
 	// is supposed to work exactly like the pfnClientCommand (server-sided client command).
 
-	if (!IsValidBot(fakeClient))
+	if (!IsFakeClient(fakeClient))
 		return;
 
 	va_list ap;
@@ -701,15 +701,7 @@ void AutoLoadGameMode(void)
 	if (!g_isMetamod)
 		return;
 
-	char* getModeName;
-	try
-	{
-		cstrcpy(getModeName, GetModName());
-	}
-	catch (const std::exception& e)
-	{
-		AddLogEntry(LOG_FATAL, e.what());
-	}
+	const char* getModeName = GetModName();
 
 	static int checkShowTextTime = 0;
 	checkShowTextTime++;
@@ -766,7 +758,6 @@ void AutoLoadGameMode(void)
 				if (i == 3 || i == 9)
 				{
 					ServerPrint("***** E-BOT not support the mode now :( *****");
-
 					SetGameMode(MODE_TDM);
 				}
 				else
@@ -993,7 +984,7 @@ bool IsDeathmatchMode(void)
 	return (ebot_gamemod.GetInt() == MODE_DM || ebot_gamemod.GetInt() == MODE_TDM);
 }
 
-bool IsValidWaypoint(int index)
+bool IsValidWaypoint(int16 index)
 {
 	if (index < 0 || index >= g_numWaypoints)
 		return false;
@@ -1462,27 +1453,6 @@ bool IsLinux(void)
 #endif
 }
 
-edict_t* FindEntityInSphere(edict_t* startEnt, const Vector& vecCenter, const float flRadius)
-{
-	edict_t* ent = nullptr;
-	float squaredDistance = SquaredF(flRadius);
-	const int start = FNullEnt(startEnt) ? 0 : ENTINDEX(startEnt);
-
-	for (int i = start; i < entityNum; i++)
-	{
-		auto newEnt = INDEXENT(i);
-		if (FNullEnt(newEnt))
-			continue;
-
-		if ((GetEntityOrigin(newEnt) - vecCenter).GetLengthSquared() > squaredDistance)
-			continue;
-
-		return newEnt;
-	}
-
-	return ent;
-}
-
 // this function asks the engine to execute a server command
 void ServerCommand(const char* format, ...)
 {
@@ -1571,47 +1541,40 @@ void CheckWelcomeMessage(void)
 
 void DetectCSVersion(void)
 {
-	try
+	const char* const infoBuffer = "Game Registered: %s (0x%d)";
+	if (g_engfuncs.pfnCVarGetPointer("host_ver") != nullptr)
+		g_gameVersion = CSVER_XASH;
+
+	// switch version returned by dll loader
+	if (g_gameVersion == CSVER_XASH)
+		ServerPrint(infoBuffer, "Xash Engine", sizeof(Bot));
+	else if (g_gameVersion == CSVER_VERYOLD)
+		ServerPrint(infoBuffer, "CS 1.x (WON)", sizeof(Bot));
+	else if (g_gameVersion == CSVER_CZERO)
+		ServerPrint(infoBuffer, "CS: CZ (Steam)", sizeof(Bot));
+	else if (g_gameVersion == HALFLIFE)
+		ServerPrint(infoBuffer, "Half-Life", sizeof(Bot));
+	else if (g_gameVersion == CSVER_CSTRIKE)
 	{
-		const char* const infoBuffer = "Game Registered: %s (0x%d)";
-		if (g_engfuncs.pfnCVarGetPointer("host_ver") != nullptr)
-			g_gameVersion = CSVER_XASH;
+		uint8_t* detection = (*g_engfuncs.pfnLoadFileForMe) ("events/galil.sc", nullptr);
 
-		// switch version returned by dll loader
-		if (g_gameVersion == CSVER_XASH)
-			ServerPrint(infoBuffer, "Xash Engine", sizeof(Bot));
-		else if (g_gameVersion == CSVER_VERYOLD)
-			ServerPrint(infoBuffer, "CS 1.x (WON)", sizeof(Bot));
-		else if (g_gameVersion == CSVER_CZERO)
-			ServerPrint(infoBuffer, "CS: CZ (Steam)", sizeof(Bot));
-		else if (g_gameVersion == HALFLIFE)
-			ServerPrint(infoBuffer, "Half-Life", sizeof(Bot));
-		else if (g_gameVersion == CSVER_CSTRIKE)
+		if (detection != nullptr)
 		{
-			uint8_t* detection = (*g_engfuncs.pfnLoadFileForMe) ("events/galil.sc", nullptr);
-
-			if (detection != nullptr)
-			{
-				ServerPrint(infoBuffer, "CS 1.6 (Steam)", sizeof(Bot));
-				g_gameVersion = CSVER_CSTRIKE; // just to be sure
-			}
-			else if (detection == nullptr)
-			{
-				ServerPrint(infoBuffer, "CS 1.5 (WON)", sizeof(Bot));
-				g_gameVersion = CSVER_VERYOLD; // reset it to WON
-			}
-
-			// if we have loaded the file free it
-			if (detection != nullptr)
-				(*g_engfuncs.pfnFreeFile) (detection);
+			ServerPrint(infoBuffer, "CS 1.6 (Steam)", sizeof(Bot));
+			g_gameVersion = CSVER_CSTRIKE; // just to be sure
+		}
+		else if (detection == nullptr)
+		{
+			ServerPrint(infoBuffer, "CS 1.5 (WON)", sizeof(Bot));
+			g_gameVersion = CSVER_VERYOLD; // reset it to WON
 		}
 
-		engine->GetGameConVarsPointers(); // !!! TODO !!!
+		// if we have loaded the file free it
+		if (detection != nullptr)
+			(*g_engfuncs.pfnFreeFile) (detection);
 	}
-	catch (const std::exception& e)
-	{
-		AddLogEntry(LOG_FATAL, e.what());
-	}
+
+	engine->GetGameConVarsPointers(); // !!! TODO !!!
 }
 
 void PlaySound(edict_t* ent, const char* name)
