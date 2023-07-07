@@ -46,6 +46,15 @@
       <Filter>GOAP</Filter>
     </ClCompile>
     <ClCompile Include="..\source\clib.cpp" />
+    <ClCompile Include="..\source\goap\throwfb.cpp">
+      <Filter>GOAP</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\goap\throwhe.cpp">
+      <Filter>GOAP</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\goap\throwsm.cpp">
+      <Filter>GOAP</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\callbacks.h" />

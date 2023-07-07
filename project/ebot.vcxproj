@@ -103,13 +103,13 @@
       <EnablePREfast>false</EnablePREfast>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <OmitFramePointers>true</OmitFramePointers>
-      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExceptionHandling>false</ExceptionHandling>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <ControlFlowGuard>false</ControlFlowGuard>
-      <FloatingPointExceptions>true</FloatingPointExceptions>
+      <FloatingPointExceptions>false</FloatingPointExceptions>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <IntelJCCErratum>false</IntelJCCErratum>
       <LanguageStandard_C>stdc11</LanguageStandard_C>
@@ -280,6 +280,9 @@
     <ClCompile Include="..\source\goap\pause.cpp" />
     <ClCompile Include="..\source\goap\pickup.cpp" />
     <ClCompile Include="..\source\goap\plant.cpp" />
+    <ClCompile Include="..\source\goap\throwfb.cpp" />
+    <ClCompile Include="..\source\goap\throwhe.cpp" />
+    <ClCompile Include="..\source\goap\throwsm.cpp" />
     <ClCompile Include="..\source\interface.cpp" />
     <ClCompile Include="..\source\navigate.cpp" />
     <ClCompile Include="..\source\navmesh.cpp" />
