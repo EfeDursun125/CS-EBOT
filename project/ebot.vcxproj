@@ -265,6 +265,7 @@
     </ClCompile>
     <ClCompile Include="..\source\callbacks.cpp" />
     <ClCompile Include="..\source\chatlib.cpp" />
+    <ClCompile Include="..\source\clib.cpp" />
     <ClCompile Include="..\source\combat.cpp" />
     <ClCompile Include="..\source\control.cpp" />
     <ClCompile Include="..\source\engine.cpp" />
@@ -287,13 +288,12 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='EBOT_Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='EBOT_Debug|Win32'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="..\source\cmath.cpp" />
     <ClCompile Include="..\source\support.cpp" />
     <ClCompile Include="..\source\waypoint.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\callbacks.h" />
-    <ClInclude Include="..\include\cmath.h" />
+    <ClInclude Include="..\include\clib.h" />
     <ClInclude Include="..\include\compress.h" />
     <ClInclude Include="..\include\core.h" />
     <ClInclude Include="..\include\engine.h" />
@@ -302,6 +302,7 @@
     <ClInclude Include="..\include\platform.h" />
     <ClInclude Include="..\include\resource.h" />
     <ClInclude Include="..\include\runtime.h" />
+    <ClInclude Include="..\include\rng.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\include\ebot.rc" />

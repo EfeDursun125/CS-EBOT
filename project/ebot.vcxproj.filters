@@ -13,7 +13,6 @@
     <ClCompile Include="..\source\navmesh.cpp" />
     <ClCompile Include="..\source\netmsg.cpp" />
     <ClCompile Include="..\source\precomp.cpp" />
-    <ClCompile Include="..\source\cmath.cpp" />
     <ClCompile Include="..\source\support.cpp" />
     <ClCompile Include="..\source\waypoint.cpp" />
     <ClCompile Include="..\source\goap\default.cpp">
@@ -46,10 +45,10 @@
     <ClCompile Include="..\source\goap\camp.cpp">
       <Filter>GOAP</Filter>
     </ClCompile>
+    <ClCompile Include="..\source\clib.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\callbacks.h" />
-    <ClInclude Include="..\include\cmath.h" />
     <ClInclude Include="..\include\compress.h" />
     <ClInclude Include="..\include\core.h" />
     <ClInclude Include="..\include\engine.h" />
@@ -58,6 +57,8 @@
     <ClInclude Include="..\include\resource.h" />
     <ClInclude Include="..\include\runtime.h" />
     <ClInclude Include="..\include\glibc.h" />
+    <ClInclude Include="..\include\clib.h" />
+    <ClInclude Include="..\include\rng.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\include\ebot.rc" />
