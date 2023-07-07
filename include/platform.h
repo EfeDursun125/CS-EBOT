@@ -125,7 +125,10 @@ public:
 };
 
 #else
+
+#ifdef CURL_AVAILABLE
 #include <curl/curl.h>
+#endif
 
 class Library
 {
