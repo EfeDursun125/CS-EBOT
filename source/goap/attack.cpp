@@ -192,7 +192,7 @@ void Bot::AttackUpdate(void)
 			if (ChanceOf(30))
 				m_combatStrafeDir = (m_combatStrafeDir == 1 ? 0 : 1);
 
-			m_strafeSetTime = engine->GetTime() + engine->RandomFloat(0.5f, 3.0f);
+			m_strafeSetTime = engine->GetTime() + CRandomFloat(0.5f, 3.0f);
 		}
 
 		if (m_combatStrafeDir == 0)

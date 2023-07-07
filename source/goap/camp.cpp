@@ -49,7 +49,7 @@ void Bot::CampUpdate(void)
 		if (m_itemCheckTime < engine->GetTime())
 		{
 			FindItem();
-			m_itemCheckTime = AddTime(engine->RandomFloat(1.25f, 2.5f));
+			m_itemCheckTime = AddTime(CRandomFloat(1.25f, 2.5f));
 
 			if (GetEntityOrigin(m_pickupItem) != nullvec && SetProcess(Process::Pickup, "i see good stuff to pick it up", true, 20.0f))
 				return;
@@ -162,7 +162,7 @@ void Bot::CampUpdate(void)
 								max = 8.0f;
 						}
 
-						m_currentProcessTime = AddTime(engine->RandomFloat(4.0f, max));
+						m_currentProcessTime = AddTime(CRandomFloat(4.0f, max));
 						m_campIndex = m_myMeshWaypoint;
 						FindPath(m_currentWaypointIndex, m_myMeshWaypoint);
 					}

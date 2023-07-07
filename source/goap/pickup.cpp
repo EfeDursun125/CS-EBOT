@@ -102,7 +102,7 @@ void Bot::PickupUpdate(void)
 
 			if (IsValidWaypoint(m_currentWaypointIndex))
 			{
-				if (itemDistance > static_cast <float> (Squared(g_waypoint->GetPath(m_currentWaypointIndex)->radius)))
+				if (itemDistance > SquaredI(g_waypoint->GetPath(m_currentWaypointIndex)->radius))
 				{
 					SetEntityWaypoint(GetEntity());
 					m_currentWaypointIndex = -1;
@@ -131,7 +131,7 @@ void Bot::PickupUpdate(void)
 
 				if (IsValidWaypoint(m_currentWaypointIndex))
 				{
-					if (itemDistance > static_cast <float> (Squared(g_waypoint->GetPath(m_currentWaypointIndex)->radius)))
+					if (itemDistance > SquaredI(g_waypoint->GetPath(m_currentWaypointIndex)->radius))
 					{
 						SetEntityWaypoint(GetEntity());
 						m_currentWaypointIndex = -1;
