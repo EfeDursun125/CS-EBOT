@@ -402,7 +402,6 @@ void Bot::ChatSay(const bool teamSay, const char* text, ...)
 
     cstrcpy(botName, GetEntityName(GetEntity()));
 
-    const int index = g_netMsg->GetId(NETMSG_SAYTEXT);
     for (const auto& client : g_clients)
     {
         if (FNullEnt(client.ent))
@@ -429,7 +428,7 @@ void Bot::ChatSay(const bool teamSay, const char* text, ...)
         m_lastStrings[160] = *text;
         m_lastChatEnt = GetEntity();
 
-        MessageSender(MSG_ONE, index, nullptr, client.ent)
+        MessageSender(MSG_ONE, g_netMsg->GetId(NETMSG_SAYTEXT), nullptr, client.ent)
             .WriteByte(m_index - 1)
             .WriteString(tempMessage);
     }

@@ -1,6 +1,10 @@
 #include <core.h>
 #include <compress.h>
 
+#ifdef PLATFORM_LINUX
+#include <cstdlib>
+#endif
+
 ConVar ebot_analyze_distance("ebot_analyze_distance", "40");
 ConVar ebot_analyze_disable_fall_connections("ebot_analyze_disable_fall_connections", "0");
 ConVar ebot_analyze_wall_check_distance("ebot_analyze_wall_check_distance", "24");
@@ -1608,8 +1612,16 @@ void Waypoint::InitTypes()
 }
 
 #ifdef PLATFORM_LINUX
-// function prototype for linux section, curl for older compatbility
-size_t WriteCallback(void* contents, size_t size, size_t nmemb, FILE* stream);
+// The WriteCallback function is called by cURL when there is data to be written.
+// This is necessary for compatibility with older versions of cURL, which do not
+// support the CURLOPT_WRITEDATA option directly (linux)
+size_t WriteCallback(void* contents, size_t size, size_t nmemb, FILE* stream)
+{
+    const size_t written = fwrite(contents, size, nmemb, stream);
+    if (written < nmemb)
+        ServerPrint("Error: fwrite wrote fewer items than expected: %zu out of %zu\n", written, nmemb);
+    return written;
+}
 #endif
 
 bool Waypoint::Download(void)
@@ -1643,6 +1655,7 @@ bool Waypoint::Download(void)
     else
         ServerPrint("Error: Could not load UrlMon, could be missing or courrupted\n");
 #else
+#ifdef CURL_AVAILABLE
     if (curl_version_info(CURLVERSION_NOW) != nullptr)
     {
         CURL* curl;
@@ -1704,7 +1717,36 @@ bool Waypoint::Download(void)
         curl_global_cleanup();
     }
     else
-        ServerPrint("Error: Could not find valid curl version\n");
+        ServerPrint("Error: Could not find valid cURL version\n");
+#else
+    // check if wget is installed
+    if (system("which wget") == 0)
+    {
+        // wget is installed
+        char downloadURL[512];
+        snprintf(downloadURL, sizeof(downloadURL), "%s/%s.ewp", ebot_download_waypoints_from.GetString(), GetMapName());
+
+        const char* filepath = FormatBuffer("%s/%s.ewp", GetWaypointDir(), GetMapName());
+
+        char command[512];
+        snprintf(command, sizeof(command), "wget -O %s %s", filepath, downloadURL);
+        printf("Executing command: %s\n", command);
+        const int result = system(command);
+
+        if (result == 0)
+        {
+            ServerPrint("Download successful wget\n");
+            return true;
+        }
+        else
+        {
+            ServerPrint("Error: wget command failed with code %d\n", result);
+            return false;
+        }
+    }
+    else
+        ServerPrint("Error: Neither curl nor wget is available\n");
+#endif
 #endif
 
     return false;

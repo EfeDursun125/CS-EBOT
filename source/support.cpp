@@ -1338,7 +1338,7 @@ void HudMessage(edict_t* ent, bool toCenter, const Color& rgb, char* format, ...
 	MessageSender(MSG_ONE, SVC_TEMPENTITY, nullptr, ent)
 		.WriteByte(TE_TEXTMESSAGE)
 		.WriteByte(1)
-		.WriteShort(FixedSigned16(-1, 1 << 13))
+		.WriteShort(FixedSigned16(-1.0f, 1 << 13))
 		.WriteShort(FixedSigned16(toCenter ? -1.0f : 0.0f, 1 << 13))
 		.WriteByte(2)
 		.WriteByte(static_cast<int>(rgb.red))
@@ -1349,9 +1349,9 @@ void HudMessage(edict_t* ent, bool toCenter, const Color& rgb, char* format, ...
 		.WriteByte(CRandomInt(230, 255))
 		.WriteByte(CRandomInt(230, 255))
 		.WriteByte(200)
-		.WriteShort(FixedUnsigned16(0.0078125, 1 << 8))
-		.WriteShort(FixedUnsigned16(2, 1 << 8))
-		.WriteShort(FixedUnsigned16(6, 1 << 8))
+		.WriteShort(FixedUnsigned16(0.0078125f, 1 << 8))
+		.WriteShort(FixedUnsigned16(2.0f, 1 << 8))
+		.WriteShort(FixedUnsigned16(6.0f, 1 << 8))
 		.WriteShort(FixedUnsigned16(0.1f, 1 << 8))
 		.WriteString(const_cast<const char*>(&buffer[0]));
 }

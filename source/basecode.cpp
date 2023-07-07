@@ -1050,17 +1050,14 @@ void Bot::SwitchChatterIcon(const bool show)
 	if (g_gameVersion == CSVER_VERYOLD || g_gameVersion == CSVER_XASH)
 		return;
 
-	const int id = g_netMsg->GetId(NETMSG_BOTVOICE);
-	for (int i = 0; i < engine->GetMaxClients(); i++)
+	for (const auto& client : g_clients)
 	{
-		edict_t* ent = INDEXENT(i);
-
-		if (!IsValidPlayer(ent) || IsValidBot(ent) || GetTeam(ent) != m_team)
+		if (!IsValidPlayer(client.ent) || client.team != m_team || IsFakeClient(client.ent))
 			continue;
 
-		MessageSender(MSG_ONE, id, nullptr, ent)
+		MessageSender(MSG_ONE, g_netMsg->GetId(NETMSG_BOTVOICE), nullptr, client.ent)
 			.WriteByte(show) // switch on/off
-			.WriteByte(GetIndex());
+			.WriteByte(m_index);
 	}
 }
 
@@ -6206,7 +6203,7 @@ void Bot::DebugModeMsg(void)
 				.WriteShort(FixedUnsigned16(0.0f, 1 << 8))
 				.WriteShort(FixedUnsigned16(0.0f, 1 << 8))
 				.WriteShort(FixedUnsigned16(1.0f, 1 << 8))
-				.WriteString(const_cast <const char*> (&outputBuffer[0]));
+				.WriteString(const_cast<const char*>(&outputBuffer[0]));
 
 			timeDebugUpdate = engine->GetTime() + 1.0f;
 		}
