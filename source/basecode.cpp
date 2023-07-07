@@ -2496,11 +2496,8 @@ bool Bot::IsEnemyReachable(void)
 		goto last;
 	}
 
-	if (!(m_nearestEnemy->v.flags & FL_ONGROUND) || (m_nearestEnemy->v.flags & FL_PARTIALGROUND && !(m_nearestEnemy->v.flags & FL_DUCKING)))
-	{
-		m_isEnemyReachable = false;
+	if (!m_isEnemyReachable && (!(m_nearestEnemy->v.flags & FL_ONGROUND) || (m_nearestEnemy->v.flags & FL_PARTIALGROUND && !(m_nearestEnemy->v.flags & FL_DUCKING))))
 		goto last;
-	}
 
 	m_isEnemyReachable = false;
 
