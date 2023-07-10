@@ -235,7 +235,6 @@ void Bot::AttackUpdate(void)
 
 		m_moveSpeed = 0.0f;
 		m_strafeSpeed = 0.0f;
-		m_navTimeset = engine->GetTime();
 	}
 
 	if (m_duckTime > engine->GetTime())

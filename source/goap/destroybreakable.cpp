@@ -35,8 +35,6 @@ void Bot::DestroyBreakableUpdate(void)
 		SelectBestWeapon();
 		KnifeAttack();
 	}
-
-	pev->button |= m_campButtons;
 }
 
 void Bot::DestroyBreakableEnd(void)

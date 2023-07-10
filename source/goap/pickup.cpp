@@ -204,9 +204,6 @@ void Bot::PickupUpdate(void)
 
 		if (itemDistance <= SquaredF(90.0f)) // near to the button?
 		{
-			m_moveToGoal = false;
-			m_checkTerrain = false;
-
 			if (angleToEntity <= 10) // facing it directly?
 			{
 				if (g_gameVersion == CSVER_XASH)
