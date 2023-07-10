@@ -437,7 +437,6 @@ WeaponSelectEnd:
 
 		// reset burst fire variables
 		m_firePause = 0.0f;
-		m_timeLastFired = 0.0f;
 
 		return;
 	}
@@ -497,7 +496,7 @@ WeaponSelectEnd:
 	}
 
 	// need to care for burst fire?
-	if (g_gameVersion == HALFLIFE || distance <= SquaredF(512.0f) || m_blindTime > engine->GetTime())
+	if (g_gameVersion == HALFLIFE || distance <= SquaredF(512.0f))
 	{
 		if (selectId == melee)
 			KnifeAttack();
@@ -511,9 +510,6 @@ WeaponSelectEnd:
 					pev->button |= IN_ATTACK;
 			}
 		}
-
-		if (pev->button & IN_ATTACK)
-			m_shootTime = engine->GetTime();
 	}
 	else
 	{
@@ -569,8 +565,6 @@ WeaponSelectEnd:
 					delayTime += (delayTime == 0.0f) ? 0.15f : 0.10f;
 			}
 		}
-
-		m_shootTime = engine->GetTime() + delayTime;
 	}
 }
 
@@ -611,13 +605,11 @@ bool Bot::KnifeAttack(const float attackDistance)
 		if (pev->origin.z > origin.z && distanceSkipZ < SquaredF(64.0f))
 		{
 			pev->button |= IN_DUCK;
-			m_campButtons |= IN_DUCK;
 			pev->button &= ~IN_JUMP;
 		}
 		else
 		{
 			pev->button &= ~IN_DUCK;
-			m_campButtons &= ~IN_DUCK;
 
 			if (pev->origin.z + 150.0f < origin.z && distanceSkipZ < SquaredF(300.0f))
 				pev->button |= IN_JUMP;

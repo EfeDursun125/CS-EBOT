@@ -1117,7 +1117,6 @@ void Bot::NewRound(void)
 
 	// delete all allocated path nodes
 	DeleteSearchNodes();
-	m_itaimstart = engine->GetTime();
 	m_aimStopTime = engine->GetTime();
 	m_weaponSelectDelay = engine->GetTime();
 	m_currentWaypointIndex = -1;
@@ -1127,27 +1126,13 @@ void Bot::NewRound(void)
 	m_myMeshWaypoint = -1;
 	m_loosedBombWptIndex = -1;
 
-	m_duckDefuse = false;
-	m_duckDefuseCheckTime = 0.0f;
-
 	m_prevWptIndex[0] = -1;
 	m_prevWptIndex[1] = -1;
 	m_prevWptIndex[2] = -1;
 
-	m_navTimeset = engine->GetTime();
-
 	m_isVIP = false;
 	m_isLeader = false;
 	m_hasProgressBar = false;
-
-	m_timeTeamOrder = 0.0f;
-	m_prevSpeed = 0.0f;
-	m_prevOrigin = Vector(9999.0f, 9999.0f, 9999.0f);
-	m_prevTime = engine->GetTime();
-	m_blindRecognizeTime = engine->GetTime();
-
-	m_viewDistance = 4096.0f;
-	m_maxViewDistance = 4096.0f;
 
 	m_pickupItem = nullptr;
 	m_itemIgnore = nullptr;
@@ -1157,43 +1142,21 @@ void Bot::NewRound(void)
 	m_breakable = nullvec;
 	m_timeDoorOpen = 0.0f;
 
-	m_trackingEdict = nullptr;
-	m_timeNextTracking = 0.0f;
-
 	m_buttonPushTime = 0.0f;
-	m_enemyUpdateTime = 0.0f;
 	m_seeEnemyTime = 0.0f;
-	m_oldCombatDesire = 0.0f;
 
-	m_lastDamageType = -1;
 	m_voteMap = 0;
-	m_doorOpenAttempt = 0;
-	m_aimFlags = 0;
-
-	m_position = nullvec;
-	m_campPosition = nullvec;
-
 	m_targetEntity = nullptr;
-	m_followWaitTime = 0.0f;
 
 	for (i = 0; i < Const_MaxHostages; i++)
 		m_hostages[i] = nullptr;
 
-	m_allowWalk = false;
 	m_isReloading = false;
 	m_reloadState = ReloadState::Nothing;
 
 	m_reloadCheckTime = 0.0f;
-	m_shootTime = engine->GetTime();
-	m_playerTargetTime = engine->GetTime();
 	m_firePause = 0.0f;
-	m_timeLastFired = 0.0f;
 
-	m_grenadeCheckTime = 0.0f;
-	m_isUsingGrenade = false;
-
-	m_blindButton = 0;
-	m_blindTime = 0.0f;
 	m_jumpTime = 0.0f;
 	m_duckTime = 0.0f;
 	m_isStuck = false;
@@ -1202,8 +1165,6 @@ void Bot::NewRound(void)
 	m_sayTextBuffer.timeNextChat = engine->GetTime();
 	m_sayTextBuffer.entityIndex = -1;
 	m_sayTextBuffer.sayText[0] = 0x0;
-
-	m_checkCampPointTime = 0.0f;
 
 	if (!IsAlive(GetEntity())) // if bot died, clear all weapon stuff and force buying again
 	{
@@ -1222,20 +1183,12 @@ void Bot::NewRound(void)
 	m_fightStyle = 0;
 	m_lastFightStyleCheck = 0.0f;
 
-	m_checkWeaponSwitch = true;
-	m_checkKnifeSwitch = true;
-
 	m_radioEntity = nullptr;
 	m_radioOrder = 0;
 	m_defendedBomb = false;
 
 	m_lastChatTime = engine->GetTime();
 	pev->button = 0;
-
-	m_timeCamping = 0;
-	m_campDirection = 0;
-	m_nextCampDirTime = 0;
-	m_campButtons = 0;
 
 	// clear its message queue
 	for (i = 0; i < 32; i++)

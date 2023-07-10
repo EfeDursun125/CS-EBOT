@@ -429,8 +429,6 @@ void Bot::FindItem(void)
 
 			m_lookAt = origin;
 			pickupType = PICKTYPE_GETENTITY;
-			m_moveToGoal = false;
-			m_checkTerrain = false;
 			m_moveSpeed = pev->maxspeed;
 			m_strafeSpeed = 0.0f;
 		}
@@ -449,8 +447,6 @@ void Bot::FindItem(void)
 
 			m_lookAt = origin;
 			pickupType = PICKTYPE_GETENTITY;
-			m_moveToGoal = false;
-			m_checkTerrain = false;
 			m_moveSpeed = pev->maxspeed;
 			m_strafeSpeed = 0.0f;
 		}
@@ -478,13 +474,13 @@ void Bot::FindItem(void)
 			pickupType = PICKTYPE_HOSTAGE;
 		else if (cstrncmp("weaponbox", STRING(ent->v.classname), 9) == 0 && cstrcmp(STRING(ent->v.model) + 9, "backpack.mdl") == 0)
 			pickupType = PICKTYPE_DROPPEDC4;
-		else if (cstrncmp("weaponbox", STRING(ent->v.classname), 9) == 0 && cstrcmp(STRING(ent->v.model) + 9, "backpack.mdl") == 0 && !m_isUsingGrenade)
+		else if (cstrncmp("weaponbox", STRING(ent->v.classname), 9) == 0 && cstrcmp(STRING(ent->v.model) + 9, "backpack.mdl") == 0)
 			pickupType = PICKTYPE_DROPPEDC4;
-		else if ((cstrncmp("weaponbox", STRING(ent->v.classname), 9) == 0 || cstrncmp("armoury_entity", STRING(ent->v.classname), 14) == 0 || cstrncmp("csdm", STRING(ent->v.classname), 4) == 0) && !m_isUsingGrenade)
+		else if ((cstrncmp("weaponbox", STRING(ent->v.classname), 9) == 0 || cstrncmp("armoury_entity", STRING(ent->v.classname), 14) == 0 || cstrncmp("csdm", STRING(ent->v.classname), 4) == 0))
 			pickupType = PICKTYPE_WEAPON;
-		else if (cstrncmp("weapon_shield", STRING(ent->v.classname), 13) == 0 && !m_isUsingGrenade)
+		else if (cstrncmp("weapon_shield", STRING(ent->v.classname), 13) == 0)
 			pickupType = PICKTYPE_SHIELDGUN;
-		else if (cstrncmp("item_thighpack", STRING(ent->v.classname), 14) == 0 && m_team == TEAM_COUNTER && !m_hasDefuser)
+		else if (m_team == TEAM_COUNTER && !m_hasDefuser && cstrncmp("item_thighpack", STRING(ent->v.classname), 14) == 0)
 			pickupType = PICKTYPE_DEFUSEKIT;
 		else if (cstrncmp("grenade", STRING(ent->v.classname), 7) == 0 && cstrcmp(STRING(ent->v.model) + 9, "c4.mdl") == 0)
 			pickupType = PICKTYPE_PLANTEDC4;
@@ -2881,7 +2877,7 @@ bool Bot::CampingAllowed(void)
 
 	if (GetGameMode() == MODE_BASE)
 	{
-		if (m_isBomber || m_isVIP || m_isUsingGrenade)
+		if (m_isBomber || m_isVIP)
 			return false;
 
 		if (!(g_mapType & MAP_DE))

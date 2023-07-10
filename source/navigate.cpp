@@ -495,13 +495,12 @@ void Bot::DoWaypointNav(void)
 			{
 				m_pickupItem = button;
 				m_pickupType = PICKTYPE_BUTTON;
-				m_navTimeset = engine->GetTime();
 			}
 
 			// if bot hits the door, then it opens, so wait a bit to let it open safely
 			if (m_timeDoorOpen < engine->GetTime() && pev->velocity.GetLengthSquared2D() < SquaredF(pev->maxspeed * 0.20f))
 			{
-				m_timeDoorOpen = engine->GetTime() + 3.0f;
+				m_timeDoorOpen = AddTime(3.0f);
 
 				if (m_tryOpenDoor++ > 2 && !FNullEnt(m_nearestEnemy) && IsWalkableTraceLineClear(EyePosition(), m_nearestEnemy->v.origin))
 				{
@@ -615,9 +614,6 @@ bool Bot::UpdateLiftHandling()
 {
 	bool liftClosedDoorExists = false;
 
-	// update node time set
-	m_navTimeset = engine->GetTime();
-
 	TraceResult tr{};
 
 	// wait for something about for lift
@@ -638,7 +634,7 @@ bool Bot::UpdateLiftHandling()
 		if (m_liftState == LiftState::None)
 		{
 			m_liftState = LiftState::LookingButtonOutside;
-			m_liftUsageTime = engine->GetTime() + 7.0f;
+			m_liftUsageTime = AddTime(7.0f);
 		}
 
 		liftClosedDoorExists = true;
@@ -661,13 +657,13 @@ bool Bot::UpdateLiftHandling()
 					m_liftEntity = tr.pHit;
 					m_liftState = LiftState::EnteringIn;
 					m_liftTravelPos = m_waypointOrigin;
-					m_liftUsageTime = engine->GetTime() + 5.0f;
+					m_liftUsageTime = AddTime(5.0f);
 				}
 			}
 			else if (m_liftState == LiftState::TravelingBy)
 			{
 				m_liftState = LiftState::Leaving;
-				m_liftUsageTime = engine->GetTime() + 7.0f;
+				m_liftUsageTime = AddTime(7.0f);
 			}
 		}
 		else
@@ -685,7 +681,7 @@ bool Bot::UpdateLiftHandling()
 				}
 
 				m_liftState = LiftState::LookingButtonOutside;
-				m_liftUsageTime = engine->GetTime() + 15.0f;
+				m_liftUsageTime = AddTime(15.0f);
 			}
 		}
 	}
@@ -722,12 +718,12 @@ bool Bot::UpdateLiftHandling()
 			if (needWaitForTeammate)
 			{
 				m_liftState = LiftState::WaitingForTeammates;
-				m_liftUsageTime = engine->GetTime() + 8.0f;
+				m_liftUsageTime = AddTime(8.0f);
 			}
 			else
 			{
 				m_liftState = LiftState::LookingButtonInside;
-				m_liftUsageTime = engine->GetTime() + 10.0f;
+				m_liftUsageTime = AddTime(10.0f);
 			}
 		}
 	}
@@ -763,7 +759,7 @@ bool Bot::UpdateLiftHandling()
 		if (!needWaitForTeammate || m_liftUsageTime < engine->GetTime())
 		{
 			m_liftState = LiftState::LookingButtonInside;
-			m_liftUsageTime = engine->GetTime() + 10.0f;
+			m_liftUsageTime = AddTime(10.0f);
 		}
 	}
 
@@ -778,7 +774,6 @@ bool Bot::UpdateLiftHandling()
 			m_pickupItem = button;
 			m_pickupType = PICKTYPE_BUTTON;
 
-			m_navTimeset = engine->GetTime();
 		}
 	}
 
@@ -788,7 +783,7 @@ bool Bot::UpdateLiftHandling()
 		if (pev->groundentity == m_liftEntity && m_liftEntity->v.velocity.z != 0.0f && IsOnFloor() && (g_waypoint->GetPath(m_prevWptIndex[0])->flags & WAYPOINT_LIFT || !FNullEnt(m_targetEntity)))
 		{
 			m_liftState = LiftState::TravelingBy;
-			m_liftUsageTime = engine->GetTime() + 14.0f;
+			m_liftUsageTime = AddTime(14.0f);
 
 			if ((pev->origin - m_destOrigin).GetLengthSquared() <= SquaredF(20.0f))
 				wait();
@@ -857,15 +852,13 @@ bool Bot::UpdateLiftHandling()
 					m_pickupItem = button;
 					m_pickupType = PICKTYPE_BUTTON;
 					m_liftState = LiftState::WaitingFor;
-
-					m_navTimeset = engine->GetTime();
-					m_liftUsageTime = engine->GetTime() + 20.0f;
+					m_liftUsageTime = AddTime(20.0f);
 				}
 			}
 			else
 			{
 				m_liftState = LiftState::WaitingFor;
-				m_liftUsageTime = engine->GetTime() + 15.0f;
+				m_liftUsageTime = AddTime(15.0f);
 			}
 		}
 	}
@@ -918,7 +911,7 @@ bool Bot::UpdateLiftStates()
 		if (m_liftState == LiftState::TravelingBy)
 		{
 			m_liftState = LiftState::Leaving;
-			m_liftUsageTime = engine->GetTime() + 10.0f;
+			m_liftUsageTime = AddTime(10.0f);
 		}
 		else if (m_liftState == LiftState::Leaving && m_liftUsageTime < engine->GetTime() && pev->groundentity != m_liftEntity)
 		{

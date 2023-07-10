@@ -135,11 +135,6 @@ void NetworkMsg::Execute(void* p)
             {
                 if (state != 0)
                     m_bot->m_currentWeapon = id;
-
-                // ammo amount decreased ? must have fired a bullet...
-                if (id == m_bot->m_currentWeapon && m_bot->m_ammoInClip[id] > clip)
-                    m_bot->m_timeLastFired = engine->GetTime(); // remember the last bullet time
-
                 m_bot->m_ammoInClip[id] = clip;
             }
             break;
