@@ -15,7 +15,6 @@ extern bool g_botsCanPause;
 extern bool g_editNoclip;
 extern bool g_isMetamod;
 extern bool g_isFakeCommand;
-extern bool g_leaderChoosen[2];
 extern bool g_analyzewaypoints;
 extern bool g_analyzenavmesh;
 extern bool g_analyzeputrequirescrouch;
@@ -79,7 +78,6 @@ extern WeaponProperty g_weaponDefs[Const_MaxWeapons + 1];
 
 extern Clients g_clients[32];
 extern MenuText g_menus[28];
-extern Task g_taskFilters[];
 
 extern edict_t* g_hostEntity;
 extern edict_t* g_worldEdict;
