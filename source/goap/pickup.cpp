@@ -106,7 +106,7 @@ void Bot::PickupUpdate(void)
 				{
 					SetEntityWaypoint(GetEntity());
 					m_currentWaypointIndex = -1;
-					GetValidWaypoint();
+					FindWaypoint();
 				}
 			}
 		}
@@ -135,7 +135,7 @@ void Bot::PickupUpdate(void)
 					{
 						SetEntityWaypoint(GetEntity());
 						m_currentWaypointIndex = -1;
-						GetValidWaypoint();
+						FindWaypoint();
 					}
 				}
 			}

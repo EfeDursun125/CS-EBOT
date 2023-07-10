@@ -104,7 +104,7 @@ void Bot::AttackUpdate(void)
 	}
 
 	int approach;
-	if (!(m_states & STATE_SEEINGENEMY)) // if suspecting enemy stand still
+	if (!m_hasEnemiesNear && !m_hasEntitiesNear) // if suspecting enemy stand still
 		approach = 49;
 	else if (g_gameVersion != HALFLIFE && (m_isReloading || m_isVIP)) // if reloading or vip back off
 		approach = 29;
