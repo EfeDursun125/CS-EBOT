@@ -3311,46 +3311,6 @@ int pfnRegUserMsg(const char* name, int size)
 	return message;
 }
 
-void pfnAlertMessage(ALERT_TYPE alertType, char* format, ...)
-{
-	va_list ap;
-	char buffer[1024];
-
-	va_start(ap, format);
-	vsprintf(buffer, format, ap);
-	va_end(ap);
-
-	if (cstrstr(buffer, "_Defuse_") != nullptr)
-	{
-		// notify all terrorists that CT is starting bomb defusing
-		for (const auto& bot : g_botManager->m_bots)
-		{
-			if (bot != nullptr && bot->m_team == TEAM_TERRORIST && bot->m_isAlive)
-			{
-				const Vector bombOrigin = g_waypoint->GetBombPosition();
-				if (bombOrigin != nullvec)
-				{
-					const int index = g_waypoint->FindNearestInCircle(bombOrigin, 99999999.0f);
-					if (IsValidWaypoint(index))
-					{
-						if (bot->m_chosenGoalIndex != index)
-							bot->DeleteSearchNodes();
-
-						bot->m_prevGoalIndex = bot->m_chosenGoalIndex;
-						bot->m_chosenGoalIndex = index;
-						bot->m_campIndex = index;
-					}
-				}
-			}
-		}
-	}
-
-	if (g_isMetamod)
-		RETURN_META(MRES_IGNORED);
-
-	(*g_engfuncs.pfnAlertMessage) (alertType, buffer);
-}
-
 gamedll_funcs_t gameDLLFunc;
 
 exportc int GetEntityAPI2(DLL_FUNCTIONS* functionTable, int* /*interfaceVersion*/)
@@ -3443,7 +3403,6 @@ exportc int GetEngineFunctions(enginefuncs_t* functionTable, int* /*interfaceVer
 	functionTable->pfnCmd_Argv = pfnCmd_Argv;
 	functionTable->pfnCmd_Argc = pfnCmd_Argc;
 	functionTable->pfnSetClientMaxspeed = pfnSetClientMaxspeed;
-	functionTable->pfnAlertMessage = pfnAlertMessage;
 
 	return true;
 }
