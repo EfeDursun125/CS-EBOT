@@ -585,15 +585,8 @@ private:
 	float m_moveSpeed; // current speed forward/backward
 	float m_strafeSpeed; // current speed sideways
 	float m_tempstrafeSpeed; // temp speed sideways
-	float m_oldCombatDesire; // holds old desire for filtering
 
 	bool m_isLeader; // bot is leader of his team
-	bool m_checkTerrain; // check for terrain
-	bool m_moveToC4; // ct is moving to bomb
-
-	float m_prevTime; // time previously checked movement speed
-	float m_prevSpeed; // speed some frames before
-	Vector m_prevOrigin; // origin some frames before
 
 	int m_messageQueue[32]; // stack for messages
 	char m_tempStrings[512]; // space for strings (say text...)
@@ -607,7 +600,6 @@ private:
 	edict_t* m_liftEntity; // pointer to lift entity
 	Vector m_liftTravelPos; // lift travel position
 
-	float m_blindRecognizeTime; // time to recognize enemy
 	float m_itemCheckTime; // time next search for items needs to be done
 	PickupType m_pickupType; // type of entity which needs to be used/picked up
 	Vector m_breakable; // origin of breakable
@@ -634,11 +626,8 @@ private:
 
 	unsigned short m_currentTravelFlags; // connection flags like jumping
 	bool m_jumpFinished; // has bot finished jumping
-	float m_navTimeset; // time waypoint chosen by Bot
 
-	unsigned int m_aimFlags; // aiming conditions
 	Vector m_lookAt; // vector bot should look at
-	Vector m_lookAtCache; // cache for look at
 	Vector m_throw; // origin of waypoint to throw grenades
 	Vector m_idealAngles; // ideal aim angles
 	float m_lookYawVel; // look yaw velocity
@@ -648,10 +637,6 @@ private:
 	Vector m_entity; // origin of entities like buttons etc.
 	Vector m_camp; // aiming vector when camping.
 
-	bool m_wantsToFire; // bot needs consider firing
-	float m_shootAtDeadTime; // time to shoot at dying players
-
-	float m_followWaitTime; // wait to follow time
 	edict_t* m_targetEntity; // the entity that the bot is trying to reach
 	edict_t* m_hostages[Const_MaxHostages]; // pointer to used hostage entities
 
@@ -665,10 +650,6 @@ private:
 
 	bool m_isReloading; // bot is reloading a gun
 	int m_reloadState; // current reload state
-	bool m_allowWalk; // walk for a few seconds
-
-	bool m_duckDefuse; // should or not bot duck to defuse bomb
-	float m_duckDefuseCheckTime; // time to check for ducking for defuse
 
 	float m_msecInterval; // used for leon hartwig's method for msec calculation
 	float m_impulse; // lol
@@ -679,22 +660,11 @@ private:
 	float m_reloadCheckTime; // time to check reloading
 	float m_zoomCheckTime; // time to check zoom again
 	float m_shieldCheckTime; // time to check shiled drawing again
-	float m_grenadeCheckTime; // time to check grenade usage
-
-	bool m_checkKnifeSwitch; // is time to check switch to knife action
-	bool m_checkWeaponSwitch; // is time to check weapon switch
-	bool m_isUsingGrenade; // bot currently using grenade??
 
 	uint8_t m_combatStrafeDir; // direction to strafe
 	uint8_t m_fightStyle; // combat style to use
 	float m_lastFightStyleCheck; // time checked style
 	float m_strafeSetTime; // time strafe direction was set
-
-	float m_timeCamping; // time to camp
-	int m_campDirection; // camp Facing direction
-	float m_nextCampDirTime; // time next camp direction change
-	int m_campButtons; // buttons to press while camping
-	int m_doorOpenAttempt; // attempt's to open the door
 
 	float m_duckTime; // time to duck
 	float m_jumpTime; // time last jump happened
@@ -703,10 +673,7 @@ private:
 	float m_buttonPushTime; // time to push the button
 
 	Vector m_moveAngles; // bot move angles
-	bool m_moveToGoal; // bot currently moving to goal??
-	float m_playerTargetTime; // time last targeting
 
-	float m_checkCampPointTime; // zombie stuff
 	int m_zhCampPointIndex; // zombie stuff index
 	int m_myMeshWaypoint; // human mesh stuff index
 
@@ -823,7 +790,6 @@ public:
 	int m_moneyAmount; // amount of money in bot's bank
 
 	Personality m_personality;
-	float m_timeTeamOrder; // time of last radio command
 
 	bool m_isVIP; // bot is vip?
 	bool m_isBomber; // bot is bomber?
@@ -855,12 +821,6 @@ public:
 	bool m_hasProgressBar; // has progress bar on a HUD
 	bool m_jumpReady; // is double jump ready
 
-	float m_blindTime; // time when bot is blinded
-	float m_blindMoveSpeed; // mad speeds when bot is blind
-	float m_blindSidemoveSpeed; // mad side move speeds when bot is blind
-	int m_blindButton; // buttons bot press, when blind
-	int m_blindCampPoint; // blind action
-
 	edict_t* m_doubleJumpEntity; // pointer to entity that request double jump
 	edict_t* m_radioEntity; // pointer to entity issuing a radio command
 	int m_radioOrder; // actual command
@@ -880,27 +840,16 @@ public:
 
 	Vector m_waypointOrigin; // origin of waypoint
 	Vector m_destOrigin; // origin of move destination
-	Vector m_bestOrigin; // origin of move destination
-	Vector m_position; // position to move to in move to position task
 	Vector m_doubleJumpOrigin; // origin of double jump
-	Vector m_lastBombPosition; // origin of last remembered bomb position
-	Vector m_goalaimposition; // goal aim position for tracking
-	Vector m_campPosition; // camping position
 
-	float m_viewDistance; // current view distance
-	float m_maxViewDistance; // maximum view distance
 	Vector m_lastEnemyOrigin; // vector to last enemy origin
 	SayText m_sayTextBuffer; // holds the index & the actual message of the last unprocessed text message of a player
 	BurstMode m_weaponBurstMode; // bot using burst mode? (famas/glock18, but also silencer mode)
 
 	int m_pingOffset[2]; // offset for faking pings
 	int m_ping[3]; // bots pings in scoreboard
-	float m_trackTime; // more realistic aim
-	Vector m_tempAim; // A++
-	Vector m_tempVel; // C
 
 	edict_t* m_enemy; // pointer to enemy entity
-	float m_enemyUpdateTime; // time to check for new enemies
 	float m_enemyReachableTimer; // time to recheck if Enemy reachable
 	bool m_isEnemyReachable; // direct line to enemy
 
@@ -909,9 +858,7 @@ public:
 	float m_seeEnemyTime; // time bot sees enemy
 	float m_radiotimer; // a timer for radio call
 	float m_randomattacktimer; // a timer for make bots random attack with knife like humans
-	float m_itaimstart; // aim start time
 	float m_slowthinktimer; // slow think timer
-	float m_maxhearrange; // maximum range for hearing enemy
 	float m_aimStopTime; // feel like playing on a phone
 	float m_stayTime; // stay time (for simulate server)
 	float m_connectTime; // for fake query
@@ -922,15 +869,10 @@ public:
 
 	edict_t* m_lastEnemy; // pointer to last enemy entity
 	edict_t* m_lastVictim; // pointer to killed entity
-	edict_t* m_trackingEdict; // pointer to last tracked player when camping/hiding
 
-	float m_timeNextTracking; // time waypoint index for tracking player is recalculated
 	float m_firePause; // time to pause firing
-	float m_shootTime; // time to shoot
-	float m_timeLastFired; // time to last firing
 	float m_weaponSelectDelay; // delay for reload
 
-	int m_lastDamageType; // stores last damage
 	int m_currentWeapon; // one current weapon for each bot
 	int m_ammoInClip[Const_MaxWeapons]; // ammo in clip for each weapons
 	int m_ammo[MAX_AMMO_SLOTS]; // total ammo amounts
