@@ -845,6 +845,35 @@ Bot* BotControl::GetHighestSkillBot(int team)
 	return GetBot(bestIndex);
 }
 
+void BotControl::SelectLeaderEachTeam(const int team)
+{
+	Bot* botLeader = nullptr;
+
+	if (GetGameMode() == MODE_BASE || GetGameMode() == MODE_TDM)
+	{
+		if (team == TEAM_TERRORIST)
+		{
+			botLeader = g_botManager->GetHighestSkillBot(team);
+
+			if (botLeader != nullptr)
+			{
+				botLeader->m_isLeader = true;
+				botLeader->RadioMessage(Radio::FollowMe);
+			}
+		}
+		else if (team == TEAM_COUNTER)
+		{
+			botLeader = g_botManager->GetHighestSkillBot(team);
+
+			if (botLeader != nullptr)
+			{
+				botLeader->m_isLeader = true;
+				botLeader->RadioMessage(Radio::FollowMe);
+			}
+		}
+	}
+}
+
 // this function decides is players on specified team is able to buy primary weapons by calculating players
 // that have not enough money to buy primary (with economics), and if this result higher 80%, player is can't
 // buy primary weapons.
@@ -1035,7 +1064,6 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 Bot::~Bot(void)
 {
 	DeleteSearchNodes();
-	ResetTasks();
 
 	char botName[64];
 	ITERATE_ARRAY(g_botNames, j)
@@ -1108,17 +1136,11 @@ void Bot::NewRound(void)
 
 	m_navTimeset = engine->GetTime();
 
-	// clear all states & tasks
-	m_states = 0;
-	ResetTasks();
-
 	m_isVIP = false;
 	m_isLeader = false;
 	m_hasProgressBar = false;
-	m_canChooseAimDirection = true;
 
 	m_timeTeamOrder = 0.0f;
-	m_askCheckTime = 0.0f;
 	m_prevSpeed = 0.0f;
 	m_prevOrigin = Vector(9999.0f, 9999.0f, 9999.0f);
 	m_prevTime = engine->GetTime();
@@ -1142,9 +1164,6 @@ void Bot::NewRound(void)
 	m_enemyUpdateTime = 0.0f;
 	m_seeEnemyTime = 0.0f;
 	m_oldCombatDesire = 0.0f;
-
-	m_avoidEntity = nullptr;
-	m_needAvoidEntity = 0;
 
 	m_lastDamageType = -1;
 	m_voteMap = 0;
@@ -1184,7 +1203,6 @@ void Bot::NewRound(void)
 	m_sayTextBuffer.entityIndex = -1;
 	m_sayTextBuffer.sayText[0] = 0x0;
 
-	m_damageTime = 0.0f;
 	m_checkCampPointTime = 0.0f;
 
 	if (!IsAlive(GetEntity())) // if bot died, clear all weapon stuff and force buying again

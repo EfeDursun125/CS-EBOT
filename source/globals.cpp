@@ -15,7 +15,6 @@ bool g_navmeshOn = false;
 bool g_waypointsChanged = true;
 bool g_autoWaypoint = false;
 bool g_bLearnJumpWaypoint = false;
-bool g_leaderChoosen[2] = { false, false };
 bool g_analyzewaypoints = false;
 bool g_analyzenavmesh = false;
 bool g_analyzeputrequirescrouch = false;
@@ -137,34 +136,6 @@ plugin_info_t Plugin_info =
    PRODUCT_LOGTAG, // plugin logtag
    PT_STARTUP, // when loadable
    PT_NEVER, // when unloadable
-};
-
-// table with all available actions for the bots (filtered in & out in Bot::SetConditions) some of them have subactions included
-Task g_taskFilters[] =
-{
-   {nullptr, nullptr, TASK_NORMAL, 0, -1, 0.0f, true},
-   {nullptr, nullptr, TASK_PAUSE, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_MOVETOPOSITION, 0, -1, 0.0f, true},
-   {nullptr, nullptr, TASK_FOLLOWUSER, 0, -1,0.0f, true},
-   {nullptr, nullptr, TASK_PICKUPITEM, 0, -1, 0.0f, true},
-   {nullptr, nullptr, TASK_CAMP, 0, -1, 0.0f, true},
-   {nullptr, nullptr, TASK_PLANTBOMB, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_DEFUSEBOMB, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_FIGHTENEMY, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_HUNTENEMY, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_SEEKCOVER, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_THROWHEGRENADE, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_THROWFBGRENADE, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_THROWSMGRENADE, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_THROWFLARE, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_DOUBLEJUMP, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_ESCAPEFROMBOMB, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_DESTROYBREAKABLE, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_HIDE, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_BLINDED, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_SPRAYLOGO, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_MOVETOTARGET, 0, -1, 0.0f, true},
-   {nullptr, nullptr, TASK_GOINGFORCAMP, 0, -1, 0.0f, true}
 };
 
 WeaponSelect g_weaponSelect[Const_NumWeapons + 1] =

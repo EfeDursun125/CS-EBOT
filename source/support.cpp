@@ -361,6 +361,10 @@ void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
 	// supply directly the whole string as if you were typing it in the bot's "console". It
 	// is supposed to work exactly like the pfnClientCommand (server-sided client command).
 
+	// someone is using it :(
+	if (g_isFakeCommand)
+		return;
+
 	if (!IsValidBot(fakeClient))
 		return;
 
@@ -577,9 +581,6 @@ void RoundInit(void)
 	g_timeBombPlanted = 0.0f;
 	g_timeNextBombUpdate = 0.0f;
 
-	g_leaderChoosen[TEAM_COUNTER] = false;
-	g_leaderChoosen[TEAM_TERRORIST] = false;
-
 	g_lastRadioTime[0] = 0.0f;
 	g_lastRadioTime[1] = 0.0f;
 	g_botsCanPause = false;
@@ -602,6 +603,9 @@ void RoundInit(void)
 		g_timeRoundStart = engine->GetTime() + engine->GetFreezeTime() + g_pGlobals->frametime;
 		g_timeRoundMid = g_timeRoundStart + engine->GetRoundTime() * 30.0f;
 		g_timeRoundEnd = g_timeRoundStart + engine->GetRoundTime() * 60.0f;
+
+		g_botManager->SelectLeaderEachTeam(TEAM_COUNTER);
+		g_botManager->SelectLeaderEachTeam(TEAM_COUNTER);
 	}
 	else
 	{
@@ -1689,11 +1693,4 @@ int GetWeaponReturn(bool needString, const char* weaponAlias, int weaponID)
 	}
 
 	return -1; // no weapon was found return -1
-}
-
-// return priority of player (0 = max pri)
-unsigned int GetPlayerPriority(edict_t* player)
-{
-	const int index = ENTINDEX(player);
-	return index * index;
 }

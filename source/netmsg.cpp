@@ -251,10 +251,7 @@ void NetworkMsg::Execute(void* p)
 
             Bot* victimer = g_botManager->GetBot(victim);
             if (victimer != nullptr)
-            {
-                victimer->GetCurrentTask()->data = -1;
                 victimer->DeleteSearchNodes();
-            }
 
             break;
         }
@@ -339,10 +336,7 @@ void NetworkMsg::Execute(void* p)
                 for (const auto& bot : g_botManager->m_bots)
                 {
                     if (bot != nullptr && bot->m_isAlive)
-                    {
                         bot->DeleteSearchNodes();
-                        bot->ResetTasks();
-                    }
                 }
             }
             else if (m_bot != nullptr && FStrEq(PTR_TO_STR(p), "#Switch_To_BurstFire"))

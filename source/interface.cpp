@@ -1916,16 +1916,14 @@ void ClientCommand(edict_t* ent)
 				case 2:
 					if (FindNearestPlayer(reinterpret_cast <void**> (&bot), client->ent, 4096.0, true, true, true))
 					{
-						if (!(bot->pev->weapons & (1 << WEAPON_C4)) && !bot->HasHostage() && (bot->GetCurrentTask()->taskID != TASK_PLANTBOMB) && (bot->GetCurrentTask()->taskID != TASK_DEFUSEBOMB))
+						if (!(bot->pev->weapons & (1 << WEAPON_C4)) && !bot->HasHostage())
 						{
 							if (selection == 1)
 							{
+								// TODO: add process for this
 								bot->ResetDoubleJumpState();
-
 								bot->m_doubleJumpOrigin = GetEntityOrigin(client->ent);
 								bot->m_doubleJumpEntity = client->ent;
-
-								bot->PushTask(TASK_DOUBLEJUMP, TASKPRI_DOUBLEJUMP, -1, engine->GetTime(), true);
 								bot->ChatSay(true, FormatBuffer("Ok %s, i will help you!", GetEntityName(ent)));
 							}
 							else if (selection == 2)
