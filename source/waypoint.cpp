@@ -3273,41 +3273,6 @@ void Waypoint::SetFindIndex(int index)
     }
 }
 
-int Waypoint::AddGoalScore(int index, int other[4])
-{
-    Array <int> left;
-
-    if (m_goalsScore[index] < 1024.0f)
-        left.Push(index);
-
-    for (int i = 0; i < 3; i++)
-    {
-        if (m_goalsScore[other[i]] < 1024.0f)
-            left.Push(other[i]);
-    }
-
-    if (left.IsEmpty())
-        index = other[CRandomInt(0, 3)];
-    else
-        index = left.GetRandomElement();
-
-    if (m_paths[index]->flags & WAYPOINT_GOAL)
-        m_goalsScore[index] += 384.0f;
-    else if (m_paths[index]->flags & (WAYPOINT_COUNTER | WAYPOINT_TERRORIST))
-        m_goalsScore[index] += 768.0f;
-    else if (m_paths[index]->flags & WAYPOINT_CAMP)
-        m_goalsScore[index] += 1024.0f;
-
-    return index;
-}
-
-void Waypoint::ClearGoalScore(void)
-{
-    // iterate though all waypoints
-    for (int i = 0; i < Const_MaxWaypoints; i++)
-        m_goalsScore[i] = 0.0f;
-}
-
 Waypoint::Waypoint(void)
 {
     m_waypointPaths = false;

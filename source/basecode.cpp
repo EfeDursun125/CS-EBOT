@@ -2664,7 +2664,7 @@ void Bot::DiscardWeaponForUser(edict_t* user, const bool discardC4)
 
 		m_pickupItem = nullptr;
 		m_pickupType = PICKTYPE_NONE;
-		m_itemCheckTime = engine->GetTime() + 5.0f;
+		m_itemCheckTime = AddTime(5.0f);
 
 		if (m_inBuyZone)
 		{
@@ -2686,9 +2686,7 @@ void Bot::ResetDoubleJumpState(void)
 {
 	DeleteSearchNodes();
 	m_doubleJumpEntity = nullptr;
-	m_duckForJump = 0.0f;
 	m_doubleJumpOrigin = nullvec;
-	m_travelStartIndex = -1;
 	m_jumpReady = false;
 }
 

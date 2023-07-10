@@ -4,7 +4,6 @@ float m_randomJoinTime = 0.0f; // for simulating server
 
 bool g_isMetamod = false;
 bool g_roundEnded = true;
-bool g_botsCanPause = false;
 bool g_bombPlanted = false;
 bool g_bombDefusing = false;
 bool g_bombSayString = false;
@@ -30,10 +29,8 @@ float g_lastChatTime = 0.0f;
 float g_timeRoundStart = 0.0f;
 float g_timeRoundEnd = 0.0f;
 float g_timeRoundMid = 0.0f;
-float g_timeNextBombUpdate = 0.0f;
 float g_timeBombPlanted = 0.0f;
 float g_lastRadioTime[2] = { 0.0f, 0.0f };
-float g_audioTime = 0.0f;
 float g_autoPathDistance = 250.0f;
 float g_fakePingUpdate = 0.0f;
 

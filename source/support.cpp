@@ -548,7 +548,7 @@ void CreatePath(char* path)
 #else
 			mkdir(path, 0777);
 #endif
-			* ofs = '/';
+			*ofs = '/';
 		}
 	}
 
@@ -563,29 +563,22 @@ void CreatePath(char* path)
 void RoundInit(void)
 {
 	g_roundEnded = false;
-	g_audioTime = 0.0f;
 
-	for (const auto& client : g_clients)
+	for (const auto& bot : g_botManager->m_bots)
 	{
-		if (FNullEnt(client.ent))
+		if (bot == nullptr)
 			continue;
 
-		auto bot = g_botManager->GetBot(client.index);
-		if (bot != nullptr)
-			bot->NewRound();
-
-		g_radioSelect[client.index] = 0;
+		bot->NewRound();
+		g_radioSelect[bot->m_index - 1] = 0;
 	}
 
 	g_bombSayString = false;
 	g_timeBombPlanted = 0.0f;
-	g_timeNextBombUpdate = 0.0f;
 
 	g_lastRadioTime[0] = 0.0f;
 	g_lastRadioTime[1] = 0.0f;
-	g_botsCanPause = false;
 
-	g_waypoint->ClearGoalScore();
 	g_waypoint->SetBombPosition(true);
 
 	if (g_gameVersion != HALFLIFE)
@@ -600,7 +593,7 @@ void RoundInit(void)
 		}
 
 		// calculate the round mid/end in world time
-		g_timeRoundStart = engine->GetTime() + engine->GetFreezeTime() + g_pGlobals->frametime;
+		g_timeRoundStart = AddTime(engine->GetFreezeTime() + g_pGlobals->frametime);
 		g_timeRoundMid = g_timeRoundStart + engine->GetRoundTime() * 30.0f;
 		g_timeRoundEnd = g_timeRoundStart + engine->GetRoundTime() * 60.0f;
 

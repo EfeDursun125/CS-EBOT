@@ -948,7 +948,7 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	char rejectReason[128];
 	const int clientIndex = ENTINDEX(bot);
 
-	cmemset(reinterpret_cast <void*> (this), 0, sizeof(*this));
+	cmemset(reinterpret_cast<void*>(this), 0, sizeof(*this));
 
 	pev = &bot->v;
 
@@ -992,7 +992,7 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	}
 
 	MDLL_ClientPutInServer(bot);
-	bot->v.flags |= (FL_CLIENT | FL_FAKECLIENT);
+	bot->v.flags |= FL_CLIENT;
 
 	// initialize all the variables for this bot...
 	m_notStarted = true;  // hasn't joined game yet
@@ -1001,7 +1001,6 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 
 	m_startAction = CMENU_IDLE;
 	m_moneyAmount = 0;
-	m_logotypeIndex = CRandomInt(0, 5);
 
 	// initialize msec value
 	m_msecInterval = engine->GetTime();
@@ -1021,31 +1020,20 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	{
 	case 1:
 		m_personality = PERSONALITY_RUSHER;
-		m_baseAgressionLevel = CRandomFloat(0.8f, 1.2f);
-		m_baseFearLevel = CRandomFloat(0.0f, 0.5f);
 		break;
 
 	case 2:
 		m_personality = PERSONALITY_CAREFUL;
-		m_baseAgressionLevel = CRandomFloat(0.0f, 0.3f);
-		m_baseFearLevel = CRandomFloat(0.75f, 1.0f);
 		break;
 
 	default:
 		m_personality = PERSONALITY_NORMAL;
-		m_baseAgressionLevel = CRandomFloat(0.4f, 0.8f);
-		m_baseFearLevel = CRandomFloat(0.4f, 0.8f);
 		break;
 	}
 
 	cmemset(&m_ammoInClip, 0, sizeof(m_ammoInClip));
 	cmemset(&m_ammo, 0, sizeof(m_ammo));
-
 	m_currentWeapon = 0; // current weapon is not assigned at start
-
-	m_agressionLevel = m_baseAgressionLevel;
-	m_fearLevel = m_baseFearLevel;
-	m_nextEmotionUpdate = engine->GetTime() + 0.5f;
 
 	// just to be sure
 	m_actMessageIndex = 0;
@@ -1054,9 +1042,6 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	// assign team and class
 	m_wantedTeam = team;
 	m_wantedClass = member;
-
-	stay_time = 60.0f * CRandomFloat(30.0f, 160.0f);
-	m_connectTime = engine->GetTime() - stay_time * CRandomFloat(0.2f, 0.8f);
 
 	NewRound();
 }
@@ -1113,8 +1098,6 @@ void Bot::NewRound(void)
 	m_stuckArea = pev->origin;
 	m_stuckTimer = AddTime(engine->GetFreezeTime() + 1.28f);
 
-	int i = 0;
-
 	// delete all allocated path nodes
 	DeleteSearchNodes();
 	m_aimStopTime = engine->GetTime();
@@ -1148,8 +1131,8 @@ void Bot::NewRound(void)
 	m_voteMap = 0;
 	m_targetEntity = nullptr;
 
-	for (i = 0; i < Const_MaxHostages; i++)
-		m_hostages[i] = nullptr;
+	for (auto hostage : m_hostages)
+		hostage = nullptr;
 
 	m_isReloading = false;
 	m_reloadState = ReloadState::Nothing;
@@ -1191,7 +1174,7 @@ void Bot::NewRound(void)
 	pev->button = 0;
 
 	// clear its message queue
-	for (i = 0; i < 32; i++)
+	for (int i = 0; i < 32; i++)
 		m_messageQueue[i] = CMENU_IDLE;
 
 	m_actMessageIndex = 0;

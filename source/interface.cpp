@@ -1194,19 +1194,23 @@ int Spawn(edict_t* ent)
 				g_mapType |= MAP_DE; // defusion map
 			else if (cstrcmp(entityClassname, "func_escapezone") == 0)
 				g_mapType |= MAP_ES;
-			// next maps doesn't have map-specific entities, so determine it by name
-			else if (cstrncmp(GetMapName(), "fy_", 3) == 0) // fun map
-				g_mapType |= MAP_FY;
-			else if (cstrncmp(GetMapName(), "ka_", 3) == 0) // knife arena map
-				g_mapType |= MAP_KA;
-			else if (cstrncmp(GetMapName(), "awp_", 4) == 0) // awp only map
-				g_mapType |= MAP_AWP;
-			else if (cstrncmp(GetMapName(), "he_", 4) == 0) // grenade wars
-				g_mapType |= MAP_HE;
-			else if (cstrncmp(GetMapName(), "ze_", 4) == 0) // zombie escape
-				g_mapType |= MAP_ZE;
 			else
-				g_mapType |= MAP_DE;
+			{
+				// next maps doesn't have map-specific entities, so determine it by name
+				const char* map = GetMapName();
+				if (cstrncmp(map, "fy_", 3) == 0) // fun map
+					g_mapType |= MAP_FY;
+				else if (cstrncmp(map, "ka_", 3) == 0) // knife arena map
+					g_mapType |= MAP_KA;
+				else if (cstrncmp(map, "awp_", 4) == 0) // awp only map
+					g_mapType |= MAP_AWP;
+				else if (cstrncmp(map, "he_", 4) == 0) // grenade wars
+					g_mapType |= MAP_HE;
+				else if (cstrncmp(map, "ze_", 4) == 0) // zombie escape
+					g_mapType |= MAP_ZE;
+				else
+					g_mapType |= MAP_DE;
+			}
 		}
 		else
 		{
@@ -1244,13 +1248,6 @@ int Spawn(edict_t* ent)
 	return result;
 }
 
-void ThreadedTouch(edict_t* pentTouched, edict_t* pentOther)
-{
-	Bot* bot = g_botManager->GetBot(const_cast <edict_t*> (pentOther));
-	if (bot != nullptr)
-		bot->CheckTouchEntity(pentTouched);
-}
-
 void Touch(edict_t* pentTouched, edict_t* pentOther)
 {
 	// this function is called when two entities' bounding boxes enter in collision. For example,
@@ -1265,7 +1262,11 @@ void Touch(edict_t* pentTouched, edict_t* pentOther)
 	// is called twice, once for each entity moving.
 
 	if (!FNullEnt(pentOther))
-		ThreadedTouch(pentTouched, pentOther);
+	{
+		Bot* bot = g_botManager->GetBot(pentOther);
+		if (bot != nullptr)
+			bot->CheckTouchEntity(pentTouched);
+	}
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
