@@ -63,7 +63,7 @@ uint16 FixedUnsigned16(float value, float scale)
 	if (output > 0xffff)
 		output = 0xffff;
 
-	return static_cast <uint16> (output);
+	return static_cast<uint16>(output);
 }
 
 short FixedSigned16(float value, float scale)
@@ -230,7 +230,7 @@ Vector GetPlayerHeadOrigin(edict_t* ent)
 
 void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 {
-	if (!IsValidPlayer(ent) || IsFakeClient(ent))
+	if (!IsValidPlayer(ent) || IsValidBot(ent))
 		return;
 
 	const int clientIndex = ENTINDEX(ent) - 1;
@@ -249,126 +249,43 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 
 		text = tempText;
 
-		while (cstrlen(text) >= 64)
+		while (strlen(text) >= 64)
 		{
-			MessageSender message(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent, false);
-			message.BeginMessage();
-			message.WriteShort(menu->validSlots);
-			message.WriteChar(-1);
-			message.WriteByte(1);
+			MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent);
+			WRITE_SHORT(menu->validSlots);
+			WRITE_CHAR(-1);
+			WRITE_BYTE(1);
 
 			for (int i = 0; i <= 63; i++)
-				message.WriteChar(text[i]);
+				WRITE_CHAR(text[i]);
 
-			message.EndMessage();
+			MESSAGE_END();
 
 			text += 64;
 		}
 
-		MessageSender(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent)
-			.WriteShort(menu->validSlots)
-			.WriteChar(-1)
-			.WriteByte(0)
-			.WriteString(text);
+		MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent);
+		WRITE_SHORT(menu->validSlots);
+		WRITE_CHAR(-1);
+		WRITE_BYTE(0);
+		WRITE_STRING(text);
+		MESSAGE_END();
 
 		g_clients[clientIndex].menu = menu;
 	}
 	else
 	{
-		MessageSender(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent)
-			.WriteShort(0)
-			.WriteChar(0)
-			.WriteByte(0)
-			.WriteString("");
+		MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent);
+		WRITE_SHORT(0);
+		WRITE_CHAR(0);
+		WRITE_BYTE(0);
+		WRITE_STRING("");
+		MESSAGE_END();
 
 		g_clients[clientIndex].menu = nullptr;
 	}
 
 	CLIENT_COMMAND(ent, "speak \"player/geiger1\"\n"); // Stops others from hearing menu sounds..
-}
-
-// this function draw spraypaint depending on the tracing results
-void DecalTrace(entvars_t* pev, TraceResult* trace, int logotypeIndex)
-{
-	if (FNullEnt(pev))
-		return;
-
-	static Array <String> logotypes;
-
-	if (logotypes.IsEmpty())
-		logotypes = String("{biohaz;{graf004;{graf005;{lambda06;{target;{hand1").Split(";");
-
-	int entityIndex = -1, message = TE_DECAL;
-	int decalIndex = (*g_engfuncs.pfnDecalIndex) (logotypes[logotypeIndex]);
-
-	if (decalIndex < 0)
-		decalIndex = (*g_engfuncs.pfnDecalIndex) ("{lambda06");
-
-	if (trace->flFraction == 1.0f)
-		return;
-
-	if (!FNullEnt(trace->pHit))
-	{
-		if (trace->pHit->v.solid == SOLID_BSP || trace->pHit->v.movetype == MOVETYPE_PUSHSTEP)
-			entityIndex = ENTINDEX(trace->pHit);
-		else
-			return;
-	}
-	else
-		entityIndex = 0;
-
-	if (entityIndex != 0)
-	{
-		if (decalIndex > 255)
-		{
-			message = TE_DECALHIGH;
-			decalIndex -= 256;
-		}
-	}
-	else
-	{
-		message = TE_WORLDDECAL;
-
-		if (decalIndex > 255)
-		{
-			message = TE_WORLDDECALHIGH;
-			decalIndex -= 256;
-		}
-	}
-
-	if (logotypes[logotypeIndex].Contains("{"))
-	{
-		MessageSender(MSG_BROADCAST, SVC_TEMPENTITY)
-			.WriteByte(TE_PLAYERDECAL)
-			.WriteByte(ENTINDEX(ENT(pev)))
-			.WriteCoord(trace->vecEndPos.x)
-			.WriteCoord(trace->vecEndPos.y)
-			.WriteCoord(trace->vecEndPos.z)
-			.WriteShort(static_cast<short>(ENTINDEX(trace->pHit)))
-			.WriteByte(decalIndex);
-	}
-	else
-	{
-		if (entityIndex)
-		{
-			MessageSender(MSG_BROADCAST, SVC_TEMPENTITY)
-				.WriteByte(message)
-				.WriteCoord(trace->vecEndPos.x)
-				.WriteCoord(trace->vecEndPos.y)
-				.WriteCoord(trace->vecEndPos.z)
-				.WriteByte(decalIndex)
-				.WriteShort(entityIndex);
-		}
-		else
-		{
-			MessageSender(MSG_BROADCAST, SVC_TEMPENTITY)
-				.WriteByte(message)
-				.WriteCoord(trace->vecEndPos.x)
-				.WriteCoord(trace->vecEndPos.y)
-				.WriteCoord(trace->vecEndPos.z)
-				.WriteByte(decalIndex);
-		}
-	}
 }
 
 // this function free's all allocated memory
@@ -444,46 +361,43 @@ void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
 	// supply directly the whole string as if you were typing it in the bot's "console". It
 	// is supposed to work exactly like the pfnClientCommand (server-sided client command).
 
-	if (!IsFakeClient(fakeClient))
+	if (!IsValidBot(fakeClient))
 		return;
 
 	va_list ap;
-	static char string[256];
+	static char command[256];
+	int stop, i, stringIndex = 0;
 
 	va_start(ap, format);
-	vsnprintf(string, sizeof(string), format, ap);
+	vsnprintf(command, sizeof(command), format, ap);
 	va_end(ap);
 
-	if (IsNullString(string))
+	if (IsNullString(command))
 		return;
 
 	g_isFakeCommand = true;
+	const int length = cstrlen(command);
 
-	int i, pos = 0;
-	const int length = cstrlen(string);
-	int stringIndex = 0;
-
-	while (pos < length)
+	while (stringIndex < length)
 	{
-		const int start = pos;
-		int stop = pos;
+		const int start = stringIndex;
 
-		while (pos < length && string[pos] != ';')
-			pos++;
+		while (stringIndex < length && command[stringIndex] != ';')
+			stringIndex++;
 
-		if (string[pos - 1] == '\n')
-			stop = pos - 2;
+		if (command[stringIndex - 1] == '\n')
+			stop = stringIndex - 2;
 		else
-			stop = pos - 1;
+			stop = stringIndex - 1;
 
 		for (i = start; i <= stop; i++)
-			g_fakeArgv[i - start] = string[i];
+			g_fakeArgv[i - start] = command[i];
 
 		g_fakeArgv[i - start] = 0;
-		pos++;
+		stringIndex++;
 
 		int index = 0;
-		stringIndex = 0;
+		g_fakeArgc = 0;
 
 		while (index < i - start)
 		{
@@ -505,13 +419,15 @@ void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
 					index++;
 			}
 
-			stringIndex++;
+			g_fakeArgc++;
 		}
 
 		MDLL_ClientCommand(fakeClient);
 	}
 
+	g_fakeArgv[0] = 0;
 	g_isFakeCommand = false;
+	g_fakeArgc = 0;
 }
 
 const char* GetField(const char* string, int fieldId, bool endLine)
@@ -984,7 +900,7 @@ bool IsDeathmatchMode(void)
 	return (ebot_gamemod.GetInt() == MODE_DM || ebot_gamemod.GetInt() == MODE_TDM);
 }
 
-bool IsValidWaypoint(int16 index)
+bool IsValidWaypoint(const int index)
 {
 	if (index < 0 || index >= g_numWaypoints)
 		return false;
@@ -1224,17 +1140,6 @@ bool IsValidPlayer(edict_t* ent)
 	return false;
 }
 
-bool IsFakeClient(edict_t* ent)
-{
-	if (FNullEnt(ent))
-		return false;
-
-	if (ent->v.flags & FL_FAKECLIENT)
-		return true;
-
-	return false;
-}
-
 bool IsValidBot(edict_t* ent)
 {
 	if (g_botManager->GetIndex(ent) != -1)
@@ -1314,9 +1219,9 @@ bool TryFileOpen(char* fileName)
 	return false;
 }
 
-void HudMessage(edict_t* ent, bool toCenter, const Color& rgb, char* format, ...)
+void HudMessage(edict_t* ent, const bool toCenter, const Color& rgb, char* format, ...)
 {
-	if (!IsValidPlayer(ent) || IsFakeClient(ent))
+	if (!IsValidPlayer(ent) || IsValidBot(ent))
 		return;
 
 	va_list ap;
@@ -1326,25 +1231,26 @@ void HudMessage(edict_t* ent, bool toCenter, const Color& rgb, char* format, ...
 	vsprintf(buffer, format, ap);
 	va_end(ap);
 
-	MessageSender(MSG_ONE, SVC_TEMPENTITY, nullptr, ent)
-		.WriteByte(TE_TEXTMESSAGE)
-		.WriteByte(1)
-		.WriteShort(FixedSigned16(-1.0f, 1 << 13))
-		.WriteShort(FixedSigned16(toCenter ? -1.0f : 0.0f, 1 << 13))
-		.WriteByte(2)
-		.WriteByte(static_cast<int>(rgb.red))
-		.WriteByte(static_cast<int>(rgb.green))
-		.WriteByte(static_cast<int>(rgb.blue))
-		.WriteByte(0)
-		.WriteByte(CRandomInt(230, 255))
-		.WriteByte(CRandomInt(230, 255))
-		.WriteByte(CRandomInt(230, 255))
-		.WriteByte(200)
-		.WriteShort(FixedUnsigned16(0.0078125f, 1 << 8))
-		.WriteShort(FixedUnsigned16(2.0f, 1 << 8))
-		.WriteShort(FixedUnsigned16(6.0f, 1 << 8))
-		.WriteShort(FixedUnsigned16(0.1f, 1 << 8))
-		.WriteString(const_cast<const char*>(&buffer[0]));
+	MESSAGE_BEGIN(MSG_ONE, SVC_TEMPENTITY, nullptr, ent);
+	WRITE_BYTE(TE_TEXTMESSAGE);
+	WRITE_BYTE(1);
+	WRITE_SHORT(FixedSigned16(-1, 1 << 13));
+	WRITE_SHORT(FixedSigned16(toCenter ? -1.0f : 0.0f, 1 << 13));
+	WRITE_BYTE(2);
+	WRITE_BYTE(static_cast<int>(rgb.red));
+	WRITE_BYTE(static_cast<int>(rgb.green));
+	WRITE_BYTE(static_cast<int>(rgb.blue));
+	WRITE_BYTE(0);
+	WRITE_BYTE(CRandomInt(230, 255));
+	WRITE_BYTE(CRandomInt(230, 255));
+	WRITE_BYTE(CRandomInt(230, 255));
+	WRITE_BYTE(200);
+	WRITE_SHORT(FixedUnsigned16(0.0078125, 1 << 8));
+	WRITE_SHORT(FixedUnsigned16(2, 1 << 8));
+	WRITE_SHORT(FixedUnsigned16(6, 1 << 8));
+	WRITE_SHORT(FixedUnsigned16(0.1f, 1 << 8));
+	WRITE_STRING(const_cast<const char*>(&buffer[0]));
+	MESSAGE_END();
 }
 
 void ServerPrint(const char* format, ...)
@@ -1386,9 +1292,10 @@ void CenterPrint(const char* format, ...)
 		return;
 	}
 
-	MessageSender(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG))
-		.WriteByte(HUD_PRINTCENTER)
-		.WriteString(FormatBuffer("%s\n", string));
+	MESSAGE_BEGIN(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG));
+	WRITE_BYTE(HUD_PRINTCENTER);
+	WRITE_STRING(FormatBuffer("%s\n", string));
+	MESSAGE_END();
 }
 
 void ChartPrint(const char* format, ...)
@@ -1408,9 +1315,10 @@ void ChartPrint(const char* format, ...)
 
 	cstrcat(string, "\n");
 
-	MessageSender(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG))
-		.WriteByte(HUD_PRINTTALK)
-		.WriteString(string);
+	MESSAGE_BEGIN(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG));
+	WRITE_BYTE(HUD_PRINTTALK);
+	WRITE_STRING(string);
+	MESSAGE_END();
 }
 
 void ClientPrint(edict_t* ent, int dest, const char* format, ...)
@@ -1632,7 +1540,7 @@ void MOD_AddLogEntry(int mod, char* format)
 	if (mod == -1)
 	{
 		sprintf(modName, "E-BOT");
-		const int buildVersion[4] = { PRODUCT_VERSION_DWORD };
+		const int buildVersion[4] = {PRODUCT_VERSION_DWORD};
 		for (int i = 0; i < 4; i++)
 			mod_bV16[i] = (uint16)buildVersion[i];
 	}

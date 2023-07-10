@@ -178,9 +178,9 @@ void NetworkMsg::Execute(void* p)
         }
         break;
 
-    case NETMSG_DAMAGE:
+        /*case NETMSG_DAMAGE:
         // this message gets sent when the bots are getting damaged.
-        /*switch (m_state)
+        switch (m_state)
         {
         case 0:
             damageArmor = PTR_TO_INT(p);
@@ -196,8 +196,8 @@ void NetworkMsg::Execute(void* p)
             if (m_bot != nullptr && (damageArmor > 0 || damageTaken > 0))
                 m_bot->TakeDamage(m_bot->pev->dmg_inflictor, damageTaken, damageArmor, damageBits);
             break;
-        }*/
-        break;
+        }
+        break;*/
 
     case NETMSG_MONEY:
         // this message gets sent when the bots money amount changes

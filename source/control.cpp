@@ -207,7 +207,6 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 	// set values
 	m_bots[index]->m_index = m_bots[index]->GetIndex();
 	m_bots[index]->m_senseChance = CRandomInt(10, 90);
-	m_bots[index]->SwitchChatterIcon(false);
 
 	return index;
 }
@@ -266,7 +265,7 @@ Bot* BotControl::FindOneValidAliveBot(void)
 	for (const auto& bot : m_bots)
 	{
 		if (bot != nullptr && bot->m_isAlive)
-			foundBots.Push(bot->m_index);
+			foundBots.Push(bot->m_index - 1);
 	}
 
 	if (!foundBots.IsEmpty())
@@ -837,7 +836,7 @@ Bot* BotControl::GetHighestSkillBot(int team)
 		{
 			if (highFragBot->m_skill > bestSkill)
 			{
-				bestIndex = bot->m_index;
+				bestIndex = bot->m_index - 1;
 				bestSkill = highFragBot->m_skill;
 			}
 		}
@@ -1060,8 +1059,6 @@ void Bot::NewRound(void)
 		return;
 	}
 
-	SelectWeaponByName("weapon_knife");
-
 	SetProcess(Process::Default, "i have respawned");
 	m_rememberedProcess = Process::Default;
 	m_rememberedProcessTime = 0.0f;
@@ -1138,12 +1135,6 @@ void Bot::NewRound(void)
 	m_breakable = nullvec;
 	m_timeDoorOpen = 0.0f;
 
-	ResetCollideState();
-	ResetDoubleJumpState();
-
-	SetEnemy(nullptr);
-	SetLastEnemy(nullptr);
-	SetMoveTarget(nullptr);
 	m_trackingEdict = nullptr;
 	m_timeNextTracking = 0.0f;
 
@@ -1228,9 +1219,6 @@ void Bot::NewRound(void)
 	m_nextCampDirTime = 0;
 	m_campButtons = 0;
 
-	m_soundUpdateTime = 0.0f;
-	m_heardSoundTime = engine->GetTime() - 8.0f;
-
 	// clear its message queue
 	for (i = 0; i < 32; i++)
 		m_messageQueue[i] = CMENU_IDLE;
@@ -1254,12 +1242,7 @@ void Bot::NewRound(void)
 		PushMessageQueue(CMENU_BUY);
 	}
 
-	PushTask(TASK_NORMAL, TASKPRI_NORMAL, -1, 1.0f, true);
-
-	// hear range based on difficulty
-	m_maxhearrange = float(m_skill * CRandomFloat(7.0f, 15.0f));
 	m_moveSpeed = pev->maxspeed;
-
 	m_tempstrafeSpeed = CRandomInt(1, 2) == 1 ? pev->maxspeed : -pev->maxspeed;
 }
 

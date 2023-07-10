@@ -15,7 +15,7 @@ float updateTimer;
 void ebotVersionMSG(edict_t* entity = nullptr)
 {
 	const int buildVersion[4] = { PRODUCT_VERSION_DWORD };
-	const uint16 bV16[4] = { (uint16)buildVersion[0], (uint16)buildVersion[1], (uint16)buildVersion[2], (uint16)buildVersion[3] };
+	const uint16 bV16[4] = {(uint16)buildVersion[0], (uint16)buildVersion[1], (uint16)buildVersion[2], (uint16)buildVersion[3]};
 
 	char versionData[1024];
 	sprintf(versionData,
@@ -1303,12 +1303,6 @@ int ClientConnect(edict_t* ent, const char* name, const char* addr, char rejectR
 
 	LoadEntityData();
 
-	for (const auto& bot : g_botManager->m_bots)
-	{
-		if (bot != nullptr)
-			bot->SwitchChatterIcon(false);
-	}
-
 	if (g_isMetamod)
 		RETURN_META_VALUE(MRES_IGNORED, 0);
 
@@ -1355,7 +1349,7 @@ void ClientUserInfoChanged(edict_t* ent, char* infobuffer)
 	const char* passwordField = ebot_password_key.GetString();
 	const char* password = ebot_password.GetString();
 
-	if (IsNullString(passwordField) || IsNullString(password) || IsFakeClient(ent))
+	if (IsNullString(passwordField) || IsNullString(password) || IsValidBot(ent))
 	{
 		if (g_isMetamod)
 			RETURN_META(MRES_IGNORED);
@@ -2692,13 +2686,15 @@ void SetPing(edict_t* to)
 	{
 		// update timer if someone lookin' at scoreboard
 		if (to->v.button & IN_SCORE || to->v.oldbuttons & IN_SCORE)
-			g_fakePingUpdate = engine->GetTime() + 2.0f;
+			g_fakePingUpdate = AddTime(2.0f);
 		else
 			return;
 	}
 
 	static int sending;
-	static MessageSender message(MSG_ONE_UNRELIABLE, 17, nullptr, to, false);
+
+	// missing from sdk
+	static const int SVC_PINGS = 17;
 
 	for (const auto& bot : g_botManager->m_bots)
 	{
@@ -2711,32 +2707,36 @@ void SetPing(edict_t* to)
 		{
 		case 0:
 		{
-			message.BeginMessage();
-			message.WriteByte((bot->m_pingOffset[sending] * 64) + (1 + 2 * index));
-			message.WriteShort(bot->m_ping[sending]);
+			// start a new message
+			MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_PINGS, nullptr, to);
+			WRITE_BYTE((bot->m_pingOffset[sending] * 64) + (1 + 2 * index));
+			WRITE_SHORT(bot->m_ping[sending]);
 			sending++;
 		}
 		case 1:
 		{
-			message.WriteByte((bot->m_pingOffset[sending] * 128) + (2 + 4 * index));
-			message.WriteShort(bot->m_ping[sending]);
+			// append additional data
+			WRITE_BYTE((bot->m_pingOffset[sending] * 128) + (2 + 4 * index));
+			WRITE_SHORT(bot->m_ping[sending]);
 			sending++;
 		}
 		case 2:
 		{
-			message.WriteByte(4 + 8 * index);
-			message.WriteShort(bot->m_ping[sending]);
-			message.WriteByte(0);
-			message.EndMessage();
+			// append additional data and end message
+			WRITE_BYTE(4 + 8 * index);
+			WRITE_SHORT(bot->m_ping[sending]);
+			WRITE_BYTE(0);
+			MESSAGE_END();
 			sending = 0;
 		}
 		}
 	}
 
+	// end message if not yet sent
 	if (sending)
 	{
-		message.WriteByte(0);
-		message.EndMessage();
+		WRITE_BYTE(0);
+		MESSAGE_END();
 	}
 }
 
@@ -2935,21 +2935,21 @@ void pfnClientCommand(edict_t* ent, char* format, ...)
 	// case it's a bot asking for a client command, we handle it like we do for bot commands, ie
 	// using FakeClientCommand().
 
-	va_list ap;
-	char buffer[1024];
-
-	va_start(ap, format);
-	vsnprintf(buffer, sizeof(buffer), format, ap);
-	va_end(ap);
-
 	// is the target entity an official bot, or a third party bot ?
-	if (IsFakeClient(ent))
+	if (IsValidBot(ent))
 	{
 		if (g_isMetamod)
 			RETURN_META(MRES_SUPERCEDE); // prevent bots to be forced to issue client commands
 
 		return;
 	}
+
+	va_list ap;
+	char buffer[1024];
+
+	va_start(ap, format);
+	vsnprintf(buffer, sizeof(buffer), format, ap);
+	va_end(ap);
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -2969,21 +2969,20 @@ void pfnMessageBegin(int msgDest, int msgType, const float* origin, edict_t* ed)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_CURWEAPON, GET_USER_MSG_ID(PLID, "CurWeapon", nullptr));
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_AMMOX, GET_USER_MSG_ID(PLID, "AmmoX", nullptr));
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_AMMOPICK, GET_USER_MSG_ID(PLID, "AmmoPickup", nullptr));
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_DAMAGE, GET_USER_MSG_ID(PLID, "Damage", nullptr));
+		//NetworkMsg::GetObjectPtr()->SetId(NETMSG_DAMAGE, GET_USER_MSG_ID(PLID, "Damage", nullptr));
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_MONEY, GET_USER_MSG_ID(PLID, "Money", nullptr));
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_STATUSICON, GET_USER_MSG_ID(PLID, "StatusIcon", nullptr));
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_DEATH, GET_USER_MSG_ID(PLID, "DeathMsg", nullptr));
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SCREENFADE, GET_USER_MSG_ID(PLID, "ScreenFade", nullptr));
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_HLTV, GET_USER_MSG_ID(PLID, "HLTV", nullptr));
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_TEXTMSG, GET_USER_MSG_ID(PLID, "TextMsg", nullptr));
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SCOREINFO, GET_USER_MSG_ID(PLID, "ScoreInfo", nullptr));
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_BARTIME, GET_USER_MSG_ID(PLID, "BarTime", nullptr));
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SENDAUDIO, GET_USER_MSG_ID(PLID, "SendAudio", nullptr));
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SAYTEXT, GET_USER_MSG_ID(PLID, "SayText", nullptr));
 	}
 	NetworkMsg::GetObjectPtr()->Reset();
 
-	if (msgDest == MSG_SPEC && msgType == NetworkMsg::GetObjectPtr()->GetId(NETMSG_HLTV) && g_gameVersion != CSVER_VERYOLD)
+	if (msgDest == MSG_SPEC && g_gameVersion != CSVER_VERYOLD && msgType == NetworkMsg::GetObjectPtr()->GetId(NETMSG_HLTV))
 		NetworkMsg::GetObjectPtr()->SetMessage(NETMSG_HLTV);
 
 	NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_WLIST);
@@ -3003,7 +3002,7 @@ void pfnMessageBegin(int msgDest, int msgType, const float* origin, edict_t* ed)
 			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_CURWEAPON);
 			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_AMMOX);
 			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_AMMOPICK);
-			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_DAMAGE);
+			//NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_DAMAGE);
 			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_MONEY);
 			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_STATUSICON);
 			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_SCREENFADE);
@@ -3015,8 +3014,6 @@ void pfnMessageBegin(int msgDest, int msgType, const float* origin, edict_t* ed)
 	else if (msgDest == MSG_ALL)
 	{
 		NetworkMsg::GetObjectPtr()->Reset();
-
-		//NetworkMsg::GetObjectPtr()->HandleMessageIfRequired (msgType, NETMSG_SCOREINFO);
 		NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_DEATH);
 		NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_TEXTMSG);
 
@@ -3231,7 +3228,7 @@ void pfnClientPrintf(edict_t* ent, PRINT_TYPE printType, const char* message)
 	// as it will crash your server. Why would you, anyway ? bots have no client DLL as far as
 	// we know, right ? But since stupidity rules this world, we do a preventive check :)
 
-	if (ent->v.flags & FL_FAKECLIENT)
+	if (IsValidBot(ent))
 	{
 		if (g_isMetamod)
 			RETURN_META(MRES_SUPERCEDE);
@@ -3291,8 +3288,8 @@ int pfnRegUserMsg(const char* name, int size)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_AMMOX, message);
 	else if (cstrcmp(name, "AmmoPickup") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_AMMOPICK, message);
-	else if (cstrcmp(name, "Damage") == 0)
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_DAMAGE, message);
+	//else if (cstrcmp(name, "Damage") == 0)
+		//NetworkMsg::GetObjectPtr()->SetId(NETMSG_DAMAGE, message);
 	else if (cstrcmp(name, "Money") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_MONEY, message);
 	else if (cstrcmp(name, "StatusIcon") == 0)
@@ -3305,18 +3302,12 @@ int pfnRegUserMsg(const char* name, int size)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_HLTV, message);
 	else if (cstrcmp(name, "TextMsg") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_TEXTMSG, message);
-	//else if (cstrcmp (name, "ScoreInfo") == 0)
-	   //NetworkMsg::GetObjectPtr()->SetId (NETMSG_SCOREINFO, message);
 	else if (cstrcmp(name, "BarTime") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_BARTIME, message);
 	else if (cstrcmp(name, "SendAudio") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SENDAUDIO, message);
 	else if (cstrcmp(name, "SayText") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SAYTEXT, message);
-	else if (cstrcmp(name, "BotVoice") == 0)
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_BOTVOICE, message);
-	else if (cstrcmp(name, "ResetHUD") == 0)
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_BOTVOICE, message);
 
 	return message;
 }

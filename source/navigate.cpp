@@ -265,7 +265,7 @@ void Bot::FollowPath(const int targetIndex)
 		m_moveAngles.ClampAngles();
 		m_moveAngles.x = -m_moveAngles.x; // invert for engine
 
-		if (pev->flags & FL_DUCKING)
+		if ((pev->flags & FL_DUCKING))
 		{
 			m_moveSpeed = pev->maxspeed;
 			CheckStuck(pev->maxspeed * 0.502f);
@@ -372,7 +372,7 @@ void Bot::DoWaypointNav(void)
 		// special detection if someone is using the ladder (to prevent to have bots-towers on ladders)
 		for (const auto& client : g_clients)
 		{
-			if (FNullEnt(client.ent) || !(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || (client.ent->v.movetype != MOVETYPE_FLY) || client.index == m_index)
+			if (FNullEnt(client.ent) || !(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || (client.ent->v.movetype != MOVETYPE_FLY) || client.index == (m_index - 1))
 				continue;
 
 			TraceResult tr;
@@ -549,7 +549,7 @@ void Bot::DoWaypointNav(void)
 		{
 			if (currentWaypoint->flags & WAYPOINT_LIFT)
 				desiredDistance = SquaredF(50.0f);
-			else if (pev->flags & FL_DUCKING || currentWaypoint->flags & WAYPOINT_GOAL)
+			else if ((pev->flags & FL_DUCKING) || currentWaypoint->flags & WAYPOINT_GOAL)
 				desiredDistance = SquaredF(24.0f);
 			else if (IsWaypointOccupied(m_currentWaypointIndex))
 				desiredDistance = SquaredF(96.0f);
@@ -2401,7 +2401,7 @@ void Bot::CheckStuck(const float maxSpeed)
 				if (!ebot_ignore_enemies.GetBool())
 				{
 					const bool friendlyFire = engine->IsFriendlyFireOn();
-					if ((!friendlyFire && m_currentWeapon == WEAPON_KNIFE) || (friendlyFire && !IsFakeClient(m_nearestFriend))) // DOOR STUCK! || DIE HUMAN!
+					if ((!friendlyFire && m_currentWeapon == WEAPON_KNIFE) || (friendlyFire && !IsValidBot(m_nearestFriend))) // DOOR STUCK! || DIE HUMAN!
 					{
 						m_lookAt = friendOrigin + (m_nearestFriend->v.view_ofs * 0.9f);
 						m_pauseTime = 0.0f;
@@ -2858,7 +2858,7 @@ bool Bot::CantMoveForward(const Vector normal)
 		return true;  // bot's body will hit something
 
 	 // now check below waist
-	if (pev->flags & FL_DUCKING)
+	if ((pev->flags & FL_DUCKING))
 	{
 		src = pev->origin + Vector(0.0f, 0.0f, -19.0f + 19.0f);
 		forward = src + Vector(0.0f, 0.0f, 10.0f) + normal * 24.0f;

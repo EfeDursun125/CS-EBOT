@@ -158,7 +158,7 @@ void AnalyzeThread(void)
             return;
 
         static float magicTimer;
-        for (int16 i = 0; i < g_numWaypoints; i++)
+        for (int i = 0; i < g_numWaypoints; i++)
         {
             if (g_expanded[i])
                 continue;
@@ -376,7 +376,7 @@ void Waypoint::AnalyzeDeleteUselessWaypoints(void)
     CenterPrint("Waypoints are saved!");
 }
 
-void Waypoint::AddPath(const int16 addIndex, const int16 pathIndex, const int type)
+void Waypoint::AddPath(const int addIndex, const int pathIndex, const int type)
 {
     if (!IsValidWaypoint(addIndex) || !IsValidWaypoint(pathIndex) || addIndex == pathIndex)
         return;
@@ -384,14 +384,14 @@ void Waypoint::AddPath(const int16 addIndex, const int16 pathIndex, const int ty
     Path* path = m_paths[addIndex];
 
     // don't allow paths get connected twice
-    for (int16 i = 0; i < Const_MaxPathIndex; i++)
+    for (int i = 0; i < Const_MaxPathIndex; i++)
     {
         if (path->index[i] == pathIndex)
             return;
     }
 
     // check for free space in the connection indices
-    for (int16 i = 0; i < Const_MaxPathIndex; i++)
+    for (int i = 0; i < Const_MaxPathIndex; i++)
     {
         if (path->index[i] == -1)
         {
@@ -415,9 +415,9 @@ void Waypoint::AddPath(const int16 addIndex, const int16 pathIndex, const int ty
 
     // there wasn't any free space. try exchanging it with a long-distance path
     float maxDistance = FLT_MAX;
-    int16 slotID = -1;
+    int slotID = -1;
 
-    for (int16 i = 0; i < Const_MaxPathIndex; i++)
+    for (int i = 0; i < Const_MaxPathIndex; i++)
     {
         const float distance = (path->origin - g_waypoint->GetPath(path->index[i])->origin).GetLengthSquared();
         if (distance > maxDistance)
@@ -446,12 +446,12 @@ void Waypoint::AddPath(const int16 addIndex, const int16 pathIndex, const int ty
 }
 
 // find the farest node to that origin, and return the index to this node
-int16 Waypoint::FindFarest(const Vector& origin, const float maxDistance)
+int Waypoint::FindFarest(const Vector& origin, const float maxDistance)
 {
-    int16 index = -1;
+    int index = -1;
     float squaredDistance = SquaredF(maxDistance);
 
-    for (int16 i = 0; i < g_numWaypoints; i++)
+    for (int i = 0; i < g_numWaypoints; i++)
     {
         const float distance = (m_paths[i]->origin - origin).GetLengthSquared();
         if (distance > squaredDistance)
@@ -465,12 +465,12 @@ int16 Waypoint::FindFarest(const Vector& origin, const float maxDistance)
 }
 
 // find the farest node to that origin, and return the index to this node
-int16 Waypoint::FindNearestInCircle(const Vector& origin, const float maxDistance)
+int Waypoint::FindNearestInCircle(const Vector& origin, const float maxDistance)
 {
-    int16 index = -1;
+    int index = -1;
     float maxDist = SquaredF(maxDistance);
 
-    for (int16 i = 0; i < g_numWaypoints; i++)
+    for (int i = 0; i < g_numWaypoints; i++)
     {
         const float distance = (m_paths[i]->origin - origin).GetLengthSquared();
         if (distance < maxDist)
@@ -972,7 +972,7 @@ void Waypoint::Add(const int flags, const Vector waypointOrigin)
                 // check if the waypoint is reachable from the new one
                 TraceLine(newOrigin, m_paths[i]->origin, true, g_hostEntity, &tr);
 
-                if (tr.flFraction == 1.0f && fabs(newOrigin.x - m_paths[i]->origin.x) < 64 && fabs(newOrigin.y - m_paths[i]->origin.y) < 64 && fabs(newOrigin.z - m_paths[i]->origin.z) < g_autoPathDistance)
+                if (tr.flFraction == 1.0f && cabsf(newOrigin.x - m_paths[i]->origin.x) < 64 && cabsf(newOrigin.y - m_paths[i]->origin.y) < 64 && cabsf(newOrigin.z - m_paths[i]->origin.z) < g_autoPathDistance)
                 {
                     AddPath(index, i);
                     AddPath(i, index);
@@ -1219,12 +1219,13 @@ void Waypoint::ToggleFlags(int toggleFlag)
 // this function allow manually setting the zone radius
 void Waypoint::SetRadius(const int16 radius)
 {
+    int16 newRadius = radius;
     if (radius < 4)
-        return;
+        newRadius = 4;
 
     if (g_sautoWaypoint)
     {
-        m_sautoRadius = radius;
+        m_sautoRadius = newRadius;
         ChartPrint("[SgdWP Auto] Waypoint Radius is: %d ", m_sautoRadius);
     }
 
@@ -1237,7 +1238,7 @@ void Waypoint::SetRadius(const int16 radius)
                 return;
         }
 
-        m_paths[index]->radius = radius;
+        m_paths[index]->radius = newRadius;
         PlaySound(g_hostEntity, "common/wpn_hudon.wav");
     }
 }
@@ -2347,7 +2348,7 @@ bool Waypoint::IsNodeReachableWithJump(const Vector src, const Vector destinatio
 }
 
 // this function returns path information for waypoint pointed by id
-char* Waypoint::GetWaypointInfo(int16 id)
+char* Waypoint::GetWaypointInfo(const int id)
 {
     Path* path = GetPath(id);
 
@@ -2358,7 +2359,7 @@ char* Waypoint::GetWaypointInfo(int16 id)
     bool jumpPoint = false;
 
     // iterate through connections and find, if it's a jump path
-    for (int16 i = 0; i < Const_MaxPathIndex; i++)
+    for (int i = 0; i < Const_MaxPathIndex; i++)
     {
         // check if we got a valid connection
         if (path->index[i] != -1 && (path->connectionFlags[i] & PATHFLAG_JUMP))
@@ -2877,24 +2878,25 @@ void Waypoint::ShowWaypointMsg(void)
         }
 
         // draw entire message
-        MessageSender(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, g_hostEntity)
-            .WriteByte(TE_TEXTMESSAGE)
-            .WriteByte(4) // channel
-            .WriteShort(FixedSigned16(0, 1 << 13)) // x
-            .WriteShort(FixedSigned16(0, 1 << 13)) // y
-            .WriteByte(0) // effect
-            .WriteByte(255) // r1
-            .WriteByte(255) // g1
-            .WriteByte(255) // b1
-            .WriteByte(1) // a1
-            .WriteByte(255) // r2
-            .WriteByte(255) // g2
-            .WriteByte(255) // b2
-            .WriteByte(255) // a2
-            .WriteShort(0) // fadeintime
-            .WriteShort(0) // fadeouttime
-            .WriteShort(FixedUnsigned16(1.1f, 1 << 8)) // holdtime
-            .WriteString(tempMessage);
+        MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, g_hostEntity);
+        WRITE_BYTE(TE_TEXTMESSAGE);
+        WRITE_BYTE(4); // channel
+        WRITE_SHORT(FixedSigned16(0, 1 << 13)); // x
+        WRITE_SHORT(FixedSigned16(0, 1 << 13)); // y
+        WRITE_BYTE(0); // effect
+        WRITE_BYTE(255); // r1
+        WRITE_BYTE(255); // g1
+        WRITE_BYTE(255); // b1
+        WRITE_BYTE(1); // a1
+        WRITE_BYTE(255); // r2
+        WRITE_BYTE(255); // g2
+        WRITE_BYTE(255); // b2
+        WRITE_BYTE(255); // a2
+        WRITE_SHORT(0); // fadeintime
+        WRITE_SHORT(0); // fadeouttime
+        WRITE_SHORT(FixedUnsigned16(1.1f, 1 << 8)); // holdtime
+        WRITE_STRING(tempMessage);
+        MESSAGE_END();
     }
     else if (m_pathDisplayTime + 2.0f > engine->GetTime()) // what???
         m_pathDisplayTime = 0.0f;
@@ -3041,7 +3043,7 @@ bool Waypoint::NodesValid(void)
     return haveError ? false : true;
 }
 
-float Waypoint::GetPathDistance(int16 srcIndex, int16 destIndex)
+float Waypoint::GetPathDistance(const int srcIndex, const int destIndex)
 {
     if (srcIndex == -1 || destIndex == -1)
         return FLT_MAX;
@@ -3059,7 +3061,7 @@ void Waypoint::SetGoalVisited(int index)
 
     if (!IsGoalVisited(index) && (m_paths[index]->flags & WAYPOINT_GOAL))
     {
-        const int16 bombPoint = FindNearest(GetBombPosition());
+        const int bombPoint = FindNearest(GetBombPosition());
         if (IsValidWaypoint(bombPoint) && bombPoint != index)
             m_visitedGoals.Push(index);
     }
@@ -3225,7 +3227,7 @@ void Waypoint::CreateBasic(void)
     }
 }
 
-Path* Waypoint::GetPath(const int16 id)
+Path* Waypoint::GetPath(const int id)
 {
     if (!IsValidWaypoint(id))
         return m_paths[1];
@@ -3234,7 +3236,7 @@ Path* Waypoint::GetPath(const int16 id)
 }
 
 // this function stores the bomb position as a vector
-void Waypoint::SetBombPosition(bool shouldReset)
+void Waypoint::SetBombPosition(const bool shouldReset)
 {
     if (shouldReset)
     {

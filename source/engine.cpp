@@ -211,30 +211,31 @@ void Engine::MaintainClients(void)
     }
 }
 
-void Engine::DrawLine(edict_t* client, const Vector& start, const Vector& end, const Color& color, int width, int noise, int speed, int life, int lineType)
+void Engine::DrawLine(edict_t* client, const Vector& start, const Vector& end, const Color& color, const int width, const int noise, const int speed, const int life, const int lineType)
 {
-    if (!IsValidPlayer(client))
+    if (!IsValidPlayer(client) || IsValidBot(client))
         return;
 
-    MessageSender(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, g_hostEntity)
-        .WriteByte(TE_BEAMPOINTS)
-        .WriteCoord(start.x)
-        .WriteCoord(start.y)
-        .WriteCoord(start.z)
-        .WriteCoord(end.x)
-        .WriteCoord(end.y)
-        .WriteCoord(end.z)
-        .WriteShort(lineType == LINE_SIMPLE ? g_modelIndexLaser : g_modelIndexArrow)
-        .WriteByte(0)
-        .WriteByte(10)
-        .WriteByte(life)
-        .WriteByte(width)
-        .WriteByte(noise)
-        .WriteByte(color.red)
-        .WriteByte(color.green)
-        .WriteByte(color.blue)
-        .WriteByte(color.alpha)
-        .WriteByte(speed);
+    MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, g_hostEntity);
+    WRITE_BYTE(TE_BEAMPOINTS);
+    WRITE_COORD(start.x);
+    WRITE_COORD(start.y);
+    WRITE_COORD(start.z);
+    WRITE_COORD(end.x);
+    WRITE_COORD(end.y);
+    WRITE_COORD(end.z);
+    WRITE_SHORT(lineType == LINE_ARROW ? g_modelIndexArrow : g_modelIndexLaser);
+    WRITE_BYTE(0);
+    WRITE_BYTE(10);
+    WRITE_BYTE(life);
+    WRITE_BYTE(width);
+    WRITE_BYTE(noise);
+    WRITE_BYTE(color.red);
+    WRITE_BYTE(color.green);
+    WRITE_BYTE(color.blue);
+    WRITE_BYTE(color.alpha);
+    WRITE_BYTE(speed);
+    MESSAGE_END();
 }
 
 //////////////////////////////////////////////////////////////////////////

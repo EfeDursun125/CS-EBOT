@@ -337,7 +337,7 @@ bool Bot::ParseChat(char* reply)
 
     // text to uppercase for keyword parsing
     for (int i = 0; i < static_cast<int>(cstrlen(tempMessage)); i++)
-        tempMessage[i] = toupper(tempMessage[i]);
+        tempMessage[i] = ctoupper(tempMessage[i]);
 
     return CheckKeywords(tempMessage, reply);
 }
@@ -356,7 +356,7 @@ bool Bot::RepliesToPlayer(void)
 
             m_sayTextBuffer.entityIndex = -1;
             m_sayTextBuffer.sayText[0] = 0x0;
-            m_sayTextBuffer.timeNextChat = engine->GetTime() + m_sayTextBuffer.chatDelay;
+            m_sayTextBuffer.timeNextChat = AddTime(m_sayTextBuffer.chatDelay);
 
             return true;
         }
@@ -370,6 +370,10 @@ bool Bot::RepliesToPlayer(void)
 
 void Bot::ChatSay(const bool teamSay, const char* text, ...)
 {
+    // someone is using FakeClientCommand, don't break it.
+    if (g_isFakeCommand)
+        return;
+
     if (IsNullString(text))
         return;
 
@@ -382,55 +386,7 @@ void Bot::ChatSay(const bool teamSay, const char* text, ...)
     if (m_lastChatEnt == me)
         return;
 
-    char botName[80];
-    char botTeam[22];
-    char tempMessage[256];
-
-    if (g_gameVersion != HALFLIFE)
-    {
-        if (teamSay)
-        {
-            if (m_team == TEAM_TERRORIST)
-                cstrcpy(botTeam, "(Terrorist)");
-            else if (m_team == TEAM_COUNTER)
-                cstrcpy(botTeam, "(Counter-Terrorist)");
-            else // WHAT???
-                cstrcpy(botTeam, "");
-        }
-        else
-            cstrcpy(botTeam, "");
-    }
-
-    cstrcpy(botName, GetEntityName(me));
-
-    for (const auto& client : g_clients)
-    {
-        if (FNullEnt(client.ent))
-            continue;
-
-        if (!(client.flags & CFLAG_USED) || client.ent == me)
-            continue;
-
-        if (teamSay && client.team != m_team)
-            continue;
-
-        if (g_gameVersion == HALFLIFE)
-            sprintf(tempMessage, "%c%s: %s\n", 0x02, botName, text);
-        else if (!m_isAlive)
-            sprintf(tempMessage, "%c*DEAD*%s %c%s%c :  %s\n", 0x01, botTeam, 0x03, botName, 0x01, text);
-        else
-        {
-            if (teamSay)
-                sprintf(tempMessage, "%c%s %c%s%c :  %s\n", 0x01, botTeam, 0x03, botName, 0x01, text);
-            else
-                sprintf(tempMessage, "%c%s :  %s\n", 0x02, botName, text);
-        }
-
-        m_lastStrings[160] = *text;
-        m_lastChatEnt = me;
-
-        MessageSender(MSG_ONE, g_netMsg->GetId(NETMSG_SAYTEXT), nullptr, client.ent)
-            .WriteByte(m_index - 1)
-            .WriteString(tempMessage);
-    }
+    FakeClientCommand(GetEntity(), "%s \"%s\"", teamSay ? "say_team" : "say", text);
+    m_lastStrings[160] = *text;
+    m_lastChatEnt = me;
 }

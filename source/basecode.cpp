@@ -123,7 +123,7 @@ bool Bot::CheckVisibility(edict_t* targetEntity)
 	constexpr auto standFeet = 34.0f;
 	constexpr auto crouchFeet = 14.0f;
 
-	if (targetEntity->v.flags & FL_DUCKING)
+	if ((targetEntity->v.flags & FL_DUCKING))
 		spot.z = targetEntity->v.origin.z - crouchFeet;
 	else
 		spot.z = targetEntity->v.origin.z - standFeet;
@@ -1042,22 +1042,6 @@ void Bot::GetCampDirection(Vector* dest)
 
 		if (IsValidWaypoint(lookAtWaypoint))
 			*dest = g_waypoint->GetPath(lookAtWaypoint)->origin;
-	}
-}
-
-void Bot::SwitchChatterIcon(const bool show)
-{
-	if (g_gameVersion == CSVER_VERYOLD || g_gameVersion == CSVER_XASH)
-		return;
-
-	for (const auto& client : g_clients)
-	{
-		if (!IsValidPlayer(client.ent) || client.team != m_team || IsFakeClient(client.ent))
-			continue;
-
-		MessageSender(MSG_ONE, g_netMsg->GetId(NETMSG_BOTVOICE), nullptr, client.ent)
-			.WriteByte(show) // switch on/off
-			.WriteByte(m_index);
 	}
 }
 
@@ -2039,197 +2023,13 @@ void Bot::CheckTasksPriorities(void)
 // this function builds task
 void Bot::PushTask(BotTask taskID, float desire, int data, float time, bool canContinue, bool force)
 {
-	if (!force)
-	{
-		if (taskID == TASK_GOINGFORCAMP && !CampingAllowed())
-			return;
 
-		if (taskID == TASK_ESCAPEFROMBOMB && !g_bombPlanted)
-			return;
-	}
-
-	float realTime;
-
-	// auto game time
-	if (time != -1.0f && time < engine->GetTime())
-		realTime = AddTime(time);
-	else
-		realTime = time;
-
-	Task task = { nullptr, nullptr, taskID, desire, data, realTime, canContinue };
-	PushTask(&task); // use standard function to start task
 }
 
 // this function adds task pointer on the bot task stack
 void Bot::PushTask(Task* task)
 {
-	bool newTaskDifferent = false;
-	bool foundTaskExisting = false;
-	bool checkPriorities = false;
 
-	Task* oldTask = GetCurrentTask(); // remember our current task
-
-	// at the beginning need to clean up all null tasks...
-	if (m_tasks == nullptr)
-	{
-		m_lastCollTime = engine->GetTime() + 1.0f;
-
-		Task* newTask = new Task;
-		if (newTask == nullptr)
-		{
-			AddLogEntry(LOG_MEMORY, "unexpected memory error");
-			return;
-		}
-
-		newTask->taskID = TASK_NORMAL;
-		newTask->desire = TASKPRI_NORMAL;
-		newTask->canContinue = true;
-		newTask->time = 0.0f;
-		newTask->data = -1;
-		newTask->next = newTask->prev = nullptr;
-
-		m_tasks = newTask;
-		DeleteSearchNodes();
-
-		if (task == nullptr)
-			return;
-		else if (task->taskID == TASK_NORMAL)
-		{
-			m_tasks->desire = TASKPRI_NORMAL;
-			m_tasks->data = task->data;
-			m_tasks->time = task->time;
-
-			return;
-		}
-	}
-	else if (task == nullptr)
-		return;
-
-	// it shouldn't happen this condition now as false...
-	if (m_tasks != nullptr)
-	{
-		if (m_tasks->taskID == task->taskID)
-		{
-			if (m_tasks->data != task->data)
-			{
-				m_lastCollTime = engine->GetTime() + 0.5f;
-
-				DeleteSearchNodes();
-				m_tasks->data = task->data;
-			}
-
-			if (m_tasks->desire != task->desire)
-			{
-				m_tasks->desire = task->desire;
-				checkPriorities = true;
-			}
-			else if (m_tasks->data == task->data)
-				return;
-		}
-		else
-		{
-			// find the first task on the stack and don't allow push the new one like the same already existing one
-			while (m_tasks->prev != nullptr)
-			{
-				m_tasks = m_tasks->prev;
-
-				if (m_tasks->taskID == task->taskID)
-				{
-					foundTaskExisting = true;
-
-					if (m_tasks->desire != task->desire)
-						checkPriorities = true;
-
-					m_tasks->desire = task->desire;
-					m_tasks->data = task->data;
-					m_tasks->time = task->time;
-					m_tasks->canContinue = task->canContinue;
-					m_tasks = oldTask;
-
-					break; // now we may need to check the current max desire or next tasks...
-				}
-			}
-
-			// now go back to the previous stack position and try to find the same task as one of "the next" ones (already pushed before and not finished yet)
-			if (!foundTaskExisting && !checkPriorities)
-			{
-				m_tasks = oldTask;
-
-				while (m_tasks->next != nullptr)
-				{
-					m_tasks = m_tasks->next;
-
-					if (m_tasks->taskID == task->taskID)
-					{
-						foundTaskExisting = true;
-
-						if (m_tasks->desire != task->desire)
-							checkPriorities = true;
-
-						m_tasks->desire = task->desire;
-						m_tasks->data = task->data;
-						m_tasks->time = task->time;
-						m_tasks->canContinue = task->canContinue;
-						m_tasks = oldTask;
-
-						break; // now we may need to check the current max desire...
-					}
-				}
-			}
-
-			if (!foundTaskExisting)
-				newTaskDifferent = true; // we have some new task pushed on the stack...
-		}
-	}
-
-	m_tasks = oldTask;
-
-	if (newTaskDifferent)
-	{
-		Task* newTask = new Task;
-		if (newTask == nullptr)
-		{
-			AddLogEntry(LOG_MEMORY, "unexpected memory error");
-			return;
-		}
-
-		newTask->taskID = task->taskID;
-		newTask->desire = task->desire;
-		newTask->canContinue = task->canContinue;
-		newTask->time = task->time;
-		newTask->data = task->data;
-		newTask->next = nullptr;
-
-		while (m_tasks->next != nullptr)
-			m_tasks = m_tasks->next;
-
-		newTask->prev = m_tasks;
-		m_tasks->next = newTask;
-
-		checkPriorities = true;
-	}
-
-	m_tasks = oldTask;
-
-	// needs check the priorities and setup the task with the max desire...
-	if (!checkPriorities)
-		return;
-
-	CheckTasksPriorities();
-
-	// the max desired task has been changed...
-	if (m_tasks != oldTask)
-	{
-		DeleteSearchNodes();
-		m_lastCollTime = engine->GetTime() + 0.5f;
-
-		// leader bot?
-		if (newTaskDifferent && m_isLeader && m_tasks->taskID == TASK_SEEKCOVER)
-			CommandTeam(); // reorganize team if fleeing
-
-		if (newTaskDifferent && m_tasks->taskID == TASK_CAMP)
-			SelectBestWeapon();
-	}
 }
 
 // this function gets bot's current task
@@ -2261,108 +2061,13 @@ Task* Bot::GetCurrentTask(void)
 // this function removes one task from the bot task stack
 void Bot::RemoveCertainTask(BotTask taskID)
 {
-	if (m_tasks == nullptr || (m_tasks != nullptr && m_tasks->taskID == TASK_NORMAL))
-		return; // since normal task can be only once on the stack, don't remove it...
 
-	bool checkPriorities = false;
-
-	Task* task = m_tasks;
-	Task* oldTask = m_tasks;
-	Task* oldPrevTask = task->prev;
-	Task* oldNextTask = task->next;
-
-	while (task->prev != nullptr)
-		task = task->prev;
-
-	while (task != nullptr)
-	{
-		Task* next = task->next;
-		Task* prev = task->prev;
-
-		if (task->taskID == taskID)
-		{
-			if (prev != nullptr)
-				prev->next = next;
-
-			if (next != nullptr)
-				next->prev = prev;
-
-			if (task == oldTask)
-				oldTask = nullptr;
-			else if (task == oldPrevTask)
-				oldPrevTask = nullptr;
-			else if (task == oldNextTask)
-				oldNextTask = nullptr;
-
-			delete task;
-
-			checkPriorities = true;
-			break;
-		}
-		task = next;
-	}
-
-	if (oldTask != nullptr)
-		m_tasks = oldTask;
-	else if (oldPrevTask != nullptr)
-		m_tasks = oldPrevTask;
-	else if (oldNextTask != nullptr)
-		m_tasks = oldNextTask;
-	else
-		GetCurrentTask();
-
-	if (checkPriorities)
-		CheckTasksPriorities();
 }
 
 // this function called whenever a task is completed
 void Bot::TaskComplete(void)
 {
-	if (m_tasks == nullptr)
-	{
-		DeleteSearchNodes(); // delete all path finding nodes
-		return;
-	}
 
-	if (m_tasks->taskID == TASK_NORMAL)
-	{
-		DeleteSearchNodes(); // delete all path finding nodes
-
-		m_tasks->data = -1;
-		m_chosenGoalIndex = -1;
-
-		return;
-	}
-
-	Task* next = m_tasks->next;
-	Task* prev = m_tasks->prev;
-
-	if (next != nullptr)
-		next->prev = prev;
-
-	if (prev != nullptr)
-		prev->next = next;
-
-	delete m_tasks;
-	m_tasks = nullptr;
-
-	if (prev != nullptr && next != nullptr)
-	{
-		if (prev->desire >= next->desire)
-			m_tasks = prev;
-		else
-			m_tasks = next;
-	}
-	else if (prev != nullptr)
-		m_tasks = prev;
-	else if (next != nullptr)
-		m_tasks = next;
-
-	if (m_tasks == nullptr)
-		GetCurrentTask();
-
-	CheckTasksPriorities();
-	DeleteSearchNodes();
 }
 
 void Bot::CheckGrenadeThrow(void)
@@ -3423,7 +3128,7 @@ void Bot::ChooseAimDirection(void)
 		}
 		else if (m_isZombieBot && HasNextPath() && g_waypoint->GetPath(m_currentWaypointIndex)->flags & WAYPOINT_ZOMBIEPUSH)
 		{
-			m_lookAt = pev->flags & FL_DUCKING ? m_waypointOrigin : m_destOrigin + m_moveAngles * m_frameInterval;
+			m_lookAt = (pev->flags & FL_DUCKING) ? m_waypointOrigin : m_destOrigin + m_moveAngles * m_frameInterval;
 			return;
 		}
 	}
@@ -3911,7 +3616,7 @@ void Bot::LookAtAround(void)
 			float maxDist = 1280.0f;
 			if (!IsAttacking(client.ent))
 			{
-				if (client.ent->v.flags & FL_DUCKING)
+				if ((client.ent->v.flags & FL_DUCKING))
 					continue;
 
 				if (client.ent->v.speed < client.ent->v.maxspeed * 0.66f)
@@ -4063,7 +3768,7 @@ void Bot::CalculatePing(void)
 		if (!(client.flags & CFLAG_USED))
 			continue;
 
-		if (IsFakeClient(client.ent))
+		if (IsValidBot(client.ent))
 			continue;
 
 		numHumans++;
@@ -6105,26 +5810,27 @@ void Bot::DebugModeMsg(void)
 				m_moveSpeed, m_strafeSpeed,
 				m_stuckWarn, m_isStuck ? "Yes" : "No");
 
-			MessageSender(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, g_hostEntity)
-				.WriteByte(TE_TEXTMESSAGE)
-				.WriteByte(1)
-				.WriteShort(FixedSigned16(-1.0f, 1 << 13))
-				.WriteShort(FixedSigned16(0.0f, 1 << 13))
-				.WriteByte(0)
-				.WriteByte(m_team == TEAM_COUNTER ? 0 : 255)
-				.WriteByte(100)
-				.WriteByte(m_team != TEAM_COUNTER ? 0 : 255)
-				.WriteByte(0)
-				.WriteByte(255)
-				.WriteByte(255)
-				.WriteByte(255)
-				.WriteByte(0)
-				.WriteShort(FixedUnsigned16(0.0f, 1 << 8))
-				.WriteShort(FixedUnsigned16(0.0f, 1 << 8))
-				.WriteShort(FixedUnsigned16(1.0f, 1 << 8))
-				.WriteString(const_cast<const char*>(&outputBuffer[0]));
+			MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, g_hostEntity);
+			WRITE_BYTE(TE_TEXTMESSAGE);
+			WRITE_BYTE(1);
+			WRITE_SHORT(FixedSigned16(-1, 1 << 13));
+			WRITE_SHORT(FixedSigned16(0, 1 << 13));
+			WRITE_BYTE(0);
+			WRITE_BYTE(m_team == TEAM_COUNTER ? 0 : 255);
+			WRITE_BYTE(100);
+			WRITE_BYTE(m_team != TEAM_COUNTER ? 0 : 255);
+			WRITE_BYTE(0);
+			WRITE_BYTE(255);
+			WRITE_BYTE(255);
+			WRITE_BYTE(255);
+			WRITE_BYTE(0);
+			WRITE_SHORT(FixedUnsigned16(0, 1 << 8));
+			WRITE_SHORT(FixedUnsigned16(0, 1 << 8));
+			WRITE_SHORT(FixedUnsigned16(1.0, 1 << 8));
+			WRITE_STRING(const_cast<const char*>(&outputBuffer[0]));
+			MESSAGE_END();
 
-			timeDebugUpdate = engine->GetTime() + 1.0f;
+			timeDebugUpdate = AddTime(1.0f);
 		}
 
 		if (m_hasEnemiesNear && m_enemyOrigin != nullvec)
@@ -6771,7 +6477,7 @@ void Bot::BotAI(void)
 	m_lastDamageType = -1; // reset damage
 }
 
-void Bot::ChatMessage(int type, bool isTeamSay)
+void Bot::ChatMessage(const int type, const bool isTeamSay)
 {
 	extern ConVar ebot_chat;
 
@@ -6783,7 +6489,7 @@ void Bot::ChatMessage(int type, bool isTeamSay)
 	if (IsNullString(pickedPhrase))
 		return;
 
-	PrepareChatMessage(const_cast <char*> (pickedPhrase));
+	PrepareChatMessage(const_cast<char*>(pickedPhrase));
 	PushMessageQueue(isTeamSay ? CMENU_TEAMSAY : CMENU_SAY);
 }
 
