@@ -354,13 +354,6 @@ enum class LiftState
 	Leaving
 };
 
-struct BotProfile
-{
-	int favoriteWeapons[26];
-	Personality personality;
-	int campChance;
-};
-
 // bot known file 
 const char FH_WAYPOINT_NEW[] = "EBOTWP";
 const char FH_WAYPOINT[] = "PODWAY!";
