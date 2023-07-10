@@ -612,7 +612,6 @@ private:
 	uint8_t m_visibility; // visibility flags
 
 	int m_currentWaypointIndex; // current waypoint index
-	int m_travelStartIndex; // travel start index to double jump action
 	int m_prevWptIndex[3]; // previous waypoint indices from waypoint find
 	int m_waypointFlags; // current waypoint flags
 	int m_loosedBombWptIndex; // nearest to loosed bomb waypoint
@@ -786,9 +785,6 @@ public:
 
 	bool m_isVIP; // bot is vip?
 	bool m_isBomber; // bot is bomber?
-	bool m_bIsDefendingTeam; // bot in defending team on this map
-
-	edict_t* m_avoid; // higher priority player we need to make way for
 
 	int m_startAction; // team/class selection state
 	int m_team; // bot's team
@@ -797,12 +793,7 @@ public:
 	bool m_notStarted; // team/class not chosen yet
 	bool m_isZombieBot; // checks bot if zombie
 
-	float connect_time;
-	float stay_time;
-
 	int m_voteMap; // number of map to vote for
-	int m_logotypeIndex; // index for logotype
-
 	bool m_inBombZone; // bot in the bomb zone or not
 	int m_buyState; // current Count in Buying
 	float m_nextBuyTime; // next buy time
@@ -817,13 +808,6 @@ public:
 	edict_t* m_doubleJumpEntity; // pointer to entity that request double jump
 	edict_t* m_radioEntity; // pointer to entity issuing a radio command
 	int m_radioOrder; // actual command
-
-	float m_duckForJump; // is bot needed to duck for double jump
-	float m_baseAgressionLevel; // base aggression level (on initializing)
-	float m_baseFearLevel; // base fear level (on initializing)
-	float m_agressionLevel; // dynamic aggression level (in game)
-	float m_fearLevel; // dynamic fear level (in game)
-	float m_nextEmotionUpdate; // next time to sanitize emotions
 
 	int m_actMessageIndex; // current processed message
 	int m_pushMessageIndex; // offset for next pushed message
@@ -854,7 +838,6 @@ public:
 	float m_slowthinktimer; // slow think timer
 	float m_aimStopTime; // feel like playing on a phone
 	float m_stayTime; // stay time (for simulate server)
-	float m_connectTime; // for fake query
 
 	int m_checkEnemyNum; // check enemy num idk
 
@@ -1189,12 +1172,9 @@ private:
 	float m_pathDisplayTime;
 	float m_arrowDisplayTime;
 	float m_waypointDisplayTime[Const_MaxWaypoints];
-	float m_goalsScore[Const_MaxWaypoints];
 	int m_findWPIndex;
 	int m_facingAtIndex;
 	char m_infoBuffer[256];
-
-	int* m_distMatrix;
 
 	Array <int> m_terrorPoints;
 	Array <int> m_ctPoints;
@@ -1268,10 +1248,8 @@ public:
 	char* GetWaypointInfo(const int id);
 	char* GetInfo(void) { return m_infoBuffer; }
 
-	int AddGoalScore(int index, int other[4]);
 	void SetFindIndex(int index);
 	void SetLearnJumpWaypoint(int mod = -1);
-	void ClearGoalScore(void);
 
 	bool IsGoalVisited(int index);
 	void SetGoalVisited(int index);

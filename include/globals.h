@@ -11,7 +11,6 @@ extern bool g_waypointOn;
 extern bool g_navmeshOn;
 extern bool g_waypointsChanged;
 extern bool g_autoWaypoint;
-extern bool g_botsCanPause;
 extern bool g_editNoclip;
 extern bool g_isMetamod;
 extern bool g_isFakeCommand;
@@ -28,14 +27,11 @@ extern int m_sautoRadius;
 
 extern float g_autoPathDistance;
 extern float g_timeBombPlanted;
-extern float g_timeNextBombUpdate;
 extern float g_lastChatTime;
 extern float g_timeRoundEnd;
 extern float g_timeRoundMid;
-extern float g_timeNextBombUpdate;
 extern float g_timeRoundStart;
 extern float g_lastRadioTime[2];
-extern float g_audioTime;
 extern float g_fakePingUpdate;
 
 extern float g_DelayTimer;
