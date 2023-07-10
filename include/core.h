@@ -749,11 +749,11 @@ private:
 	PathNode* m_navNodeStart; // pointer to start of path finding nodes
 	uint8_t m_visibility; // visibility flags
 
-	int16 m_currentWaypointIndex; // current waypoint index
-	int16 m_travelStartIndex; // travel start index to double jump action
-	int16 m_prevWptIndex[3]; // previous waypoint indices from waypoint find
-	int32 m_waypointFlags; // current waypoint flags
-	int16 m_loosedBombWptIndex; // nearest to loosed bomb waypoint
+	int m_currentWaypointIndex; // current waypoint index
+	int m_travelStartIndex; // travel start index to double jump action
+	int m_prevWptIndex[3]; // previous waypoint indices from waypoint find
+	int m_waypointFlags; // current waypoint flags
+	int m_loosedBombWptIndex; // nearest to loosed bomb waypoint
 
 	unsigned short m_currentTravelFlags; // connection flags like jumping
 	bool m_jumpFinished; // has bot finished jumping
@@ -1280,9 +1280,7 @@ public:
 	void DiscardWeaponForUser(edict_t* user, bool discardC4);
 
 	void ChatSay(const bool teamSay, const char* text, ...);
-
-	void ChatMessage(int type, bool isTeamSay = false);
-	void SwitchChatterIcon(const bool show);
+	void ChatMessage(const int type, const bool isTeamSay = false);
 	void RadioMessage(const int message);
 
 	void Kill(void);
@@ -1456,11 +1454,11 @@ public:
 	void Analyze(void);
 	void AnalyzeDeleteUselessWaypoints(void);
 	void InitTypes();
-	void AddPath(const int16 addIndex, const int16 pathIndex, const int type = 0);
+	void AddPath(const int addIndex, const int pathIndex, const int type = 0);
 
 	int GetFacingIndex(void);
-	int16 FindFarest(const Vector& origin, const float maxDistance = 99999.0f);
-	int16 FindNearestInCircle(const Vector& origin, const float maxDistance = 99999.0f);
+	int FindFarest(const Vector& origin, const float maxDistance = 99999.0f);
+	int FindNearestInCircle(const Vector& origin, const float maxDistance = 99999.0f);
 	int FindNearest(Vector origin, float minDistance = 99999.0f, int flags = -1, edict_t* entity = nullptr, int* findWaypointPoint = (int*)-2, int mode = -1);
 	void FindInRadius(const Vector origin, const float radius, int* holdTab, int* count);
 	void FindInRadius(Array <int>& queueID, const float radius, const Vector origin);
@@ -1502,10 +1500,10 @@ public:
 	bool NodesValid(void);
 	void CreateBasic(void);
 
-	float GetPathDistance(int16 srcIndex, int16 destIndex);
+	float GetPathDistance(const int srcIndex, const int destIndex);
 
-	Path* GetPath(const int16 id);
-	char* GetWaypointInfo(int16 id);
+	Path* GetPath(const int id);
+	char* GetWaypointInfo(const int id);
 	char* GetInfo(void) { return m_infoBuffer; }
 
 	int AddGoalScore(int index, int other[4]);
@@ -1517,7 +1515,7 @@ public:
 	void SetGoalVisited(int index);
 
 	Vector GetBombPosition(void) { return m_foundBombOrigin; }
-	void SetBombPosition(bool shouldReset = false);
+	void SetBombPosition(const bool shouldReset = false);
 	String CheckSubfolderFile(const bool pwf = true);
 	String CheckSubfolderFileOLD(void);
 };
@@ -1581,7 +1579,7 @@ extern bool IsZombieEntity(edict_t* ent);
 extern void SetGameMode(int gamemode);
 extern bool IsZombieMode(void);
 extern bool IsDeathmatchMode(void);
-extern bool IsValidWaypoint(int16 index);
+extern bool IsValidWaypoint(const int index);
 extern unsigned int GetPlayerPriority(edict_t* player);
 
 extern int GetEntityWaypoint(edict_t* ent);
@@ -1604,7 +1602,6 @@ extern bool IsWeaponShootingThroughWall(int id);
 extern bool IsValidBot(edict_t* ent);
 extern bool IsValidBot(int index);
 extern bool IsValidPlayer(edict_t* ent);
-extern bool IsFakeClient(edict_t* ent);
 extern bool OpenConfig(const char* fileName, char* errorIfNotExists, File* outFile);
 extern bool FindNearestPlayer(void** holder, edict_t* to, float searchDistance = 4096.0, bool sameTeam = false, bool needBot = false, bool needAlive = false, bool needDrawn = false);
 
