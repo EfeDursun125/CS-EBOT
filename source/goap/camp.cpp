@@ -154,7 +154,7 @@ void Bot::CampUpdate(void)
 						MeshWaypoints.RemoveAll();
 
 						float max = 12.0f;
-						if (!FNullEnt(m_enemy))
+						if (m_hasEnemiesNear)
 						{
 							if (m_personality == PERSONALITY_RUSHER)
 								max = 16.0f;

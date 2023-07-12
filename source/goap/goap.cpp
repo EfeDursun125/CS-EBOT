@@ -6,6 +6,11 @@ Process Bot::GetProcess(void)
 	return m_currentProcess;
 }
 
+float Bot::GetProcessTime(void)
+{
+	return m_currentProcessTime - engine->GetTime();
+}
+
 bool Bot::SetProcess(const Process process, const char* debugnote, const bool rememberProcess, const float time)
 {
 	if (m_currentProcess != process && IsReadyForTheProcess(process))

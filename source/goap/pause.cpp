@@ -12,7 +12,7 @@ void Bot::PauseUpdate(void)
 		m_moveSpeed = 0.0f;
 		m_strafeSpeed = 0.0f;
 
-		if (m_isSlowThink)
+		if (m_isSlowThink && GetProcessTime() > 2.0f)
 		{
 			FindEnemyEntities();
 			FindFriendsAndEnemiens();
@@ -25,11 +25,13 @@ void Bot::PauseUpdate(void)
 	}
 	else
 	{
-		const Vector directionOld = m_destOrigin - (pev->origin + pev->velocity * m_frameInterval);
+		const Vector directionOld = (m_destOrigin + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval);
+		const Vector directionNormal = directionOld.Normalize2D();
+		SetStrafeSpeedNoCost(directionNormal, pev->maxspeed);
 		m_moveAngles = directionOld.ToAngles();
 		m_moveAngles.ClampAngles();
+		m_moveAngles.x = -m_moveAngles.x;
 		m_moveSpeed = pev->maxspeed;
-		SetStrafeSpeedNoCost(directionOld, pev->maxspeed);
 	}
 }
 

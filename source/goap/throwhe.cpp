@@ -4,7 +4,7 @@ void Bot::ThrowHEStart(void)
 {
 	SelectWeaponByName("weapon_hegrenade");
 
-	TraceResult tr;
+	TraceResult tr{};
 	TraceHull(EyePosition(), m_lookAt, false, point_hull, GetEntity(), &tr);
 	if (tr.flFraction != 1.0f)
 	{
