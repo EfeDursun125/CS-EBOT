@@ -86,7 +86,7 @@ bool Bot::CheckVisibility(edict_t* targetEntity)
 	if (FNullEnt(targetEntity))
 		return false;
 
-	TraceResult tr;
+	TraceResult tr{};
 	const Vector eyes = EyePosition();
 
 	Vector spot = targetEntity->v.origin;
@@ -173,7 +173,7 @@ bool Bot::IsEnemyViewable(edict_t* player)
 
 bool Bot::ItemIsVisible(Vector destination, char* itemName)
 {
-	TraceResult tr;
+	TraceResult tr{};
 
 	// trace a line from bot's eyes to destination..
 	TraceLine(EyePosition(), destination, true, false, GetEntity(), &tr);
@@ -204,7 +204,7 @@ bool Bot::ItemIsVisible(Vector destination, char* itemName)
 
 bool Bot::EntityIsVisible(Vector dest, const bool fromBody)
 {
-	TraceResult tr;
+	TraceResult tr{};
 
 	// trace a line from bot's eyes to destination...
 	TraceLine(fromBody ? pev->origin - Vector(0.0f, 0.0f, 1.0f) : EyePosition(), dest, true, true, GetEntity(), &tr);
@@ -1428,7 +1428,7 @@ bool Bot::IsEnemyReachable(void)
 		// end of the path, before repathing check the distance if we can reach to enemy
 		if (!HasNextPath())
 		{
-			TraceResult tr;
+			TraceResult tr{};
 			TraceHull(pev->origin, m_enemyOrigin, true, head_hull, GetEntity(), &tr);
 
 			if (tr.flFraction == 1.0f || (enemyDistance < SquaredF(125.0f) && tr.pHit == m_nearestEnemy))
@@ -1446,7 +1446,7 @@ bool Bot::IsEnemyReachable(void)
 
 			if (enemyDistance < SquaredF(radius))
 			{
-				TraceResult tr;
+				TraceResult tr{};
 				TraceHull(pev->origin, m_enemyOrigin, true, head_hull, GetEntity(), &tr);
 
 				if (tr.flFraction == 1.0f)
@@ -1515,7 +1515,7 @@ bool Bot::IsEnemyReachable(void)
 					{
 						const Vector origin = GetBottomOrigin(GetEntity());
 
-						TraceResult tr;
+						TraceResult tr{};
 						TraceLine(Vector(origin.x, origin.y, (origin.z + (pev->flags & FL_DUCKING) ? 6.0f : 12.0f)), enemyHead, true, true, GetEntity(), &tr);
 
 						const auto enemyWaypoint = g_waypoint->GetPath(enemyIndex);
@@ -1534,7 +1534,7 @@ bool Bot::IsEnemyReachable(void)
 		}
 		else if (enemyDistance < escapeDist)
 		{
-			TraceResult tr;
+			TraceResult tr{};
 			TraceHull(pev->origin, m_enemyOrigin, true, head_hull, GetEntity(), &tr);
 
 			if (tr.flFraction == 1.0f)
@@ -1874,8 +1874,6 @@ void Bot::BaseUpdate(void)
 				if (g_gameVersion == HALFLIFE && !(pev->oldbuttons & IN_ATTACK))
 					pev->button |= IN_ATTACK;
 			}
-
-			m_aimInterval = engine->GetTime();
 		}
 		else
 		{
@@ -1910,8 +1908,6 @@ void Bot::BaseUpdate(void)
 				FacePosition();
 				DebugModeMsg();
 			}
-			else
-				m_aimInterval = engine->GetTime();
 		}
 	}
 
@@ -2082,7 +2078,7 @@ void Bot::LookAtAround(void)
 		}
 		else
 		{
-			TraceResult tr;
+			TraceResult tr{};
 			const auto eyePosition = m_nearestFriend->v.origin + m_nearestFriend->v.view_ofs;
 			MakeVectors(m_nearestFriend->v.angles);
 			TraceLine(eyePosition, eyePosition + g_pGlobals->v_forward * 2000.0f, false, false, m_nearestFriend, &tr);
@@ -2191,7 +2187,7 @@ void Bot::LookAtAround(void)
 
 	auto isVisible = [&](void)
 	{
-		TraceResult tr;
+		TraceResult tr{};
 		TraceLine(EyePosition(), selectRandom, true, true, GetEntity(), &tr);
 		if (tr.flFraction == 1.0f)
 			return true;
@@ -2639,7 +2635,7 @@ void Bot::TakeBlinded(const Vector fade, const int alpha)
 	if (fade.x != 255 || fade.y != 255 || fade.z != 255 || alpha <= 170)
 		return;
 
-	// TODO: fix me
+	SetProcess(Process::Pause, "i'm blind", false, CRandomFloat(1.0f, 2.0f));
 }
 
 // this function, asks bot to discard his current primary weapon (or c4) to the user that requsted it with /drop*
@@ -2697,7 +2693,7 @@ void Bot::ResetDoubleJumpState(void)
 // returns null vector if toss is not feasible
 Vector Bot::CheckToss(const Vector& start, Vector end)
 {
-	TraceResult tr;
+	TraceResult tr{};
 
 	end = end - pev->velocity;
 	end.z -= 15.0f;
@@ -2753,7 +2749,7 @@ Vector Bot::CheckToss(const Vector& start, Vector end)
 Vector Bot::CheckThrow(const Vector& start, Vector end)
 {
 	Vector nadeVelocity = (end - start);
-	TraceResult tr;
+	TraceResult tr{};
 	
 	float time = nadeVelocity.GetLengthSquared() / SquaredF(196.0f);
 	if (time < 0.01f)
@@ -2923,30 +2919,11 @@ bool Bot::CampingAllowed(void)
 
 		if (m_personality == PERSONALITY_RUSHER)
 		{
-			if (!FNullEnt(m_lastEnemy) && m_numFriendsLeft < m_numEnemiesLeft)
+			if (!FNullEnt(m_nearestEnemy) && m_numFriendsLeft < m_numEnemiesLeft)
 				return false;
-			else if (FNullEnt(m_lastEnemy) && m_numFriendsLeft > m_numEnemiesLeft)
+			else if (FNullEnt(m_nearestEnemy) && m_numFriendsLeft > m_numEnemiesLeft)
 				return false;
 		}
-	}
-
-	if (ebot_followuser.GetInt() > 0 && (m_radioOrder == Radio::FollowMe || GetProcess() == Process::Camp))
-	{
-		int numFollowers = 0;
-
-		// check if no more followers are allowed
-		for (const auto& bot : g_botManager->m_bots)
-		{
-			if (bot != nullptr && bot->m_isAlive)
-			{
-				if (bot->m_targetEntity == m_radioEntity)
-					numFollowers++;
-			}
-		}
-
-		// don't camp if bots following
-		if (numFollowers > 0)
-			return false;
 	}
 
 	return true;

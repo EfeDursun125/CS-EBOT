@@ -34,7 +34,7 @@ void Bot::FindFriendsAndEnemiens(void)
 
 			// simple check
 			const Vector friendOrigin = client.ent->v.origin + client.ent->v.view_ofs;
-			TraceResult tr;
+			TraceResult tr{};
 			TraceLine(pev->origin, friendOrigin, true, true, GetEntity(), &tr);
 			if (tr.flFraction != 1.0f)
 				continue;
@@ -110,7 +110,7 @@ void Bot::FindEnemyEntities(void)
 		m_numEntitiesLeft++;
 
 		// simple check
-		TraceResult tr;
+		TraceResult tr{};
 		const Vector origin = GetEntityOrigin(entity);
 		TraceLine(pev->origin, origin, true, true, GetEntity(), &tr);
 		if (tr.flFraction != 1.0f)
@@ -230,7 +230,7 @@ bool Bot::IsFriendInLineOfFire(const float distance)
 
 	MakeVectors(pev->v_angle);
 
-	TraceResult tr;
+	TraceResult tr{};
 	TraceLine(EyePosition(), EyePosition() + distance * pev->v_angle.Normalize(), false, false, GetEntity(), &tr);
 
 	if (!FNullEnt(tr.pHit))

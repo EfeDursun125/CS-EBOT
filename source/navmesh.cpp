@@ -688,7 +688,7 @@ Vector NavMesh::GetAimingPosition(void)
     if (FNullEnt(g_hostEntity))
         return nullvec;
 
-    TraceResult tr;
+    TraceResult tr{};
     const auto eyePosition = g_hostEntity->v.origin + g_hostEntity->v.view_ofs;
     MakeVectors(g_hostEntity->v.v_angle);
     TraceLine(eyePosition, eyePosition + g_pGlobals->v_forward * 1000.0f, false, false, g_hostEntity, &tr);

@@ -283,7 +283,7 @@ void Bot::PrepareChatMessage(char* text)
             }
             else if (*pattern == 'v')
             {
-                talkEntity = m_lastVictim;
+                talkEntity = m_nearestEnemy;
 
                 if (!FNullEnt(talkEntity))
                     cstrcat(m_tempStrings, HumanizeName(const_cast <char*> (GetEntityName(talkEntity))));

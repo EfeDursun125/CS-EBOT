@@ -1,4 +1,5 @@
 #include <core.h>
+#include <vector>
 
 ConVar ebot_zombies_as_path_cost("ebot_zombie_count_as_path_cost", "1");
 ConVar ebot_aim_type("ebot_aim_type", "2");
@@ -375,7 +376,7 @@ void Bot::DoWaypointNav(void)
 			if (FNullEnt(client.ent) || !(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || (client.ent->v.movetype != MOVETYPE_FLY) || client.index == (m_index - 1))
 				continue;
 
-			TraceResult tr;
+			TraceResult tr{};
 			bool foundGround = false;
 			int previousNode = 0;
 
@@ -464,7 +465,7 @@ void Bot::DoWaypointNav(void)
 	// check if we are going through a door...
 	if (g_hasDoors)
 	{
-		TraceResult tr;
+		TraceResult tr{};
 		TraceLine(pev->origin, m_waypointOrigin, ignore_monsters, GetEntity(), &tr);
 
 		if (!FNullEnt(tr.pHit) && FNullEnt(m_liftEntity) && cstrncmp(STRING(tr.pHit->v.classname), "func_door", 9) == 0)
@@ -699,7 +700,7 @@ bool Bot::UpdateLiftHandling()
 			// if some bot is following a bot going into lift - he should take the same lift to go
 			for (const auto& bot : g_botManager->m_bots)
 			{
-				if (bot == nullptr || !bot->m_isAlive || bot->m_team != m_team || bot->m_targetEntity != GetEntity())
+				if (bot == nullptr || !bot->m_isAlive || bot->m_team != m_team)
 					continue;
 
 				if (bot->pev->groundentity == m_liftEntity && bot->IsOnFloor())
@@ -733,7 +734,7 @@ bool Bot::UpdateLiftHandling()
 
 		for (const auto& bot : g_botManager->m_bots)
 		{
-			if (bot == nullptr || !bot->m_isAlive || bot->m_team != m_team || bot->m_targetEntity != GetEntity() || bot->m_liftEntity != m_liftEntity)
+			if (bot == nullptr || !bot->m_isAlive || bot->m_team != m_team || bot->m_liftEntity != m_liftEntity)
 				continue;
 
 			if (bot->pev->groundentity == m_liftEntity || !bot->IsOnFloor())
@@ -777,7 +778,7 @@ bool Bot::UpdateLiftHandling()
 	// is lift activated and bot is standing on it and lift is moving ?
 	if (m_liftState == LiftState::LookingButtonInside || m_liftState == LiftState::EnteringIn || m_liftState == LiftState::WaitingForTeammates || m_liftState == LiftState::WaitingFor)
 	{
-		if (pev->groundentity == m_liftEntity && m_liftEntity->v.velocity.z != 0.0f && IsOnFloor() && (g_waypoint->GetPath(m_prevWptIndex[0])->flags & WAYPOINT_LIFT || !FNullEnt(m_targetEntity)))
+		if (pev->groundentity == m_liftEntity && m_liftEntity->v.velocity.z != 0.0f && IsOnFloor() && (g_waypoint->GetPath(m_prevWptIndex[0])->flags & WAYPOINT_LIFT))
 		{
 			m_liftState = LiftState::TravelingBy;
 			m_liftUsageTime = AddTime(14.0f);
@@ -950,92 +951,91 @@ bool Bot::UpdateLiftStates()
 class PriorityQueue
 {
 public:
-	PriorityQueue(void);
-	~PriorityQueue(void);
+	PriorityQueue();
+	~PriorityQueue();
 
-	inline int  Empty(void) { return m_size == 0; }
-	inline int  Size(void) { return m_size; }
-	void        Insert(int, float);
-	int         Remove(void);
+	bool Empty() const;
+	int Size() const;
+	void Insert(const int value, const float priority);
+	int Remove();
 
 private:
-	struct HeapNode_t
+	struct HeapNode
 	{
-		int   id;
+		int id;
 		float priority;
-	} *m_heap;
 
-	int         m_size;
-	int         m_heapSize;
+		HeapNode(const int _id, const float _priority) : id(_id), priority(_priority) {}
+	};
 
-	void        HeapSiftDown(int);
-	void        HeapSiftUp(void);
+	vector <HeapNode> m_heap;
+
+	void HeapSiftUp();
+	void HeapSiftDown();
 };
 
-PriorityQueue::PriorityQueue(void)
+PriorityQueue::PriorityQueue() {}
+
+PriorityQueue::~PriorityQueue() {}
+
+bool PriorityQueue::Empty() const
 {
-	m_size = 0;
-	m_heapSize = g_numWaypoints * 8;
-	m_heap = new HeapNode_t[m_heapSize];
+	return m_heap.empty();
 }
 
-PriorityQueue::~PriorityQueue(void)
+int PriorityQueue::Size() const
 {
-	if (m_heap != nullptr)
-		delete[] m_heap;
-
-	m_heap = nullptr;
+	return static_cast<int>(m_heap.size());
 }
 
-// inserts a value into the priority queue
-void PriorityQueue::Insert(int value, float priority)
+void PriorityQueue::Insert(const int value, const float priority)
 {
-	if (m_size >= m_heapSize)
-	{
-		m_heapSize += 100;
-		m_heap = (HeapNode_t*)realloc(m_heap, sizeof(HeapNode_t) * m_heapSize);
-		if (m_heap == nullptr)
-		{
-			AddLogEntry(LOG_MEMORY, "unexpected memory error");
-			return;
-		}
-	}
-
-	m_heap[m_size].priority = priority;
-	m_heap[m_size].id = value;
-
-	m_size++;
+	m_heap.emplace_back(value, priority);
 	HeapSiftUp();
 }
 
-// removes the smallest item from the priority queue
-int PriorityQueue::Remove(void)
+int PriorityQueue::Remove()
 {
 	const int retID = m_heap[0].id;
 
-	m_size--;
-	m_heap[0] = m_heap[m_size];
+	m_heap[0] = m_heap.back();
+	m_heap.pop_back();
 
-	HeapSiftDown(0);
+	HeapSiftDown();
 	return retID;
 }
 
-void PriorityQueue::HeapSiftDown(int subRoot)
+void PriorityQueue::HeapSiftUp()
 {
-	int parent = subRoot;
-	int child = (2 * parent) + 1;
+	int child = Size() - 1;
 
-	const HeapNode_t ref = m_heap[parent];
-
-	while (child < m_size)
+	while (child > 0)
 	{
-		const int rightChild = (2 * parent) + 2;
+		const int parent = (child - 1) / 2;
 
-		if (rightChild < m_size)
-		{
-			if (m_heap[rightChild].priority < m_heap[child].priority)
-				child = rightChild;
-		}
+		if (m_heap[parent].priority <= m_heap[child].priority)
+			break;
+
+		swap(m_heap[child], m_heap[parent]);
+
+		child = parent;
+	}
+}
+
+void PriorityQueue::HeapSiftDown()
+{
+	int parent = 0;
+	int child = 2 * parent + 1;
+
+	const HeapNode ref = m_heap[parent];
+	const int size = Size();
+
+	while (child < size)
+	{
+		const int rightChild = 2 * parent + 2;
+
+		if (rightChild < size && m_heap[rightChild].priority < m_heap[child].priority)
+			child = rightChild;
 
 		if (ref.priority <= m_heap[child].priority)
 			break;
@@ -1043,30 +1043,10 @@ void PriorityQueue::HeapSiftDown(int subRoot)
 		m_heap[parent] = m_heap[child];
 
 		parent = child;
-		child = (2 * parent) + 1;
+		child = 2 * parent + 1;
 	}
 
 	m_heap[parent] = ref;
-}
-
-void PriorityQueue::HeapSiftUp(void)
-{
-	int child = m_size - 1;
-
-	while (child)
-	{
-		const int parent = (child - 1) / 2;
-
-		if (m_heap[parent].priority <= m_heap[child].priority)
-			break;
-
-		const HeapNode_t temp = m_heap[child];
-
-		m_heap[child] = m_heap[parent];
-		m_heap[parent] = temp;
-
-		child = parent;
-	}
 }
 
 inline const float GF_CostHuman(const int index, const int parent, const int team, const float gravity, const bool isZombie)
@@ -1801,7 +1781,7 @@ void Bot::FindPath(int srcIndex, int destIndex)
 			const int32 flags = g_waypoint->GetPath(self)->flags;
 			if (flags & WAYPOINT_FALLCHECK)
 			{
-				TraceResult tr;
+				TraceResult tr{};
 				const Vector origin = g_waypoint->GetPath(self)->origin;
 				TraceLine(origin, origin - Vector(0.0f, 0.0f, 60.0f), false, false, GetEntity(), &tr);
 				if (tr.flFraction == 1.0f)
@@ -1946,7 +1926,7 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 			const int32 flags = g_waypoint->GetPath(self)->flags;
 			if (flags & WAYPOINT_FALLCHECK)
 			{
-				TraceResult tr;
+				TraceResult tr{};
 				const Vector origin = g_waypoint->GetPath(self)->origin;
 				TraceLine(origin, origin - Vector(0.0f, 0.0f, 60.0f), false, false, GetEntity(), &tr);
 				if (tr.flFraction == 1.0f)
@@ -2025,7 +2005,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 	{
 		bool breakIt = false;
 
-		TraceResult tr;
+		TraceResult tr{};
 		TraceHull(EyePosition(), m_destOrigin, false, point_hull, GetEntity(), &tr);
 
 		TraceResult tr2;
@@ -2557,7 +2537,7 @@ int Bot::FindCoverWaypoint(float maxDistance)
 		maxDistance = SquaredF(512.0f);
 
 	// do not move to a position near to the enemy
-	float enemydist = (m_lastEnemyOrigin - pev->origin).GetLengthSquared2D();
+	float enemydist = (m_enemyOrigin - pev->origin).GetLengthSquared2D();
 	if (maxDistance > enemydist)
 		maxDistance = enemydist;
 
@@ -2580,7 +2560,7 @@ int Bot::FindCoverWaypoint(float maxDistance)
 		if (!IsWaypointOccupied(i))
 		{
 			TraceResult tr{};
-			Vector origin = !FNullEnt(m_enemy) ? GetPlayerHeadOrigin(m_enemy) : m_lastEnemyOrigin;
+			const Vector origin = m_enemyOrigin;
 			TraceLine(g_waypoint->GetPath(i)->origin, origin, true, true, GetEntity(), &tr);
 
 			if (tr.flFraction != 1.0f)
@@ -2649,7 +2629,7 @@ bool Bot::CantMoveForward(const Vector normal)
 
 	MakeVectors(Vector(0.0f, pev->angles.y, 0.0f));
 
-	TraceResult* tr;
+	TraceResult* tr{};
 
 	// trace from the bot's eyes straight forward...
 	TraceLine(src, forward, true, GetEntity(), tr);
@@ -2737,7 +2717,7 @@ bool Bot::CanJumpUp(const Vector normal)
 {
 	// this function check if bot can jump over some obstacle
 
-	TraceResult tr;
+	TraceResult tr{};
 
 	// can't jump if not on ground and not on ladder/swimming
 	if (!IsOnFloor() && (IsOnLadder() || !IsInWater()))
@@ -2875,7 +2855,7 @@ CheckDuckJump:
 
 bool Bot::CheckWallOnForward(void)
 {
-	TraceResult tr;
+	TraceResult tr{};
 	MakeVectors(pev->angles);
 
 	// do a trace to the forward...
@@ -2905,7 +2885,7 @@ bool Bot::CheckWallOnForward(void)
 
 bool Bot::CheckWallOnBehind(void)
 {
-	TraceResult tr;
+	TraceResult tr{};
 	MakeVectors(pev->angles);
 
 	// do a trace to the behind...
@@ -2935,7 +2915,7 @@ bool Bot::CheckWallOnBehind(void)
 
 bool Bot::CheckWallOnLeft(void)
 {
-	TraceResult tr;
+	TraceResult tr{};
 	MakeVectors(pev->angles);
 
 	// do a trace to the left...
@@ -2965,7 +2945,7 @@ bool Bot::CheckWallOnLeft(void)
 
 bool Bot::CheckWallOnRight(void)
 {
-	TraceResult tr;
+	TraceResult tr{};
 	MakeVectors(pev->angles);
 
 	// do a trace to the right...
@@ -2997,7 +2977,7 @@ bool Bot::CheckWallOnRight(void)
 bool Bot::IsDeadlyDrop(const Vector targetOriginPos)
 {
 	const Vector botPos = pev->origin;
-	TraceResult tr;
+	TraceResult tr{};
 
 	const Vector move((targetOriginPos - botPos).ToYaw(), 0.0f, 0.0f);
 	MakeVectors(move);
@@ -3060,20 +3040,39 @@ void Bot::FacePosition(void)
 		pev->angles.y = pev->v_angle.y;
 		return;
 	}
-
-	const float delta = engine->GetTime() - m_aimInterval;
-	m_aimInterval = engine->GetTime();
-
-	if (aimType == 2)
+	else if (aimType == 2)
 	{
 		m_idealAngles = pev->v_angle;
 		Vector direction = (m_lookAt - EyePosition()).ToAngles() + pev->punchangle;
 		direction.x = -direction.x; // invert for engine
 
-		const float aimSpeed = ((m_skill * 0.033f) + 9.0f) * delta;
+		const float aimSpeed = ((m_skill * 0.033f) + 9.0f) * m_frameInterval;
 
 		m_idealAngles.x += AngleNormalize(direction.x - m_idealAngles.x) * aimSpeed;
 		m_idealAngles.y += AngleNormalize(direction.y - m_idealAngles.y) * aimSpeed;
+
+		if (m_idealAngles.x < -89.0f)
+			m_idealAngles.x = -89.0f;
+		else if (m_idealAngles.x > 89.0f)
+			m_idealAngles.x = 89.0f;
+
+		pev->v_angle = m_idealAngles;
+		pev->angles.x = -pev->v_angle.x * 0.33333333333f;
+		pev->angles.y = pev->v_angle.y;
+		return;
+	}
+	else if (aimType == 3)
+	{
+		m_idealAngles = pev->v_angle;
+		Vector direction = (m_lookAt - EyePosition()).ToAngles() + pev->punchangle;
+		direction.x = -direction.x; // invert for engine
+
+		const float aimSpeed = ((m_skill * 0.05f) + 12.0f);
+		const float speedLimit = aimSpeed * CRandomFloat(0.75f, 0.85f);
+		const float speedDelta = aimSpeed * m_frameInterval;
+
+		m_idealAngles.x += cclampf(AngleNormalize(direction.x - m_idealAngles.x) * speedDelta, -speedLimit, speedLimit);
+		m_idealAngles.y += cclampf(AngleNormalize(direction.y - m_idealAngles.y) * speedDelta, -speedLimit, speedLimit);
 
 		if (m_idealAngles.x < -89.0f)
 			m_idealAngles.x = -89.0f;
@@ -3099,7 +3098,7 @@ void Bot::FacePosition(void)
 	float angleDiffPitch = AngleNormalize(direction.x - m_idealAngles.x);
 	float angleDiffYaw = AngleNormalize(direction.y - m_idealAngles.y);
 
-	float lockn = (m_skill + 50.0f) * delta;
+	float lockn = (m_skill + 50.0f) * m_frameInterval;
 
 	if (IsZombieMode() && !m_isZombieBot && m_isEnemyReachable)
 	{
@@ -3113,13 +3112,12 @@ void Bot::FacePosition(void)
 	{
 		m_lookYawVel = 0.0f;
 		m_idealAngles.y = direction.y;
-		m_aimStopTime = AddTime(CRandomFloat(0.25f, 1.25f));
 	}
 	else
 	{
 		const float accel = cclampf((stiffness * angleDiffYaw) - (damping * m_lookYawVel), -accelerate, accelerate);
-		m_lookYawVel += delta * accel;
-		m_idealAngles.y += delta * m_lookYawVel;
+		m_lookYawVel += m_frameInterval * accel;
+		m_idealAngles.y += m_frameInterval * m_lookYawVel;
 	}
 
 	if (angleDiffPitch <= lockn && angleDiffPitch >= -lockn)
@@ -3130,8 +3128,8 @@ void Bot::FacePosition(void)
 	else
 	{
 		const float accel = cclampf(stiffness * angleDiffPitch - (damping * m_lookPitchVel), -accelerate, accelerate);
-		m_lookPitchVel += delta * accel;
-		m_idealAngles.x += delta * m_lookPitchVel;
+		m_lookPitchVel += m_frameInterval * accel;
+		m_idealAngles.x += m_frameInterval * m_lookPitchVel;
 	}
 
 	if (m_idealAngles.x < -89.0f)

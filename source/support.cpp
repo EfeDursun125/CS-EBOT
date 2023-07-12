@@ -132,7 +132,7 @@ bool IsVisible(const Vector& origin, edict_t* ent)
 	if (FNullEnt(ent))
 		return false;
 
-	TraceResult tr;
+	TraceResult tr{};
 	TraceLine(GetEntityOrigin(ent), origin, true, true, ent, &tr);
 
 	if (tr.flFraction != 1.0f)
@@ -144,7 +144,7 @@ bool IsVisible(const Vector& origin, edict_t* ent)
 // return walkable position on ground
 Vector GetWalkablePosition(const Vector& origin, edict_t* ent, bool returnNullVec, float height)
 {
-	TraceResult tr;
+	TraceResult tr{};
 	TraceLine(origin, Vector(origin.x, origin.y, -height), true, false, ent, &tr);
 
 	if (tr.flFraction != 1.0f)
@@ -300,11 +300,11 @@ void FreeLibraryMemory(void)
 
 bool SetEntityAction(const int index, const int team, const int action)
 {
-	int i;
 	if (index == -1)
 	{
-		for (i = 0; i < entityNum; i++)
+		for (int i = 0; i < entityNum; i++)
 			SetEntityActionData(i);
+
 		return 1;
 	}
 
@@ -315,7 +315,7 @@ bool SetEntityAction(const int index, const int team, const int action)
 	if (IsValidPlayer(entity))
 		return -1;
 
-	for (i = 0; i < entityNum; i++)
+	for (int i = 0; i < entityNum; i++)
 	{
 		if (g_entityId[i] == index)
 		{
@@ -334,7 +334,7 @@ bool SetEntityAction(const int index, const int team, const int action)
 	if (action == -1)
 		return -1;
 
-	for (i = 0; i < entityNum; i++)
+	for (int i = 0; i < entityNum; i++)
 	{
 		if (g_entityId[i] == -1)
 		{

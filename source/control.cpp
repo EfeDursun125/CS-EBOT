@@ -1014,7 +1014,6 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	m_weaponBurstMode = BURST_DISABLED;
 
 	m_frameInterval = engine->GetTime();
-	m_aimInterval = engine->GetTime();
 
 	switch (personality)
 	{
@@ -1100,7 +1099,6 @@ void Bot::NewRound(void)
 
 	// delete all allocated path nodes
 	DeleteSearchNodes();
-	m_aimStopTime = engine->GetTime();
 	m_weaponSelectDelay = engine->GetTime();
 	m_currentWaypointIndex = -1;
 	m_currentTravelFlags = 0;
@@ -1129,7 +1127,6 @@ void Bot::NewRound(void)
 	m_seeEnemyTime = 0.0f;
 
 	m_voteMap = 0;
-	m_targetEntity = nullptr;
 
 	for (auto hostage : m_hostages)
 		hostage = nullptr;

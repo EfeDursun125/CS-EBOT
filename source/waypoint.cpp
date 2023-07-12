@@ -44,7 +44,7 @@ void Waypoint::Initialize(void)
 void CreateWaypoint(Vector WayVec, Vector Next, float range, const float goalDist)
 {
     Next.z += 19.0f;
-    TraceResult tr;
+    TraceResult tr{};
     TraceHull(Next, Next, NO_BOTH, HULL_HEAD, g_hostEntity, &tr);
     Next.z -= 19.0f;
 
@@ -332,7 +332,7 @@ void Waypoint::AnalyzeDeleteUselessWaypoints(void)
                 if (!(m_paths[i]->flags & WAYPOINT_CROUCH) && m_paths[i]->origin.z != m_paths[index]->origin.z)
                     continue;
 
-                TraceResult tr;
+                TraceResult tr{};
                 TraceHull(m_paths[i]->origin, m_paths[index]->origin, NO_BOTH, HULL_HEAD, g_hostEntity, &tr);
                 if (tr.flFraction != 1.0f)
                     DeletePathByIndex(i, index);
@@ -958,7 +958,7 @@ void Waypoint::Add(const int flags, const Vector waypointOrigin)
         float minDistance = FLT_MAX;
         int destIndex = -1;
 
-        TraceResult tr;
+        TraceResult tr{};
 
         // calculate all the paths to this new waypoint
         for (i = 0; i < g_numWaypoints; i++)
@@ -1287,7 +1287,7 @@ int Waypoint::GetFacingIndex(void)
             continue;
 
         // check if visible, (we're not using visiblity tables here, as they not valid at time of waypoint editing)
-        TraceResult tr;
+        TraceResult tr{};
         TraceLine(editorEyes, path->origin, false, false, g_hostEntity, &tr);
 
         if (tr.flFraction != 1.0f)
@@ -1492,7 +1492,7 @@ void Waypoint::CalculateWayzone(int index)
     Path* path = m_paths[index];
     Vector start, direction;
 
-    TraceResult tr;
+    TraceResult tr{};
     bool wayBlocked = false;
 
     if ((path->flags & (WAYPOINT_LADDER | WAYPOINT_GOAL | WAYPOINT_CAMP | WAYPOINT_RESCUE | WAYPOINT_CROUCH)) || m_learnJumpWaypoint)
@@ -2163,7 +2163,7 @@ bool Waypoint::Reachable(edict_t* entity, const int index)
             return false;
     }
 
-    TraceResult tr;
+    TraceResult tr{};
     TraceHull(src, dest, true, head_hull, entity, &tr);
     if (tr.flFraction == 1.0f)
         return true;
@@ -2179,7 +2179,7 @@ bool Waypoint::IsNodeReachable(const Vector src, const Vector destination)
     if (distance > SquaredF(g_autoPathDistance))
         return false;
 
-    TraceResult tr;
+    TraceResult tr{};
 
     // check if we go through a func_illusionary, in which case return false
     TraceHull(src, destination, NO_BOTH, HULL_HEAD, g_hostEntity, &tr);
@@ -2710,8 +2710,9 @@ void Waypoint::ShowWaypointMsg(void)
 
                 if (m_paths[i]->flags & WAYPOINT_FALLCHECK || m_paths[i]->flags & WAYPOINT_WAITUNTIL)
                 {
-                    TraceResult tr;
+                    TraceResult tr{};
                     TraceLine(m_paths[i]->origin, m_paths[i]->origin - Vector(0.0f, 0.0f, 60.0f), false, false, g_hostEntity, &tr);
+
                     if (tr.flFraction == 1.0f)
                         engine->DrawLine(g_hostEntity, m_paths[i]->origin, m_paths[i]->origin - Vector(0.0f, 0.0f, 60.0f), Color(255, 0, 0, 255), ebot_waypoint_size.GetFloat() - 1.0f, 0, 0, 10);
                     else
@@ -3093,7 +3094,7 @@ void Waypoint::CreateBasic(void)
         Vector ladderRight = ent->v.absmax;
         ladderLeft.z = ladderRight.z;
 
-        TraceResult tr;
+        TraceResult tr{};
         Vector up, down, front, back;
 
         Vector diff = ((ladderLeft - ladderRight) ^ Vector(0.0f, 0.0f, 0.0f)).Normalize() * 15.0f;
