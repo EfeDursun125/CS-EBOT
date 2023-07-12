@@ -37,10 +37,10 @@ void Bot::CampUpdate(void)
 
 		FindEnemyEntities();
 
-		if (!m_hasEnemiesNear)
+		if (!m_hasEnemiesNear && !g_isFakeCommand && !g_isMessage)
 		{
 			extern ConVar ebot_chat;
-			if (ebot_chat.GetBool() && !RepliesToPlayer() && m_lastChatTime + 10.0f < engine->GetTime() && g_lastChatTime + 5.0f < engine->GetTime()) // bot chatting turned on?
+			if (ebot_chat.GetBool() && m_lastChatTime + 10.0f < engine->GetTime() && g_lastChatTime + 5.0f < engine->GetTime() && !RepliesToPlayer()) // bot chatting turned on?
 				m_lastChatTime = engine->GetTime();
 		}
 	}
@@ -90,7 +90,7 @@ void Bot::CampUpdate(void)
 					crouch = false;
 
 				if (crouch && IsVisible(m_enemyOrigin, GetEntity()))
-					m_duckTime = engine->GetTime() + 1.0f;
+					m_duckTime = AddTime(1.0f);
 			}
 		}
 	}
@@ -127,7 +127,7 @@ void Bot::CampUpdate(void)
 
 			if (!g_waypoint->m_hmMeshPoints.IsEmpty())
 			{
-				if (m_currentProcessTime <= engine->GetTime() + 0.1f || m_currentProcessTime > engine->GetTime() + 60.0f)
+				if (m_currentProcessTime <= AddTime(0.16f) || m_currentProcessTime > AddTime(60.0f))
 				{
 					Array <int> MeshWaypoints;
 
@@ -196,5 +196,8 @@ bool Bot::CampReq(void)
 	if (!IsZombieMode() && IsWaypointOccupied(m_campIndex, false))
 		return false;
 
-	return CampingAllowed();
+	if (!CampingAllowed())
+		return false;
+
+	return true;
 }

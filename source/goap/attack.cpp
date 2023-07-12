@@ -26,13 +26,17 @@ void Bot::AttackUpdate(void)
 		if (m_personality == PERSONALITY_CAREFUL)
 			wait = 3.0f - (pev->health / pev->max_health);
 		else if (m_personality == PERSONALITY_RUSHER && (m_currentWeapon == WEAPON_M3 || m_currentWeapon == WEAPON_XM1014 || m_currentWeapon == WEAPON_M249))
-			wait = 0.5f;
+			wait = 0.75f;
+
+		// i'm alone
+		if (!m_hasFriendsNear && m_numEnemiesLeft > 1)
+			wait += 1.25f;
 
 		// be careful
 		if (m_isBomber || m_isVIP)
 		{
-			// let my team go first
-			if (m_hasFriendsNear > 0)
+			// let my team go first to protect me
+			if (m_hasFriendsNear)
 				wait *= 2.0f;
 		}
 		else
@@ -66,7 +70,7 @@ void Bot::AttackUpdate(void)
 			SetWalkTime(7.0f);
 			FinishCurrentProcess("no target exist");
 		}
-		else
+		else if (!FNullEnt(m_nearestEnemy) && IsAlive(m_nearestEnemy))
 			CheckGrenadeThrow();
 
 		return;
@@ -194,7 +198,7 @@ void Bot::AttackUpdate(void)
 			if (ChanceOf(30))
 				m_combatStrafeDir = (m_combatStrafeDir == 1 ? 0 : 1);
 
-			m_strafeSetTime = engine->GetTime() + CRandomFloat(0.5f, 3.0f);
+			m_strafeSetTime = AddTime(CRandomFloat(0.5f, 3.0f));
 		}
 
 		if (m_combatStrafeDir == 0)
@@ -204,7 +208,7 @@ void Bot::AttackUpdate(void)
 			else
 			{
 				m_combatStrafeDir = 1;
-				m_strafeSetTime = engine->GetTime() + 1.5f;
+				m_strafeSetTime = AddTime(1.5f);
 			}
 		}
 		else
@@ -214,7 +218,7 @@ void Bot::AttackUpdate(void)
 			else
 			{
 				m_combatStrafeDir = 0;
-				m_strafeSetTime = engine->GetTime() + 1.5f;
+				m_strafeSetTime = AddTime(1.5f);
 			}
 		}
 
