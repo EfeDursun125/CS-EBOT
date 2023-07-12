@@ -3,7 +3,7 @@
   <ItemGroup>
     <ClCompile Include="..\source\basecode.cpp" />
     <ClCompile Include="..\source\callbacks.cpp" />
-    <ClCompile Include="..\source\chatlib.cpp" />
+    <ClCompile Include="..\source\chat.cpp" />
     <ClCompile Include="..\source\combat.cpp" />
     <ClCompile Include="..\source\control.cpp" />
     <ClCompile Include="..\source\engine.cpp" />

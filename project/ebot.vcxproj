@@ -25,6 +25,8 @@
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <EnableASAN>false</EnableASAN>
     <InterproceduralOptimization>true</InterproceduralOptimization>
+    <UseInteloneTBB>false</UseInteloneTBB>
+    <InstrumentInteloneTBB>false</InstrumentInteloneTBB>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='EBOT_Debug|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
@@ -84,8 +86,7 @@
       <PreprocessorDefinitions>NDEBUG;_XKEYCHECK_H;WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <FunctionLevelLinking>false</FunctionLevelLinking>
-      <RuntimeTypeInfo>
-      </RuntimeTypeInfo>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>core.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>.\ebot_release\inf\ebot.pch</PrecompiledHeaderOutputFile>
@@ -115,6 +116,9 @@
       <LanguageStandard_C>stdc11</LanguageStandard_C>
       <EnableMatrixMultiplyLibraryCall>Yes</EnableMatrixMultiplyLibraryCall>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <OptimizeForWindowsApplication>true</OptimizeForWindowsApplication>
+      <BuildStlModules>false</BuildStlModules>
+      <GuardEHContMetadata>false</GuardEHContMetadata>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -132,7 +136,8 @@
     <Link>
       <OutputFile>.\ebot_release/ebot.dll</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <DelayLoadDLLs>user32.dll;ws2_32.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>
+      </DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <GenerateMapFile>false</GenerateMapFile>
       <SubSystem>Windows</SubSystem>
@@ -142,7 +147,7 @@
       <RandomizedBaseAddress>
       </RandomizedBaseAddress>
       <DataExecutionPrevention>false</DataExecutionPrevention>
-      <TurnOffAssemblyGeneration>true</TurnOffAssemblyGeneration>
+      <TurnOffAssemblyGeneration>false</TurnOffAssemblyGeneration>
       <ImportLibrary>.\ebot_release\inf\ebot.lib</ImportLibrary>
       <TargetMachine>MachineX86</TargetMachine>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
@@ -152,10 +157,16 @@
       </AdditionalDependencies>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
       <TreatLinkerWarningAsErrors>false</TreatLinkerWarningAsErrors>
-      <LargeAddressAware>true</LargeAddressAware>
+      <LargeAddressAware>false</LargeAddressAware>
       <AdditionalLibraryDirectories>SDK Path\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+      <EnableUAC>false</EnableUAC>
+      <AllowIsolation>false</AllowIsolation>
+      <PreventDllBinding>true</PreventDllBinding>
     </Link>
+    <Manifest>
+      <SuppressDependencyElement>true</SuppressDependencyElement>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='EBOT_Debug|Win32'">
     <Midl>
@@ -264,7 +275,7 @@
       <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='EBOT_Release|Win32'">MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
     <ClCompile Include="..\source\callbacks.cpp" />
-    <ClCompile Include="..\source\chatlib.cpp" />
+    <ClCompile Include="..\source\chat.cpp" />
     <ClCompile Include="..\source\clib.cpp" />
     <ClCompile Include="..\source\combat.cpp" />
     <ClCompile Include="..\source\control.cpp" />
