@@ -1051,7 +1051,7 @@ public:
     // Returns:
     //  True if operation succeeded, false otherwise.
     //
-    bool InsertAt(int index, T* objects, int count = 1, bool enlarge = true)
+    bool InsertAt(const int index, T* objects, const int count = 1, const bool enlarge = true)
     {
         if (objects == nullptr || count < 1)
             return false;
@@ -1088,6 +1088,7 @@ public:
 
             m_itemCount += count;
         }
+
         return true;
     }
 

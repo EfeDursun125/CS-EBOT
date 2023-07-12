@@ -1368,7 +1368,7 @@ extern void CheckWelcomeMessage(void);
 extern void DetectCSVersion(void);
 extern void PlaySound(edict_t* ent, const char* soundName);
 extern void ServerPrint(const char* format, ...);
-extern void ChartPrint(const char* format, ...);
+extern void ChatPrint(const char* format, ...);
 extern void ServerPrintNoTag(const char* format, ...);
 extern void CenterPrint(const char* format, ...);
 extern void ClientPrint(edict_t* ent, int dest, const char* format, ...);

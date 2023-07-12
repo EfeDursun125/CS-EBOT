@@ -14,6 +14,7 @@ extern bool g_autoWaypoint;
 extern bool g_editNoclip;
 extern bool g_isMetamod;
 extern bool g_isFakeCommand;
+extern bool g_isMessage;
 extern bool g_analyzewaypoints;
 extern bool g_analyzenavmesh;
 extern bool g_analyzeputrequirescrouch;
