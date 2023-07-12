@@ -3043,7 +3043,7 @@ public:
 
     inline float Fire(void)
     {
-        TraceResult tr;
+        TraceResult tr{};
 
         if (m_hullNumber != -1)
             g_engfuncs.pfnTraceHull(m_start, m_end, m_monsters ? 1 : 0, m_hullNumber, m_ignore ? m_ignore : nullptr, &tr);

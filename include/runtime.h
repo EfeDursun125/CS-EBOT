@@ -1012,10 +1012,13 @@ public:
     // Returns:
     //  True if operation succeeded, false otherwise.
     //
-    bool GetAt(int index, T& object)
+    bool GetAt(const int index, T& object)
     {
         if (index >= m_itemCount)
+        {
+            object = T();
             return false;
+        }
 
         object = m_elements[index];
         return true;
@@ -1033,7 +1036,7 @@ public:
     // Returns:
     //  True if operation succeeded, false otherwise.
     //
-    bool InsertAt(int index, T object, bool enlarge = true)
+    bool InsertAt(const int index, T object, const bool enlarge = true)
     {
         return InsertAt(index, &object, 1, enlarge);
     }
@@ -1056,12 +1059,7 @@ public:
         if (objects == nullptr || count < 1)
             return false;
 
-        int newSize = 0;
-
-        if (m_itemCount > index)
-            newSize = m_itemCount + count;
-        else
-            newSize = index + count;
+        const int newSize = (m_itemCount > index) ? m_itemCount + count : index + count;
 
         if (newSize >= m_itemSize)
         {
@@ -1072,22 +1070,27 @@ public:
         if (index >= m_itemCount)
         {
             for (int i = 0; i < count; i++)
-                m_elements[i + index] = objects[i];
-
-            m_itemCount = newSize;
+            {
+                if (&m_elements[i + index] != nullptr)
+                    m_elements[i + index] = objects[i];
+            }
         }
         else
         {
-            int i = 0;
+            for (int i = m_itemCount - 1; i >= index; i--)
+            {
+                if (&m_elements[i + count] != nullptr)
+                    m_elements[i + count] = m_elements[i];
+            }
 
-            for (i = m_itemCount; i > index; i--)
-                m_elements[i + count - 1] = m_elements[i - 1];
-
-            for (i = 0; i < count; i++)
-                m_elements[i + index] = objects[i];
-
-            m_itemCount += count;
+            for (int i = 0; i < count; i++)
+            {
+                if (&m_elements[i + index] != nullptr) 
+                    m_elements[i + index] = objects[i];
+            }
         }
+
+        m_itemCount = newSize;
 
         return true;
     }

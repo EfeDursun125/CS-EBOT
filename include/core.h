@@ -581,7 +581,7 @@ private:
 
 	bool m_isLeader; // bot is leader of his team
 
-	int m_messageQueue[32]; // stack for messages
+	int m_messageQueue[33]; // stack for messages
 	char m_tempStrings[512]; // space for strings (say text...)
 	char m_lastStrings[161]; // for block looping same text
 	edict_t* m_lastChatEnt; // for block looping message from same bot
@@ -596,7 +596,6 @@ private:
 	float m_itemCheckTime; // time next search for items needs to be done
 	PickupType m_pickupType; // type of entity which needs to be used/picked up
 	Vector m_breakable; // origin of breakable
-	Vector m_lastDamageOrigin; // last damage origin
 
 	edict_t* m_pickupItem; // pointer to entity of item to use/pickup
 	edict_t* m_itemIgnore; // pointer to entity to ignore for pickup
@@ -625,14 +624,7 @@ private:
 	float m_lookYawVel; // look yaw velocity
 	float m_lookPitchVel; // look pich velocity
 
-	Vector m_grenade; // calculated vector for grenades
-	Vector m_entity; // origin of entities like buttons etc.
-	Vector m_camp; // aiming vector when camping.
-
-	edict_t* m_targetEntity; // the entity that the bot is trying to reach
 	edict_t* m_hostages[Const_MaxHostages]; // pointer to used hostage entities
-
-	Vector m_moveTargetOrigin; // ...
 	Vector m_lastWallOrigin; // for better zombie avoiding
 
 	bool m_isStuck; // bot is stuck
@@ -644,10 +636,7 @@ private:
 	int m_reloadState; // current reload state
 
 	float m_msecInterval; // used for leon hartwig's method for msec calculation
-	float m_impulse; // lol
-
 	float m_frameInterval; // bot's frame interval
-	float m_aimInterval; // bot's aim interval
 
 	float m_reloadCheckTime; // time to check reloading
 	float m_zoomCheckTime; // time to check zoom again
@@ -660,8 +649,6 @@ private:
 
 	float m_duckTime; // time to duck
 	float m_jumpTime; // time last jump happened
-	float m_soundUpdateTime; // time to update the sound
-	float m_heardSoundTime; // last time noise is heard
 	float m_buttonPushTime; // time to push the button
 
 	Vector m_moveAngles; // bot move angles
@@ -819,32 +806,22 @@ public:
 	Vector m_destOrigin; // origin of move destination
 	Vector m_doubleJumpOrigin; // origin of double jump
 
-	Vector m_lastEnemyOrigin; // vector to last enemy origin
 	SayText m_sayTextBuffer; // holds the index & the actual message of the last unprocessed text message of a player
 	BurstMode m_weaponBurstMode; // bot using burst mode? (famas/glock18, but also silencer mode)
 
 	int m_pingOffset[2]; // offset for faking pings
 	int m_ping[3]; // bots pings in scoreboard
 
-	edict_t* m_enemy; // pointer to enemy entity
 	float m_enemyReachableTimer; // time to recheck if Enemy reachable
 	bool m_isEnemyReachable; // direct line to enemy
-
-	edict_t* m_moveTargetEntity; // target entity for move
 
 	float m_seeEnemyTime; // time bot sees enemy
 	float m_radiotimer; // a timer for radio call
 	float m_randomattacktimer; // a timer for make bots random attack with knife like humans
 	float m_slowthinktimer; // slow think timer
-	float m_aimStopTime; // feel like playing on a phone
 	float m_stayTime; // stay time (for simulate server)
 
-	int m_checkEnemyNum; // check enemy num idk
-
 	bool m_isSlowThink; // bool for check is slow think? (every second)
-
-	edict_t* m_lastEnemy; // pointer to last enemy entity
-	edict_t* m_lastVictim; // pointer to killed entity
 
 	float m_firePause; // time to pause firing
 	float m_weaponSelectDelay; // delay for reload
@@ -852,12 +829,6 @@ public:
 	int m_currentWeapon; // one current weapon for each bot
 	int m_ammoInClip[Const_MaxWeapons]; // ammo in clip for each weapons
 	int m_ammo[MAX_AMMO_SLOTS]; // total ammo amounts
-
-	edict_t* m_allEnemy[checkEnemyNum];
-	float m_allEnemyDistance[checkEnemyNum];
-
-	edict_t* m_checkEnemy[checkEnemyNum];
-	float m_checkEnemyDistance[checkEnemyNum];
 
 	// NEW VARS
 	Process m_currentProcess;
@@ -911,6 +882,8 @@ public:
 	void CheckSlowThink(void);
 
 	Process GetProcess(void);
+	float GetProcessTime(void);
+
 	bool SetProcess(const Process process, const char* debugNote = "clear", const bool rememberProcess = false, const float time = 999999.0f);
 	void StartProcess(const Process process);
 	void EndProcess(const Process process);
