@@ -458,7 +458,7 @@ int BotControl::AddBotAPI(const String& name, int skill, int team)
 	{
 		m_creationTab.RemoveAll(); // something wrong with waypoints, reset tab of creation
 		ebot_quota.SetInt(0); // reset quota
-		ChartPrint("[E-BOT] You can input [ebot sgdwp on] make the new waypoints!!");
+		ChatPrint("[E-BOT] You can input [ebot sgdwp on] make the new waypoints!!");
 	}
 	else if (resultOfCall == -2)
 	{
@@ -466,7 +466,7 @@ int BotControl::AddBotAPI(const String& name, int skill, int team)
 		ebot_quota.SetInt(GetBotsNum());
 	}
 
-	m_maintainTime = AddTime(0.2f);
+	m_maintainTime = AddTime(0.25f);
 
 	return resultOfCall;
 }
@@ -487,7 +487,7 @@ void BotControl::MaintainBotQuota(void)
 			m_creationTab.RemoveAll(); // something wrong with waypoints, reset tab of creation
 			ebot_quota.SetInt(0); // reset quota
 
-			ChartPrint("[E-BOT] You can input [ebot sgdwp on] make the new waypoints.");
+			ChatPrint("[E-BOT] You can input [ebot sgdwp on] make the new waypoints.");
 		}
 		else if (resultOfCall == -2)
 		{
@@ -596,7 +596,7 @@ void BotControl::FillServer(int selection, int personality, int skill, int numTo
 	}
 
 	ebot_quota.SetInt(toAdd);
-	CenterPrint("Filling the server with %s e-bots", &teamDescs[selection][0]);
+	CenterPrint("Filling the server with %s ebots", &teamDescs[selection][0]);
 }
 
 // this function drops all bot clients from server (this function removes only ebots)
@@ -992,7 +992,7 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	}
 
 	MDLL_ClientPutInServer(bot);
-	bot->v.flags |= FL_CLIENT;
+	bot->v.flags |= (FL_CLIENT | FL_FAKECLIENT);
 
 	// initialize all the variables for this bot...
 	m_notStarted = true;  // hasn't joined game yet

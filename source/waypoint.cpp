@@ -167,7 +167,7 @@ void AnalyzeThread(void)
                 continue;
 
             if ((ebot_analyzer_min_fps.GetFloat() + g_pGlobals->frametime) <= 1.0f / g_pGlobals->frametime)
-                magicTimer = engine->GetTime() + g_pGlobals->frametime * 0.054f; // pause
+                magicTimer = AddTime(g_pGlobals->frametime * 0.054f); // pause
 
             const Vector WayVec = g_waypoint->GetPath(i)->origin;
             const float range = ebot_analyze_distance.GetFloat();
@@ -713,9 +713,9 @@ void Waypoint::SgdWp_Set(const char* modset)
         {
             Initialize();
             Load(1);
-            ChartPrint("[SgdWP] I found the bad waypoint data ***");
-            ChartPrint("[SgdWP] And I will load your bad waypoint data right now ***");
-            ChartPrint("[SgdWP] If this is bad waypoint, you need delete this ***");
+            ChatPrint("[SgdWP] I found the bad waypoint data ***");
+            ChatPrint("[SgdWP] And I will load your bad waypoint data right now ***");
+            ChatPrint("[SgdWP] If this is bad waypoint, you need delete this ***");
         }
 
         ServerCommand("mp_roundtime 9");
@@ -731,7 +731,7 @@ void Waypoint::SgdWp_Set(const char* modset)
         if (g_numWaypoints < 1)
             CreateBasic();
 
-        ChartPrint("[SgdWP] Hold 'E' Call [SgdWP] Menu *******");
+        ChatPrint("[SgdWP] Hold 'E' Call [SgdWP] Menu *******");
     }
     else if (cstricmp(modset, "off") == 0)
     {
@@ -748,13 +748,13 @@ void Waypoint::SgdWp_Set(const char* modset)
             g_sgdWaypoint = false;
             g_waypointOn = false;
 
-            ChartPrint("[SgdWP] Save your waypoint - Finsh *******");
-            ChartPrint("[SgdWP] Please waypoints and restart the map *******");
+            ChatPrint("[SgdWP] Save your waypoint - Finsh *******");
+            ChatPrint("[SgdWP] Please waypoints and restart the map *******");
         }
         else
         {
             g_editNoclip = false;
-            ChartPrint("[SgdWP] Cannot Save your waypoint, Your waypoint has the problems!");
+            ChatPrint("[SgdWP] Cannot Save your waypoint, Your waypoint has the problems!");
         }
     }
 
@@ -1226,7 +1226,7 @@ void Waypoint::SetRadius(const int16 radius)
     if (g_sautoWaypoint)
     {
         m_sautoRadius = newRadius;
-        ChartPrint("[SgdWP Auto] Waypoint Radius is: %d ", m_sautoRadius);
+        ChatPrint("[SgdWP Auto] Waypoint Radius is: %d ", m_sautoRadius);
     }
 
     const int index = FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
@@ -2151,8 +2151,8 @@ bool Waypoint::Reachable(edict_t* entity, const int index)
     if (!IsValidWaypoint(index))
         return false;
 
-    Vector src = GetEntityOrigin(entity);
-    Vector dest = m_paths[index]->origin;
+    const Vector src = GetEntityOrigin(entity);
+    const Vector dest = m_paths[index]->origin;
 
     if ((dest - src).GetLengthSquared() >= SquaredF(1200.0f))
         return false;
@@ -2771,7 +2771,7 @@ void Waypoint::ShowWaypointMsg(void)
     // draw a paths, camplines and danger directions for nearest waypoint
     if (nearestDistance <= 2048 && m_pathDisplayTime <= engine->GetTime())
     {
-        m_pathDisplayTime = engine->GetTime() + 1.0f;
+        m_pathDisplayTime = AddTime(1.0f);
 
         // draw the connections
         for (int i = 0; i < Const_MaxPathIndex; i++)
@@ -2878,25 +2878,28 @@ void Waypoint::ShowWaypointMsg(void)
         }
 
         // draw entire message
-        MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, g_hostEntity);
-        WRITE_BYTE(TE_TEXTMESSAGE);
-        WRITE_BYTE(4); // channel
-        WRITE_SHORT(FixedSigned16(0, 1 << 13)); // x
-        WRITE_SHORT(FixedSigned16(0, 1 << 13)); // y
-        WRITE_BYTE(0); // effect
-        WRITE_BYTE(255); // r1
-        WRITE_BYTE(255); // g1
-        WRITE_BYTE(255); // b1
-        WRITE_BYTE(1); // a1
-        WRITE_BYTE(255); // r2
-        WRITE_BYTE(255); // g2
-        WRITE_BYTE(255); // b2
-        WRITE_BYTE(255); // a2
-        WRITE_SHORT(0); // fadeintime
-        WRITE_SHORT(0); // fadeouttime
-        WRITE_SHORT(FixedUnsigned16(1.1f, 1 << 8)); // holdtime
-        WRITE_STRING(tempMessage);
-        MESSAGE_END();
+        if (!g_isFakeCommand && !g_isMessage)
+        {
+            MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, g_hostEntity);
+            WRITE_BYTE(TE_TEXTMESSAGE);
+            WRITE_BYTE(4); // channel
+            WRITE_SHORT(FixedSigned16(0, 1 << 13)); // x
+            WRITE_SHORT(FixedSigned16(0, 1 << 13)); // y
+            WRITE_BYTE(0); // effect
+            WRITE_BYTE(255); // r1
+            WRITE_BYTE(255); // g1
+            WRITE_BYTE(255); // b1
+            WRITE_BYTE(1); // a1
+            WRITE_BYTE(255); // r2
+            WRITE_BYTE(255); // g2
+            WRITE_BYTE(255); // b2
+            WRITE_BYTE(255); // a2
+            WRITE_SHORT(0); // fadeintime
+            WRITE_SHORT(0); // fadeouttime
+            WRITE_SHORT(FixedUnsigned16(1.1f, 1 << 8)); // holdtime
+            WRITE_STRING(tempMessage);
+            MESSAGE_END();
+        }
     }
     else if (m_pathDisplayTime + 2.0f > engine->GetTime()) // what???
         m_pathDisplayTime = 0.0f;
@@ -2944,7 +2947,7 @@ bool Waypoint::NodesValid(void)
                     (*g_engfuncs.pfnSetOrigin) (g_hostEntity, m_paths[i]->origin);
                     haveError = true;
                     if (g_sgdWaypoint)
-                        ChartPrint("[SgdWP] Waypoint %d connected with invalid Waypoint #%d!", i, m_paths[i]->index[j]);
+                        ChatPrint("[SgdWP] Waypoint %d connected with invalid Waypoint #%d!", i, m_paths[i]->index[j]);
                 }
 
                 connections++;
@@ -2960,7 +2963,7 @@ bool Waypoint::NodesValid(void)
                 (*g_engfuncs.pfnSetOrigin) (g_hostEntity, m_paths[i]->origin);
                 haveError = true;
                 if (g_sgdWaypoint)
-                    ChartPrint("[SgdWP] Waypoint %d isn't connected with any other Waypoint!", i);
+                    ChatPrint("[SgdWP] Waypoint %d isn't connected with any other Waypoint!", i);
             }
         }
 
@@ -2987,7 +2990,7 @@ bool Waypoint::NodesValid(void)
 
                     haveError = true;
                     if (g_sgdWaypoint)
-                        ChartPrint("[SgdWP] Waypoint %d - Pathindex %d out of Range!", i, k);
+                        ChatPrint("[SgdWP] Waypoint %d - Pathindex %d out of Range!", i, k);
                 }
                 else if (m_paths[i]->index[k] == i)
                 {
@@ -2999,7 +3002,7 @@ bool Waypoint::NodesValid(void)
 
                     haveError = true;
                     if (g_sgdWaypoint)
-                        ChartPrint("[SgdWP] Waypoint %d - Pathindex %d points to itself!", i, k);
+                        ChatPrint("[SgdWP] Waypoint %d - Pathindex %d points to itself!", i, k);
                 }
             }
         }
@@ -3012,7 +3015,7 @@ bool Waypoint::NodesValid(void)
             AddLogEntry(LOG_WARNING, "You didn't set a Rescue Point!");
             haveError = true;
             if (g_sgdWaypoint)
-                ChartPrint("[SgdWP] You didn't set a Rescue Point!");
+                ChatPrint("[SgdWP] You didn't set a Rescue Point!");
         }
     }
 
@@ -3021,21 +3024,21 @@ bool Waypoint::NodesValid(void)
         AddLogEntry(LOG_WARNING, "You didn't set any Terrorist Important Point!");
         haveError = true;
         if (g_sgdWaypoint)
-            ChartPrint("[SgdWP] You didn't set any Terrorist Important Point!");
+            ChatPrint("[SgdWP] You didn't set any Terrorist Important Point!");
     }
     else if (ctPoints == 0 && GetGameMode() == MODE_BASE)
     {
         AddLogEntry(LOG_WARNING, "You didn't set any CT Important Point!");
         haveError = true;
         if (g_sgdWaypoint)
-            ChartPrint("[SgdWP] You didn't set any CT Important Point!");
+            ChatPrint("[SgdWP] You didn't set any CT Important Point!");
     }
     else if (goalPoints == 0 && GetGameMode() == MODE_BASE)
     {
         AddLogEntry(LOG_WARNING, "You didn't set any Goal Point!");
         haveError = true;
         if (g_sgdWaypoint)
-            ChartPrint("[SgdWP] You didn't set any Goal Point!");
+            ChatPrint("[SgdWP] You didn't set any Goal Point!");
     }
 
     CenterPrint("Waypoints are saved!");

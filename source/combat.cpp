@@ -57,7 +57,7 @@ void Bot::FindFriendsAndEnemiens(void)
 			// we don't know this enemy, where it can be?
 			if (!m_isZombieBot && client.ent != m_nearestEnemy)
 			{
-				if (!IsAttacking(client.ent) && !IsInViewCone(client.origin))
+				if (GetProcess() != Process::Camp && !IsAttacking(client.ent) && !IsInViewCone(client.ent->v.origin))
 					continue;
 
 				if (IsBehindSmokeClouds(client.ent))
@@ -68,7 +68,7 @@ void Bot::FindFriendsAndEnemiens(void)
 			}
 
 			m_enemiesNearCount++;
-			const float distance = (pev->origin - client.origin).GetLengthSquared();
+			const float distance = (pev->origin - client.ent->v.origin).GetLengthSquared();
 			if (distance < m_enemyDistance)
 			{
 				m_enemyDistance = distance;
@@ -297,7 +297,7 @@ bool Bot::DoFirePause(const float distance)
 	if (tanf(angle) * (distance + (distance * 0.25f)) > 100.0f)
 	{
 		if (m_firePause < (engine->GetTime() - 0.4))
-			m_firePause = engine->GetTime() + CRandomFloat(0.4f, (0.4f + 1.2f * ((100 - m_skill)) * 0.01f));
+			m_firePause = AddTime(CRandomFloat(0.4f, (0.4f + 1.2f * ((100 - m_skill)) * 0.01f)));
 
 		return true;
 	}
@@ -312,7 +312,7 @@ bool Bot::DoFirePause(const float distance)
 
 		if (pev->speed >= pev->maxspeed && !IsZombieMode())
 		{
-			m_firePause = engine->GetTime() + 0.1f;
+			m_firePause = AddTime(0.1f);
 			return true;
 		}
 	}
@@ -421,13 +421,13 @@ WeaponSelectEnd:
 	if (!m_isReloading)
 	{
 		m_reloadState = ReloadState::Nothing;
-		m_reloadCheckTime = engine->GetTime() + 6.0f;
+		m_reloadCheckTime = AddTime(6.0f);
 	}
 
 	if (IsZombieMode() && m_currentWeapon == melee && selectId != melee && !m_isZombieBot)
 	{
 		m_reloadState = ReloadState::Primary;
-		m_reloadCheckTime = engine->GetTime() + 2.5f;
+		m_reloadCheckTime = AddTime(2.5f);
 		return;
 	}
 
@@ -467,7 +467,7 @@ WeaponSelectEnd:
 			else if (IsShieldDrawn() || (IsValidPlayer(enemy) && enemy->v.button & IN_RELOAD))
 				pev->button |= IN_ATTACK2; // draw out the shield
 
-			m_shieldCheckTime = engine->GetTime() + 2.0f;
+			m_shieldCheckTime = AddTime(engine->GetTime());
 		}
 	}
 
@@ -533,7 +533,7 @@ WeaponSelectEnd:
 		{
 			pev->button |= IN_ATTACK;  // use primary attack
 			const float baseDelay = delay[chosenWeaponIndex].primaryBaseDelay;
-			const float minDelay = delay[chosenWeaponIndex].primaryMinDelay[cabs((m_skill / CRandomInt(15, 20)) - 5)];
+			const float minDelay = delay[chosenWeaponIndex].primaryMinDelay[cabs((m_skill / CRandomInt(10, 20)) - 5)];
 			const float maxDelay = delay[chosenWeaponIndex].primaryMaxDelay[cabs((m_skill / CRandomInt(20, 30)) - 5)];
 			delayTime = baseDelay + CRandomFloat(minDelay, maxDelay);
 			m_zoomCheckTime = engine->GetTime();
@@ -929,7 +929,7 @@ void Bot::SelectBestWeapon(void)
 		SelectWeaponByName(selectTab[selectIndex].weaponName);
 		m_isReloading = false;
 		m_reloadState = ReloadState::Nothing;
-		m_weaponSelectDelay = engine->GetTime() + 6.0f;
+		m_weaponSelectDelay = AddTime(engine->GetTime());
 	}
 }
 

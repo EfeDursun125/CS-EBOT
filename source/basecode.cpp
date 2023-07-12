@@ -717,7 +717,7 @@ void Bot::RadioMessage(const int message)
 
 	m_radioSelect = message;
 	PushMessageQueue(CMENU_RADIO);
-	m_radiotimer = engine->GetTime() + CRandomFloat(m_numFriendsLeft, m_numFriendsLeft * 1.5f);
+	m_radiotimer = AddTime(CRandomFloat(m_numFriendsLeft, m_numFriendsLeft * 1.5f));
 }
 
 // this function checks and executes pending messages
@@ -755,11 +755,11 @@ void Bot::CheckMessageQueue(void)
 			break;
 		}
 
-		m_nextBuyTime = engine->GetTime() + CRandomFloat(0.6f, 1.2f);
+		m_nextBuyTime = AddTime(CRandomFloat(0.6f, 1.2f));
 
 		// if freezetime is very low do not delay the buy process
 		if (engine->GetFreezeTime() <= 1.0f)
-			m_nextBuyTime = engine->GetTime() + CRandomFloat(0.2f, 0.4f);
+			m_nextBuyTime = AddTime(CRandomFloat(0.2f, 0.4f));
 
 		// if fun-mode no need to buy
 		if (ebot_knifemode.GetBool() && (ebot_eco_rounds.GetInt() != 1 || HasPrimaryWeapon()))
@@ -1829,7 +1829,7 @@ void Bot::BaseUpdate(void)
 
 		if (!m_isAlive)
 		{
-			if (!g_isFakeCommand)
+			if (!g_isFakeCommand && !g_isMessage)
 			{
 				extern ConVar ebot_random_join_quit;
 				if (ebot_random_join_quit.GetBool() && m_stayTime > 0.0f && m_stayTime < engine->GetTime())
@@ -2247,7 +2247,7 @@ void Bot::SecondThink(void)
 		m_numFriendsLeft = 0;
 	}
 
-	if (m_voteMap != 0 && !g_isFakeCommand) // host wants the bots to vote for a map?
+	if (m_voteMap != 0 && !g_isFakeCommand && !g_isMessage) // host wants the bots to vote for a map?
 	{
 		FakeClientCommand(GetEntity(), "votemap %d", m_voteMap);
 		m_voteMap = 0;
@@ -2504,25 +2504,28 @@ void Bot::DebugModeMsg(void)
 			m_moveSpeed, m_strafeSpeed,
 			m_stuckWarn, m_isStuck ? "Yes" : "No");
 
-		MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, g_hostEntity);
-		WRITE_BYTE(TE_TEXTMESSAGE);
-		WRITE_BYTE(1);
-		WRITE_SHORT(FixedSigned16(-1, 1 << 13));
-		WRITE_SHORT(FixedSigned16(0, 1 << 13));
-		WRITE_BYTE(0);
-		WRITE_BYTE(m_team == TEAM_COUNTER ? 0 : 255);
-		WRITE_BYTE(100);
-		WRITE_BYTE(m_team != TEAM_COUNTER ? 0 : 255);
-		WRITE_BYTE(0);
-		WRITE_BYTE(255);
-		WRITE_BYTE(255);
-		WRITE_BYTE(255);
-		WRITE_BYTE(0);
-		WRITE_SHORT(FixedUnsigned16(0, 1 << 8));
-		WRITE_SHORT(FixedUnsigned16(0, 1 << 8));
-		WRITE_SHORT(FixedUnsigned16(1.0, 1 << 8));
-		WRITE_STRING(const_cast<const char*>(&outputBuffer[0]));
-		MESSAGE_END();
+		if (!g_isFakeCommand && !g_isMessage)
+		{
+			MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, g_hostEntity);
+			WRITE_BYTE(TE_TEXTMESSAGE);
+			WRITE_BYTE(1);
+			WRITE_SHORT(FixedSigned16(-1, 1 << 13));
+			WRITE_SHORT(FixedSigned16(0, 1 << 13));
+			WRITE_BYTE(0);
+			WRITE_BYTE(m_team == TEAM_COUNTER ? 0 : 255);
+			WRITE_BYTE(100);
+			WRITE_BYTE(m_team != TEAM_COUNTER ? 0 : 255);
+			WRITE_BYTE(0);
+			WRITE_BYTE(255);
+			WRITE_BYTE(255);
+			WRITE_BYTE(255);
+			WRITE_BYTE(0);
+			WRITE_SHORT(FixedUnsigned16(0, 1 << 8));
+			WRITE_SHORT(FixedUnsigned16(0, 1 << 8));
+			WRITE_SHORT(FixedUnsigned16(1.0, 1 << 8));
+			WRITE_STRING(const_cast<const char*>(&outputBuffer[0]));
+			MESSAGE_END();
+		}
 
 		timeDebugUpdate = AddTime(1.0f);
 	}

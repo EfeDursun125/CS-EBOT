@@ -260,7 +260,7 @@ void Bot::FollowPath(const int targetIndex)
 	{
 		DoWaypointNav();
 
-		const Vector directionOld = m_waypointFlags & WAYPOINT_FALLRISK ? (m_destOrigin + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval) : m_destOrigin - (pev->origin + pev->velocity * m_frameInterval);
+		const Vector directionOld = (m_destOrigin + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval);
 		m_moveAngles = directionOld.ToAngles();
 		m_moveAngles.ClampAngles();
 		m_moveAngles.x = -m_moveAngles.x; // invert for engine
@@ -535,7 +535,7 @@ void Bot::DoWaypointNav(void)
 	}
 	else
 	{
-		distance = (pev->origin - m_destOrigin).GetLengthSquared2D();
+		distance = ((m_destOrigin + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval)).GetLengthSquared2D();
 
 		if (m_currentTravelFlags & PATHFLAG_JUMP)
 			desiredDistance = SquaredF(4.0f);
@@ -561,9 +561,6 @@ void Bot::DoWaypointNav(void)
 			}
 		}
 	}
-
-	if (desiredDistance < SquaredF(22.0f) && desiredDistance < SquaredF(30.0f) && ((pev->origin + pev->velocity * m_frameInterval) - m_destOrigin).GetLengthSquared() >= desiredDistance)
-		desiredDistance = desiredDistance + 1.0f;
 
 	if (distance <= desiredDistance)
 	{
@@ -2303,7 +2300,7 @@ void Bot::CheckStuck(const float maxSpeed)
 				else if (!(m_nearestFriend->v.button & IN_DUCK) && !(m_nearestFriend->v.oldbuttons & IN_DUCK))
 				{
 					if (m_duckTime < engine->GetTime())
-						m_duckTime = engine->GetTime() + CRandomFloat(1.0f, 2.0f);
+						m_duckTime = AddTime(CRandomFloat(1.0f, 2.0f));
 				}
 			}
 
@@ -2389,10 +2386,15 @@ void Bot::CheckStuck(const float maxSpeed)
 
 		return;
 	}
+	else if (m_stuckWarn >= 4 && !g_waypoint->Reachable(GetEntity(), m_currentWaypointIndex))
+	{
+		DeleteSearchNodes();
+		FindWaypoint();
+	}
 
 	const float distance = ((pev->origin + pev->velocity * m_frameInterval) - m_stuckArea).GetLengthSquared2D();
-	const float range = ((maxSpeed * 2.0f) + (m_stuckWarn + m_stuckWarn) + m_friendsNearCount);
-	if (distance < range)
+	const float range = ((maxSpeed * 2.22f) + (m_stuckWarn + m_stuckWarn) + m_friendsNearCount);
+	if (distance <= range)
 	{
 		m_stuckWarn++;
 
@@ -2400,7 +2402,6 @@ void Bot::CheckStuck(const float maxSpeed)
 		{
 			m_stuckWarn = 10;
 			DeleteSearchNodes();
-			m_currentWaypointIndex = -1;
 			FindWaypoint();
 		}
 
@@ -2415,7 +2416,6 @@ void Bot::CheckStuck(const float maxSpeed)
 		if (distance > SquaredF(range - m_friendsNearCount) && !IsVisible(m_destOrigin, GetEntity()))
 		{
 			DeleteSearchNodes();
-			m_currentWaypointIndex = -1;
 			FindWaypoint();
 		}
 
@@ -3273,14 +3273,14 @@ bool Bot::IsWaypointOccupied(int index, bool needZeroVelocity)
 			continue;
 
 		// do not check clients far away from us
-		if ((pev->origin - client.origin).GetLengthSquared() > SquaredF(320.0f))
+		if ((pev->origin - client.ent->v.origin).GetLengthSquared() > SquaredF(320.0f))
 			continue;
 
 		if (needZeroVelocity && client.ent->v.velocity != nullvec)
 			continue;
 
 		const auto path = g_waypoint->GetPath(index);
-		const float length = (client.origin - path->origin).GetLengthSquared();
+		const float length = (client.ent->v.origin - path->origin).GetLengthSquared();
 		if (length < cclampf(static_cast<float>(Squared(path->radius) * 2), SquaredF(40.0f), SquaredF(90.0f)))
 			return true;
 

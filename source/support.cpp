@@ -249,7 +249,7 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 
 		text = tempText;
 
-		while (strlen(text) >= 64)
+		while (!g_isFakeCommand && !g_isMessage && cstrlen(text) >= 64)
 		{
 			MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent);
 			WRITE_SHORT(menu->validSlots);
@@ -264,16 +264,19 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 			text += 64;
 		}
 
-		MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent);
-		WRITE_SHORT(menu->validSlots);
-		WRITE_CHAR(-1);
-		WRITE_BYTE(0);
-		WRITE_STRING(text);
-		MESSAGE_END();
+		if (!g_isFakeCommand && !g_isMessage)
+		{
+			MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent);
+			WRITE_SHORT(menu->validSlots);
+			WRITE_CHAR(-1);
+			WRITE_BYTE(0);
+			WRITE_STRING(text);
+			MESSAGE_END();
+		}
 
 		g_clients[clientIndex].menu = menu;
 	}
-	else
+	else if (!g_isFakeCommand && !g_isMessage)
 	{
 		MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent);
 		WRITE_SHORT(0);
@@ -295,7 +298,7 @@ void FreeLibraryMemory(void)
 	g_waypoint->Initialize(); // frees waypoint data
 }
 
-bool SetEntityAction(int index, int team, int action)
+bool SetEntityAction(const int index, const int team, const int action)
 {
 	int i;
 	if (index == -1)
@@ -343,7 +346,7 @@ bool SetEntityAction(int index, int team, int action)
 	return -1;
 }
 
-void SetEntityActionData(int i, int index, int team, int action)
+void SetEntityActionData(const int i, const int index, const int team, const int action)
 {
 	g_entityId[i] = index;
 	g_entityTeam[i] = team;
@@ -363,6 +366,9 @@ void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
 
 	// someone is using it :(
 	if (g_isFakeCommand)
+		return;
+
+	if (g_isMessage)
 		return;
 
 	if (!IsValidBot(fakeClient))
@@ -663,7 +669,7 @@ void AutoLoadGameMode(void)
 			if (TryFileOpen(FormatBuffer("%s/addons/amxmodx/configs/%s.ini", getModeName, bteGameINI[i])))
 			{
 				if (bteGameModAi[i] == 2 && i != 5)
-					g_DelayTimer = engine->GetTime() + 20.0f + CVAR_GET_FLOAT("mp_freezetime");
+					g_DelayTimer = AddTime(20.0f + CVAR_GET_FLOAT("mp_freezetime"));
 
 				if (checkShowTextTime < 3 || GetGameMode() != bteGameModAi[i])
 					ServerPrint("*** E-BOT Auto Game Mode Setting: CS:BTE [%s] [%d] ***", bteGameINI[i], bteGameModAi[i]);
@@ -692,7 +698,7 @@ void AutoLoadGameMode(void)
 	if (ebot_zp_delay_custom.GetFloat() > 0.0f)
 	{
 		SetGameMode(MODE_ZP);
-		g_DelayTimer = engine->GetTime() + ebot_zp_delay_custom.GetFloat() + 2.2f;
+		g_DelayTimer = AddTime(ebot_zp_delay_custom.GetFloat() + 2.22f);
 		g_mapType |= MAP_DE;
 		return;
 	}
@@ -735,7 +741,7 @@ void AutoLoadGameMode(void)
 					}
 
 					SetGameMode(MODE_ZP);
-					g_DelayTimer = engine->GetTime() + delayTime;
+					g_DelayTimer = AddTime(delayTime);
 					g_mapType |= MAP_DE;
 					return;
 				}
@@ -763,7 +769,7 @@ void AutoLoadGameMode(void)
 
 				SetGameMode(MODE_ZP);
 
-				g_DelayTimer = engine->GetTime() + delayTime;
+				g_DelayTimer = AddTime(delayTime);
 				g_mapType |= MAP_DE;
 				return;
 			}
@@ -829,7 +835,7 @@ void AutoLoadGameMode(void)
 
 				SetGameMode(MODE_ZP);
 
-				g_DelayTimer = engine->GetTime() + delayTime;
+				g_DelayTimer = AddTime(delayTime);
 				g_mapType |= MAP_DE;
 				return;
 			}
@@ -1109,7 +1115,7 @@ int GetEntityWaypoint(edict_t* ent)
 	}
 
 	const int client = ENTINDEX(ent) - 1;
-	if (g_clients[client].getWPTime < engine->GetTime() + 1.5f || (g_clients[client].wpIndex == -1 && g_clients[client].wpIndex2 == -1))
+	if (g_clients[client].getWPTime < AddTime(1.25f) || (g_clients[client].wpIndex == -1 && g_clients[client].wpIndex2 == -1))
 		SetEntityWaypoint(ent);
 
 	return g_clients[client].wpIndex;
@@ -1220,34 +1226,37 @@ void HudMessage(edict_t* ent, const bool toCenter, const Color& rgb, char* forma
 {
 	if (!IsValidPlayer(ent) || IsValidBot(ent))
 		return;
+	
+	if (!g_isFakeCommand && !g_isMessage)
+	{
+		va_list ap;
+		char buffer[1024];
 
-	va_list ap;
-	char buffer[1024];
+		va_start(ap, format);
+		vsprintf(buffer, format, ap);
+		va_end(ap);
 
-	va_start(ap, format);
-	vsprintf(buffer, format, ap);
-	va_end(ap);
-
-	MESSAGE_BEGIN(MSG_ONE, SVC_TEMPENTITY, nullptr, ent);
-	WRITE_BYTE(TE_TEXTMESSAGE);
-	WRITE_BYTE(1);
-	WRITE_SHORT(FixedSigned16(-1, 1 << 13));
-	WRITE_SHORT(FixedSigned16(toCenter ? -1.0f : 0.0f, 1 << 13));
-	WRITE_BYTE(2);
-	WRITE_BYTE(static_cast<int>(rgb.red));
-	WRITE_BYTE(static_cast<int>(rgb.green));
-	WRITE_BYTE(static_cast<int>(rgb.blue));
-	WRITE_BYTE(0);
-	WRITE_BYTE(CRandomInt(230, 255));
-	WRITE_BYTE(CRandomInt(230, 255));
-	WRITE_BYTE(CRandomInt(230, 255));
-	WRITE_BYTE(200);
-	WRITE_SHORT(FixedUnsigned16(0.0078125, 1 << 8));
-	WRITE_SHORT(FixedUnsigned16(2, 1 << 8));
-	WRITE_SHORT(FixedUnsigned16(6, 1 << 8));
-	WRITE_SHORT(FixedUnsigned16(0.1f, 1 << 8));
-	WRITE_STRING(const_cast<const char*>(&buffer[0]));
-	MESSAGE_END();
+		MESSAGE_BEGIN(MSG_ONE, SVC_TEMPENTITY, nullptr, ent);
+		WRITE_BYTE(TE_TEXTMESSAGE);
+		WRITE_BYTE(1);
+		WRITE_SHORT(FixedSigned16(-1, 1 << 13));
+		WRITE_SHORT(FixedSigned16(toCenter ? -1.0f : 0.0f, 1 << 13));
+		WRITE_BYTE(2);
+		WRITE_BYTE(static_cast<int>(rgb.red));
+		WRITE_BYTE(static_cast<int>(rgb.green));
+		WRITE_BYTE(static_cast<int>(rgb.blue));
+		WRITE_BYTE(0);
+		WRITE_BYTE(CRandomInt(230, 255));
+		WRITE_BYTE(CRandomInt(230, 255));
+		WRITE_BYTE(CRandomInt(230, 255));
+		WRITE_BYTE(200);
+		WRITE_SHORT(FixedUnsigned16(0.0078125, 1 << 8));
+		WRITE_SHORT(FixedUnsigned16(2, 1 << 8));
+		WRITE_SHORT(FixedUnsigned16(6, 1 << 8));
+		WRITE_SHORT(FixedUnsigned16(0.1f, 1 << 8));
+		WRITE_STRING(const_cast<const char*>(&buffer[0]));
+		MESSAGE_END();
+	}
 }
 
 void ServerPrint(const char* format, ...)
@@ -1289,13 +1298,16 @@ void CenterPrint(const char* format, ...)
 		return;
 	}
 
-	MESSAGE_BEGIN(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG));
-	WRITE_BYTE(HUD_PRINTCENTER);
-	WRITE_STRING(FormatBuffer("%s\n", string));
-	MESSAGE_END();
+	if (!g_isFakeCommand && !g_isMessage)
+	{
+		MESSAGE_BEGIN(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG));
+		WRITE_BYTE(HUD_PRINTCENTER);
+		WRITE_STRING(FormatBuffer("%s\n", string));
+		MESSAGE_END();
+	}
 }
 
-void ChartPrint(const char* format, ...)
+void ChatPrint(const char* format, ...)
 {
 	va_list ap;
 	char string[2048];
@@ -1310,17 +1322,20 @@ void ChartPrint(const char* format, ...)
 		return;
 	}
 
-	cstrcat(string, "\n");
+	if (!g_isFakeCommand && !g_isMessage)
+	{
+		cstrcat(string, "\n");
 
-	MESSAGE_BEGIN(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG));
-	WRITE_BYTE(HUD_PRINTTALK);
-	WRITE_STRING(string);
-	MESSAGE_END();
+		MESSAGE_BEGIN(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG));
+		WRITE_BYTE(HUD_PRINTTALK);
+		WRITE_STRING(string);
+		MESSAGE_END();
+	}
 }
 
 void ClientPrint(edict_t* ent, int dest, const char* format, ...)
 {
-	if (!IsValidPlayer(ent))
+	if (!IsValidPlayer(ent) || IsValidBot(ent))
 		return;
 
 	va_list ap;
@@ -1430,15 +1445,15 @@ void CheckWelcomeMessage(void)
 	static float receiveTime = -1.0f;
 
 	if (receiveTime == -1.0f && IsAlive(g_hostEntity))
-		receiveTime = engine->GetTime() + 10.0f;
+		receiveTime = AddTime(12.5f);
 
 	if (receiveTime > 0.0f && receiveTime < engine->GetTime())
 	{
 		const int buildVersion[4] = { PRODUCT_VERSION_DWORD };
 		const int bV16[4] = { buildVersion[0], buildVersion[1], buildVersion[2], buildVersion[3] };
 
-		ChartPrint("----- [%s %s] by %s -----", PRODUCT_NAME, PRODUCT_VERSION, PRODUCT_AUTHOR);
-		ChartPrint("***** Build: (%u.%u.%u.%u) *****", bV16[0], bV16[1], bV16[2], bV16[3]);
+		ChatPrint("----- [%s %s] by %s -----", PRODUCT_NAME, PRODUCT_VERSION, PRODUCT_AUTHOR);
+		ChatPrint("***** Build: (%u.%u.%u.%u) *****", bV16[0], bV16[1], bV16[2], bV16[3]);
 
 		receiveTime = 0.0f;
 	}
@@ -1600,7 +1615,7 @@ bool FindNearestPlayer(void** pvHolder, edict_t* to, float searchDistance, bool 
 		if ((sameTeam && client.team != GetTeam(to)) || (isAlive && !IsAlive(client.ent)) || (needBot && !IsValidBot(client.index)) || (needDrawn && (client.ent->v.effects & EF_NODRAW)))
 			continue; // filter players with parameters
 
-		const float distance = (client.origin - toOrigin).GetLengthSquared();
+		const float distance = (client.ent->v.origin - toOrigin).GetLengthSquared();
 		if (distance < nearestPlayer)
 		{
 			nearestPlayer = distance;

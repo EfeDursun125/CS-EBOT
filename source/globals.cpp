@@ -9,6 +9,7 @@ bool g_bombDefusing = false;
 bool g_bombSayString = false;
 bool g_editNoclip = false;
 bool g_isFakeCommand = false;
+bool g_isMessage = false;
 bool g_waypointOn = false;
 bool g_navmeshOn = false;
 bool g_waypointsChanged = true;

@@ -755,7 +755,7 @@ void LoadEntityData(void)
 			continue;
 		}
 
-		if (g_entityGetWpTime[i] + 1.55f < engine->GetTime() || g_entityWpIndex[i] == -1)
+		if (g_entityGetWpTime[i] + 1.0f < engine->GetTime() || g_entityWpIndex[i] == -1)
 			SetEntityWaypoint(entity);
 	}
 
@@ -2049,7 +2049,7 @@ void ClientCommand(edict_t* ent)
 					DisplayMenuToClient(ent, &g_menus[21]);
 					g_sautoWaypoint = g_sautoWaypoint ? false : true; // Auto Put Waypoint Mode
 					g_waypoint->SetLearnJumpWaypoint(g_sautoWaypoint ? 1 : 0);
-					ChartPrint("[SgdWP] Auto Put Waypoint Mode: %s", (g_sautoWaypoint ? "On" : "Off"));
+					ChatPrint("[SgdWP] Auto Put Waypoint Mode: %s", (g_sautoWaypoint ? "On" : "Off"));
 					break;
 
 				case 9:
@@ -2105,7 +2105,7 @@ void ClientCommand(edict_t* ent)
 
 				case 8:
 					g_waypoint->SetLearnJumpWaypoint();
-					ChartPrint("[SgdWP] You could Jump now, system will auto save your Jump Point");
+					ChatPrint("[SgdWP] You could Jump now, system will auto save your Jump Point");
 					break;
 
 				case 9:
@@ -2558,7 +2558,7 @@ void ClientCommand(edict_t* ent)
 				continue;
 
 			cstrcpy(bot->m_sayTextBuffer.sayText, CMD_ARGS());
-			bot->m_sayTextBuffer.timeNextChat = engine->GetTime() + bot->m_sayTextBuffer.chatDelay;
+			bot->m_sayTextBuffer.timeNextChat = AddTime(bot->m_sayTextBuffer.chatDelay);
 		}
 	}
 
@@ -2691,8 +2691,6 @@ void SetPing(edict_t* to)
 	}
 
 	static int sending;
-
-	// missing from sdk
 	static const int SVC_PINGS = 17;
 
 	for (const auto& bot : g_botManager->m_bots)
@@ -2762,7 +2760,6 @@ void JustAStuff(void)
 				continue;
 
 			edict_t* player = client.ent;
-			int index = client.index;
 
 			if (!FNullEnt(player) && (player->v.flags & FL_CLIENT))
 			{
@@ -2772,10 +2769,10 @@ void JustAStuff(void)
 				if (client.flags & CFLAG_OWNER)
 				{
 					if (IsNullString(key) && IsNullString(password))
-						g_clients[index].flags &= ~CFLAG_OWNER;
+						g_clients[client.index].flags &= ~CFLAG_OWNER;
 					else if (cstrcmp(password, INFOKEY_VALUE(GET_INFOKEYBUFFER(client.ent), (char*)key)) == 0)
 					{
-						g_clients[index].flags &= ~CFLAG_OWNER;
+						g_clients[client.index].flags &= ~CFLAG_OWNER;
 						ServerPrint("Player %s had lost remote access to ebot.", GetEntityName(player));
 					}
 				}
@@ -2783,7 +2780,7 @@ void JustAStuff(void)
 				{
 					if (cstrcmp(password, INFOKEY_VALUE(GET_INFOKEYBUFFER(client.ent), (char*)key)) == 0)
 					{
-						g_clients[index].flags |= CFLAG_OWNER;
+						g_clients[client.index].flags |= CFLAG_OWNER;
 						ServerPrint("Player %s had gained full remote access to ebot.", GetEntityName(player));
 					}
 				}
@@ -3029,6 +3026,7 @@ void pfnMessageBegin(int msgDest, int msgType, const float* origin, edict_t* ed)
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
 
+	g_isMessage = true;
 	MESSAGE_BEGIN(msgDest, msgType, origin, ed);
 }
 
@@ -3040,6 +3038,7 @@ void pfnMessageEnd(void)
 		RETURN_META(MRES_IGNORED);
 
 	MESSAGE_END();
+	g_isMessage = false;
 }
 
 void pfnWriteByte(int value)

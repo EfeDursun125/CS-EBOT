@@ -63,7 +63,7 @@ void NavMesh::Analyze(void)
         if (m_area[i] == nullptr)
             continue;
 
-        magicTimer = engine->GetTime() + g_pGlobals->frametime * 0.01f;
+        magicTimer = AddTime(g_pGlobals->frametime * 0.01f);
 
         const Vector WayVec = GetCenter(m_area[i]);
         const float range = 50.0f;
