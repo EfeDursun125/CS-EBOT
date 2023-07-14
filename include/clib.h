@@ -20,6 +20,7 @@ extern int cmax(const int a, const int b);
 extern int cmin(const int a, const int b);
 extern float csqrtf(const float value);
 extern float crsqrtf(const float value);
+extern float cpowf(const float a, const float b);
 extern float cabsf(const float value);
 extern int cabs(const int value);
 extern float cceilf(const float value);

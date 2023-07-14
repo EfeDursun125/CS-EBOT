@@ -1906,8 +1906,12 @@ typedef int (*META_ATTACH_FN) (PLUG_LOADTIME now, metamod_funcs_t* pFunctionTabl
 C_DLLEXPORT int Meta_Detach(PLUG_LOADTIME now, PL_UNLOAD_REASON reason);
 typedef int (*META_DETACH_FN) (PLUG_LOADTIME now, PL_UNLOAD_REASON reason);
 
+C_DLLEXPORT int GetEntityAPI_Post(DLL_FUNCTIONS* pFunctionTable, int interfaceVersion);
+C_DLLEXPORT int GetEntityAPI2_Post(DLL_FUNCTIONS* pFunctionTable, int* interfaceVersion);
+
 C_DLLEXPORT int GetNewDLLFunctions_Post(NEW_DLL_FUNCTIONS* pNewFunctionTable, int* interfaceVersion);
 C_DLLEXPORT int GetEngineFunctions(enginefuncs_t* pengfuncsFromEngine, int* interfaceVersion);
+C_DLLEXPORT int GetEngineFunctions_Post(enginefuncs_t* pengfuncsFromEngine, int* interfaceVersion);
 
 #define MDLL_FUNC   gpGamedllFuncs->dllapi_table
 

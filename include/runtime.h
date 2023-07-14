@@ -2312,7 +2312,7 @@ public:
 
     friend String operator + (const char* str, const String& holder)
     {
-        String result(const_cast <char*> (str));
+        String result(const_cast<char*>(str));
         result += holder;
 
         return result;

@@ -689,7 +689,6 @@ private:
 
 	edict_t* FindNearestButton(const char* className);
 	edict_t* FindButton(void);
-	int FindCoverWaypoint(float maxDistance);
 	int FindDefendWaypoint(const Vector& origin);
 	int FindGoal(void);
 
@@ -1166,6 +1165,7 @@ public:
 
 	void Initialize(void);
 
+	void AddGoals(void);
 	void Analyze(void);
 	void AnalyzeDeleteUselessWaypoints(void);
 	void InitTypes();
