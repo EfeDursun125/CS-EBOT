@@ -1,6 +1,9 @@
 ﻿//
-// Custom Math Lib For E-Bot
+// Custom Lib For E-Bot
 // E-Bot is ai controlled players for counter-strike 1.6
+// 
+// For reduce glibc requirements and take full advantage of compiler optimizations
+// And to get same results/performance on every OS
 //
 
 #include <core.h>
@@ -93,6 +96,11 @@ float csqrtf(const float value)
 float crsqrtf(const float value)
 {
 	return _mm_cvtss_f32(_mm_rsqrt_ss(_mm_load_ss(&value)));;
+}
+
+float cpowf(const float a, const float b)
+{
+	return powf(a, b);
 }
 
 float cabsf(const float value)

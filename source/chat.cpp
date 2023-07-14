@@ -191,7 +191,7 @@ void Bot::PrepareChatMessage(char* text)
                         talkEntity = entity;
 
                     if (!FNullEnt(talkEntity))
-                        cstrcat(m_tempStrings, HumanizeName(const_cast <char*> (GetEntityName(talkEntity))));
+                        cstrcat(m_tempStrings, HumanizeName(const_cast<char*>(GetEntityName(talkEntity))));
                 }
                 else // no teammates alive...
                 {
@@ -213,7 +213,7 @@ void Bot::PrepareChatMessage(char* text)
                         talkEntity = entity;
 
                         if (!FNullEnt(talkEntity))
-                            cstrcat(m_tempStrings, HumanizeName(const_cast <char*> (GetEntityName(talkEntity))));
+                            cstrcat(m_tempStrings, HumanizeName(const_cast<char*>(GetEntityName(talkEntity))));
                     }
                 }
             }
@@ -239,7 +239,7 @@ void Bot::PrepareChatMessage(char* text)
                     talkEntity = entity;
 
                     if (!FNullEnt(talkEntity))
-                        cstrcat(m_tempStrings, HumanizeName(const_cast <char*> (GetEntityName(talkEntity))));
+                        cstrcat(m_tempStrings, HumanizeName(const_cast<char*>(GetEntityName(talkEntity))));
                 }
                 else // no teammates alive...
                 {
@@ -260,7 +260,7 @@ void Bot::PrepareChatMessage(char* text)
                         talkEntity = entity;
 
                         if (!FNullEnt(talkEntity))
-                            cstrcat(m_tempStrings, HumanizeName(const_cast <char*> (GetEntityName(talkEntity))));
+                            cstrcat(m_tempStrings, HumanizeName(const_cast<char*>(GetEntityName(talkEntity))));
                     }
                 }
             }
@@ -286,7 +286,7 @@ void Bot::PrepareChatMessage(char* text)
                 talkEntity = m_nearestEnemy;
 
                 if (!FNullEnt(talkEntity))
-                    cstrcat(m_tempStrings, HumanizeName(const_cast <char*> (GetEntityName(talkEntity))));
+                    cstrcat(m_tempStrings, HumanizeName(const_cast<char*>(GetEntityName(talkEntity))));
             }
 
             pattern++;

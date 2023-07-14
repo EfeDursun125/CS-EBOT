@@ -161,7 +161,7 @@ float EuclideanDistance(const Vector start, const Vector goal)
     const float x = cabsf(start.x - goal.x);
     const float y = cabsf(start.y - goal.y);
     const float z = cabsf(start.z - goal.z);
-    const float euclidean = csqrtf(powf(x, 2.0f) + powf(y, 2.0f) + powf(z, 2.0f));
+    const float euclidean = csqrtf(cpowf(x, 2.0f) + cpowf(y, 2.0f) + cpowf(z, 2.0f));
     return 1000.0f * (cceilf(euclidean) - euclidean);
 }
 

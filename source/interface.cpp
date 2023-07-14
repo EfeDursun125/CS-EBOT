@@ -1111,8 +1111,6 @@ void GameDLLInit(void)
 		RETURN_META(MRES_IGNORED);
 
 	(*g_functionTable.pfnGameInit) ();
-
-	DetectCSVersion(); // determine version of currently running cs
 }
 
 int Spawn(edict_t* ent)
@@ -1231,6 +1229,20 @@ int Spawn(edict_t* ent)
 		}
 	}
 
+	if (g_isMetamod)
+		RETURN_META_VALUE(MRES_IGNORED, 0);
+
+	return (*g_functionTable.pfnSpawn) (ent);
+}
+
+int Spawn_Post(edict_t* ent)
+{
+	// this function asks the game DLL to spawn (i.e, give a physical existence in the virtual
+	// world, in other words to 'display') the entity pointed to by ent in the game. The
+	// Spawn() function is one of the functions any entity is supposed to have in the game DLL,
+	// and any MOD is supposed to implement one for each of its entities. Post version called
+	// only by metamod.
+
 	// solves the bots unable to see through certain types of glass bug.
 	if (ent->v.rendermode == kRenderTransTexture)
 		ent->v.flags &= ~FL_WORLDBRUSH; // clear the FL_WORLDBRUSH flag out of transparent ents
@@ -1240,15 +1252,10 @@ int Spawn(edict_t* ent)
 	if (bot != nullptr)
 		bot->NewRound();
 
-	if (g_isMetamod)
-		RETURN_META_VALUE(MRES_IGNORED, 0);
-
-	const int result = (*g_functionTable.pfnSpawn) (ent); // get result
-
-	return result;
+	RETURN_META_VALUE(MRES_IGNORED, 0);
 }
 
-void Touch(edict_t* pentTouched, edict_t* pentOther)
+void Touch_Post(edict_t* pentTouched, edict_t* pentOther)
 {
 	// this function is called when two entities' bounding boxes enter in collision. For example,
 	// when a player walks upon a gun, the player entity bounding box collides to the gun entity
@@ -1263,15 +1270,12 @@ void Touch(edict_t* pentTouched, edict_t* pentOther)
 
 	if (!FNullEnt(pentOther))
 	{
-		Bot* bot = g_botManager->GetBot(pentOther);
+		auto bot = g_botManager->GetBot(pentOther);
 		if (bot != nullptr)
 			bot->CheckTouchEntity(pentTouched);
 	}
 
-	if (g_isMetamod)
-		RETURN_META(MRES_IGNORED);
-
-	(*g_functionTable.pfnTouch) (pentTouched, pentOther);
+	RETURN_META(MRES_IGNORED);
 }
 
 int ClientConnect(edict_t* ent, const char* name, const char* addr, char rejectReason[128])
@@ -1360,7 +1364,7 @@ void ClientUserInfoChanged(edict_t* ent, char* infobuffer)
 
 	const int clientIndex = ENTINDEX(ent) - 1;
 
-	if (cstrcmp(password, INFOKEY_VALUE(infobuffer, const_cast <char*> (passwordField))) == 0)
+	if (cstrcmp(password, INFOKEY_VALUE(infobuffer, const_cast<char*>(passwordField))) == 0)
 		g_clients[clientIndex].flags |= CFLAG_OWNER;
 	else
 		g_clients[clientIndex].flags &= ~CFLAG_OWNER;
@@ -2741,7 +2745,7 @@ void UpdateClientData(const struct edict_s* ent, int sendweapons, struct clientd
 {
 	extern ConVar ebot_ping;
 	if (ebot_ping.GetBool())
-		SetPing(const_cast <edict_t*> (ent));
+		SetPing(const_cast<edict_t*>(ent));
 
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
@@ -2871,6 +2875,21 @@ void StartFrame(void)
 			g_botManager->MaintainBotQuota();
 	}
 
+	if (g_isMetamod)
+		RETURN_META(MRES_IGNORED);
+
+	(*g_functionTable.pfnStartFrame) ();
+}
+
+void StartFrame_Post(void)
+{
+	// this function starts a video frame. It is called once per video frame by the engine. If
+	// you run Half-Life at 90 fps, this function will then be called 90 times per second. By
+	// placing a hook on it, we have a good place to do things that should be done continuously
+	// during the game, for example making the bots think (yes, because no Think() function exists
+	// for the bots by the MOD side, remember).  Post version called only by metamod.
+
+	// **** AI EXECUTION STARTS ****
 	if (updateTimer < engine->GetTime())
 	{
 		g_botManager->Think();
@@ -2878,11 +2897,26 @@ void StartFrame(void)
 		if (g_gameVersion != CSVER_VERYOLD)
 			updateTimer = AddTime(0.03333333333f);
 	}
+	// **** AI EXECUTION FINISH ****
 
-	if (g_isMetamod)
-		RETURN_META(MRES_IGNORED);
+	RETURN_META(MRES_IGNORED);
+}
 
-	(*g_functionTable.pfnStartFrame) ();
+void GameDLLInit_Post(void)
+{
+	// this function is a one-time call, and appears to be the second function called in the
+	// DLL after FuncPointers_t() has been called. Its purpose is to tell the MOD DLL to
+	// initialize the game before the engine actually hooks into it with its video frames and
+	// clients connecting. Note that it is a different step than the *server* initialization.
+	// This one is called once, and only once, when the game process boots up before the first
+	// server is enabled. Here is a good place to do our own game session initialization, and
+	// to register by the engine side the server commands we need to administrate our bots. Post
+	// version, called only by metamod.
+
+	// determine version of currently running cs
+	DetectCSVersion();
+
+	RETURN_META(MRES_IGNORED);
 }
 
 void pfnChangeLevel(char* s1, char* s2)
@@ -3242,7 +3276,7 @@ void pfnClientPrintf(edict_t* ent, PRINT_TYPE printType, const char* message)
 
 void pfnSetClientMaxspeed(const edict_t* ent, float newMaxspeed)
 {
-	Bot* bot = g_botManager->GetBot(const_cast <edict_t*> (ent));
+	Bot* bot = g_botManager->GetBot(const_cast<edict_t*>(ent));
 
 	// check wether it's not a bot
 	if (bot != nullptr)
@@ -3255,6 +3289,14 @@ void pfnSetClientMaxspeed(const edict_t* ent, float newMaxspeed)
 		(*g_engfuncs.pfnSetClientMaxspeed) (ent, newMaxspeed);
 	else
 		(*g_engfuncs.pfnSetClientMaxspeed) (ent, newMaxspeed);
+}
+
+int pfnRegUserMsg_Post(const char* name, int size)
+{
+	if (g_isMetamod)
+		RETURN_META_VALUE(MRES_IGNORED, 0);
+
+	return REG_USER_MSG(name, size);
 }
 
 int pfnRegUserMsg(const char* name, int size)
@@ -3352,7 +3394,28 @@ exportc int GetEntityAPI2(DLL_FUNCTIONS* functionTable, int* /*interfaceVersion*
 	functionTable->pfnKeyValue = KeyValue;
 	functionTable->pfnStartFrame = StartFrame;
 	functionTable->pfnUpdateClientData = UpdateClientData;
-	functionTable->pfnTouch = Touch;
+
+	return true;
+}
+
+exportc int GetEntityAPI2_Post(DLL_FUNCTIONS* functionTable, int* /*interfaceVersion*/)
+{
+	// this function is called right after FuncPointers_t() by the engine in the game DLL (or
+	// what it BELIEVES to be the game DLL), in order to copy the list of MOD functions that can
+	// be called by the engine, into a memory block pointed to by the functionTable pointer
+	// that is passed into this function (explanation comes straight from botman). This allows
+	// the Half-Life engine to call these MOD DLL functions when it needs to spawn an entity,
+	// connect or disconnect a player, call Think() functions, Touch() functions, or Use()
+	// functions, etc. The bot DLL passes its OWN list of these functions back to the Half-Life
+	// engine, and then calls the MOD DLL's version of GetEntityAPI to get the REAL gamedll
+	// functions this time (to use in the bot code). Post version, called only by metamod.
+
+	cmemset(functionTable, 0, sizeof(DLL_FUNCTIONS));
+
+	functionTable->pfnSpawn = Spawn_Post;
+	functionTable->pfnStartFrame = StartFrame_Post;
+	functionTable->pfnGameInit = GameDLLInit_Post;
+	functionTable->pfnTouch = Touch_Post;
 
 	return true;
 }
@@ -3375,6 +3438,16 @@ exportc int GetNewDLLFunctions(NEW_DLL_FUNCTIONS* functionTable, int* interfaceV
 	}
 
 	gameDLLFunc.newapi_table = functionTable;
+	return true;
+}
+
+exportc int GetEngineFunctions_Post(enginefuncs_t* functionTable, int* /*interfaceVersion*/)
+{
+	if (g_isMetamod)
+		cmemset(functionTable, 0, sizeof(enginefuncs_t));
+
+	functionTable->pfnRegUserMsg = pfnRegUserMsg_Post;
+
 	return true;
 }
 

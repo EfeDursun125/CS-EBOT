@@ -55,13 +55,16 @@ void Bot::FindFriendsAndEnemiens(void)
 				continue;
 
 			// we don't know this enemy, where it can be?
-			if (!m_isZombieBot && client.ent != m_nearestEnemy)
+			if (client.ent != m_nearestEnemy)
 			{
-				if (GetProcess() != Process::Camp && !IsAttacking(client.ent) && !IsInViewCone(client.ent->v.origin))
-					continue;
+				if (!IsZombieMode())
+				{
+					if (GetProcess() != Process::Camp && !IsAttacking(client.ent) && !IsInViewCone(client.ent->v.origin))
+						continue;
 
-				if (IsBehindSmokeClouds(client.ent))
-					continue;
+					if (IsBehindSmokeClouds(client.ent))
+						continue;
+				}
 
 				if (IsNotAttackLab(client.ent))
 					continue;

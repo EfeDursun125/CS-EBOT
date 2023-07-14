@@ -215,10 +215,6 @@ bool Bot::EntityIsVisible(Vector dest, const bool fromBody)
 
 bool Bot::IsBehindSmokeClouds(edict_t* ent)
 {
-	// in zombie mode, flares are counted as smoke and breaks the bot's vision
-	if (IsZombieMode())
-		return false;
-
 	if (FNullEnt(ent))
 		return false;
 
@@ -391,7 +387,7 @@ void Bot::FindItem(void)
 			if (ent != m_pickupItem || ent->v.effects & EF_NODRAW || IsValidPlayer(ent->v.owner) || IsValidPlayer(ent))
 				continue; // someone owns this weapon or it hasn't re spawned yet
 
-			if (ItemIsVisible(GetEntityOrigin(ent), const_cast <char*> (STRING(ent->v.classname))))
+			if (ItemIsVisible(GetEntityOrigin(ent), const_cast<char*>(STRING(ent->v.classname))))
 				return;
 
 			break;
@@ -509,7 +505,7 @@ void Bot::FindItem(void)
 		if (distance > minDistance)
 			continue;
 
-		if (!ItemIsVisible(entityOrigin, const_cast <char*> (STRING(ent->v.classname))))
+		if (!ItemIsVisible(entityOrigin, const_cast<char*>(STRING(ent->v.classname))))
 		{
 			if (cstrncmp("grenade", STRING(ent->v.classname), 7) != 0 || cstrcmp(STRING(ent->v.model) + 9, "c4.mdl") != 0)
 				continue;

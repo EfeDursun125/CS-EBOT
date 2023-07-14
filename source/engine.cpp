@@ -9,8 +9,8 @@ void Engine::RegisterVariable(const char* variable, const char* value, VarType v
 {
     VarPair newVariable;
 
-    newVariable.reg.name = const_cast <char*> (variable);
-    newVariable.reg.string = const_cast <char*> (value);
+    newVariable.reg.name = const_cast<char*>(variable);
+    newVariable.reg.string = const_cast<char*>(value);
 
     int engineFlags = FCVAR_EXTDLL;
 

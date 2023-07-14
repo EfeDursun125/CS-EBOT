@@ -115,11 +115,11 @@ metamod_funcs_t gMetaFunctionTable =
    nullptr, // pfnEntityAPI_t ()
    nullptr, // pfnEntityAPI_t_Post ()
    GetEntityAPI2, // pfnEntityAPI_t2 ()
-   nullptr, // pfnEntityAPI_t2_Post ()
+   GetEntityAPI2_Post, // pfnEntityAPI_t2_Post ()
    nullptr, // pfnGetNewDLLFunctions ()
    nullptr, // pfnGetNewDLLFunctions_Post ()
    GetEngineFunctions, // pfnGetEngineFunctions ()
-   nullptr, // pfnGetEngineFunctions_Post ()
+   GetEngineFunctions_Post, // pfnGetEngineFunctions_Post ()
 };
 
 // metamod plugin information

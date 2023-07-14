@@ -514,12 +514,12 @@ void BotControl::MaintainBotQuota(void)
 		if (botNumber > desiredBotCount)
 		{
 			RemoveRandom();
-			m_maintainTime = AddTime(0.25f);
+			m_maintainTime = AddTime(0.15f);
 		}
 		else if (botNumber < desiredBotCount && botNumber < maxClients)
 		{
 			AddRandom();
-			m_maintainTime = AddTime(0.25f);
+			m_maintainTime = AddTime(0.15f);
 		}
 		else
 		{
@@ -1216,7 +1216,7 @@ void Bot::Kill(void)
 	(*g_engfuncs.pfnSetOrigin) (hurtEntity, Vector(-4000, -4000, -4000));
 
 	KeyValueData kv;
-	kv.szClassName = const_cast <char*> (g_weaponDefs[m_currentWeapon].className);
+	kv.szClassName = const_cast<char*>(g_weaponDefs[m_currentWeapon].className);
 	kv.szKeyName = "damagetype";
 	kv.szValue = FormatBuffer("%d", (1 << 4));
 	kv.fHandled = false;
