@@ -296,7 +296,6 @@
     <ClCompile Include="..\source\goap\throwsm.cpp" />
     <ClCompile Include="..\source\interface.cpp" />
     <ClCompile Include="..\source\navigate.cpp" />
-    <ClCompile Include="..\source\navmesh.cpp" />
     <ClCompile Include="..\source\netmsg.cpp" />
     <ClCompile Include="..\source\precomp.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='EBOT_Release|Win32'">Create</PrecompiledHeader>
@@ -308,7 +307,6 @@
   <ItemGroup>
     <ClInclude Include="..\include\callbacks.h" />
     <ClInclude Include="..\include\clib.h" />
-    <ClInclude Include="..\include\compress.h" />
     <ClInclude Include="..\include\core.h" />
     <ClInclude Include="..\include\engine.h" />
     <ClInclude Include="..\include\glibc.h" />

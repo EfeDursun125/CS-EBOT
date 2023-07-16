@@ -10,7 +10,6 @@
     <ClCompile Include="..\source\globals.cpp" />
     <ClCompile Include="..\source\interface.cpp" />
     <ClCompile Include="..\source\navigate.cpp" />
-    <ClCompile Include="..\source\navmesh.cpp" />
     <ClCompile Include="..\source\netmsg.cpp" />
     <ClCompile Include="..\source\precomp.cpp" />
     <ClCompile Include="..\source\support.cpp" />
@@ -58,7 +57,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\callbacks.h" />
-    <ClInclude Include="..\include\compress.h" />
     <ClInclude Include="..\include\core.h" />
     <ClInclude Include="..\include\engine.h" />
     <ClInclude Include="..\include\globals.h" />
