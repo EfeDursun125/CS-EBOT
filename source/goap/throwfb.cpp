@@ -16,11 +16,11 @@ void Bot::ThrowFBStart(void)
 
 void Bot::ThrowFBUpdate(void)
 {
-	//m_lookAt = m_throw;
+	LookAt(m_throw);
 
-	if (m_currentWeapon != WEAPON_FBGRENADE)
+	if (m_currentWeapon != Weapon::FbGrenade)
 	{
-		if (pev->weapons & (1 << WEAPON_FBGRENADE))
+		if (pev->weapons & (1 << Weapon::FbGrenade))
 			SelectWeaponByName("weapon_flashbang");
 		else // no grenade???
 			FinishCurrentProcess("i have throwed FB grenade");

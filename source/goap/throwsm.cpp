@@ -16,11 +16,11 @@ void Bot::ThrowSMStart(void)
 
 void Bot::ThrowSMUpdate(void)
 {
-	//m_lookAt = m_throw;
+	LookAt(m_lookAt);
 
-	if (m_currentWeapon != WEAPON_SMGRENADE)
+	if (m_currentWeapon != Weapon::SmGrenade)
 	{
-		if (pev->weapons & (1 << WEAPON_SMGRENADE))
+		if (pev->weapons & (1 << Weapon::SmGrenade))
 			SelectWeaponByName("weapon_smokegrenade");
 		else // no grenade???
 			FinishCurrentProcess("i have throwed SM grenade");

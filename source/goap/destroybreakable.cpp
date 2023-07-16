@@ -22,13 +22,13 @@ void Bot::DestroyBreakableUpdate(void)
 		return;
 	}
 
-	m_lookAt = m_breakable;
+	LookAt(m_breakable);
 	m_enemyDistance = FLT_MAX;
 	m_nearestEnemy = m_breakableEntity;
 	m_entityDistance = (pev->origin - m_breakable).GetLengthSquared();
 	m_nearestEntity = m_breakableEntity;
 
-	if (!m_isZombieBot && m_currentWeapon != WEAPON_KNIFE)
+	if (!m_isZombieBot && m_currentWeapon != Weapon::Knife)
 		FireWeapon();
 	else
 	{

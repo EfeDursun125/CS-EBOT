@@ -28,7 +28,7 @@ void Bot::DefaultUpdate(void)
 				m_currentWaypointIndex = -1;
 				DeleteSearchNodes();
 				MoveTo(m_enemyOrigin);
-				m_lookAt = m_enemyOrigin;
+				LookAt(m_enemyOrigin);
 
 				if (CRandomInt(1, 3) == 1)
 					pev->button |= IN_ATTACK2;
@@ -76,7 +76,7 @@ void Bot::DefaultUpdate(void)
 			if (m_itemCheckTime < engine->GetTime())
 			{
 				FindItem();
-				m_itemCheckTime = AddTime(g_gameVersion == HALFLIFE ? 1.25f : CRandomFloat(1.25f, 2.5f));
+				m_itemCheckTime = AddTime(g_gameVersion == Game::HalfLife ? 1.25f : CRandomFloat(1.25f, 2.5f));
 
 				if (GetEntityOrigin(m_pickupItem) != nullvec && SetProcess(Process::Pickup, "i see good stuff to pick it up", true, 20.0f))
 					return;

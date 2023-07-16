@@ -16,6 +16,7 @@ void Bot::AttackUpdate(void)
 	FindFriendsAndEnemiens();
 	FindEnemyEntities();
 	LookAtEnemies();
+	FacePosition();
 	CheckReload();
 
 	if (!m_hasEnemiesNear && !m_hasEntitiesNear)
@@ -23,9 +24,9 @@ void Bot::AttackUpdate(void)
 		// health based wait time
 		float wait = 2.0f - (pev->health / pev->max_health);
 
-		if (m_personality == PERSONALITY_CAREFUL)
+		if (m_personality == Personality::Careful)
 			wait = 3.0f - (pev->health / pev->max_health);
-		else if (m_personality == PERSONALITY_RUSHER && (m_currentWeapon == WEAPON_M3 || m_currentWeapon == WEAPON_XM1014 || m_currentWeapon == WEAPON_M249))
+		else if (m_personality == Personality::Rusher && (m_currentWeapon == Weapon::M3 || m_currentWeapon == Weapon::Xm1014 || m_currentWeapon == Weapon::M249))
 			wait = 0.75f;
 
 		// i'm alone
@@ -79,7 +80,7 @@ void Bot::AttackUpdate(void)
 		FireWeapon();
 
 	const float distance = m_enemyDistance;
-	const int melee = g_gameVersion == HALFLIFE ? WEAPON_CROWBAR : WEAPON_KNIFE;
+	const int melee = g_gameVersion == Game::HalfLife ? WeaponHL::Crowbar : Weapon::Knife;
 	if (m_currentWeapon == melee)
 	{
 		m_destOrigin = m_enemyOrigin;
@@ -96,21 +97,21 @@ void Bot::AttackUpdate(void)
 		}
 	}
 
-	if (g_gameVersion == HALFLIFE)
+	if (g_gameVersion == Game::HalfLife)
 	{
-		if (m_currentWeapon == WEAPON_MP5_HL && distance > SquaredF(300.0f) && distance <= SquaredF(800.0f))
+		if (m_currentWeapon == WeaponHL::Mp5_HL && distance > SquaredF(300.0f) && distance <= SquaredF(800.0f))
 		{
 			if (!(pev->oldbuttons & IN_ATTACK2) && !m_isSlowThink && CRandomInt(1, 3) == 1)
 				pev->button |= IN_ATTACK2;
 		}
-		else if (m_currentWeapon == WEAPON_CROWBAR && m_personality != PERSONALITY_CAREFUL)
+		else if (m_currentWeapon == WeaponHL::Crowbar && m_personality != Personality::Careful)
 			pev->button |= IN_ATTACK;
 	}
 
 	int approach;
 	if (!m_hasEnemiesNear && !m_hasEntitiesNear) // if suspecting enemy stand still
 		approach = 49;
-	else if (g_gameVersion != HALFLIFE && (m_isReloading || m_isVIP)) // if reloading or vip back off
+	else if (g_gameVersion != Game::HalfLife && (m_isReloading || m_isVIP)) // if reloading or vip back off
 		approach = 29;
 	else
 	{

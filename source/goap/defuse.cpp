@@ -16,7 +16,7 @@ void Bot::DefuseUpdate(void)
 		return;
 	}
 
-	m_lookAt = bombOrigin;
+	LookAt(bombOrigin);
 
 	if (EyePosition().z < bombOrigin.z)
 		pev->button |= IN_USE;
@@ -46,7 +46,7 @@ bool Bot::DefuseReq(void)
 	if (!g_bombPlanted)
 		return false;
 
-	if (m_team != TEAM_COUNTER)
+	if (m_team != Team::Counter)
 		return false;
 
 	if (g_waypoint->GetBombPosition() == nullvec)

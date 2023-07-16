@@ -37,7 +37,7 @@ void Bot::CampUpdate(void)
 
 		FindEnemyEntities();
 
-		if (!m_hasEnemiesNear && !g_isFakeCommand && !g_isMessage)
+		if (!m_hasEnemiesNear && !g_isFakeCommand)
 		{
 			extern ConVar ebot_chat;
 			if (ebot_chat.GetBool() && m_lastChatTime + 10.0f < engine->GetTime() && g_lastChatTime + 5.0f < engine->GetTime() && !RepliesToPlayer()) // bot chatting turned on?
@@ -74,19 +74,19 @@ void Bot::CampUpdate(void)
 		else
 		{
 			// standing still
-			if (m_hasEnemiesNear && m_currentWeapon != WEAPON_KNIFE && m_personality != PERSONALITY_RUSHER && pev->velocity.GetLengthSquared2D() <= 18.0f)
+			if (m_hasEnemiesNear && m_currentWeapon != Weapon::Knife && m_personality != Personality::Rusher && pev->velocity.GetLengthSquared2D() <= 18.0f)
 			{
 				bool crouch = true;
-				if (m_currentWeapon != WEAPON_M3 ||
-					m_currentWeapon != WEAPON_XM1014 ||
-					m_currentWeapon != WEAPON_G3SG1 ||
-					m_currentWeapon != WEAPON_SCOUT ||
-					m_currentWeapon != WEAPON_AWP ||
-					m_currentWeapon != WEAPON_M249 ||
-					m_currentWeapon != WEAPON_SG550)
+				if (m_currentWeapon != Weapon::M3 ||
+					m_currentWeapon != Weapon::Xm1014 ||
+					m_currentWeapon != Weapon::G3SG1 ||
+					m_currentWeapon != Weapon::Scout ||
+					m_currentWeapon != Weapon::Awp ||
+					m_currentWeapon != Weapon::M249 ||
+					m_currentWeapon != Weapon::Sg550)
 					crouch = false;
 
-				if (m_personality == PERSONALITY_NORMAL && m_enemyDistance < SquaredF(512.0f))
+				if (m_personality == Personality::Normal && m_enemyDistance < SquaredF(512.0f))
 					crouch = false;
 
 				if (crouch && IsVisible(m_enemyOrigin, GetEntity()))
@@ -156,9 +156,9 @@ void Bot::CampUpdate(void)
 						float max = 12.0f;
 						if (m_hasEnemiesNear)
 						{
-							if (m_personality == PERSONALITY_RUSHER)
+							if (m_personality == Personality::Rusher)
 								max = 16.0f;
-							else if (m_personality != PERSONALITY_CAREFUL)
+							else if (m_personality != Personality::Careful)
 								max = 8.0f;
 						}
 

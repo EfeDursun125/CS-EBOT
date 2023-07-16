@@ -10,7 +10,7 @@ void Bot::PickupUpdate(void)
 	if (!PickupReq())
 	{
 		m_pickupItem = nullptr;
-		m_pickupType = PICKTYPE_NONE;
+		m_pickupType = PickupType::None;
 		FinishCurrentProcess("i can't pickup this item...");
 		return;
 	}
@@ -24,7 +24,7 @@ void Bot::PickupUpdate(void)
 	if (destination == nullvec)
 	{
 		m_pickupItem = nullptr;
-		m_pickupType = PICKTYPE_NONE;
+		m_pickupType = PickupType::None;
 		FinishCurrentProcess("pickup item is disappeared...");
 		return;
 	}
@@ -43,15 +43,15 @@ void Bot::PickupUpdate(void)
 
 	switch (m_pickupType)
 	{
-	case PICKTYPE_GETENTITY:
-		if (FNullEnt(m_pickupItem) || (GetTeam(m_pickupItem) != -1 && m_team != GetTeam(m_pickupItem)))
+	case PickupType::GetEntity:
+		if (FNullEnt(m_pickupItem) || (GetTeam(m_pickupItem) != Team(-1) && m_team != GetTeam(m_pickupItem)))
 		{
 			m_pickupItem = nullptr;
-			m_pickupType = PICKTYPE_NONE;
+			m_pickupType = PickupType::None;
 		}
 		break;
 
-	case PICKTYPE_WEAPON:
+	case PickupType::Weapon:
 		// near to weapon?
 		if (itemDistance <= SquaredF(64.0f))
 		{
@@ -113,7 +113,7 @@ void Bot::PickupUpdate(void)
 
 		break;
 
-	case PICKTYPE_SHIELDGUN:
+	case PickupType::Shield:
 		if (HasShield())
 		{
 			m_pickupItem = nullptr;
@@ -142,8 +142,8 @@ void Bot::PickupUpdate(void)
 		}
 		break;
 
-	case PICKTYPE_PLANTEDC4:
-		if (m_team == TEAM_COUNTER && itemDistance <= SquaredF(64.0f))
+	case PickupType::PlantedC4:
+		if (m_team == Team::Counter && itemDistance <= SquaredF(64.0f))
 		{
 			if (!SetProcess(Process::Defuse, "trying to defusing the bomb", false, m_hasDefuser ? 6.0f : 12.0f))
 				FinishCurrentProcess("cannot start to defuse bomb");
@@ -151,8 +151,8 @@ void Bot::PickupUpdate(void)
 
 		break;
 
-	case PICKTYPE_HOSTAGE:
-		if (!IsAlive(m_pickupItem) || m_team != TEAM_COUNTER)
+	case PickupType::Hostage:
+		if (!IsAlive(m_pickupItem) || m_team != Team::Counter)
 		{
 			// don't pickup dead hostages
 			m_pickupItem = nullptr;
@@ -160,11 +160,11 @@ void Bot::PickupUpdate(void)
 			break;
 		}
 
-		m_lookAt = destination;
+		LookAt(destination);
 
 		if (itemDistance <= SquaredF(64.0f))
 		{
-			if (g_gameVersion == CSVER_XASH)
+			if (g_gameVersion == Game::Xash)
 				pev->button |= IN_USE;
 			else // use game dll function to make sure the hostage is correctly 'used'
 				MDLL_Use(m_pickupItem, GetEntity());
@@ -181,23 +181,23 @@ void Bot::PickupUpdate(void)
 		}
 		break;
 
-	case PICKTYPE_DEFUSEKIT:
-		if (m_hasDefuser || m_team != TEAM_COUNTER)
+	case PickupType::DefuseKit:
+		if (m_hasDefuser || m_team != Team::Counter)
 		{
 			m_pickupItem = nullptr;
-			m_pickupType = PICKTYPE_NONE;
+			m_pickupType = PickupType::None;
 		}
 		break;
 
-	case PICKTYPE_BUTTON:
+	case PickupType::Button:
 		if (FNullEnt(m_pickupItem) || m_buttonPushTime < engine->GetTime()) // it's safer...
 		{
 			FinishCurrentProcess("button is gone...");
-			m_pickupType = PICKTYPE_NONE;
+			m_pickupType = PickupType::None;
 			break;
 		}
 
-		m_lookAt = destination;
+		LookAt(destination);
 
 		// find angles from bot origin to entity...
 		const float angleToEntity = InFieldOfView(destination - EyePosition());
@@ -206,13 +206,13 @@ void Bot::PickupUpdate(void)
 		{
 			if (angleToEntity <= 10) // facing it directly?
 			{
-				if (g_gameVersion == CSVER_XASH)
+				if (g_gameVersion == Game::Xash)
 					pev->button |= IN_USE;
 				else
 					MDLL_Use(m_pickupItem, GetEntity());
 
 				m_pickupItem = nullptr;
-				m_pickupType = PICKTYPE_NONE;
+				m_pickupType = PickupType::None;
 				m_buttonPushTime = AddTime(engine->GetTime());
 				FinishCurrentProcess("i have pushed the button");
 			}
