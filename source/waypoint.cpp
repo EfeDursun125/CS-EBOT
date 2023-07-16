@@ -1,5 +1,4 @@
 #include <core.h>
-#include <compress.h>
 
 #ifdef PLATFORM_LINUX
 #include <cstdlib>
@@ -55,7 +54,7 @@ void CreateWaypoint(Vector WayVec, Vector Next, float range, const float goalDis
 
         if (!IsValidWaypoint(startindex))
         {
-            TraceResult tr2;
+            TraceResult tr2{};
             TraceHull(tr.vecEndPos, Vector(tr.vecEndPos.x, tr.vecEndPos.y, (tr.vecEndPos.z - 800.0f)), NO_BOTH, HULL_HEAD, g_hostEntity, &tr2);
 
             if (tr2.flFraction != 1.0f)
@@ -68,11 +67,11 @@ void CreateWaypoint(Vector WayVec, Vector Next, float range, const float goalDis
 
                 if (!IsValidWaypoint(endindex))
                 {
-                    const Vector targetOrigin = g_waypoint->GetPath(g_waypoint->FindNearestInCircle(TargetPosition, 256.0f))->origin;
-
                     const int doublecheckindex = g_waypoint->FindNearestInCircle(TargetPosition, range);
                     if (!IsValidWaypoint(doublecheckindex))
                     {
+                        const Vector targetOrigin = g_waypoint->GetPath(doublecheckindex)->origin;
+
                         g_analyzeputrequirescrouch = false;
 
                         TraceResult upcheck;
@@ -215,29 +214,6 @@ void AnalyzeThread(void)
             g_analyzewaypoints = false;
             g_waypointOn = false;
             g_waypoint->AnalyzeDeleteUselessWaypoints();
-            
-            /*for (int i = 0; i < g_numWaypoints; i++)
-            {
-                auto origin = g_waypoint->GetPath(i)->origin;
-                if (g_waypoint->GetPath(i)->flags & WAYPOINT_CROUCH)
-                    origin.z -= 18.0f;
-                else
-                    origin.z -= 36.0f;
-
-                g_navmesh->CreateArea(origin);
-            }
-
-            for (int i = 0; i < g_numNavAreas; i++)
-            {
-                auto area = g_navmesh->GetNavArea(i);
-                if (area == nullptr)
-                    continue;
-
-                g_navmesh->ExpandNavArea(area, 20.0f);
-            }
-
-            g_navmesh->OptimizeNavMesh();*/
-
             g_waypoint->AddGoals();
             g_waypoint->Save();
             g_waypoint->Load();
@@ -436,7 +412,7 @@ void Waypoint::AddPath(const int addIndex, const int pathIndex, const int type)
 
     for (int i = 0; i < Const_MaxPathIndex; i++)
     {
-        const float distance = (path->origin - g_waypoint->GetPath(path->index[i])->origin).GetLengthSquared();
+        const float distance = (path->origin - m_paths[path->index[i]]->origin).GetLengthSquared();
         if (distance > maxDistance)
         {
             maxDistance = distance;
@@ -631,7 +607,7 @@ int Waypoint::FindNearest(Vector origin, float minDistance, int flags, edict_t* 
             if (wpIndex[i] < 0 || wpIndex[i] >= g_numWaypoints)
                 continue;
 
-            const float distance = g_waypoint->GetPathDistance(wpIndex[i], mode);
+            const float distance = GetPathDistance(wpIndex[i], mode);
             for (int y = 0; y < checkPoint; y++)
             {
                 if (distance >= cdWPDistance[y])
@@ -667,7 +643,7 @@ int Waypoint::FindNearest(Vector origin, float minDistance, int flags, edict_t* 
             if (wpIndex[i] < 0 || wpIndex[i] >= g_numWaypoints)
                 continue;
 
-            if (wpDistance[i] > SquaredI(g_waypoint->GetPath(wpIndex[i])->radius) && !Reachable(entity, wpIndex[i]))
+            if (wpDistance[i] > SquaredI(m_paths[wpIndex[i]]->radius) && !Reachable(entity, wpIndex[i]))
                 continue;
 
             if (findWaypointPoint == (int*)-2)
@@ -862,7 +838,7 @@ void Waypoint::Add(const int flags, const Vector waypointOrigin)
         m_paths[index] = new Path;
         if (m_paths[index] == nullptr)
         {
-            AddLogEntry(LOG_MEMORY, "unexpected memory error");
+            AddLogEntry(Log::Memory, "unexpected memory error");
             return;
         }
 
@@ -1041,7 +1017,7 @@ void Waypoint::Add(const int flags, const Vector waypointOrigin)
             if (g_analyzewaypoints == true) // if we're analyzing, be careful (we dont want path errors)
             {
                 const float pathDist = (m_paths[i]->origin - newOrigin).GetLengthSquared2D();
-                if (g_waypoint->GetPath(i)->flags & WAYPOINT_LADDER && (IsNodeReachable(newOrigin, m_paths[i]->origin) || IsNodeReachableWithJump(newOrigin, m_paths[i]->origin, 0)) && pathDist <= addDist)
+                if (m_paths[i]->flags& WAYPOINT_LADDER && (IsNodeReachable(newOrigin, m_paths[i]->origin) || IsNodeReachableWithJump(newOrigin, m_paths[i]->origin, 0)) && pathDist <= addDist)
                 {
                     AddPath(index, i);
                     AddPath(i, index);
@@ -1221,7 +1197,7 @@ void Waypoint::ToggleFlags(int toggleFlag)
         {
             if (toggleFlag == WAYPOINT_SNIPER && !(m_paths[index]->flags & WAYPOINT_CAMP))
             {
-                AddLogEntry(LOG_ERROR, "Cannot assign sniper flag to waypoint #%d. This is not camp waypoint", index);
+                AddLogEntry(Log::Error, "Cannot assign sniper flag to waypoint #%d. This is not camp waypoint", index);
                 return;
             }
 
@@ -1236,32 +1212,19 @@ void Waypoint::ToggleFlags(int toggleFlag)
 // this function allow manually setting the zone radius
 void Waypoint::SetRadius(const int16 radius)
 {
-    int16 newRadius = radius;
-    if (radius < 4)
-        newRadius = 4;
-
-    if (g_sautoWaypoint)
-    {
-        m_sautoRadius = newRadius;
-        ChatPrint("[SgdWP Auto] Waypoint Radius is: %d ", m_sautoRadius);
-    }
+    if (radius < 0)
+        return;
 
     const int index = FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
     if (IsValidWaypoint(index))
     {
-        if (g_sautoWaypoint)
-        {
-            if (m_paths[index]->radius > 4)
-                return;
-        }
-
-        m_paths[index]->radius = newRadius;
+        m_paths[index]->radius = radius;
         PlaySound(g_hostEntity, "common/wpn_hudon.wav");
     }
 }
 
 // this function checks if waypoint A has a connection to waypoint B
-bool Waypoint::IsConnected(int pointA, int pointB)
+bool Waypoint::IsConnected(const int pointA, const int pointB)
 {
     for (int i = 0; i < Const_MaxPathIndex; i++)
     {
@@ -1801,7 +1764,6 @@ bool Waypoint::Download(void)
 bool Waypoint::Load(int mode)
 {
     m_badMapName = false;
-    g_isUsingNAV = false;
 
     File fp(CheckSubfolderFile(), "rb");
     if (fp.IsValid())
@@ -1814,7 +1776,7 @@ bool Waypoint::Load(int mode)
             m_badMapName = true;
 
             sprintf(m_infoBuffer, "%s.ewp - hacked/broken waypoint file, fileName doesn't match waypoint header information (mapname: '%s', header: '%s')", GetMapName(), GetMapName(), header.mapName);
-            AddLogEntry(LOG_ERROR, m_infoBuffer);
+            AddLogEntry(Log::Error, m_infoBuffer);
 
             fp.Close();
             return false;
@@ -1833,20 +1795,12 @@ bool Waypoint::Load(int mode)
 
                     if (m_paths[i] == nullptr)
                     {
-                        AddLogEntry(LOG_MEMORY, "unexpected memory error");
+                        AddLogEntry(Log::Memory, "unexpected memory error");
                         return false;
                     }
 
                     fp.Read(m_paths[i], sizeof(Path));
                 }
-
-                // FIXME I RETURN -1
-                /*const int load = Compressor::Uncompress(CheckSubfolderFile(), sizeof(WaypointHeader), (unsigned char*)m_paths, g_numWaypoints * sizeof(Path));
-                if (load == -1)
-                {
-                    AddLogEntry(LOG_ERROR, "cannot able to load waypoints due of unexpected error");
-                    return false;
-                }*/
             }
             else
             {
@@ -1858,7 +1812,7 @@ bool Waypoint::Load(int mode)
                     paths[i] = new PathOLD;
                     if (paths[i] == nullptr)
                     {
-                        AddLogEntry(LOG_MEMORY, "unexpected memory error");
+                        AddLogEntry(Log::Memory, "unexpected memory error");
                         return false;
                     }
 
@@ -1867,7 +1821,7 @@ bool Waypoint::Load(int mode)
                     m_paths[i] = new Path;
                     if (m_paths[i] == nullptr)
                     {
-                        AddLogEntry(LOG_MEMORY, "unexpected memory error");
+                        AddLogEntry(Log::Memory, "unexpected memory error");
                         return false;
                     }
 
@@ -1907,31 +1861,20 @@ bool Waypoint::Load(int mode)
     }
     else
     {
-        bool nav = g_navmesh->LoadNav();
-        if (!nav)
+        if (ebot_analyze_auto_start.GetBool())
         {
-            if (ebot_analyze_auto_start.GetBool())
-            {
-                g_waypoint->CreateBasic();
+            g_waypoint->CreateBasic();
 
-                // no expand
-                for (int i = 0; i < (Const_MaxWaypoints - 1); i++)
-                    g_expanded[i] = false;
+            // no expand
+            for (int i = 0; i < (Const_MaxWaypoints - 1); i++)
+                g_expanded[i] = false;
 
-                g_analyzewaypoints = true;
-            }
-            else
-            {
-                sprintf(m_infoBuffer, "%s.ewp does not exist, pleasue use 'ebot wp analyze' for create waypoints! (dont forget using 'ebot wp analyzeoff' when finished)", GetMapName());
-                AddLogEntry(LOG_ERROR, m_infoBuffer);
-            }
+            g_analyzewaypoints = true;
         }
         else
         {
-            InitTypes();
-            sprintf(m_infoBuffer, "Using Navigation File");
-            g_isUsingNAV = true;
-            g_waypointsChanged = false;
+            sprintf(m_infoBuffer, "%s.ewp does not exist, pleasue use 'ebot wp analyze' for create waypoints! (dont forget using 'ebot wp analyzeoff' when finished)", GetMapName());
+            AddLogEntry(Log::Error, m_infoBuffer);
         }
 
         return false;
@@ -2002,12 +1945,7 @@ void Waypoint::Save(void)
         fp.Close();
     }
     else
-        AddLogEntry(LOG_ERROR, "Error writing '%s.ewp' waypoint file", GetMapName());
-
-    // FIX Uncompress
-    /*const int save = Compressor::Compress(CheckSubfolderFile(false), (unsigned char*)&header, sizeof(WaypointHeader), (unsigned char*)m_paths, g_numWaypoints * sizeof(Path));
-    if (save == -1)
-        AddLogEntry(LOG_ERROR, "Error writing '%s' waypoint file", GetMapName());*/
+        AddLogEntry(Log::Error, "Error writing '%s.ewp' waypoint file", GetMapName());
 }
 
 void Waypoint::SaveOLD(void)
@@ -2119,7 +2057,7 @@ void Waypoint::SaveOLD(void)
         fp.Close();
     }
     else
-        AddLogEntry(LOG_ERROR, "Error writing '%s' waypoint file", GetMapName());
+        AddLogEntry(Log::Error, "Error writing '%s' waypoint file", GetMapName());
 }
 
 String Waypoint::CheckSubfolderFile(const bool pwf)
@@ -2896,28 +2834,25 @@ void Waypoint::ShowWaypointMsg(void)
         }
 
         // draw entire message
-        if (!g_isFakeCommand && !g_isMessage)
-        {
-            MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, g_hostEntity);
-            WRITE_BYTE(TE_TEXTMESSAGE);
-            WRITE_BYTE(4); // channel
-            WRITE_SHORT(FixedSigned16(0, 1 << 13)); // x
-            WRITE_SHORT(FixedSigned16(0, 1 << 13)); // y
-            WRITE_BYTE(0); // effect
-            WRITE_BYTE(255); // r1
-            WRITE_BYTE(255); // g1
-            WRITE_BYTE(255); // b1
-            WRITE_BYTE(1); // a1
-            WRITE_BYTE(255); // r2
-            WRITE_BYTE(255); // g2
-            WRITE_BYTE(255); // b2
-            WRITE_BYTE(255); // a2
-            WRITE_SHORT(0); // fadeintime
-            WRITE_SHORT(0); // fadeouttime
-            WRITE_SHORT(FixedUnsigned16(1.1f, 1 << 8)); // holdtime
-            WRITE_STRING(tempMessage);
-            MESSAGE_END();
-        }
+        MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, g_hostEntity);
+        WRITE_BYTE(TE_TEXTMESSAGE);
+        WRITE_BYTE(4); // channel
+        WRITE_SHORT(FixedSigned16(0, 1 << 13)); // x
+        WRITE_SHORT(FixedSigned16(0, 1 << 13)); // y
+        WRITE_BYTE(0); // effect
+        WRITE_BYTE(255); // r1
+        WRITE_BYTE(255); // g1
+        WRITE_BYTE(255); // b1
+        WRITE_BYTE(1); // a1
+        WRITE_BYTE(255); // r2
+        WRITE_BYTE(255); // g2
+        WRITE_BYTE(255); // b2
+        WRITE_BYTE(255); // a2
+        WRITE_SHORT(0); // fadeintime
+        WRITE_SHORT(0); // fadeouttime
+        WRITE_SHORT(FixedUnsigned16(1.1f, 1 << 8)); // holdtime
+        WRITE_STRING(tempMessage);
+        MESSAGE_END();
     }
     else if (m_pathDisplayTime + 2.0f > engine->GetTime()) // what???
         m_pathDisplayTime = 0.0f;
@@ -2961,7 +2896,7 @@ bool Waypoint::NodesValid(void)
             {
                 if (m_paths[i]->index[j] > g_numWaypoints)
                 {
-                    AddLogEntry(LOG_WARNING, "Waypoint %d connected with invalid Waypoint #%d!", i, m_paths[i]->index[j]);
+                    AddLogEntry(Log::Warning, "Waypoint %d connected with invalid Waypoint #%d!", i, m_paths[i]->index[j]);
                     (*g_engfuncs.pfnSetOrigin) (g_hostEntity, m_paths[i]->origin);
                     haveError = true;
                     if (g_sgdWaypoint)
@@ -2977,7 +2912,7 @@ bool Waypoint::NodesValid(void)
         {
             if (!IsConnected(i))
             {
-                AddLogEntry(LOG_WARNING, "Waypoint %d isn't connected with any other Waypoint!", i);
+                AddLogEntry(Log::Warning, "Waypoint %d isn't connected with any other Waypoint!", i);
                 (*g_engfuncs.pfnSetOrigin) (g_hostEntity, m_paths[i]->origin);
                 haveError = true;
                 if (g_sgdWaypoint)
@@ -3000,7 +2935,7 @@ bool Waypoint::NodesValid(void)
             {
                 if (m_paths[i]->index[k] >= g_numWaypoints || m_paths[i]->index[k] < -1)
                 {
-                    AddLogEntry(LOG_WARNING, "Waypoint %d - Pathindex %d out of Range!", i, k);
+                    AddLogEntry(Log::Warning, "Waypoint %d - Pathindex %d out of Range!", i, k);
                     (*g_engfuncs.pfnSetOrigin) (g_hostEntity, m_paths[i]->origin);
 
                     g_waypointOn = true;
@@ -3012,7 +2947,7 @@ bool Waypoint::NodesValid(void)
                 }
                 else if (m_paths[i]->index[k] == i)
                 {
-                    AddLogEntry(LOG_WARNING, "Waypoint %d - Pathindex %d points to itself!", i, k);
+                    AddLogEntry(Log::Warning, "Waypoint %d - Pathindex %d points to itself!", i, k);
                     (*g_engfuncs.pfnSetOrigin) (g_hostEntity, m_paths[i]->origin);
 
                     g_waypointOn = true;
@@ -3026,34 +2961,34 @@ bool Waypoint::NodesValid(void)
         }
     }
 
-    if (g_mapType & MAP_CS && GetGameMode() == MODE_BASE)
+    if (g_mapType & MAP_CS && GetGameMode() == GameMode::Original)
     {
         if (rescuePoints == 0)
         {
-            AddLogEntry(LOG_WARNING, "You didn't set a Rescue Point!");
+            AddLogEntry(Log::Warning, "You didn't set a Rescue Point!");
             haveError = true;
             if (g_sgdWaypoint)
                 ChatPrint("[SgdWP] You didn't set a Rescue Point!");
         }
     }
 
-    if (terrPoints == 0 && GetGameMode() == MODE_BASE)
+    if (terrPoints == 0 && GetGameMode() == GameMode::Original)
     {
-        AddLogEntry(LOG_WARNING, "You didn't set any Terrorist Important Point!");
+        AddLogEntry(Log::Warning, "You didn't set any Terrorist Important Point!");
         haveError = true;
         if (g_sgdWaypoint)
             ChatPrint("[SgdWP] You didn't set any Terrorist Important Point!");
     }
-    else if (ctPoints == 0 && GetGameMode() == MODE_BASE)
+    else if (ctPoints == 0 && GetGameMode() == GameMode::Original)
     {
-        AddLogEntry(LOG_WARNING, "You didn't set any CT Important Point!");
+        AddLogEntry(Log::Warning, "You didn't set any CT Important Point!");
         haveError = true;
         if (g_sgdWaypoint)
             ChatPrint("[SgdWP] You didn't set any CT Important Point!");
     }
-    else if (goalPoints == 0 && GetGameMode() == MODE_BASE)
+    else if (goalPoints == 0 && GetGameMode() == GameMode::Original)
     {
-        AddLogEntry(LOG_WARNING, "You didn't set any Goal Point!");
+        AddLogEntry(Log::Warning, "You didn't set any Goal Point!");
         haveError = true;
         if (g_sgdWaypoint)
             ChatPrint("[SgdWP] You didn't set any Goal Point!");

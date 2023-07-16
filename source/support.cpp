@@ -1,5 +1,4 @@
 ﻿#include <core.h>
-#include <exception>
 
 //
 // TODO:
@@ -9,6 +8,7 @@
 
 ConVar ebot_ignore_enemies("ebot_ignore_enemies", "0");
 ConVar ebot_zp_delay_custom("ebot_zp_delay_custom", "0.0");
+ConVar ebot_auto_gamemode("ebot_auto_gamemode", "1");
 
 void TraceLine(const Vector& start, const Vector& end, bool ignoreMonsters, bool ignoreGlass, edict_t* ignoreEntity, TraceResult* ptr)
 {
@@ -81,9 +81,6 @@ short FixedSigned16(float value, float scale)
 
 bool IsAlive(const edict_t* ent)
 {
-	if (FNullEnt(ent))
-		return false; // reliability check
-
 	return (ent->v.deadflag == DEAD_NO) && (ent->v.health > 0) && (ent->v.movetype != MOVETYPE_NOCLIP);
 }
 
@@ -249,7 +246,7 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 
 		text = tempText;
 
-		while (!g_isFakeCommand && !g_isMessage && cstrlen(text) >= 64)
+		while (cstrlen(text) >= 64)
 		{
 			MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent);
 			WRITE_SHORT(menu->validSlots);
@@ -264,19 +261,16 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 			text += 64;
 		}
 
-		if (!g_isFakeCommand && !g_isMessage)
-		{
-			MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent);
-			WRITE_SHORT(menu->validSlots);
-			WRITE_CHAR(-1);
-			WRITE_BYTE(0);
-			WRITE_STRING(text);
-			MESSAGE_END();
-		}
+		MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent);
+		WRITE_SHORT(menu->validSlots);
+		WRITE_CHAR(-1);
+		WRITE_BYTE(0);
+		WRITE_STRING(text);
+		MESSAGE_END();
 
 		g_clients[clientIndex].menu = menu;
 	}
-	else if (!g_isFakeCommand && !g_isMessage)
+	else
 	{
 		MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent);
 		WRITE_SHORT(0);
@@ -363,13 +357,6 @@ void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
 	// as real players. It is an improved version of botman's FakeClientCommand, in which you
 	// supply directly the whole string as if you were typing it in the bot's "console". It
 	// is supposed to work exactly like the pfnClientCommand (server-sided client command).
-
-	// someone is using it :(
-	if (g_isFakeCommand)
-		return;
-
-	if (g_isMessage)
-		return;
 
 	if (!IsValidBot(fakeClient))
 		return;
@@ -576,7 +563,7 @@ void RoundInit(void)
 			continue;
 
 		bot->NewRound();
-		g_radioSelect[bot->m_index - 1] = 0;
+		g_radioSelect[bot->GetIndex() - 1] = 0;
 	}
 
 	g_bombSayString = false;
@@ -587,15 +574,16 @@ void RoundInit(void)
 
 	g_waypoint->SetBombPosition(true);
 
-	if (g_gameVersion != HALFLIFE)
+	if (g_gameVersion != Game::HalfLife)
 	{
-		AutoLoadGameMode();
+		if (ebot_auto_gamemode.GetBool())
+			AutoLoadGameMode();
 
-		if (GetGameMode() == MODE_BASE)
+		if (GetGameMode() == GameMode::Original)
 		{
 			// check team economics
-			g_botManager->CheckTeamEconomics(TEAM_TERRORIST);
-			g_botManager->CheckTeamEconomics(TEAM_COUNTER);
+			g_botManager->CheckTeamEconomics(Team::Terrorist);
+			g_botManager->CheckTeamEconomics(Team::Counter);
 		}
 
 		// calculate the round mid/end in world time
@@ -603,15 +591,15 @@ void RoundInit(void)
 		g_timeRoundMid = g_timeRoundStart + engine->GetRoundTime() * 30.0f;
 		g_timeRoundEnd = g_timeRoundStart + engine->GetRoundTime() * 60.0f;
 
-		g_botManager->SelectLeaderEachTeam(TEAM_COUNTER);
-		g_botManager->SelectLeaderEachTeam(TEAM_COUNTER);
+		g_botManager->SelectLeaderEachTeam(Team::Counter);
+		g_botManager->SelectLeaderEachTeam(Team::Counter);
 	}
 	else
 	{
 		g_timeRoundStart = engine->GetTime();
 		g_timeRoundMid = g_timeRoundStart + 999999.0f;
 		g_timeRoundEnd = g_timeRoundStart + 999999.0f;
-		SetGameMode(MODE_DM);
+		SetGameMode(GameMode::Deathmatch);
 	}
 }
 
@@ -630,21 +618,21 @@ void AutoLoadGameMode(void)
 	if (TryFileOpen(Plugin_INI) || TryFileOpen(FormatBuffer("%s/addons/amxmodx/configs/bte_config/bte_blockresource.txt", getModeName)))
 	{
 		const int Const_GameModes = 13;
-		int bteGameModAi[Const_GameModes] =
+		GameMode bteGameModAi[Const_GameModes] =
 		{
-			MODE_BASE,		//1
-			MODE_TDM,		//2
-			MODE_DM,		//3
-			MODE_NOTEAM,	//4
-			MODE_TDM,		//5
-			MODE_ZP,		//6
-			MODE_ZP,		//7
-			MODE_ZP,		//8
-			MODE_ZP,		//9
-			MODE_ZH,		//10
-			MODE_ZP,		//11
-			MODE_NOTEAM,	//12
-			MODE_ZP			//13
+			GameMode::Original,		//1
+			GameMode::TeamDeathmatch,		//2
+			GameMode::Deathmatch,		//3
+			GameMode::NoTeam,	//4
+			GameMode::TeamDeathmatch,		//5
+			GameMode::ZombiePlague,		//6
+			GameMode::ZombiePlague,		//7
+			GameMode::ZombiePlague,		//8
+			GameMode::ZombiePlague,		//9
+			GameMode::ZombieHell,		//10
+			GameMode::ZombiePlague,		//11
+			GameMode::NoTeam,	//12
+			GameMode::ZombiePlague			//13
 		};
 
 		char* bteGameINI[Const_GameModes] =
@@ -668,7 +656,7 @@ void AutoLoadGameMode(void)
 		{
 			if (TryFileOpen(FormatBuffer("%s/addons/amxmodx/configs/%s.ini", getModeName, bteGameINI[i])))
 			{
-				if (bteGameModAi[i] == 2 && i != 5)
+				if (bteGameModAi[i] == GameMode(2) && i != 5)
 					g_DelayTimer = AddTime(20.0f + CVAR_GET_FLOAT("mp_freezetime"));
 
 				if (checkShowTextTime < 3 || GetGameMode() != bteGameModAi[i])
@@ -677,12 +665,12 @@ void AutoLoadGameMode(void)
 				if (i == 3 || i == 9)
 				{
 					ServerPrint("***** E-BOT not support the mode now :( *****");
-					SetGameMode(MODE_TDM);
+					SetGameMode(GameMode::TeamDeathmatch);
 				}
 				else
 					SetGameMode(bteGameModAi[i]);
 
-				g_gameVersion = CSVER_CZERO;
+				g_gameVersion = Game::CZero;
 
 				// Only ZM3 need restart the round
 				if (checkShowTextTime < 3 && i == 7)
@@ -697,7 +685,7 @@ void AutoLoadGameMode(void)
 
 	if (ebot_zp_delay_custom.GetFloat() > 0.0f)
 	{
-		SetGameMode(MODE_ZP);
+		SetGameMode(GameMode::ZombiePlague);
 		g_DelayTimer = AddTime(ebot_zp_delay_custom.GetFloat() + 2.22f);
 		g_mapType |= MAP_DE;
 		return;
@@ -729,7 +717,7 @@ void AutoLoadGameMode(void)
 
 				if (delayTime > 0.0f)
 				{
-					if (checkShowTextTime < 3 || GetGameMode() != MODE_ZP)
+					if (checkShowTextTime < 3 || GetGameMode() != GameMode::ZombiePlague)
 						ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Mode (Plague/Escape) ***");
 
 					// zombie escape
@@ -740,7 +728,7 @@ void AutoLoadGameMode(void)
 						ServerPrint("*** E-BOT Detected Zombie Escape Map: ebot_zombie_escape_mode is set to 1 ***");
 					}
 
-					SetGameMode(MODE_ZP);
+					SetGameMode(GameMode::ZombiePlague);
 					g_DelayTimer = AddTime(delayTime);
 					g_mapType |= MAP_DE;
 					return;
@@ -764,10 +752,10 @@ void AutoLoadGameMode(void)
 			const float delayTime = CVAR_GET_FLOAT("bb_buildtime") + CVAR_GET_FLOAT("bb_preptime") + 2.2f;
 			if (delayTime > 0)
 			{
-				if (checkShowTextTime < 3 || GetGameMode() != MODE_ZP)
+				if (checkShowTextTime < 3 || GetGameMode() != GameMode::ZombiePlague)
 					ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Mode (Base Builder) ***");
 
-				SetGameMode(MODE_ZP);
+				SetGameMode(GameMode::ZombiePlague);
 
 				g_DelayTimer = AddTime(delayTime);
 				g_mapType |= MAP_DE;
@@ -782,17 +770,17 @@ void AutoLoadGameMode(void)
 	{
 		if (CVAR_GET_FLOAT("DMKD_DMMODE") == 1)
 		{
-			if (checkShowTextTime < 3 || GetGameMode() != MODE_DM)
+			if (checkShowTextTime < 3 || GetGameMode() != GameMode::Deathmatch)
 				ServerPrint("*** E-BOT Auto Game Mode Setting: DM:KD-DM ***");
 
-			SetGameMode(MODE_DM);
+			SetGameMode(GameMode::Deathmatch);
 		}
 		else
 		{
-			if (checkShowTextTime < 3 || GetGameMode() != MODE_TDM)
+			if (checkShowTextTime < 3 || GetGameMode() != GameMode::TeamDeathmatch)
 				ServerPrint("*** E-BOT Auto Game Mode Setting: DM:KD-TDM ***");
 
-			SetGameMode(MODE_TDM);
+			SetGameMode(GameMode::TeamDeathmatch);
 		}
 
 		g_mapType |= MAP_DE;
@@ -803,10 +791,10 @@ void AutoLoadGameMode(void)
 	Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/zombiehell.cfg", getModeName);
 	if (TryFileOpen(Plugin_INI) && CVAR_GET_FLOAT("zh_zombie_maxslots") > 0)
 	{
-		if (checkShowTextTime < 3 || GetGameMode() != MODE_ZH)
+		if (checkShowTextTime < 3 || GetGameMode() != GameMode::ZombieHell)
 			ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Hell ***");
 
-		SetGameMode(MODE_ZH);
+		SetGameMode(GameMode::ZombieHell);
 
 		extern ConVar ebot_quota;
 		ebot_quota.SetInt(static_cast<int>(CVAR_GET_FLOAT("zh_zombie_maxslots")));
@@ -830,10 +818,10 @@ void AutoLoadGameMode(void)
 			const float delayTime = CVAR_GET_FLOAT("bh_starttime") + 0.5f;
 			if (delayTime > 0)
 			{
-				if (checkShowTextTime < 3 || GetGameMode() != MODE_ZP)
+				if (checkShowTextTime < 3 || GetGameMode() != GameMode::ZombiePlague)
 					ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Mode (Biohazard) ***");
 
-				SetGameMode(MODE_ZP);
+				SetGameMode(GameMode::ZombiePlague);
 
 				g_DelayTimer = AddTime(delayTime);
 				g_mapType |= MAP_DE;
@@ -848,10 +836,10 @@ void AutoLoadGameMode(void)
 		auto freeForAll = g_engfuncs.pfnCVarGetPointer("mp_freeforall");
 		if (freeForAll != nullptr && freeForAll->value > 0.0f)
 		{
-			if (checkShowTextTime < 3 || GetGameMode() != MODE_DM)
+			if (checkShowTextTime < 3 || GetGameMode() != GameMode::Deathmatch)
 				ServerPrint("*** E-BOT Auto Game Mode Setting: CSDM-DM ***");
 
-			SetGameMode(MODE_DM);
+			SetGameMode(GameMode::Deathmatch);
 			g_mapType |= MAP_DE;
 			return;
 		}
@@ -859,7 +847,7 @@ void AutoLoadGameMode(void)
 
 	if (checkShowTextTime < 3)
 	{
-		if (GetGameMode() == MODE_BASE)
+		if (GetGameMode() == GameMode::Original)
 			ServerPrint("*** E-BOT Auto Game Mode Setting: Base Mode ***");
 		else
 			ServerPrint("*** E-BOT Auto Game Mode Setting: N/A ***");
@@ -868,7 +856,7 @@ void AutoLoadGameMode(void)
 // returns if weapon can pierce through a wall
 bool IsWeaponShootingThroughWall(int id)
 {
-	if (g_gameVersion == HALFLIFE)
+	if (g_gameVersion == Game::HalfLife)
 		return false;
 
 	int i = 0;
@@ -888,19 +876,21 @@ bool IsWeaponShootingThroughWall(int id)
 	return false;
 }
 
-void SetGameMode(int gamemode)
+void SetGameMode(GameMode gamemode)
 {
-	ebot_gamemod.SetInt(gamemode);
+	ebot_gamemod.SetInt(static_cast<int>(gamemode));
 }
 
 bool IsZombieMode(void)
 {
-	return (ebot_gamemod.GetInt() == MODE_ZP || ebot_gamemod.GetInt() == MODE_ZH);
+	const auto gamemode = GetGameMode();
+	return (gamemode == GameMode::ZombiePlague || gamemode == GameMode::ZombieHell);
 }
 
 bool IsDeathmatchMode(void)
 {
-	return (ebot_gamemod.GetInt() == MODE_DM || ebot_gamemod.GetInt() == MODE_TDM);
+	const auto gamemode = GetGameMode();
+	return (gamemode == GameMode::Deathmatch || gamemode == GameMode::TeamDeathmatch);
 }
 
 bool IsValidWaypoint(const int index)
@@ -911,9 +901,9 @@ bool IsValidWaypoint(const int index)
 	return true;
 }
 
-int GetGameMode(void)
+GameMode GetGameMode(void)
 {
-	return ebot_gamemod.GetInt();
+	return static_cast<GameMode>(ebot_gamemod.GetInt());
 }
 
 bool IsBreakable(edict_t* ent)
@@ -935,12 +925,11 @@ bool IsBreakable(edict_t* ent)
 int GetTeam(edict_t* ent)
 {
 	if (FNullEnt(ent))
-		return TEAM_COUNT;
+		return Team::Count;
 
-	int player_team = TEAM_COUNT;
+	int player_team = Team::Count;
 	if (!IsValidPlayer(ent))
 	{
-		player_team = 0;
 		for (int i = 0; i < entityNum; i++)
 		{
 			if (g_entityId[i] == -1)
@@ -957,17 +946,17 @@ int GetTeam(edict_t* ent)
 	}
 
 	if (ebot_ignore_enemies.GetBool())
-		player_team = TEAM_COUNTER;
-	else if (GetGameMode() == MODE_ZP)
+		player_team = Team::Counter;
+	else if (GetGameMode() == GameMode::ZombiePlague)
 	{
 		if (g_DelayTimer >= engine->GetTime())
-			player_team = TEAM_COUNTER;
+			player_team = Team::Counter;
 		else if (g_roundEnded)
-			player_team = TEAM_TERRORIST;
+			player_team = Team::Terrorist;
 		else
 			player_team = *((int*)ent->pvPrivateData + OFFSET_TEAM) - 1;
 	}
-	else if (GetGameMode() == MODE_DM || GetGameMode() == MODE_NOTEAM)
+	else if (GetGameMode() == GameMode::Deathmatch || GetGameMode() == GameMode::NoTeam)
 	{
 		const int client = ENTINDEX(ent);
 		player_team = client * client;
@@ -1127,7 +1116,7 @@ bool IsZombieEntity(edict_t* ent)
 		return false;
 
 	if (IsZombieMode()) // Zombie Mode
-		return GetTeam(ent) == TEAM_TERRORIST;
+		return GetTeam(ent) == Team::Terrorist;
 
 	return false;
 }
@@ -1227,36 +1216,33 @@ void HudMessage(edict_t* ent, const bool toCenter, const Color& rgb, char* forma
 	if (!IsValidPlayer(ent) || IsValidBot(ent))
 		return;
 	
-	if (!g_isFakeCommand && !g_isMessage)
-	{
-		va_list ap;
-		char buffer[1024];
+	va_list ap;
+	char buffer[1024];
 
-		va_start(ap, format);
-		vsprintf(buffer, format, ap);
-		va_end(ap);
+	va_start(ap, format);
+	vsprintf(buffer, format, ap);
+	va_end(ap);
 
-		MESSAGE_BEGIN(MSG_ONE, SVC_TEMPENTITY, nullptr, ent);
-		WRITE_BYTE(TE_TEXTMESSAGE);
-		WRITE_BYTE(1);
-		WRITE_SHORT(FixedSigned16(-1, 1 << 13));
-		WRITE_SHORT(FixedSigned16(toCenter ? -1.0f : 0.0f, 1 << 13));
-		WRITE_BYTE(2);
-		WRITE_BYTE(static_cast<int>(rgb.red));
-		WRITE_BYTE(static_cast<int>(rgb.green));
-		WRITE_BYTE(static_cast<int>(rgb.blue));
-		WRITE_BYTE(0);
-		WRITE_BYTE(CRandomInt(230, 255));
-		WRITE_BYTE(CRandomInt(230, 255));
-		WRITE_BYTE(CRandomInt(230, 255));
-		WRITE_BYTE(200);
-		WRITE_SHORT(FixedUnsigned16(0.0078125, 1 << 8));
-		WRITE_SHORT(FixedUnsigned16(2, 1 << 8));
-		WRITE_SHORT(FixedUnsigned16(6, 1 << 8));
-		WRITE_SHORT(FixedUnsigned16(0.1f, 1 << 8));
-		WRITE_STRING(const_cast<const char*>(&buffer[0]));
-		MESSAGE_END();
-	}
+	MESSAGE_BEGIN(MSG_ONE, SVC_TEMPENTITY, nullptr, ent);
+	WRITE_BYTE(TE_TEXTMESSAGE);
+	WRITE_BYTE(1);
+	WRITE_SHORT(FixedSigned16(-1, 1 << 13));
+	WRITE_SHORT(FixedSigned16(toCenter ? -1.0f : 0.0f, 1 << 13));
+	WRITE_BYTE(2);
+	WRITE_BYTE(static_cast<int>(rgb.red));
+	WRITE_BYTE(static_cast<int>(rgb.green));
+	WRITE_BYTE(static_cast<int>(rgb.blue));
+	WRITE_BYTE(0);
+	WRITE_BYTE(CRandomInt(230, 255));
+	WRITE_BYTE(CRandomInt(230, 255));
+	WRITE_BYTE(CRandomInt(230, 255));
+	WRITE_BYTE(200);
+	WRITE_SHORT(FixedUnsigned16(0.0078125, 1 << 8));
+	WRITE_SHORT(FixedUnsigned16(2, 1 << 8));
+	WRITE_SHORT(FixedUnsigned16(6, 1 << 8));
+	WRITE_SHORT(FixedUnsigned16(0.1f, 1 << 8));
+	WRITE_STRING(const_cast<const char*>(&buffer[0]));
+	MESSAGE_END();
 }
 
 void ServerPrint(const char* format, ...)
@@ -1298,13 +1284,10 @@ void CenterPrint(const char* format, ...)
 		return;
 	}
 
-	if (!g_isFakeCommand && !g_isMessage)
-	{
-		MESSAGE_BEGIN(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG));
-		WRITE_BYTE(HUD_PRINTCENTER);
-		WRITE_STRING(FormatBuffer("%s\n", string));
-		MESSAGE_END();
-	}
+	MESSAGE_BEGIN(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG));
+	WRITE_BYTE(HUD_PRINTCENTER);
+	WRITE_STRING(FormatBuffer("%s\n", string));
+	MESSAGE_END();
 }
 
 void ChatPrint(const char* format, ...)
@@ -1322,15 +1305,12 @@ void ChatPrint(const char* format, ...)
 		return;
 	}
 
-	if (!g_isFakeCommand && !g_isMessage)
-	{
-		cstrcat(string, "\n");
+	cstrcat(string, "\n");
 
-		MESSAGE_BEGIN(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG));
-		WRITE_BYTE(HUD_PRINTTALK);
-		WRITE_STRING(string);
-		MESSAGE_END();
-	}
+	MESSAGE_BEGIN(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG));
+	WRITE_BYTE(HUD_PRINTTALK);
+	WRITE_STRING(string);
+	MESSAGE_END();
 }
 
 void ClientPrint(edict_t* ent, int dest, const char* format, ...)
@@ -1416,7 +1396,7 @@ bool OpenConfig(const char* fileName, char* errorIfNotExists, File* outFile)
 
 	if (!outFile->IsValid())
 	{
-		AddLogEntry(LOG_ERROR, errorIfNotExists);
+		AddLogEntry(Log::Error, errorIfNotExists);
 		return false;
 	}
 
@@ -1463,30 +1443,30 @@ void DetectCSVersion(void)
 {
 	const char* const infoBuffer = "Game Registered: %s (0x%d)";
 	if (g_engfuncs.pfnCVarGetPointer("host_ver") != nullptr)
-		g_gameVersion = CSVER_XASH;
+		g_gameVersion = Game::Xash;
 
 	// switch version returned by dll loader
-	if (g_gameVersion == CSVER_XASH)
+	if (g_gameVersion == Game::Xash)
 		ServerPrint(infoBuffer, "Xash Engine", sizeof(Bot));
-	else if (g_gameVersion == CSVER_VERYOLD)
+	else if (g_gameVersion == Game::Old)
 		ServerPrint(infoBuffer, "CS 1.x (WON)", sizeof(Bot));
-	else if (g_gameVersion == CSVER_CZERO)
+	else if (g_gameVersion == Game::CZero)
 		ServerPrint(infoBuffer, "CS: CZ (Steam)", sizeof(Bot));
-	else if (g_gameVersion == HALFLIFE)
+	else if (g_gameVersion == Game::HalfLife)
 		ServerPrint(infoBuffer, "Half-Life", sizeof(Bot));
-	else if (g_gameVersion == CSVER_CSTRIKE)
+	else if (g_gameVersion == Game::CStrike)
 	{
 		uint8_t* detection = (*g_engfuncs.pfnLoadFileForMe) ("events/galil.sc", nullptr);
 
 		if (detection != nullptr)
 		{
 			ServerPrint(infoBuffer, "CS 1.6 (Steam)", sizeof(Bot));
-			g_gameVersion = CSVER_CSTRIKE; // just to be sure
+			g_gameVersion = Game::CStrike; // just to be sure
 		}
 		else if (detection == nullptr)
 		{
 			ServerPrint(infoBuffer, "CS 1.5 (WON)", sizeof(Bot));
-			g_gameVersion = CSVER_VERYOLD; // reset it to WON
+			g_gameVersion = Game::Old; // reset it to WON
 		}
 
 		// if we have loaded the file free it
@@ -1507,7 +1487,7 @@ void PlaySound(edict_t* ent, const char* name)
 }
 
 // this function logs a message to the message log file root directory.
-void AddLogEntry(int logLevel, const char* format, ...)
+void AddLogEntry(Log logLevel, const char* format, ...)
 {
 	va_list ap;
 	char buffer[512] = { 0, }, levelString[32] = { 0, }, logLine[1024] = { 0, };
@@ -1518,23 +1498,23 @@ void AddLogEntry(int logLevel, const char* format, ...)
 
 	switch (logLevel)
 	{
-	case LOG_DEFAULT:
+	case Log::Default:
 		cstrcpy(levelString, "Log: ");
 		break;
 
-	case LOG_WARNING:
+	case Log::Warning:
 		cstrcpy(levelString, "Warning: ");
 		break;
 
-	case LOG_ERROR:
+	case Log::Error:
 		cstrcpy(levelString, "Error: ");
 		break;
 
-	case LOG_FATAL:
+	case Log::Fatal:
 		cstrcpy(levelString, "Critical: ");
 		break;
 
-	case LOG_MEMORY:
+	case Log::Memory:
 		cstrcpy(levelString, "Memory Error: ");
 		ServerPrint("unexpected memory error");
 		break;
@@ -1648,37 +1628,37 @@ int GetWeaponReturn(bool needString, const char* weaponAlias, int weaponID)
 	// weapon enumeration
 	WeaponTab_t weaponTab[] =
 	{
-	   {WEAPON_USP, "usp"}, // HK USP .45 Tactical
-	   {WEAPON_GLOCK18, "glock"}, // Glock18 Select Fire
-	   {WEAPON_DEAGLE, "deagle"}, // Desert Eagle .50AE
-	   {WEAPON_P228, "p228"}, // SIG P228
-	   {WEAPON_ELITE, "elite"}, // Dual Beretta 96G Elite
-	   {WEAPON_FN57, "fn57"}, // FN Five-Seven
-	   {WEAPON_M3, "m3"}, // Benelli M3 Super90
-	   {WEAPON_XM1014, "xm1014"}, // Benelli XM1014
-	   {WEAPON_MP5, "mp5"}, // HK MP5-Navy
-	   {WEAPON_TMP, "tmp"}, // Steyr Tactical Machine Pistol
-	   {WEAPON_P90, "p90"}, // FN P90
-	   {WEAPON_MAC10, "mac10"}, // Ingram MAC-10
-	   {WEAPON_UMP45, "ump45"}, // HK UMP45
-	   {WEAPON_AK47, "ak47"}, // Automat Kalashnikov AK-47
-	   {WEAPON_GALIL, "galil"}, // IMI Galil
-	   {WEAPON_FAMAS, "famas"}, // GIAT FAMAS
-	   {WEAPON_SG552, "sg552"}, // Sig SG-552 Commando
-	   {WEAPON_M4A1, "m4a1"}, // Colt M4A1 Carbine
-	   {WEAPON_AUG, "aug"}, // Steyr Aug
-	   {WEAPON_SCOUT, "scout"}, // Steyr Scout
-	   {WEAPON_AWP, "awp"}, // AI Arctic Warfare/Magnum
-	   {WEAPON_G3SG1, "g3sg1"}, // HK G3/SG-1 Sniper Rifle
-	   {WEAPON_SG550, "sg550"}, // Sig SG-550 Sniper
-	   {WEAPON_M249, "m249"}, // FN M249 Para
-	   {WEAPON_FBGRENADE, "flash"}, // Concussion Grenade
-	   {WEAPON_HEGRENADE, "hegren"}, // High-Explosive Grenade
-	   {WEAPON_SMGRENADE, "sgren"}, // Smoke Grenade
-	   {WEAPON_KEVLAR, "vest"}, // Kevlar Vest
-	   {WEAPON_KEVHELM, "vesthelm"}, // Kevlar Vest and Helmet
-	   {WEAPON_DEFUSER, "defuser"}, // Defuser Kit
-	   {WEAPON_SHIELDGUN, "shield"}, // Tactical Shield
+	   {Weapon::Usp, "usp"}, // HK USP .45 Tactical
+	   {Weapon::Glock18, "glock"}, // Glock18 Select Fire
+	   {Weapon::Deagle, "deagle"}, // Desert Eagle .50AE
+	   {Weapon::P228, "p228"}, // SIG P228
+	   {Weapon::Elite, "elite"}, // Dual Beretta 96G Elite
+	   {Weapon::FiveSeven, "fn57"}, // FN Five-Seven
+	   {Weapon::M3, "m3"}, // Benelli M3 Super90
+	   {Weapon::Xm1014, "xm1014"}, // Benelli XM1014
+	   {Weapon::Mp5, "mp5"}, // HK MP5-Navy
+	   {Weapon::Tmp, "tmp"}, // Steyr Tactical Machine Pistol
+	   {Weapon::P90, "p90"}, // FN P90
+	   {Weapon::Mac10, "mac10"}, // Ingram MAC-10
+	   {Weapon::Ump45, "ump45"}, // HK UMP45
+	   {Weapon::Ak47, "ak47"}, // Automat Kalashnikov AK-47
+	   {Weapon::Galil, "galil"}, // IMI Galil
+	   {Weapon::Famas, "famas"}, // GIAT FAMAS
+	   {Weapon::Sg552, "sg552"}, // Sig SG-552 Commando
+	   {Weapon::M4A1, "m4a1"}, // Colt M4A1 Carbine
+	   {Weapon::Aug, "aug"}, // Steyr Aug
+	   {Weapon::Scout, "scout"}, // Steyr Scout
+	   {Weapon::Awp, "awp"}, // AI Arctic Warfare/Magnum
+	   {Weapon::G3SG1, "g3sg1"}, // HK G3/SG-1 Sniper Rifle
+	   {Weapon::Sg550, "sg550"}, // Sig SG-550 Sniper
+	   {Weapon::M249, "m249"}, // FN M249 Para
+	   {Weapon::FbGrenade, "flash"}, // Concussion Grenade
+	   {Weapon::HeGrenade, "hegren"}, // High-Explosive Grenade
+	   {Weapon::SmGrenade, "sgren"}, // Smoke Grenade
+	   {Weapon::Kevlar, "vest"}, // Kevlar Vest
+	   {Weapon::KevlarHelmet, "vesthelm"}, // Kevlar Vest and Helmet
+	   {Weapon::Defuser, "defuser"}, // Defuser Kit
+	   {Weapon::Shield, "shield"}, // Tactical Shield
 	};
 
 	// if we need to return the string, find by weapon id

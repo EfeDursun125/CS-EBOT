@@ -41,13 +41,13 @@ void Bot::PushMessageQueue(const int message)
 			{
 				if (m_isAlive == bot->m_isAlive)
 				{
-					bot->m_sayTextBuffer.entityIndex = m_index;
+					bot->m_sayTextBuffer.entityIndex = GetIndex();
 					cstrcpy(bot->m_sayTextBuffer.sayText, m_tempStrings);
 				}
 			}
 		}
 	}
-	else if (message == CMENU_BUY && g_gameVersion == HALFLIFE)
+	else if (message == CMENU_BUY && g_gameVersion == Game::HalfLife)
 	{
 		m_buyingFinished = true;
 		m_isVIP = false;
@@ -92,7 +92,7 @@ bool Bot::CheckVisibility(edict_t* targetEntity)
 	Vector spot = targetEntity->v.origin;
 	edict_t* self = GetEntity();
 
-	constexpr float vis = 0.9f;
+	constexpr float vis = 0.96f;
 	bool ignoreGlass = true;
 
 	// zombies can't hit from the glass...
@@ -182,7 +182,7 @@ bool Bot::ItemIsVisible(Vector destination, char* itemName)
 	if (tr.flFraction < 1.0f)
 	{
 		// check for standard items
-		if (g_gameVersion == HALFLIFE)
+		if (g_gameVersion == Game::HalfLife)
 		{
 			if (tr.flFraction > 0.95f && !FNullEnt(tr.pHit) && cstrcmp(STRING(tr.pHit->v.classname), itemName) == 0)
 				return true;
@@ -254,7 +254,7 @@ int Bot::GetBestWeaponCarried(void)
 
 	// take the shield in account
 	if (HasShield())
-		weapons |= (1 << WEAPON_SHIELDGUN);
+		weapons |= (1 << Weapon::Shield);
 
 	for (int i = 0; i < Const_NumWeapons; i++)
 	{
@@ -276,14 +276,14 @@ int Bot::GetBestSecondaryWeaponCarried(void)
 
 	// take the shield in account
 	if (HasShield())
-		weapons |= (1 << WEAPON_SHIELDGUN);
+		weapons |= (1 << Weapon::Shield);
 
 	const WeaponSelect* weaponTab = &g_weaponSelect[0];
 
 	for (int i = 0; i < Const_NumWeapons; i++)
 	{
 		const int id = weaponTab[*ptr].id;
-		if ((weapons & (1 << static_cast<int>(weaponTab[*ptr].id))) && (id == WEAPON_USP || id == WEAPON_GLOCK18 || id == WEAPON_DEAGLE || id == WEAPON_P228 || id == WEAPON_ELITE || id == WEAPON_FN57))
+		if ((weapons & (1 << static_cast<int>(weaponTab[*ptr].id))) && (id == Weapon::Usp || id == Weapon::Glock18 || id == Weapon::Deagle || id == Weapon::P228 || id == Weapon::Elite || id == Weapon::FiveSeven))
 		{
 			weaponIndex = i;
 			break;
@@ -363,7 +363,7 @@ bool Bot::AllowPickupItem(void)
 	if (IsOnLadder())
 		return false;
 
-	if (IsZombieMode() && HasPrimaryWeapon() && m_currentWeapon != WEAPON_KNIFE)
+	if (IsZombieMode() && HasPrimaryWeapon() && m_currentWeapon != Weapon::Knife)
 		return false;
 
 	return true;
@@ -374,7 +374,7 @@ void Bot::FindItem(void)
 	if (!AllowPickupItem())
 	{
 		m_pickupItem = nullptr;
-		m_pickupType = PICKTYPE_NONE;
+		m_pickupType = PickupType::None;
 		return;
 	}
 
@@ -396,59 +396,59 @@ void Bot::FindItem(void)
 
 	edict_t* pickupItem = nullptr;
 	m_pickupItem = nullptr;
-	m_pickupType = PICKTYPE_NONE;
+	m_pickupType = PickupType::None;
 	ent = nullptr;
 	pickupItem = nullptr;
 
-	PickupType pickupType = PICKTYPE_NONE;
+	PickupType pickupType = PickupType::None;
 
 	float minDistance = SquaredF(512.0f);
 
 	while (!FNullEnt(ent = FIND_ENTITY_IN_SPHERE(ent, pev->origin, 512.0f)))
 	{
-		pickupType = PICKTYPE_NONE;
+		pickupType = PickupType::None;
 		if (ent->v.effects & EF_NODRAW || ent == m_itemIgnore || IsValidPlayer(ent) || ent == GetEntity()) // we can't pickup a player...
 			continue;
 
 		if (pev->health < pev->max_health && cstrncmp("item_healthkit", STRING(ent->v.classname), 14) == 0)
-			pickupType = PICKTYPE_GETENTITY;
+			pickupType = PickupType::GetEntity;
 		else if (pev->health < pev->max_health && cstrncmp("func_healthcharger", STRING(ent->v.classname), 18) == 0 && ent->v.frame == 0)
 		{
 			const auto origin = GetEntityOrigin(ent);
 			if ((pev->origin - origin).GetLengthSquared() <= SquaredF(128.0f))
 			{
-				if (g_gameVersion == CSVER_XASH)
+				if (g_gameVersion == Game::Xash)
 					pev->button |= IN_USE;
 				else
 					MDLL_Use(ent, GetEntity());
 			}
 
 			m_lookAt = origin;
-			pickupType = PICKTYPE_GETENTITY;
+			pickupType = PickupType::GetEntity;
 			m_moveSpeed = pev->maxspeed;
 			m_strafeSpeed = 0.0f;
 		}
 		else if (pev->armorvalue < 100 && cstrncmp("item_battery", STRING(ent->v.classname), 12) == 0)
-			pickupType = PICKTYPE_GETENTITY;
+			pickupType = PickupType::GetEntity;
 		else if (pev->armorvalue < 100 && cstrncmp("func_recharge", STRING(ent->v.classname), 13) == 0 && ent->v.frame == 0)
 		{
 			const auto origin = GetEntityOrigin(ent);
 			if ((pev->origin - origin).GetLengthSquared() <= SquaredF(128.0f))
 			{
-				if (g_gameVersion == CSVER_XASH)
+				if (g_gameVersion == Game::Xash)
 					pev->button |= IN_USE;
 				else
 					MDLL_Use(ent, GetEntity());
 			}
 
 			m_lookAt = origin;
-			pickupType = PICKTYPE_GETENTITY;
+			pickupType = PickupType::GetEntity;
 			m_moveSpeed = pev->maxspeed;
 			m_strafeSpeed = 0.0f;
 		}
-		else if (g_gameVersion == HALFLIFE)
+		else if (g_gameVersion == Game::HalfLife)
 		{
-			if (m_currentWeapon != WEAPON_SNARK && cstrncmp("monster_snark", STRING(ent->v.classname), 13) == 0)
+			if (m_currentWeapon != WeaponHL::Snark && cstrncmp("monster_snark", STRING(ent->v.classname), 13) == 0)
 			{
 				m_hasEntitiesNear = true;
 				m_nearestEntity = ent;
@@ -460,44 +460,44 @@ void Bot::FindItem(void)
 					pev->button |= IN_ATTACK;
 			}
 			else if (cstrncmp("weapon_", STRING(ent->v.classname), 7) == 0)
-				pickupType = PICKTYPE_GETENTITY;
+				pickupType = PickupType::GetEntity;
 			else if (cstrncmp("ammo_", STRING(ent->v.classname), 5) == 0)
-				pickupType = PICKTYPE_GETENTITY;
+				pickupType = PickupType::GetEntity;
 			else if (cstrncmp("weaponbox", STRING(ent->v.classname), 9) == 0)
-				pickupType = PICKTYPE_GETENTITY;
+				pickupType = PickupType::GetEntity;
 		}
 		else if (cstrncmp("hostage_entity", STRING(ent->v.classname), 14) == 0)
-			pickupType = PICKTYPE_HOSTAGE;
+			pickupType = PickupType::Hostage;
 		else if (cstrncmp("weaponbox", STRING(ent->v.classname), 9) == 0 && cstrcmp(STRING(ent->v.model) + 9, "backpack.mdl") == 0)
-			pickupType = PICKTYPE_DROPPEDC4;
+			pickupType = PickupType::DroppedC4;
 		else if (cstrncmp("weaponbox", STRING(ent->v.classname), 9) == 0 && cstrcmp(STRING(ent->v.model) + 9, "backpack.mdl") == 0)
-			pickupType = PICKTYPE_DROPPEDC4;
+			pickupType = PickupType::DroppedC4;
 		else if ((cstrncmp("weaponbox", STRING(ent->v.classname), 9) == 0 || cstrncmp("armoury_entity", STRING(ent->v.classname), 14) == 0 || cstrncmp("csdm", STRING(ent->v.classname), 4) == 0))
-			pickupType = PICKTYPE_WEAPON;
+			pickupType = PickupType::Weapon;
 		else if (cstrncmp("weapon_shield", STRING(ent->v.classname), 13) == 0)
-			pickupType = PICKTYPE_SHIELDGUN;
-		else if (m_team == TEAM_COUNTER && !m_hasDefuser && cstrncmp("item_thighpack", STRING(ent->v.classname), 14) == 0)
-			pickupType = PICKTYPE_DEFUSEKIT;
+			pickupType = PickupType::Shield;
+		else if (m_team == Team::Counter && !m_hasDefuser && cstrncmp("item_thighpack", STRING(ent->v.classname), 14) == 0)
+			pickupType = PickupType::DefuseKit;
 		else if (cstrncmp("grenade", STRING(ent->v.classname), 7) == 0 && cstrcmp(STRING(ent->v.model) + 9, "c4.mdl") == 0)
-			pickupType = PICKTYPE_PLANTEDC4;
+			pickupType = PickupType::PlantedC4;
 		else
 		{
-			for (int i = 0; (i < entityNum && pickupType == PICKTYPE_NONE); i++)
+			for (int i = 0; (i < entityNum && pickupType == PickupType::None); i++)
 			{
 				if (g_entityId[i] == -1 || g_entityAction[i] != 3)
 					continue;
 
-				if (g_entityTeam[i] != 0 && m_team != g_entityTeam[i])
+				if (g_entityTeam[i] != Team(0) && m_team != g_entityTeam[i])
 					continue;
 
 				if (ent != INDEXENT(g_entityId[i]))
 					continue;
 
-				pickupType = PICKTYPE_GETENTITY;
+				pickupType = PickupType::GetEntity;
 			}
 		}
 
-		if (pickupType == PICKTYPE_NONE)
+		if (pickupType == PickupType::None)
 			continue;
 
 		const Vector entityOrigin = GetEntityOrigin(ent);
@@ -515,9 +515,9 @@ void Bot::FindItem(void)
 		}
 
 		bool allowPickup = true;
-		if (pickupType == PICKTYPE_GETENTITY)
+		if (pickupType == PickupType::GetEntity)
 			allowPickup = true;
-		else if (pickupType == PICKTYPE_WEAPON)
+		else if (pickupType == PickupType::Weapon)
 		{
 			const int weaponCarried = GetBestWeaponCarried();
 			const int secondaryWeaponCarried = GetBestSecondaryWeaponCarried();
@@ -528,15 +528,15 @@ void Bot::FindItem(void)
 				allowPickup = false;
 			else if (!m_isVIP && weaponCarried >= 7 && (m_ammo[g_weaponSelect[weaponCarried].id] > 0.3 * weaponAmmoMax) && cstrncmp(STRING(ent->v.model) + 9, "w_", 2) == 0)
 			{
-				if (cstrcmp(STRING(ent->v.model) + 9, "w_9mmarclip.mdl") == 0 && !(weaponCarried == WEAPON_FAMAS || weaponCarried == WEAPON_AK47 || weaponCarried == WEAPON_M4A1 || weaponCarried == WEAPON_GALIL || weaponCarried == WEAPON_AUG || weaponCarried == WEAPON_SG552))
+				if (cstrcmp(STRING(ent->v.model) + 9, "w_9mmarclip.mdl") == 0 && !(weaponCarried == Weapon::Famas || weaponCarried == Weapon::Ak47 || weaponCarried == Weapon::M4A1 || weaponCarried == Weapon::Galil || weaponCarried == Weapon::Aug || weaponCarried == Weapon::Sg552))
 					allowPickup = false;
-				else if (cstrcmp(STRING(ent->v.model) + 9, "w_shotbox.mdl") == 0 && !(weaponCarried == WEAPON_M3 || weaponCarried == WEAPON_XM1014))
+				else if (cstrcmp(STRING(ent->v.model) + 9, "w_shotbox.mdl") == 0 && !(weaponCarried == Weapon::M3 || weaponCarried == Weapon::Xm1014))
 					allowPickup = false;
-				else if (cstrcmp(STRING(ent->v.model) + 9, "w_9mmclip.mdl") == 0 && !(weaponCarried == WEAPON_MP5 || weaponCarried == WEAPON_TMP || weaponCarried == WEAPON_P90 || weaponCarried == WEAPON_MAC10 || weaponCarried == WEAPON_UMP45))
+				else if (cstrcmp(STRING(ent->v.model) + 9, "w_9mmclip.mdl") == 0 && !(weaponCarried == Weapon::Mp5 || weaponCarried == Weapon::Tmp || weaponCarried == Weapon::P90 || weaponCarried == Weapon::Mac10 || weaponCarried == Weapon::Ump45))
 					allowPickup = false;
-				else if (cstrcmp(STRING(ent->v.model) + 9, "w_crossbow_clip.mdl") == 0 && !(weaponCarried == WEAPON_AWP || weaponCarried == WEAPON_G3SG1 || weaponCarried == WEAPON_SCOUT || weaponCarried == WEAPON_SG550))
+				else if (cstrcmp(STRING(ent->v.model) + 9, "w_crossbow_clip.mdl") == 0 && !(weaponCarried == Weapon::Awp || weaponCarried == Weapon::G3SG1 || weaponCarried == Weapon::Scout || weaponCarried == Weapon::Sg550))
 					allowPickup = false;
-				else if (cstrcmp(STRING(ent->v.model) + 9, "w_chainammo.mdl") == 0 && weaponCarried == WEAPON_M249)
+				else if (cstrcmp(STRING(ent->v.model) + 9, "w_chainammo.mdl") == 0 && weaponCarried == Weapon::M249)
 					allowPickup = false;
 			}
 			else if (m_isVIP || !RateGroundWeapon(ent))
@@ -545,33 +545,33 @@ void Bot::FindItem(void)
 				allowPickup = false;
 			else if ((cstrcmp(STRING(ent->v.model) + 9, "kevlar.mdl") == 0 || cstrcmp(STRING(ent->v.model) + 9, "battery.mdl") == 0) && pev->armorvalue >= 100) // armor vest
 				allowPickup = false;
-			else if (cstrcmp(STRING(ent->v.model) + 9, "flashbang.mdl") == 0 && (pev->weapons & (1 << WEAPON_FBGRENADE))) // concussion grenade
+			else if (cstrcmp(STRING(ent->v.model) + 9, "flashbang.mdl") == 0 && (pev->weapons & (1 << Weapon::FbGrenade))) // concussion grenade
 				allowPickup = false;
-			else if (cstrcmp(STRING(ent->v.model) + 9, "hegrenade.mdl") == 0 && (pev->weapons & (1 << WEAPON_HEGRENADE))) // explosive grenade
+			else if (cstrcmp(STRING(ent->v.model) + 9, "hegrenade.mdl") == 0 && (pev->weapons & (1 << Weapon::HeGrenade))) // explosive grenade
 				allowPickup = false;
-			else if (cstrcmp(STRING(ent->v.model) + 9, "smokegrenade.mdl") == 0 && (pev->weapons & (1 << WEAPON_SMGRENADE))) // smoke grenade
+			else if (cstrcmp(STRING(ent->v.model) + 9, "smokegrenade.mdl") == 0 && (pev->weapons & (1 << Weapon::SmGrenade))) // smoke grenade
 				allowPickup = false;
 		}
-		else if (pickupType == PICKTYPE_SHIELDGUN)
+		else if (pickupType == PickupType::Shield)
 		{
-			if ((pev->weapons & (1 << WEAPON_ELITE)) || HasShield() || m_isVIP || (HasPrimaryWeapon() && !RateGroundWeapon(ent)))
+			if ((pev->weapons & (1 << Weapon::Elite)) || HasShield() || m_isVIP || (HasPrimaryWeapon() && !RateGroundWeapon(ent)))
 				allowPickup = false;
 		}
-		else if (m_team != TEAM_TERRORIST && m_team != TEAM_COUNTER)
+		else if (m_team != Team::Terrorist && m_team != Team::Counter)
 			allowPickup = false;
-		else if (m_team == TEAM_TERRORIST)
+		else if (m_team == Team::Terrorist)
 		{
-			if (pickupType == PICKTYPE_DROPPEDC4)
+			if (pickupType == PickupType::DroppedC4)
 			{
 				allowPickup = true;
 				m_destOrigin = entityOrigin;
 			}
-			else if (pickupType == PICKTYPE_HOSTAGE)
+			else if (pickupType == PickupType::Hostage)
 			{
 				m_itemIgnore = ent;
 				allowPickup = false;
 			}
-			else if (pickupType == PICKTYPE_PLANTEDC4)
+			else if (pickupType == PickupType::PlantedC4)
 			{
 				allowPickup = false;
 
@@ -595,9 +595,9 @@ void Bot::FindItem(void)
 				}
 			}
 		}
-		else if (m_team == TEAM_COUNTER)
+		else if (m_team == Team::Counter)
 		{
-			if (pickupType == PICKTYPE_HOSTAGE)
+			if (pickupType == PickupType::Hostage)
 			{
 				if (FNullEnt(ent) || ent->v.health <= 0 || ent->v.speed > 1.0f)
 					allowPickup = false; // never pickup dead/moving hostages
@@ -619,12 +619,12 @@ void Bot::FindItem(void)
 					}
 				}
 			}
-			else if (pickupType == PICKTYPE_DROPPEDC4)
+			else if (pickupType == PickupType::DroppedC4)
 			{
 				m_itemIgnore = ent;
 				allowPickup = false;
 
-				if (m_personality != PERSONALITY_RUSHER && (m_personality != PERSONALITY_NORMAL || m_skill > 49))
+				if (m_personality != Personality::Rusher && (m_personality != Personality::Normal || m_skill > 49))
 				{
 					const int index = FindDefendWaypoint(entityOrigin);
 					if (IsValidWaypoint(index))
@@ -634,7 +634,7 @@ void Bot::FindItem(void)
 					}
 				}
 			}
-			else if (pickupType == PICKTYPE_PLANTEDC4)
+			else if (pickupType == PickupType::PlantedC4)
 			{
 				if (OutOfBombTimer())
 				{
@@ -672,7 +672,7 @@ void Bot::FindItem(void)
 				if (bot != nullptr && bot != this && bot->m_isAlive && bot->m_pickupItem == pickupItem && bot->m_team == m_team)
 				{
 					m_pickupItem = nullptr;
-					m_pickupType = PICKTYPE_NONE;
+					m_pickupType = PickupType::None;
 					return;
 				}
 			}
@@ -682,7 +682,7 @@ void Bot::FindItem(void)
 		if (pickupOrigin == nullvec || pickupOrigin.z > EyePosition().z + 12.0f || IsDeadlyDrop(pickupOrigin))
 		{
 			m_pickupItem = nullptr;
-			m_pickupType = PICKTYPE_NONE;
+			m_pickupType = PickupType::None;
 			return;
 		}
 
@@ -693,7 +693,7 @@ void Bot::FindItem(void)
 // this function inserts the radio message into the message queue
 void Bot::RadioMessage(const int message)
 {
-	if (g_gameVersion == HALFLIFE)
+	if (g_gameVersion == Game::HalfLife)
 		return;
 
 	if (ebot_use_radio.GetInt() <= 0)
@@ -708,7 +708,7 @@ void Bot::RadioMessage(const int message)
 	if (m_numEnemiesLeft <= 0)
 		return;
 
-	if (GetGameMode() == MODE_DM)
+	if (GetGameMode() == GameMode::Deathmatch)
 		return;
 
 	m_radioSelect = message;
@@ -726,7 +726,7 @@ void Bot::CheckMessageQueue(void)
 	const auto state = GetMessageQueue();
 
 	// nothing to do?
-	if (state == CMENU_IDLE || (state == CMENU_RADIO && (GetGameMode() == MODE_DM || g_gameVersion == HALFLIFE)))
+	if (state == CMENU_IDLE || (state == CMENU_RADIO && (GetGameMode() == GameMode::Deathmatch || g_gameVersion == Game::HalfLife)))
 		return;
 
 	switch (state)
@@ -780,7 +780,7 @@ void Bot::CheckMessageQueue(void)
 			m_isVIP = false;
 
 		// prevent terrorists from buying on es maps
-		if ((g_mapType & MAP_ES) && m_team == TEAM_TERRORIST)
+		if ((g_mapType & MAP_ES) && m_team == Team::Terrorist)
 			m_buyState = 76;
 
 		// prevent teams from buying on fun maps
@@ -812,7 +812,7 @@ void Bot::CheckMessageQueue(void)
 			break;
 
 		// if last bot radio command (global) happened just a 3 seconds ago, delay response
-		if ((m_team == 0 || m_team == 1) && (g_lastRadioTime[m_team] + 3.0f < engine->GetTime()))
+		if ((m_team == Team::Terrorist || m_team == Team::Counter) && (g_lastRadioTime[m_team] + 3.0f < engine->GetTime()))
 		{
 			// if same message like previous just do a yes/no
 			if (m_radioSelect != Radio::Affirmative && m_radioSelect != Radio::Negative)
@@ -909,7 +909,7 @@ bool Bot::IsRestricted(const int weaponIndex)
 bool Bot::IsMorePowerfulWeaponCanBeBought(void)
 {
 	// if bot is not rich enough or non-standard weapon mode enabled return false
-	if (g_weaponSelect[25].teamStandard != 1 || m_moneyAmount < 4000 || IsNullString(ebot_restrictweapons.GetString()))
+	if (g_weaponSelect[25].teamStandard != Team::Counter || m_moneyAmount < 4000 || IsNullString(ebot_restrictweapons.GetString()))
 		return false;
 
 	// also check if bot has really bad weapon, maybe it's time to change it
@@ -925,11 +925,11 @@ bool Bot::IsMorePowerfulWeaponCanBeBought(void)
 			return true;
 	}
 
-	if (m_currentWeapon == WEAPON_SCOUT && m_moneyAmount > 5000)
+	if (m_currentWeapon == Weapon::Scout && m_moneyAmount > 5000)
 		return true;
-	else if (m_currentWeapon == WEAPON_MP5 && m_moneyAmount > 6000)
+	else if (m_currentWeapon == Weapon::Mp5 && m_moneyAmount > 6000)
 		return true;
-	else if (m_currentWeapon == WEAPON_M3 || m_currentWeapon == WEAPON_XM1014 && m_moneyAmount > 4000)
+	else if (m_currentWeapon == Weapon::M3 || m_currentWeapon == Weapon::Xm1014 && m_moneyAmount > 4000)
 		return true;
 
 	return false;
@@ -968,10 +968,10 @@ void Bot::PerformWeaponPurchase(void)
 				if ((g_mapType & MAP_AS) && selectedWeapon->teamAS != 2 && selectedWeapon->teamAS != m_team)
 					continue;
 
-				if ((g_gameVersion == CSVER_VERYOLD || g_gameVersion == CSVER_XASH) && selectedWeapon->buySelect == -1)
+				if ((g_gameVersion == Game::Old || g_gameVersion == Game::Xash) && selectedWeapon->buySelect == -1)
 					continue;
 
-				if (selectedWeapon->teamStandard != 2 && selectedWeapon->teamStandard != m_team)
+				if (selectedWeapon->teamStandard != Team::Count && selectedWeapon->teamStandard != m_team)
 					continue;
 
 				if (IsRestricted(selectedWeapon->id))
@@ -1024,11 +1024,11 @@ void Bot::PerformWeaponPurchase(void)
 					{
 						FakeClientCommand(GetEntity(), "buy;menuselect %d", buyWeapon[i].buyGroup);
 
-						if (g_gameVersion == CSVER_VERYOLD || g_gameVersion == CSVER_XASH)
+						if (g_gameVersion == Game::Old || g_gameVersion == Game::Xash)
 							FakeClientCommand(GetEntity(), "menuselect %d", buyWeapon[i].buySelect);
 						else
 						{
-							if (m_team == TEAM_TERRORIST)
+							if (m_team == Team::Terrorist)
 								FakeClientCommand(GetEntity(), "menuselect %d", buyWeapon[i].newBuySelectT);
 							else
 								FakeClientCommand(GetEntity(), "menuselect %d", buyWeapon[i].newBuySelectCT);
@@ -1045,7 +1045,7 @@ void Bot::PerformWeaponPurchase(void)
 	case 1:
 		if (pev->armorvalue < CRandomInt(40, 80) && (g_botManager->EconomicsValid(m_team) || HasPrimaryWeapon()))
 		{
-			if (m_moneyAmount > 1600 && !IsRestricted(WEAPON_KEVHELM))
+			if (m_moneyAmount > 1600 && !IsRestricted(Weapon::KevlarHelmet))
 				FakeClientCommand(GetEntity(), "buyequip;menuselect 2");
 			else
 				FakeClientCommand(GetEntity(), "buyequip;menuselect 1");
@@ -1073,7 +1073,7 @@ void Bot::PerformWeaponPurchase(void)
 				if ((g_mapType & MAP_AS) && selectedWeapon->teamAS != 2 && selectedWeapon->teamAS != m_team)
 					continue;
 
-				if ((g_gameVersion == CSVER_VERYOLD || g_gameVersion == CSVER_XASH) && selectedWeapon->buySelect == -1)
+				if ((g_gameVersion == Game::Old || g_gameVersion == Game::Xash) && selectedWeapon->buySelect == -1)
 					continue;
 
 				if (selectedWeapon->teamStandard != 2 && selectedWeapon->teamStandard != m_team)
@@ -1089,7 +1089,7 @@ void Bot::PerformWeaponPurchase(void)
 
 				if (likeGunId == 0)
 				{
-					if ((pev->weapons & ((1 << WEAPON_USP) | (1 << WEAPON_GLOCK18))))
+					if ((pev->weapons & ((1 << Weapon::Usp) | (1 << Weapon::Glock18))))
 					{
 						if (gunMode < 2)
 							likeGunId = selectedWeapon->id;
@@ -1113,11 +1113,11 @@ void Bot::PerformWeaponPurchase(void)
 					{
 						FakeClientCommand(GetEntity(), "buy;menuselect %d", buyWeapon[i].buyGroup);
 
-						if (g_gameVersion == CSVER_VERYOLD || g_gameVersion == CSVER_XASH)
+						if (g_gameVersion == Game::Old || g_gameVersion == Game::Xash)
 							FakeClientCommand(GetEntity(), "menuselect %d", buyWeapon[i].buySelect);
 						else
 						{
-							if (m_team == TEAM_TERRORIST)
+							if (m_team == Team::Terrorist)
 								FakeClientCommand(GetEntity(), "menuselect %d", buyWeapon[i].newBuySelectT);
 							else
 								FakeClientCommand(GetEntity(), "menuselect %d", buyWeapon[i].newBuySelectCT);
@@ -1129,7 +1129,7 @@ void Bot::PerformWeaponPurchase(void)
 		break;
 
 	case 3:
-		if (!HasPrimaryWeapon() && !ChanceOf(m_skill) && !IsRestricted(WEAPON_SHIELDGUN))
+		if (!HasPrimaryWeapon() && !ChanceOf(m_skill) && !IsRestricted(Weapon::Shield))
 		{
 			FakeClientCommand(GetEntity(), "buyequip");
 			FakeClientCommand(GetEntity(), "menuselect 8");
@@ -1148,25 +1148,25 @@ void Bot::PerformWeaponPurchase(void)
 		break;
 
 	case 4:
-		if (ChanceOf(m_skill) && !IsRestricted(WEAPON_HEGRENADE))
+		if (ChanceOf(m_skill) && !IsRestricted(Weapon::HeGrenade))
 		{
 			FakeClientCommand(GetEntity(), "buyequip");
 			FakeClientCommand(GetEntity(), "menuselect 4");
 		}
 
-		if (ChanceOf(m_skill) && g_botManager->EconomicsValid(m_team) && !IsRestricted(WEAPON_FBGRENADE))
+		if (ChanceOf(m_skill) && g_botManager->EconomicsValid(m_team) && !IsRestricted(Weapon::FbGrenade))
 		{
 			FakeClientCommand(GetEntity(), "buyequip");
 			FakeClientCommand(GetEntity(), "menuselect 3");
 		}
 
-		if (ChanceOf(m_skill) && g_botManager->EconomicsValid(m_team) && !IsRestricted(WEAPON_FBGRENADE))
+		if (ChanceOf(m_skill) && g_botManager->EconomicsValid(m_team) && !IsRestricted(Weapon::FbGrenade))
 		{
 			FakeClientCommand(GetEntity(), "buyequip");
 			FakeClientCommand(GetEntity(), "menuselect 3");
 		}
 
-		if (ChanceOf(m_skill) && g_botManager->EconomicsValid(m_team) && !IsRestricted(WEAPON_SMGRENADE))
+		if (ChanceOf(m_skill) && g_botManager->EconomicsValid(m_team) && !IsRestricted(Weapon::SmGrenade))
 		{
 			FakeClientCommand(GetEntity(), "buyequip");
 			FakeClientCommand(GetEntity(), "menuselect 5");
@@ -1175,9 +1175,9 @@ void Bot::PerformWeaponPurchase(void)
 		break;
 
 	case 5:
-		if ((g_mapType & MAP_DE) && m_team == TEAM_COUNTER && ChanceOf(m_skill) && m_moneyAmount > 200 && !IsRestricted(WEAPON_DEFUSER))
+		if ((g_mapType & MAP_DE) && m_team == Team::Counter && ChanceOf(m_skill) && m_moneyAmount > 200 && !IsRestricted(Weapon::Defuser))
 		{
-			if (g_gameVersion == CSVER_VERYOLD || g_gameVersion == CSVER_XASH)
+			if (g_gameVersion == Game::Old || g_gameVersion == Game::Xash)
 				FakeClientCommand(GetEntity(), "buyequip;menuselect 6");
 			else
 				FakeClientCommand(GetEntity(), "defuser"); // use alias in SteamCS
@@ -1210,46 +1210,46 @@ int Bot::BuyWeaponMode(const int weaponId)
 	int gunMode = 10;
 	switch (weaponId)
 	{
-	case WEAPON_SHIELDGUN:
+	case Weapon::Shield:
 		gunMode = 8;
 		break;
 
-	case WEAPON_TMP:
-	case WEAPON_UMP45:
-	case WEAPON_P90:
-	case WEAPON_MAC10:
-	case WEAPON_SCOUT:
-	case WEAPON_M3:
-	case WEAPON_M249:
-	case WEAPON_FN57:
-	case WEAPON_P228:
+	case Weapon::Tmp:
+	case Weapon::Ump45:
+	case Weapon::P90:
+	case Weapon::Mac10:
+	case Weapon::Scout:
+	case Weapon::M3:
+	case Weapon::M249:
+	case Weapon::FiveSeven:
+	case Weapon::P228:
 		gunMode = 5;
 		break;
 
-	case WEAPON_XM1014:
-	case WEAPON_G3SG1:
-	case WEAPON_SG550:
-	case WEAPON_GALIL:
-	case WEAPON_ELITE:
-	case WEAPON_SG552:
-	case WEAPON_AUG:
+	case Weapon::Xm1014:
+	case Weapon::G3SG1:
+	case Weapon::Sg550:
+	case Weapon::Galil:
+	case Weapon::Elite:
+	case Weapon::Sg552:
+	case Weapon::Aug:
 		gunMode = 4;
 		break;
 
-	case WEAPON_MP5:
-	case WEAPON_FAMAS:
-	case WEAPON_USP:
-	case WEAPON_GLOCK18:
+	case Weapon::Mp5:
+	case Weapon::Famas:
+	case Weapon::Usp:
+	case Weapon::Glock18:
 		gunMode = 3;
 		break;
 
-	case WEAPON_AWP:
-	case WEAPON_DEAGLE:
+	case Weapon::Awp:
+	case Weapon::Deagle:
 		gunMode = 2;
 		break;
 
-	case WEAPON_AK47:
-	case WEAPON_M4A1:
+	case Weapon::Ak47:
+	case Weapon::M4A1:
 		gunMode = 1;
 		break;
 	}
@@ -1264,7 +1264,7 @@ void Bot::CheckGrenadeThrow(void)
 		return;
 
 	const Vector targetOrigin = m_enemyOrigin;
-	if ((grenadeToThrow == WEAPON_HEGRENADE || grenadeToThrow == WEAPON_SMGRENADE))
+	if ((grenadeToThrow == Weapon::HeGrenade || grenadeToThrow == Weapon::SmGrenade))
 	{
 		float distance = (targetOrigin - pev->origin).GetLengthSquared();
 
@@ -1273,7 +1273,7 @@ void Bot::CheckGrenadeThrow(void)
 			distance = FLT_MAX; // just some crazy value
 
 		// enemy is within a good throwing distance ?
-		if (distance > (grenadeToThrow == WEAPON_SMGRENADE ? SquaredF(400.0f) : SquaredF(600.0f)) && distance <= SquaredF(800.0f))
+		if (distance > (grenadeToThrow == Weapon::SmGrenade ? SquaredF(400.0f) : SquaredF(600.0f)) && distance <= SquaredF(800.0f))
 		{
 			bool allowThrowing = true;
 
@@ -1312,7 +1312,7 @@ void Bot::CheckGrenadeThrow(void)
 			// start explosive grenade throwing?
 			if (allowThrowing)
 			{
-				if (grenadeToThrow == WEAPON_HEGRENADE)
+				if (grenadeToThrow == Weapon::HeGrenade)
 				{
 					if (SetProcess(Process::ThrowHE, "throwing HE grenade", false, AddTime(10.0f)))
 						return;
@@ -1325,7 +1325,7 @@ void Bot::CheckGrenadeThrow(void)
 			}
 		}
 	}
-	else if (grenadeToThrow == WEAPON_FBGRENADE && (targetOrigin - pev->origin).GetLengthSquared() <= SquaredF(800.0f))
+	else if (grenadeToThrow == Weapon::FbGrenade && (targetOrigin - pev->origin).GetLengthSquared() <= SquaredF(800.0f))
 	{
 		bool allowThrowing = true;
 		Array <int> inRadius;
@@ -1732,7 +1732,7 @@ void Bot::CheckRadioCommands(void)
 
 void Bot::SetWalkTime(const float time)
 {
-	if (g_gameVersion == HALFLIFE)
+	if (g_gameVersion == Game::HalfLife)
 		return;
 
 	if (!ebot_walkallow.GetBool())
@@ -1825,7 +1825,7 @@ void Bot::BaseUpdate(void)
 
 		if (!m_isAlive)
 		{
-			if (!g_isFakeCommand && !g_isMessage)
+			if (!g_isFakeCommand)
 			{
 				extern ConVar ebot_random_join_quit;
 				if (ebot_random_join_quit.GetBool() && m_stayTime > 0.0f && m_stayTime < engine->GetTime())
@@ -1867,13 +1867,13 @@ void Bot::BaseUpdate(void)
 					}
 				}
 
-				if (g_gameVersion == HALFLIFE && !(pev->oldbuttons & IN_ATTACK))
+				if (g_gameVersion == Game::HalfLife && !(pev->oldbuttons & IN_ATTACK))
 					pev->button |= IN_ATTACK;
 			}
 		}
 		else
 		{
-			if (g_gameVersion == HALFLIFE)
+			if (g_gameVersion == Game::HalfLife)
 			{
 				// idk why ???
 				if (pev->maxspeed <= 10.0f)
@@ -1901,7 +1901,6 @@ void Bot::BaseUpdate(void)
 			{
 				UpdateProcess();
 				MoveAction();
-				FacePosition();
 				DebugModeMsg();
 			}
 		}
@@ -1944,7 +1943,7 @@ void Bot::CheckSlowThink(void)
 	}
 	else
 	{
-		if (pev->weapons & (1 << WEAPON_C4))
+		if (pev->weapons & (1 << Weapon::C4))
 			m_isBomber = true;
 		else
 			m_isBomber = false;
@@ -1953,21 +1952,21 @@ void Bot::CheckSlowThink(void)
 	extern ConVar ebot_ignore_enemies;
 	if (!ebot_ignore_enemies.GetBool() && m_randomattacktimer < engine->GetTime() && !engine->IsFriendlyFireOn() && !HasHostage()) // simulate players with random knife attacks
 	{
-		if (m_isStuck && m_personality != PERSONALITY_CAREFUL)
+		if (m_isStuck && m_personality != Personality::Careful)
 		{
-			if (m_personality == PERSONALITY_RUSHER)
+			if (m_personality == Personality::Rusher)
 				m_randomattacktimer = 0.0f;
 			else
 				m_randomattacktimer = AddTime(CRandomFloat(0.1f, 10.0f));
 		}
-		else if (m_personality == PERSONALITY_RUSHER)
+		else if (m_personality == Personality::Rusher)
 			m_randomattacktimer = AddTime(CRandomFloat(0.1f, 30.0f));
-		else if (m_personality == PERSONALITY_CAREFUL)
+		else if (m_personality == Personality::Careful)
 			m_randomattacktimer = AddTime(CRandomFloat(10.0f, 100.0f));
 		else
 			m_randomattacktimer = AddTime(CRandomFloat(0.15f, 75.0f));
 
-		if (m_currentWeapon == WEAPON_KNIFE)
+		if (m_currentWeapon == Weapon::Knife)
 		{
 			if (CRandomInt(1, 3) == 1)
 				pev->button |= IN_ATTACK;
@@ -1984,6 +1983,8 @@ bool Bot::IsAttacking(const edict_t* player)
 
 void Bot::UpdateLooking(void)
 {
+	FacePosition();
+
 	if (m_hasEnemiesNear || m_hasEntitiesNear)
 	{
 		LookAtEnemies();
@@ -1994,7 +1995,7 @@ void Bot::UpdateLooking(void)
 	else
 	{
 		const float val = IsZombieMode() ? 8.0f : 4.0f;
-		if (m_enemySeeTime + val > engine->GetTime())
+		if (m_enemySeeTime + val > engine->GetTime() && m_team != GetTeam(m_nearestEnemy))
 		{
 			if (!FNullEnt(m_nearestEnemy) && IsAlive(m_nearestEnemy))
 				m_lookAt = m_nearestEnemy->v.origin + m_nearestEnemy->v.view_ofs;
@@ -2036,7 +2037,7 @@ void Bot::LookAtAround(void)
 		const Vector origin = g_waypoint->GetPath(m_currentWaypointIndex)->origin;
 		if ((pev->origin - origin).GetLengthSquared() <= SquaredF(80.0f))
 		{
-			if (g_gameVersion == CSVER_XASH)
+			if (g_gameVersion == Game::Xash)
 			{
 				m_lookAt = origin;
 				if (!(pev->button & IN_USE) && !(pev->oldbuttons & IN_USE))
@@ -2091,7 +2092,7 @@ void Bot::LookAtAround(void)
 		m_pauseTime = AddTime(CRandomFloat(2.0f, 5.0f));
 		SetWalkTime(7.0f);
 
-		if (m_currentWeapon == WEAPON_KNIFE)
+		if (m_currentWeapon == Weapon::Knife)
 			SelectBestWeapon();
 
 		return;
@@ -2145,7 +2146,7 @@ void Bot::LookAtAround(void)
 			else
 				playerArea = client.ent->v.origin + client.ent->v.view_ofs;
 
-			const int skill = m_personality == PERSONALITY_RUSHER ? 30 : 10;
+			const int skill = m_personality == Personality::Rusher ? 30 : 10;
 			if (m_skill > skill)
 			{
 				SetWalkTime(7.0f);
@@ -2220,12 +2221,12 @@ void Bot::LookAtAround(void)
 
 void Bot::SecondThink(void)
 {
-	if (g_gameVersion != HALFLIFE)
+	if (g_gameVersion != Game::HalfLife)
 	{
 		// Don't forget me :(
-		/*if (ebot_use_flare.GetBool() && !m_isReloading && !m_isZombieBot && GetGameMode() == MODE_ZP && FNullEnt(m_enemy) && !FNullEnt(m_lastEnemy))
+		/*if (ebot_use_flare.GetBool() && !m_isReloading && !m_isZombieBot && GetGameMode() == GameMode::ZombiePlague && FNullEnt(m_enemy) && !FNullEnt(m_lastEnemy))
 		{
-			if (pev->weapons & (1 << WEAPON_SMGRENADE) && ChanceOf(40))
+			if (pev->weapons & (1 << Weapon::SmGrenade) && ChanceOf(40))
 				PushTask(TASK_THROWFLARE, TASKPRI_THROWGRENADE, -1, CRandomFloat(0.6f, 0.9f), false);
 		}*/
 
@@ -2239,7 +2240,7 @@ void Bot::SecondThink(void)
 		m_numFriendsLeft = 0;
 	}
 
-	if (m_voteMap != 0 && !g_isFakeCommand && !g_isMessage) // host wants the bots to vote for a map?
+	if (m_voteMap != 0) // host wants the bots to vote for a map?
 	{
 		FakeClientCommand(GetEntity(), "votemap %d", m_voteMap);
 		m_voteMap = 0;
@@ -2248,7 +2249,7 @@ void Bot::SecondThink(void)
 
 void Bot::CalculatePing(void)
 {
-	if (g_gameVersion == CSVER_VERYOLD)
+	if (g_gameVersion == Game::Old)
 		return;
 
 	extern ConVar ebot_ping;
@@ -2348,7 +2349,7 @@ void Bot::DebugModeMsg(void)
 	static float timeDebugUpdate = 0.0f;
 
 	const int specIndex = g_hostEntity->v.iuser2;
-	if (specIndex != m_index)
+	if (specIndex != GetIndex())
 		return;
 
 	static int index, goal;
@@ -2391,28 +2392,28 @@ void Bot::DebugModeMsg(void)
 		}
 
 		// set the bot type
-		sprintf(botType, "%s%s%s", m_personality == PERSONALITY_RUSHER ? "Rusher" : "",
-			m_personality == PERSONALITY_CAREFUL ? "Careful" : "",
-			m_personality == PERSONALITY_NORMAL ? "Normal" : "");
+		sprintf(botType, "%s%s%s", m_personality == Personality::Rusher ? "Rusher" : "",
+			m_personality == Personality::Careful ? "Careful" : "",
+			m_personality == Personality::Normal ? "Normal" : "");
 
 		if (weaponCount >= Const_NumWeapons)
 		{
 			// prevent printing unknown message from known weapons
 			switch (m_currentWeapon)
 			{
-			case WEAPON_HEGRENADE:
+			case Weapon::HeGrenade:
 				sprintf(weaponName, "weapon_hegrenade");
 				break;
 
-			case WEAPON_FBGRENADE:
+			case Weapon::FbGrenade:
 				sprintf(weaponName, "weapon_flashbang");
 				break;
 
-			case WEAPON_SMGRENADE:
+			case Weapon::SmGrenade:
 				sprintf(weaponName, "weapon_smokegrenade");
 				break;
 
-			case WEAPON_C4:
+			case Weapon::C4:
 				sprintf(weaponName, "weapon_c4");
 				break;
 
@@ -2426,27 +2427,27 @@ void Bot::DebugModeMsg(void)
 		char gamemodName[80];
 		switch (GetGameMode())
 		{
-		case MODE_BASE:
+		case GameMode::Original:
 			sprintf(gamemodName, "Normal");
 			break;
 
-		case MODE_DM:
+		case GameMode::Deathmatch:
 			sprintf(gamemodName, "Deathmatch");
 			break;
 
-		case MODE_ZP:
+		case GameMode::ZombiePlague:
 			sprintf(gamemodName, "Zombie Mode");
 			break;
 
-		case MODE_NOTEAM:
+		case GameMode::NoTeam:
 			sprintf(gamemodName, "No Team");
 			break;
 
-		case MODE_ZH:
+		case GameMode::ZombieHell:
 			sprintf(gamemodName, "Zombie Hell");
 			break;
 
-		case MODE_TDM:
+		case GameMode::TeamDeathmatch:
 			sprintf(gamemodName, "Team Deathmatch");
 			break;
 
@@ -2470,7 +2471,7 @@ void Bot::DebugModeMsg(void)
 			navid = navid->next;
 		}
 
-		const int client = m_index - 1;
+		const int client = GetIndex() - 1;
 
 		char outputBuffer[512];
 		sprintf(outputBuffer, "\n\n\n\n\n\n\n Game Mode: %s"
@@ -2496,28 +2497,25 @@ void Bot::DebugModeMsg(void)
 			m_moveSpeed, m_strafeSpeed,
 			m_stuckWarn, m_isStuck ? "Yes" : "No");
 
-		if (!g_isFakeCommand && !g_isMessage)
-		{
-			MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, g_hostEntity);
-			WRITE_BYTE(TE_TEXTMESSAGE);
-			WRITE_BYTE(1);
-			WRITE_SHORT(FixedSigned16(-1, 1 << 13));
-			WRITE_SHORT(FixedSigned16(0, 1 << 13));
-			WRITE_BYTE(0);
-			WRITE_BYTE(m_team == TEAM_COUNTER ? 0 : 255);
-			WRITE_BYTE(100);
-			WRITE_BYTE(m_team != TEAM_COUNTER ? 0 : 255);
-			WRITE_BYTE(0);
-			WRITE_BYTE(255);
-			WRITE_BYTE(255);
-			WRITE_BYTE(255);
-			WRITE_BYTE(0);
-			WRITE_SHORT(FixedUnsigned16(0, 1 << 8));
-			WRITE_SHORT(FixedUnsigned16(0, 1 << 8));
-			WRITE_SHORT(FixedUnsigned16(1.0, 1 << 8));
-			WRITE_STRING(const_cast<const char*>(&outputBuffer[0]));
-			MESSAGE_END();
-		}
+		MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, g_hostEntity);
+		WRITE_BYTE(TE_TEXTMESSAGE);
+		WRITE_BYTE(1);
+		WRITE_SHORT(FixedSigned16(-1, 1 << 13));
+		WRITE_SHORT(FixedSigned16(0, 1 << 13));
+		WRITE_BYTE(0);
+		WRITE_BYTE(m_team == Team::Counter ? 0 : 255);
+		WRITE_BYTE(100);
+		WRITE_BYTE(m_team != Team::Counter ? 0 : 255);
+		WRITE_BYTE(0);
+		WRITE_BYTE(255);
+		WRITE_BYTE(255);
+		WRITE_BYTE(255);
+		WRITE_BYTE(0);
+		WRITE_SHORT(FixedUnsigned16(0, 1 << 8));
+		WRITE_SHORT(FixedUnsigned16(0, 1 << 8));
+		WRITE_SHORT(FixedUnsigned16(1.0, 1 << 8));
+		WRITE_STRING(const_cast<const char*>(&outputBuffer[0]));
+		MESSAGE_END();
 
 		timeDebugUpdate = AddTime(1.0f);
 	}
@@ -2658,7 +2656,7 @@ void Bot::DiscardWeaponForUser(edict_t* user, const bool discardC4)
 		}
 
 		m_pickupItem = nullptr;
-		m_pickupType = PICKTYPE_NONE;
+		m_pickupType = PickupType::None;
 		m_itemCheckTime = AddTime(5.0f);
 
 		if (m_inBuyZone)
@@ -2784,26 +2782,26 @@ void Bot::CheckBurstMode(const float distance)
 		return; // no checking when shiled is active
 
 	// if current weapon is glock, disable burstmode on long distances, enable it else
-	if (m_currentWeapon == WEAPON_GLOCK18 && distance < 300.0f && m_weaponBurstMode == BURST_DISABLED)
+	if (m_currentWeapon == Weapon::Glock18 && distance < 300.0f && m_weaponBurstMode == BurstMode::Disabled)
 		pev->button |= IN_ATTACK2;
-	else if (m_currentWeapon == WEAPON_GLOCK18 && distance >= 30.0f && m_weaponBurstMode == BURST_ENABLED)
+	else if (m_currentWeapon == Weapon::Glock18 && distance >= 30.0f && m_weaponBurstMode == BurstMode::Enabled)
 		pev->button |= IN_ATTACK2;
 
 	// if current weapon is famas, disable burstmode on short distances, enable it else
-	if (m_currentWeapon == WEAPON_FAMAS && distance > 400.0f && m_weaponBurstMode == BURST_DISABLED)
+	if (m_currentWeapon == Weapon::Famas && distance > 400.0f && m_weaponBurstMode == BurstMode::Disabled)
 		pev->button |= IN_ATTACK2;
-	else if (m_currentWeapon == WEAPON_FAMAS && distance <= 400.0f && m_weaponBurstMode == BURST_ENABLED)
+	else if (m_currentWeapon == Weapon::Famas && distance <= 400.0f && m_weaponBurstMode == BurstMode::Enabled)
 		pev->button |= IN_ATTACK2;
 }
 
 void Bot::CheckSilencer(void)
 {
-	if ((m_currentWeapon == WEAPON_USP && m_skill < 90) || m_currentWeapon == WEAPON_M4A1 && !HasShield())
+	if ((m_currentWeapon == Weapon::Usp && m_skill < 90) || m_currentWeapon == Weapon::M4A1 && !HasShield())
 	{
-		const int random = (m_personality == PERSONALITY_RUSHER ? 33 : m_personality == PERSONALITY_CAREFUL ? 99 : 66);
+		const int random = (m_personality == Personality::Rusher ? 33 : m_personality == Personality::Careful ? 99 : 66);
 
 		// aggressive bots don't like the silencer
-		if (ChanceOf(m_currentWeapon == WEAPON_USP ? random / 3 : random))
+		if (ChanceOf(m_currentWeapon == Weapon::Usp ? random / 3 : random))
 		{
 			if (pev->weaponanim > 6) // is the silencer not attached...
 				pev->button |= IN_ATTACK2; // attach the silencer
@@ -2868,7 +2866,7 @@ bool Bot::CampingAllowed(void)
 	else if (g_waypoint->m_campPoints.IsEmpty())
 		return false;
 
-	if (GetGameMode() == MODE_BASE)
+	if (GetGameMode() == GameMode::Original)
 	{
 		if (m_isBomber || m_isVIP)
 			return false;
@@ -2881,7 +2879,7 @@ bool Bot::CampingAllowed(void)
 		else if (OutOfBombTimer())
 			return false;
 
-		if (m_team == TEAM_COUNTER)
+		if (m_team == Team::Counter)
 		{
 			if (g_mapType & MAP_CS && HasHostage())
 				return false;
@@ -2913,7 +2911,7 @@ bool Bot::CampingAllowed(void)
 			}
 		}
 
-		if (m_personality == PERSONALITY_RUSHER)
+		if (m_personality == Personality::Rusher)
 		{
 			if (!FNullEnt(m_nearestEnemy) && m_numFriendsLeft < m_numEnemiesLeft)
 				return false;
@@ -2942,7 +2940,7 @@ bool Bot::OutOfBombTimer(void)
 	// if time left greater than 12, no need to do other checks
 	if (timeLeft >= 12.0f)
 		return false;
-	else if (m_team == TEAM_TERRORIST)
+	else if (m_team == Team::Terrorist)
 		return true;
 
 	const Vector& bombOrigin = g_waypoint->GetBombPosition();
@@ -2958,7 +2956,7 @@ bool Bot::OutOfBombTimer(void)
 		for (const auto& bot : g_botManager->m_bots)
 		{
 			// search players with defuse kit
-			if (bot != nullptr && bot->m_team == TEAM_COUNTER && bot->m_hasDefuser && (bombOrigin - bot->pev->origin).GetLengthSquared() <= SquaredF(512.0f))
+			if (bot != nullptr && bot->m_team == Team::Counter && bot->m_hasDefuser && (bombOrigin - bot->pev->origin).GetLengthSquared() <= SquaredF(512.0f))
 			{
 				hasTeammatesWithDefuserKit = true;
 				break;
@@ -2996,7 +2994,7 @@ bool Bot::IsShootableBreakable(edict_t* ent)
 // this function is gets called when bot enters a buyzone, to allow bot to buy some stuff
 void Bot::EquipInBuyzone(const int iBuyCount)
 {
-	if (g_gameVersion == HALFLIFE)
+	if (g_gameVersion == Game::HalfLife)
 		return;
 
 	static float lastEquipTime = 0.0f;

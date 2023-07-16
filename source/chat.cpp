@@ -266,14 +266,14 @@ void Bot::PrepareChatMessage(char* text)
             }
             else if (*pattern == 'd')
             {
-                if (g_gameVersion == CSVER_CZERO)
+                if (g_gameVersion == Game::CZero)
                 {
                     if (CRandomInt(1, 10) <= 3)
                         cstrcat(m_tempStrings, "CZ");
                     else
                         cstrcat(m_tempStrings, "Condition Zero");
                 }
-                else if ((g_gameVersion == CSVER_CSTRIKE) || (g_gameVersion == CSVER_VERYOLD))
+                else if ((g_gameVersion == Game::CStrike) || (g_gameVersion == Game::Old))
                 {
                     if (CRandomInt(1, 10) <= 3)
                         cstrcat(m_tempStrings, "CS");
@@ -372,9 +372,6 @@ void Bot::ChatSay(const bool teamSay, const char* text, ...)
 {
     // someone is using FakeClientCommand, don't break it.
     if (g_isFakeCommand)
-        return;
-
-    if (g_isMessage)
         return;
 
     if (IsNullString(text))

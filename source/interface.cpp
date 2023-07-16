@@ -48,19 +48,19 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 
 	// kicking off one bot from the terrorist team
 	else if (cstricmp(arg0, "kickbot_t") == 0 || cstricmp(arg0, "kick_t") == 0)
-		g_botManager->RemoveFromTeam(TEAM_TERRORIST);
+		g_botManager->RemoveFromTeam(Team::Terrorist);
 
 	// kicking off one bot from the counter-terrorist team
 	else if (cstricmp(arg0, "kickbot_ct") == 0 || cstricmp(arg0, "kick_ct") == 0)
-		g_botManager->RemoveFromTeam(TEAM_COUNTER);
+		g_botManager->RemoveFromTeam(Team::Counter);
 
 	// kills all bots on the terrorist team
 	else if (cstricmp(arg0, "killbots_t") == 0 || cstricmp(arg0, "kill_t") == 0)
-		g_botManager->KillAll(TEAM_TERRORIST);
+		g_botManager->KillAll(Team::Terrorist);
 
 	// kills all bots on the counter-terrorist team
 	else if (cstricmp(arg0, "killbots_ct") == 0 || cstricmp(arg0, "kill_ct") == 0)
-		g_botManager->KillAll(TEAM_COUNTER);
+		g_botManager->KillAll(Team::Counter);
 
 	// list all bots playeing on the server
 	else if (cstricmp(arg0, "listbots") == 0 || cstricmp(arg0, "list") == 0)
@@ -98,9 +98,9 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 				continue;
 
 			if (IsValidBot(client.index))
-				FakeClientCommand(client.ent, "chooseteam; menuselect %d; menuselect 5", GetTeam(client.ent) == TEAM_COUNTER ? 1 : 2);
+				FakeClientCommand(client.ent, "chooseteam; menuselect %d; menuselect 5", GetTeam(client.ent) == Team::Counter ? 1 : 2);
 			else
-				(*g_engfuncs.pfnClientCommand) (client.ent, "chooseteam; menuselect %d", GetTeam(client.ent) == TEAM_COUNTER ? 1 : 2);
+				(*g_engfuncs.pfnClientCommand) (client.ent, "chooseteam; menuselect %d", GetTeam(client.ent) == Team::Counter ? 1 : 2);
 		}
 	}
 
@@ -167,7 +167,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 	// displays bot about information
 	else if (cstricmp(arg0, "about_bot") == 0 || cstricmp(arg0, "about") == 0)
 	{
-		if (g_gameVersion == CSVER_VERYOLD || g_gameVersion == HALFLIFE)
+		if (g_gameVersion == Game::Old || g_gameVersion == Game::HalfLife)
 		{
 			ServerPrint("Cannot do this on your game version");
 			return 1;
@@ -303,82 +303,6 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 			for (int i = 0; i < 500; i++)
 				ServerPrintNoTag("Result Range[0 - 100]: %d", CRandomInt(0, 100));
 		}
-	}
-
-	else if (cstricmp(arg0, "nav") == 0 || cstricmp(arg0, "navmesh") == 0 || cstricmp(arg0, "navigation") == 0)
-	{
-		if (IsDedicatedServer() || FNullEnt(g_hostEntity))
-			return 2;
-
-		if (cstricmp(arg1, "analyze") == 0)
-		{
-			g_analyzenavmesh = true;
-			ServerPrint("NavMesh Analyzing On");
-			ServerCommand("ebot nav on");
-
-			// no expand
-			for (int i = 0; i < Const_MaxWaypoints; i++)
-				g_expanded[i] = false;
-		}
-		else if (cstricmp(arg1, "analyzeoff") == 0)
-		{
-			g_analyzenavmesh = false;
-			ServerPrint("NavMesh Analyzing Off");
-			ServerCommand("ebot nav off");
-		}
-		else if (cstricmp(arg1, "create") == 0)
-		{
-			const Vector aimPos = g_navmesh->GetAimingPosition();
-			if (aimPos != nullvec)
-			{
-				g_navmeshOn = true;
-				g_navmesh->CreateArea(aimPos);
-				ServerCommand("ebot wp mdl on");
-			}
-		}
-		else if (cstricmp(arg1, "delete") == 0)
-		{
-			g_navmeshOn = true;
-
-			const Vector aimPos = g_navmesh->GetAimingPosition();
-			g_navmesh->DeleteArea(g_navmesh->GetNearestNavArea(aimPos));
-
-			ServerCommand("ebot wp mdl on");
-		}
-		else if (cstricmp(arg1, "on") == 0)
-		{
-			g_navmeshOn = true;
-			ServerPrint("NavMesh Editing Enabled");
-			ServerCommand("ebot wp mdl on");
-		}
-		else if (cstricmp(arg1, "noclip") == 0)
-		{
-			if (g_editNoclip)
-			{
-				g_hostEntity->v.movetype = MOVETYPE_WALK;
-				ServerPrint("Noclip Cheat Disabled");
-			}
-			else
-			{
-				g_hostEntity->v.movetype = MOVETYPE_NOCLIP;
-				ServerPrint("Noclip Cheat Enabled");
-			}
-
-			g_editNoclip ^= true; // switch on/off (XOR it!)
-		}
-		else if (cstricmp(arg1, "off") == 0)
-		{
-			g_navmeshOn = false;
-			g_editNoclip = false;
-			g_hostEntity->v.movetype = MOVETYPE_WALK;
-
-			ServerPrint("NavMesh Editing Disabled");
-			ServerCommand("ebot wp mdl off");
-		}
-		else if (cstricmp(arg1, "save") == 0)
-			g_navmesh->SaveNav();
-		else if (cstricmp(arg1, "load") == 0)
-			g_navmesh->LoadNav();
 	}
 
 	// waypoint manimupulation (really obsolete, can be edited through menu) (supported only on listen server)
@@ -730,7 +654,7 @@ void CheckEntityAction(void)
 		else if (g_entityAction[i] == 3)
 			sprintf(action, "Pick Up");
 
-		sprintf(team, (g_entityTeam[i] == TEAM_COUNTER) ? "CT" : (g_entityTeam[i] == TEAM_TERRORIST) ? "TR" : "Team-%d", g_entityTeam[i]);
+		sprintf(team, (g_entityTeam[i] == Team::Counter) ? "CT" : (g_entityTeam[i] == Team::Terrorist) ? "TR" : "Team-%d", g_entityTeam[i]);
 
 		workEntityWork++;
 		ServerPrintNoTag("Entity Num: %d | Action: %d (%s) | Team: %d (%s) | Entity Name: %s", workEntityWork, g_entityAction[i], action, g_entityTeam[i], team, GetEntityName(entity));
@@ -773,7 +697,7 @@ void LoadEntityData(void)
 			g_clients[i].getWpOrigin = nullvec;
 			g_clients[i].getWPTime = 0.0f;
 			g_clients[i].index = -1;
-			g_clients[i].team = TEAM_COUNT;
+			g_clients[i].team = Team::Count;
 			continue;
 		}
 
@@ -1002,7 +926,7 @@ void InitConfig(void)
 			if (pair[0] == "MapStandard")
 			{
 				if (splitted.GetElementNumber() != Const_NumWeapons)
-					AddLogEntry(LOG_FATAL, "%s entry in general config is not valid.", pair[0][0]);
+					AddLogEntry(Log::Fatal, "%s entry in general config is not valid.", pair[0][0]);
 
 				for (int i = 0; i < Const_NumWeapons; i++)
 					g_weaponSelect[i].teamStandard = splitted[i];
@@ -1010,7 +934,7 @@ void InitConfig(void)
 			else if (pair[0] == "MapAS")
 			{
 				if (splitted.GetElementNumber() != Const_NumWeapons)
-					AddLogEntry(LOG_FATAL, "%s entry in general config is not valid.", pair[0][0]);
+					AddLogEntry(Log::Fatal, "%s entry in general config is not valid.", pair[0][0]);
 
 				for (int i = 0; i < Const_NumWeapons; i++)
 					g_weaponSelect[i].teamAS = splitted[i];
@@ -1018,7 +942,7 @@ void InitConfig(void)
 			else if (pair[0] == "PersonalityNormal")
 			{
 				if (splitted.GetElementNumber() != Const_NumWeapons)
-					AddLogEntry(LOG_FATAL, "%s entry in general config is not valid.", pair[0][0]);
+					AddLogEntry(Log::Fatal, "%s entry in general config is not valid.", pair[0][0]);
 
 				for (int i = 0; i < Const_NumWeapons; i++)
 					g_normalWeaponPrefs[i] = splitted[i];
@@ -1026,7 +950,7 @@ void InitConfig(void)
 			else if (pair[0] == "PersonalityRusher")
 			{
 				if (splitted.GetElementNumber() != Const_NumWeapons)
-					AddLogEntry(LOG_FATAL, "%s entry in general config is not valid.", pair[0][0]);
+					AddLogEntry(Log::Fatal, "%s entry in general config is not valid.", pair[0][0]);
 
 				for (int i = 0; i < Const_NumWeapons; i++)
 					g_rusherWeaponPrefs[i] = splitted[i];
@@ -1034,7 +958,7 @@ void InitConfig(void)
 			else if (pair[0] == "PersonalityCareful")
 			{
 				if (splitted.GetElementNumber() != Const_NumWeapons)
-					AddLogEntry(LOG_FATAL, "%s entry in general config is not valid.", pair[0][0]);
+					AddLogEntry(Log::Fatal, "%s entry in general config is not valid.", pair[0][0]);
 
 				for (int i = 0; i < Const_NumWeapons; i++)
 					g_carefulWeaponPrefs[i] = splitted[i];
@@ -1058,9 +982,9 @@ void InitConfig(void)
 	}
 
 	// set personality weapon pointers here
-	g_weaponPrefs[PERSONALITY_NORMAL] = reinterpret_cast <int*> (&g_normalWeaponPrefs);
-	g_weaponPrefs[PERSONALITY_RUSHER] = reinterpret_cast <int*> (&g_rusherWeaponPrefs);
-	g_weaponPrefs[PERSONALITY_CAREFUL] = reinterpret_cast <int*> (&g_carefulWeaponPrefs);
+	g_weaponPrefs[Personality::Normal] = reinterpret_cast <int*> (&g_normalWeaponPrefs);
+	g_weaponPrefs[Personality::Rusher] = reinterpret_cast <int*> (&g_rusherWeaponPrefs);
+	g_weaponPrefs[Personality::Careful] = reinterpret_cast <int*> (&g_carefulWeaponPrefs);
 }
 
 void CommandHandler_NotMM(void)
@@ -1144,7 +1068,7 @@ int Spawn(edict_t* ent)
 		g_hasDoors = true;
 	else if (cstrcmp(entityClassname, "player_weaponstrip") == 0)
 	{
-		if ((g_gameVersion == CSVER_VERYOLD || g_gameVersion == HALFLIFE) && (STRING(ent->v.target))[0] == '\0')
+		if ((g_gameVersion == Game::Old || g_gameVersion == Game::HalfLife) && (STRING(ent->v.target))[0] == '\0')
 		{
 			ent->v.target = MAKE_STRING("fake");
 			ent->v.targetname = MAKE_STRING("fake");
@@ -1161,7 +1085,7 @@ int Spawn(edict_t* ent)
 	}
 	else
 	{
-		if (g_gameVersion != HALFLIFE)
+		if (g_gameVersion != Game::HalfLife)
 		{
 			if (cstrcmp(entityClassname, "info_player_start") == 0)
 			{
@@ -1333,7 +1257,7 @@ void ClientDisconnect(edict_t* ent)
 
 	// check if its a bot
 	auto bot = g_botManager->GetBot(clientIndex);
-	if (bot != nullptr && bot->pev == &ent->v)
+	if (bot != nullptr && bot->GetEntity() == ent)
 		g_botManager->Free(clientIndex);
 
 	LoadEntityData();
@@ -1921,7 +1845,7 @@ void ClientCommand(edict_t* ent)
 				case 2:
 					if (FindNearestPlayer(reinterpret_cast <void**> (&bot), client->ent, 4096.0, true, true, true))
 					{
-						if (!(bot->pev->weapons & (1 << WEAPON_C4)) && !bot->HasHostage())
+						if (!(bot->pev->weapons & (1 << Weapon::C4)) && !bot->HasHostage())
 						{
 							if (selection == 1)
 							{
@@ -2702,7 +2626,7 @@ void SetPing(edict_t* to)
 		if (bot == nullptr)
 			continue;
 
-		const int index = bot->m_index - 1;
+		const int index = bot->GetIndex() - 1;
 
 		switch (sending)
 		{
@@ -2793,20 +2717,7 @@ void JustAStuff(void)
 	}
 	else if (!FNullEnt(g_hostEntity))
 	{
-		if (g_navmeshOn)
-		{
-			for (const auto& bot : g_botManager->m_bots)
-			{
-				if (bot != nullptr)
-				{
-					g_botManager->RemoveAll();
-					break;
-				}
-			}
-
-			g_navmesh->DrawNavArea();
-		}
-		else if (g_waypointOn)
+		if (g_waypointOn)
 		{
 			for (const auto& bot : g_botManager->m_bots)
 			{
@@ -2840,10 +2751,7 @@ void FrameThread(void)
 
 	float ut = 1.0f;
 
-	if (g_navmeshOn && !g_analyzenavmesh)
-		ut = 0.05f;
-
-	if (g_gameVersion == CSVER_XASH)
+	if (g_gameVersion == Game::Xash)
 	{
 		const auto simulate = g_engfuncs.pfnCVarGetPointer("sv_forcesimulating");
 		if (simulate != nullptr && simulate->value != 1.0f)
@@ -2867,9 +2775,7 @@ void StartFrame(void)
 		FrameThread();
 	else
 	{
-		if (g_analyzenavmesh)
-			g_navmesh->Analyze();
-		else if (g_analyzewaypoints)
+		if (g_analyzewaypoints)
 			g_waypoint->Analyze();
 		else // keep bot number up to date
 			g_botManager->MaintainBotQuota();
@@ -2893,9 +2799,7 @@ void StartFrame_Post(void)
 	if (updateTimer < engine->GetTime())
 	{
 		g_botManager->Think();
-
-		if (g_gameVersion != CSVER_VERYOLD)
-			updateTimer = AddTime(0.03333333333f);
+		updateTimer = AddTime(0.05f);
 	}
 	// **** AI EXECUTION FINISH ****
 
@@ -3012,7 +2916,7 @@ void pfnMessageBegin(int msgDest, int msgType, const float* origin, edict_t* ed)
 	}
 	NetworkMsg::GetObjectPtr()->Reset();
 
-	if (msgDest == MSG_SPEC && g_gameVersion != CSVER_VERYOLD && msgType == NetworkMsg::GetObjectPtr()->GetId(NETMSG_HLTV))
+	if (msgDest == MSG_SPEC && g_gameVersion != Game::Old && msgType == NetworkMsg::GetObjectPtr()->GetId(NETMSG_HLTV))
 		NetworkMsg::GetObjectPtr()->SetMessage(NETMSG_HLTV);
 
 	NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_WLIST);
@@ -3060,7 +2964,6 @@ void pfnMessageBegin(int msgDest, int msgType, const float* origin, edict_t* ed)
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
 
-	g_isMessage = true;
 	MESSAGE_BEGIN(msgDest, msgType, origin, ed);
 }
 
@@ -3072,7 +2975,6 @@ void pfnMessageEnd(void)
 		RETURN_META(MRES_IGNORED);
 
 	MESSAGE_END();
-	g_isMessage = false;
 }
 
 void pfnWriteByte(int value)
@@ -3373,7 +3275,7 @@ exportc int GetEntityAPI2(DLL_FUNCTIONS* functionTable, int* /*interfaceVersion*
 		// pass other DLLs engine callbacks to function table...
 		if ((*g_entityAPI) (&g_functionTable, 140) == 0)
 		{
-			AddLogEntry(LOG_FATAL, "GetEntityAPI2: ERROR - Not Initialized.");
+			AddLogEntry(Log::Fatal, "GetEntityAPI2: ERROR - Not Initialized.");
 			return false;  // error initializing function table!!!
 		}
 
@@ -3433,7 +3335,7 @@ exportc int GetNewDLLFunctions(NEW_DLL_FUNCTIONS* functionTable, int* interfaceV
 
 	if (!(*g_getNewEntityAPI) (functionTable, interfaceVersion))
 	{
-		AddLogEntry(LOG_FATAL, "GetNewDLLFunctions: ERROR - Not Initialized.");
+		AddLogEntry(Log::Fatal, "GetNewDLLFunctions: ERROR - Not Initialized.");
 		return false;
 	}
 
@@ -3603,20 +3505,20 @@ DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* 
 		char linuxLib[32];
 		char winLib[32];
 		char desc[256];
-		int modType;
+		Game modType;
 	} s_supportedMods[] =
 	{
-		{ "cstrike", "cs_i386.so", "mp.dll", "Counter-Strike v1.6", CSVER_CSTRIKE },
-		{ "cstrike", "cs.so", "mp.dll", "Counter-Strike v1.6 (Newer)", CSVER_CSTRIKE },
-		{ "czero", "cs_i386.so", "mp.dll", "Counter-Strike: Condition Zero", CSVER_CZERO },
-		{ "czero", "cs.so", "mp.dll", "Counter-Strike: Condition Zero (Newer)", CSVER_CZERO },
-		{ "csv15", "cs_i386.so", "mp.dll", "CS 1.5 for Steam", CSVER_VERYOLD },
-		{ "csdm", "cs_i386.so", "mp.dll", "CSDM for Windows", CSVER_VERYOLD },
-		{ "cs13", "cs_i386.so", "mp.dll", "Counter-Strike v1.3", CSVER_VERYOLD }, // assume cs13 = cs15
-		{ "retrocs", "rcs_i386.so", "rcs.dll", "Retro Counter-Strike", CSVER_VERYOLD },
-		{ "valve", "hl.so", "hl.dll", "Half-Life", HALFLIFE },
-		{ "gearbox", "opfor.so", "opfor.dll", "Half-Life: Opposing Force", HALFLIFE },
-		{ "", "", "", "", HALFLIFE }
+		{ "cstrike", "cs_i386.so", "mp.dll", "Counter-Strike v1.6", Game::CStrike },
+		{ "cstrike", "cs.so", "mp.dll", "Counter-Strike v1.6 (Newer)", Game::CStrike },
+		{ "czero", "cs_i386.so", "mp.dll", "Counter-Strike: Condition Zero", Game::CZero },
+		{ "czero", "cs.so", "mp.dll", "Counter-Strike: Condition Zero (Newer)", Game::CZero },
+		{ "csv15", "cs_i386.so", "mp.dll", "CS 1.5 for Steam", Game::Old },
+		{ "csdm", "cs_i386.so", "mp.dll", "CSDM for Windows", Game::Old },
+		{ "cs13", "cs_i386.so", "mp.dll", "Counter-Strike v1.3", Game::Old }, // assume cs13 = cs15
+		{ "retrocs", "rcs_i386.so", "rcs.dll", "Retro Counter-Strike", Game::Old },
+		{ "valve", "hl.so", "hl.dll", "Half-Life", Game::HalfLife },
+		{ "gearbox", "opfor.so", "opfor.dll", "Half-Life: Opposing Force", Game::HalfLife },
+		{ "", "", "", "", Game::HalfLife }
 	};
 
 	// get the engine functions from the engine...
@@ -3650,7 +3552,7 @@ DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* 
 		if ((g_gameLib == nullptr || (g_gameLib && !g_gameLib->IsLoaded())))
 		{
 			// try to extract the game dll out of the steam cache
-			AddLogEntry(LOG_WARNING | LOG_IGNORE, "Trying to extract dll '%s' out of the steam cache", gameDLLName);
+			AddLogEntry(Log::Warning, "Trying to extract dll '%s' out of the steam cache", gameDLLName);
 
 			int size;
 			uint8_t* buffer = (*g_engfuncs.pfnLoadFileForMe) (gameDLLName, &size);
@@ -3674,7 +3576,7 @@ DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* 
 		}
 	}
 	else
-		AddLogEntry(LOG_FATAL | LOG_IGNORE, "Mod that you has started, not supported by this bot (gamedir: %s)", GetModName());
+		AddLogEntry(Log::Fatal, "Mod that you has started, not supported by this bot (gamedir: %s)", GetModName());
 
 	g_funcPointers = (FuncPointers_t)g_gameLib->GetFunctionAddr("GiveFnptrsToDll");
 	g_entityAPI = (EntityAPI_t)g_gameLib->GetFunctionAddr("GetEntityAPI");
@@ -3687,7 +3589,7 @@ DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* 
 	GetEngineFunctions(functionTable, nullptr);
 
 	if (g_engfuncs.pfnCVarGetPointer("host_ver") != nullptr)
-		g_gameVersion = CSVER_XASH;
+		g_gameVersion = Game::Xash;
 
 	// give the engine functions to the other DLL...
 	(*g_funcPointers) (functionTable, pGlobals);

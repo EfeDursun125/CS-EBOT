@@ -28,8 +28,8 @@ BotControl::BotControl(void)
 {
 	m_lastWinner = -1;
 
-	m_economicsGood[TEAM_TERRORIST] = true;
-	m_economicsGood[TEAM_COUNTER] = true;
+	m_economicsGood[Team::Terrorist] = true;
+	m_economicsGood[Team::Counter] = true;
 
 	cmemset(m_bots, 0, sizeof(m_bots));
 	InitQuota();
@@ -82,7 +82,7 @@ String CheckSubfolderFile(const char botName[96])
 int BotControl::CreateBot(String name, int skill, int personality, int team, int member)
 {
 	edict_t* bot = nullptr;
-	if (g_numWaypoints < 1 && g_numNavAreas < 1) // don't allow creating bots with no waypoints loaded
+	if (g_numWaypoints < 1) // don't allow creating bots with no waypoints loaded
 	{
 		ServerPrint("No any waypoints for this map, Cannot Add E-BOT");
 		ServerPrint("You can input 'ebot wp menu' to make waypoint");
@@ -124,11 +124,11 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 	{
 		const int randomPrecent = CRandomInt(1, 3);
 		if (randomPrecent == 1)
-			personality = PERSONALITY_NORMAL;
+			personality = Personality::Normal;
 		else if (randomPrecent == 2)
-			personality = PERSONALITY_RUSHER;
+			personality = Personality::Rusher;
 		else
-			personality = PERSONALITY_CAREFUL;
+			personality = Personality::Careful;
 	}
 
 	char outputName[33];
@@ -197,7 +197,7 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 	m_bots[index] = new Bot(bot, skill, personality, team, member);
 	if (m_bots[index] == nullptr)
 	{
-		AddLogEntry(LOG_MEMORY, "unexpected memory error");
+		AddLogEntry(Log::Memory, "unexpected memory error");
 		return -1;
 	}
 
@@ -205,7 +205,6 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 	ServerPrint("Connecting E-Bot - %s | Skill %d", ebotName, skill);
 
 	// set values
-	m_bots[index]->m_index = m_bots[index]->GetIndex();
 	m_bots[index]->m_senseChance = CRandomInt(10, 90);
 
 	return index;
@@ -265,7 +264,7 @@ Bot* BotControl::FindOneValidAliveBot(void)
 	for (const auto& bot : m_bots)
 	{
 		if (bot != nullptr && bot->m_isAlive)
-			foundBots.Push(bot->m_index - 1);
+			foundBots.Push(bot->GetIndex() - 1);
 	}
 
 	if (!foundBots.IsEmpty())
@@ -651,7 +650,7 @@ void BotControl::RemoveMenu(edict_t* ent, int selection)
 		if ((m_bots[i] != nullptr) && !FNullEnt(m_bots[i]->GetEntity()))
 		{
 			validSlots |= 1 << (i - ((selection - 1) * 8));
-			sprintf(buffer, "%s %1.1d. %s%s\n", buffer, i - ((selection - 1) * 8) + 1, GetEntityName(m_bots[i]->GetEntity()), GetTeam(m_bots[i]->GetEntity()) == TEAM_COUNTER ? " \\y(CT)\\w" : " \\r(T)\\w");
+			sprintf(buffer, "%s %1.1d. %s%s\n", buffer, i - ((selection - 1) * 8) + 1, GetEntityName(m_bots[i]->GetEntity()), GetTeam(m_bots[i]->GetEntity()) == Team::Counter ? " \\y(CT)\\w" : " \\r(T)\\w");
 		}
 		else if (!FNullEnt(g_clients[i].ent))
 			sprintf(buffer, "%s %1.1d.\\d %s (Not E-BOT) \\w\n", buffer, i - ((selection - 1) * 8) + 1, GetEntityName(g_clients[i].ent));
@@ -694,13 +693,13 @@ void BotControl::RemoveMenu(edict_t* ent, int selection)
 }
 
 // this function kills all bots on server (only this dll controlled bots)
-void BotControl::KillAll(int team)
+void BotControl::KillAll(const int team)
 {
 	for (const auto& bot : m_bots)
 	{
 		if (bot != nullptr)
 		{
-			if (team != -1 && team != bot->m_team)
+			if (team != Team::Count && team != bot->m_team)
 				continue;
 
 			bot->Kill();
@@ -788,7 +787,7 @@ void BotControl::ListBots(void)
 
 		// is this player slot valid
 		if (IsValidBot(player))
-			ServerPrintNoTag("[%-3.1d] %-9.13s %-17.18s %-3.4s %-3.1d %-3.1d", client.index, GetEntityName(player), GetBot(player)->m_personality == PERSONALITY_RUSHER ? "Rusher" : GetBot(player)->m_personality == PERSONALITY_NORMAL ? "Normal" : "Careful", GetTeam(player) != 0 ? "CT" : "TR", GetBot(player)->m_skill, static_cast<int>(player->v.frags));
+			ServerPrintNoTag("[%-3.1d] %-9.13s %-17.18s %-3.4s %-3.1d %-3.1d", client.index, GetEntityName(player), GetBot(player)->m_personality == Personality::Rusher ? "Rusher" : GetBot(player)->m_personality == Personality::Normal ? "Normal" : "Careful", GetTeam(player) != 0 ? "CT" : "TR", GetBot(player)->m_skill, static_cast<int>(player->v.frags));
 	}
 }
 
@@ -822,7 +821,7 @@ int BotControl::GetHumansNum()
 }
 
 // this function returns bot with highest frag
-Bot* BotControl::GetHighestSkillBot(int team)
+Bot* BotControl::GetHighestSkillBot(const int team)
 {
 	Bot* highFragBot = nullptr;
 
@@ -832,11 +831,11 @@ Bot* BotControl::GetHighestSkillBot(int team)
 	// search bots in this team
 	for (const auto& bot : m_bots)
 	{
-		if (highFragBot != nullptr && (team == TEAM_COUNT || highFragBot->m_team == team))
+		if (highFragBot != nullptr && (team == Team::Count || highFragBot->m_team == team))
 		{
 			if (highFragBot->m_skill > bestSkill)
 			{
-				bestIndex = bot->m_index - 1;
+				bestIndex = bot->GetIndex() - 1;
 				bestSkill = highFragBot->m_skill;
 			}
 		}
@@ -849,9 +848,9 @@ void BotControl::SelectLeaderEachTeam(const int team)
 {
 	Bot* botLeader = nullptr;
 
-	if (GetGameMode() == MODE_BASE || GetGameMode() == MODE_TDM)
+	if (GetGameMode() == GameMode::Original || GetGameMode() == GameMode::TeamDeathmatch)
 	{
-		if (team == TEAM_TERRORIST)
+		if (team == Team::Terrorist)
 		{
 			botLeader = g_botManager->GetHighestSkillBot(team);
 
@@ -861,7 +860,7 @@ void BotControl::SelectLeaderEachTeam(const int team)
 				botLeader->RadioMessage(Radio::FollowMe);
 			}
 		}
-		else if (team == TEAM_COUNTER)
+		else if (team == Team::Counter)
 		{
 			botLeader = g_botManager->GetHighestSkillBot(team);
 
@@ -877,9 +876,9 @@ void BotControl::SelectLeaderEachTeam(const int team)
 // this function decides is players on specified team is able to buy primary weapons by calculating players
 // that have not enough money to buy primary (with economics), and if this result higher 80%, player is can't
 // buy primary weapons.
-void BotControl::CheckTeamEconomics(int team)
+void BotControl::CheckTeamEconomics(const int team)
 {
-	if (GetGameMode() != MODE_BASE)
+	if (GetGameMode() != GameMode::Original)
 	{
 		m_economicsGood[team] = true;
 		return;
@@ -965,7 +964,7 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 	char* buffer = GET_INFOKEYBUFFER(bot);
 	SET_CLIENT_KEYVALUE(clientIndex, buffer, "_vgui_menus", "0");
 
-	if (g_gameVersion == HALFLIFE)
+	if (g_gameVersion == Game::HalfLife)
 	{
 		char c_topcolor[4], c_bottomcolor[4];
 		sprintf(c_topcolor, "%d", CRandomInt(1, 254));
@@ -974,7 +973,7 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 		SET_CLIENT_KEYVALUE(clientIndex, buffer, "bottomcolor", c_bottomcolor);
 	}
 
-	if (g_gameVersion != CSVER_VERYOLD && !ebot_ping.GetBool())
+	if (g_gameVersion != Game::Old && !ebot_ping.GetBool())
 		SET_CLIENT_KEYVALUE(clientIndex, buffer, "*bot", "1");
 
 	rejectReason[0] = 0; // reset the reject reason template string
@@ -986,7 +985,7 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 
 	if (!IsNullString(rejectReason))
 	{
-		AddLogEntry(LOG_WARNING, "Server refused '%s' connection (%s)", GetEntityName(bot), rejectReason);
+		AddLogEntry(Log::Warning, "Server refused '%s' connection (%s)", GetEntityName(bot), rejectReason);
 		ServerCommand("kick \"%s\"", GetEntityName(bot)); // kick the bot player if the server refused it
 		bot->v.flags |= FL_KILLME;
 	}
@@ -1011,22 +1010,22 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 
 	m_isAlive = false;
 	m_skill = skill;
-	m_weaponBurstMode = BURST_DISABLED;
+	m_weaponBurstMode = BurstMode::Disabled;
 
 	m_frameInterval = engine->GetTime();
 
 	switch (personality)
 	{
 	case 1:
-		m_personality = PERSONALITY_RUSHER;
+		m_personality = Personality::Rusher;
 		break;
 
 	case 2:
-		m_personality = PERSONALITY_CAREFUL;
+		m_personality = Personality::Careful;
 		break;
 
 	default:
-		m_personality = PERSONALITY_NORMAL;
+		m_personality = Personality::Normal;
 		break;
 	}
 
@@ -1180,7 +1179,7 @@ void Bot::NewRound(void)
 	SetEntityWaypoint(GetEntity(), -2);
 
 	// and put buying into its message queue
-	if (g_gameVersion == HALFLIFE)
+	if (g_gameVersion == Game::HalfLife)
 	{
 		m_buyState = 7;
 		m_buyingFinished = true;
@@ -1248,7 +1247,7 @@ void Bot::Kick(void)
 // this function handles the selection of teams & class
 void Bot::StartGame(void)
 {
-	if (g_gameVersion == HALFLIFE)
+	if (g_gameVersion == Game::HalfLife)
 	{
 		if (CRandomInt(1, 3) == 1)
 			ChatMessage(CHAT_HELLO);
@@ -1277,7 +1276,7 @@ void Bot::StartGame(void)
 	else if (m_startAction == CMENU_CLASS)
 	{
 		m_startAction = CMENU_IDLE;  // switch back to idle
-		m_wantedClass = CRandomInt(1, g_gameVersion == CSVER_CZERO ? 5 : 4);
+		m_wantedClass = CRandomInt(1, g_gameVersion == Game::CZero ? 5 : 4);
 
 		// select the class the bot wishes to use...
 		FakeClientCommand(GetEntity(), "menuselect %d", m_wantedClass);
@@ -1289,7 +1288,7 @@ void Bot::StartGame(void)
 		if (CRandomInt(1, 3) == 1)
 			ChatMessage(CHAT_HELLO);
 	}
-	else if ((m_team == TEAM_COUNTER || m_team == TEAM_TERRORIST) && IsAlive(GetEntity())) // something is wrong...
+	else if ((m_team == Team::Counter || m_team == Team::Terrorist) && IsAlive(GetEntity())) // something is wrong...
 	{
 		if (CRandomInt(1, 3) == 1)
 			ChatMessage(CHAT_HELLO);

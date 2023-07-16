@@ -26,11 +26,11 @@ int Bot::FindGoal(void)
 		else
 			return m_chosenGoalIndex = CRandomInt(0, g_numWaypoints - 1);
 	}
-	else if (GetGameMode() == MODE_BASE)
+	else if (GetGameMode() == GameMode::Original)
 	{
 		if (g_mapType & MAP_CS)
 		{
-			if (m_team == TEAM_COUNTER)
+			if (m_team == Team::Counter)
 			{
 				if (!g_waypoint->m_rescuePoints.IsEmpty() && HasHostage())
 				{
@@ -59,7 +59,7 @@ int Bot::FindGoal(void)
 		}
 		else if (g_mapType & MAP_AS)
 		{
-			if (m_team == TEAM_COUNTER)
+			if (m_team == Team::Counter)
 			{
 				if (m_isVIP && !g_waypoint->m_goalPoints.IsEmpty())
 					return m_chosenGoalIndex = g_waypoint->m_goalPoints.GetRandomElement();
@@ -87,7 +87,7 @@ int Bot::FindGoal(void)
 
 				if (noTimeLeft)
 					SetProcess(Process::Escape, "escaping from the bomb", true, 60.0f);
-				else if (m_team == TEAM_COUNTER)
+				else if (m_team == Team::Counter)
 				{
 					const Vector bombOrigin = g_waypoint->GetBombPosition();
 					if (bombOrigin != nullvec)
@@ -147,7 +147,7 @@ int Bot::FindGoal(void)
 
 				if (IsValidWaypoint(m_loosedBombWptIndex))
 				{
-					if (m_team == TEAM_COUNTER)
+					if (m_team == Team::Counter)
 					{
 						const int index = FindDefendWaypoint(g_waypoint->GetPath(m_loosedBombWptIndex)->origin);
 						if (IsValidWaypoint(index))
@@ -163,7 +163,7 @@ int Bot::FindGoal(void)
 				}
 				else
 				{
-					if (m_team == TEAM_COUNTER)
+					if (m_team == Team::Counter)
 					{
 						if (!g_waypoint->m_ctPoints.IsEmpty())
 						{
@@ -320,8 +320,8 @@ void Bot::DoWaypointNav(void)
 
 			if (ebot_use_old_jump_method.GetBool())
 			{
-				pev->velocity.x = (m_waypointOrigin.x - (pev->origin.x + pev->velocity.x * (m_frameInterval * 2.0f))) * (2.0f + cabsf((pev->maxspeed * 0.004) - pev->gravity));
-				pev->velocity.y = (m_waypointOrigin.y - (pev->origin.y + pev->velocity.y * (m_frameInterval * 2.0f))) * (2.0f + cabsf((pev->maxspeed * 0.004) - pev->gravity));
+				pev->velocity.x = (m_destOrigin.x - (pev->origin.x + pev->velocity.x * (m_frameInterval * 2.0f))) * (2.0f + cabsf((pev->maxspeed * 0.004) - pev->gravity));
+				pev->velocity.y = (m_destOrigin.y - (pev->origin.y + pev->velocity.y * (m_frameInterval * 2.0f))) * (2.0f + cabsf((pev->maxspeed * 0.004) - pev->gravity));
 
 				// poor bots can't jump :(
 				if (pev->gravity >= 0.88f)
@@ -348,11 +348,7 @@ void Bot::DoWaypointNav(void)
 		if (cabsf(GetBottomOrigin(GetEntity()).z - g_waypoint->GetBottomOrigin(currentWaypoint).z) > 54.0f)
 			DeleteSearchNodes();
 		else if (m_stuckWarn >= 3)
-		{
-			m_waypointOrigin = currentWaypoint->origin;
-			m_destOrigin = m_waypointOrigin;
 			autoJump();
-		}
 	}
 	else if (currentWaypoint->flags & WAYPOINT_LADDER || IsOnLadder())
 	{
@@ -373,7 +369,7 @@ void Bot::DoWaypointNav(void)
 		// special detection if someone is using the ladder (to prevent to have bots-towers on ladders)
 		for (const auto& client : g_clients)
 		{
-			if (FNullEnt(client.ent) || !(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || (client.ent->v.movetype != MOVETYPE_FLY) || client.index == (m_index - 1))
+			if (FNullEnt(client.ent) || !(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || (client.ent->v.movetype != MOVETYPE_FLY) || client.index == (GetIndex() - 1))
 				continue;
 
 			TraceResult tr{};
@@ -384,7 +380,7 @@ void Bot::DoWaypointNav(void)
 			if ((client.ent->v.origin - currentWaypoint->origin).GetLengthSquared() <= SquaredF(48.0f))
 			{
 				extern ConVar ebot_ignore_enemies;
-				if ((client.team != m_team || GetGameMode() == MODE_DM || GetGameMode() == MODE_NOTEAM) && !ebot_ignore_enemies.GetBool())
+				if ((client.team != m_team || GetGameMode() == GameMode::Deathmatch || GetGameMode() == GameMode::NoTeam) && !ebot_ignore_enemies.GetBool())
 				{
 					TraceLine(EyePosition(), client.ent->v.origin, ignore_monsters, GetEntity(), &tr);
 
@@ -479,7 +475,7 @@ void Bot::DoWaypointNav(void)
 				if (!(pev->oldbuttons & IN_USE && pev->button & IN_USE))
 				{
 					// do not use door directrly under xash, or we will get failed assert in gamedll code
-					if (g_gameVersion == CSVER_XASH)
+					if (g_gameVersion == Game::Xash)
 					{
 						m_lookAt = origin;
 						pev->button |= IN_USE;
@@ -495,7 +491,7 @@ void Bot::DoWaypointNav(void)
 			if (!FNullEnt(button))
 			{
 				m_pickupItem = button;
-				m_pickupType = PICKTYPE_BUTTON;
+				m_pickupType = PickupType::Button;
 			}
 
 			// if bot hits the door, then it opens, so wait a bit to let it open safely
@@ -770,7 +766,7 @@ bool Bot::UpdateLiftHandling()
 		if (!FNullEnt(button) && pev->groundentity == m_liftEntity && m_buttonPushTime + 1.0f < engine->GetTime() && m_liftEntity->v.velocity.z == 0.0f && IsOnFloor())
 		{
 			m_pickupItem = button;
-			m_pickupType = PICKTYPE_BUTTON;
+			m_pickupType = PickupType::Button;
 
 		}
 	}
@@ -848,7 +844,7 @@ bool Bot::UpdateLiftHandling()
 				else
 				{
 					m_pickupItem = button;
-					m_pickupType = PICKTYPE_BUTTON;
+					m_pickupType = PickupType::Button;
 					m_liftState = LiftState::WaitingFor;
 					m_liftUsageTime = AddTime(20.0f);
 				}
@@ -1399,21 +1395,6 @@ inline const float HF_Euclidean2D(const int start, const int goal)
 	return 1000.0f * (cceilf(euclidean) - euclidean);
 }
 
-inline const float GF_CostNav(const NavArea* start, const NavArea* goal, const int index)
-{
-	float multiplier = 1.0f;
-	int seed = int(engine->GetTime() * 0.1f) + 1;
-	seed *= goal->index;
-	seed *= index;
-	multiplier += (cosf(float(seed)) + 1.0f) * 10.0f;
-	return (g_navmesh->GetCenter(start) - g_navmesh->GetCenter(goal)).GetLengthSquared() * multiplier;
-}
-
-inline const float HF_Nav(const NavArea* start, const NavArea* goal)
-{
-	return (g_navmesh->GetCenter(start) - g_navmesh->GetCenter(goal)).GetLengthSquared();
-}
-
 inline const float RandomSeed(const int botindex, const int waypoint, const int personality)
 {
 	int seed = int(engine->GetTime() * 0.1f) + 1;
@@ -1458,156 +1439,13 @@ char* Bot::GetHeuristicName(void)
 	return "UNKNOWN";
 }
 
-
-// this function finds a path from srcIndex to destIndex
-void Bot::FindPathNavMesh(NavArea* start, NavArea* dest)
-{
-	if (m_isBomber && HasNextPath())
-		return;
-
-	if (start == nullptr)
-	{
-		NavArea* index = g_navmesh->GetNearestNavArea(pev->origin);
-		if (index == nullptr)
-			return;
-
-		start = index;
-		m_jumpFinished = false;
-	}
-
-	if (dest == nullptr)
-		dest = g_navmesh->GetNavArea(CRandomInt(1, g_numNavAreas - 1));
-
-	if (start == dest)
-		return;
-
-	AStar_t navmesh[Const_MaxWaypoints];
-	for (int i = 0; i < g_numNavAreas; i++)
-	{
-		navmesh[i].g = 0;
-		navmesh[i].f = 0;
-		navmesh[i].parent = -1;
-		navmesh[i].state = State::New;
-	}
-
-	const float (*gcalc) (const NavArea*, const NavArea*, const int index) = nullptr;
-	const float (*hcalc) (const NavArea*, const NavArea*) = nullptr;
-
-	hcalc = HF_Nav;
-	if (hcalc == nullptr)
-		return;
-
-	gcalc = GF_CostNav;
-	if (gcalc == nullptr)
-		return;
-
-	// put start node into open list
-	const auto srcWaypoint = &navmesh[start->index];
-	srcWaypoint->g = gcalc(start, dest, m_index);
-	srcWaypoint->f = srcWaypoint->g + hcalc(start, dest);
-	srcWaypoint->state = State::Open;
-
-	PriorityQueue openList;
-	openList.Insert(start->index, srcWaypoint->f);
-	while (!openList.Empty())
-	{
-		// remove the first node from the open list
-		int currentIndex = openList.Remove();
-
-		// is the current node the goal node?
-		if (currentIndex == dest->index)
-		{
-			// delete path for new one
-			DeleteSearchNodes();
-
-			// set the chosen goal value
-			m_chosenGoalIndex = dest->index;
-
-			// build the complete path
-			m_navNode = nullptr;
-
-			do
-			{
-				PathNode* path = new PathNode;
-				if (path == nullptr)
-				{
-					AddLogEntry(LOG_MEMORY, "unexpected memory error");
-					break;
-				}
-
-				path->index = currentIndex;
-				path->next = m_navNode;
-
-				m_navNode = path;
-				currentIndex = navmesh[currentIndex].parent;
-			} while (IsValidWaypoint(currentIndex));
-
-			m_navNodeStart = m_navNode;
-			m_currentWaypointIndex = m_navNodeStart->index;
-			m_jumpFinished = false;
-
-			NavArea* area = g_navmesh->GetNavArea(m_currentWaypointIndex);
-			if (area != nullptr)
-			{
-				m_waypointOrigin = g_navmesh->GetClosestPosition(area, pev->origin);
-				m_destOrigin = m_waypointOrigin;
-			}
-
-			return;
-		}
-
-		const auto currWaypoint = &navmesh[currentIndex];
-		if (currWaypoint->state != State::Open)
-			continue;
-
-		// put current node into Closed list
-		currWaypoint->state = State::Closed;
-
-		NavArea* pointer = g_navmesh->GetNavArea(currentIndex);
-		if (pointer == nullptr)
-			continue;
-
-		// now expand the current node
-		for (int i = 0; i < pointer->connections.GetElementNumber(); i++)
-		{
-			const NavArea* self = pointer->connections[i];
-			if (self == nullptr)
-				continue;
-
-			// calculate the F value as F = G + H
-			const float g = currWaypoint->g + gcalc(pointer, self, m_index);
-			const float h = hcalc(self, dest);
-			const float f = g + h;
-
-			const auto childWaypoint = &navmesh[self->index];
-			if (childWaypoint->state == State::New || childWaypoint->f > f)
-			{
-				// put the current child into open list
-				childWaypoint->parent = currentIndex;
-				childWaypoint->state = State::Open;
-
-				childWaypoint->g = g;
-				childWaypoint->f = f;
-
-				openList.Insert(self->index, childWaypoint->f);
-			}
-		}
-	}
-}
-
 // this function finds a path from srcIndex to destIndex
 void Bot::FindPath(int srcIndex, int destIndex)
 {
 	if (srcIndex == destIndex)
 		return;
 
-	if (g_isUsingNAV)
-	{
-		FindPathNavMesh(nullptr, g_navmesh->GetNearestNavArea(g_waypoint->GetPath(destIndex)->origin));
-		return;
-	}
-
-	if (g_gameVersion == HALFLIFE)
+	if (g_gameVersion == Game::HalfLife)
 	{
 		FindShortestPath(srcIndex, destIndex);
 		return;
@@ -1659,9 +1497,9 @@ void Bot::FindPath(int srcIndex, int destIndex)
 		else
 			gcalc = GF_CostCareful;
 	}
-	else if (m_personality == PERSONALITY_CAREFUL)
+	else if (m_personality == Personality::Careful)
 		gcalc = GF_CostCareful;
-	else if (m_personality == PERSONALITY_RUSHER)
+	else if (m_personality == Personality::Rusher)
 		gcalc = GF_CostRusher;
 	else
 		gcalc = GF_CostNormal;
@@ -1745,7 +1583,7 @@ void Bot::FindPath(int srcIndex, int destIndex)
 				PathNode* path = new PathNode;
 				if (path == nullptr)
 				{
-					AddLogEntry(LOG_MEMORY, "unexpected memory error");
+					AddLogEntry(Log::Memory, "unexpected memory error");
 					break;
 				}
 
@@ -1801,7 +1639,7 @@ void Bot::FindPath(int srcIndex, int destIndex)
 
 			// calculate the F value as F = G + H
 			const float g = currWaypoint->g + gcalc(currentIndex, self, m_team, pev->gravity, m_isZombieBot);
-			const float h = hcalc(self, destIndex) * useSeed ? RandomSeed(m_index, self, m_personality) : 0.1f;
+			const float h = hcalc(self, destIndex) * useSeed ? RandomSeed(GetIndex(), self, m_personality) : 0.1f;
 			const float f = g + h;
 
 			const auto childWaypoint = &waypoints[self];
@@ -1895,7 +1733,7 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 				PathNode* path = new PathNode;
 				if (path == nullptr)
 				{
-					AddLogEntry(LOG_MEMORY, "unexpected memory error");
+					AddLogEntry(Log::Memory, "unexpected memory error");
 					break;
 				}
 
@@ -2019,7 +1857,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 		TraceResult tr{};
 		TraceHull(EyePosition(), m_destOrigin, false, point_hull, GetEntity(), &tr);
 
-		TraceResult tr2;
+		TraceResult tr2{};
 		TraceHull(pev->origin, m_destOrigin, false, head_hull, GetEntity(), &tr2);
 
 		// double check
@@ -2059,7 +1897,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 						bot->m_breakableEntity = entity;
 						bot->m_breakable = tr.pHit == entity ? tr.vecEndPos : ((GetEntityOrigin(entity) * 0.5f) + (tr2.vecEndPos * 0.5f));
 
-						if (bot->m_currentWeapon == WEAPON_KNIFE)
+						if (bot->m_currentWeapon == Weapon::Knife)
 							bot->m_destOrigin = bot->m_breakable;
 
 						bot->SetProcess(Process::DestroyBreakable, "trying to help my friend for destroy a breakable", false, 20.0f);
@@ -2084,7 +1922,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 				if (enemy->m_isZombieBot)
 					continue;
 
-				if (enemy->m_currentWeapon == WEAPON_KNIFE)
+				if (enemy->m_currentWeapon == Weapon::Knife)
 					continue;
 
 				TraceHull(enemy->EyePosition(), m_breakable, false, point_hull, enemy->GetEntity(), &tr);
@@ -2114,9 +1952,9 @@ int Bot::FindWaypoint(void)
 		if (!IsValidWaypoint(at))
 			continue;
 		
-		if (m_team == TEAM_COUNTER && g_waypoint->GetPath(at)->flags & WAYPOINT_ZOMBIEONLY)
+		if (m_team == Team::Counter && g_waypoint->GetPath(at)->flags & WAYPOINT_ZOMBIEONLY)
 			continue;
-		else if (m_team == TEAM_TERRORIST && g_waypoint->GetPath(at)->flags & WAYPOINT_HUMANONLY)
+		else if (m_team == Team::Terrorist && g_waypoint->GetPath(at)->flags & WAYPOINT_HUMANONLY)
 			continue;
 
 		bool skip = !!(int(g_waypoint->GetPath(at)->index) == m_currentWaypointIndex);
@@ -2134,7 +1972,7 @@ int Bot::FindWaypoint(void)
 			continue;
 
 		// cts with hostages should not pick
-		if (m_team == TEAM_COUNTER && HasHostage())
+		if (m_team == Team::Counter && HasHostage())
 			continue;
 
 		// check we're have link to it
@@ -2223,7 +2061,7 @@ void Bot::CheckStuck(const float maxSpeed)
 	{
 		const Vector myOrigin = pev->origin + pev->velocity * m_frameInterval;
 		const Vector friendOrigin = m_friendOrigin + m_nearestFriend->v.velocity * m_frameInterval;
-		if ((myOrigin - friendOrigin).GetLengthSquared() <= SquaredF(m_nearestFriend->v.maxspeed * 0.26f))
+		if ((myOrigin - friendOrigin).GetLengthSquared() <= SquaredF(m_nearestFriend->v.maxspeed * 0.3f))
 		{
 			// use our movement angles, try to predict where we should be next frame
 			Vector right, forward;
@@ -2301,7 +2139,7 @@ void Bot::CheckStuck(const float maxSpeed)
 				if (!ebot_ignore_enemies.GetBool())
 				{
 					const bool friendlyFire = engine->IsFriendlyFireOn();
-					if ((!friendlyFire && m_currentWeapon == WEAPON_KNIFE) || (friendlyFire && !IsValidBot(m_nearestFriend))) // DOOR STUCK! || DIE HUMAN!
+					if ((!friendlyFire && m_currentWeapon == Weapon::Knife) || (friendlyFire && !IsValidBot(m_nearestFriend))) // DOOR STUCK! || DIE HUMAN!
 					{
 						m_lookAt = friendOrigin + (m_nearestFriend->v.view_ofs * 0.9f);
 						m_pauseTime = 0.0f;
@@ -2312,14 +2150,14 @@ void Bot::CheckStuck(const float maxSpeed)
 						{
 							// WHO SAID BOT'S DON'T HAVE A FEELINGS?
 							// then show it, or act as...
-							if (m_personality == PERSONALITY_CAREFUL)
+							if (m_personality == Personality::Careful)
 							{
 								if (friendlyFire)
 									ChatSay(false, "YOU'RE NOT ONE OF US!");
 								else
 									ChatSay(false, "I'M STUCK!");
 							}
-							else if (m_personality == PERSONALITY_RUSHER)
+							else if (m_personality == Personality::Rusher)
 							{
 								if (friendlyFire)
 									ChatSay(false, "DIE HUMAN!");
@@ -2501,9 +2339,9 @@ int Bot::FindDefendWaypoint(const Vector& origin)
 		if (pointer->flags & WAYPOINT_LADDER)
 			continue;
 
-		if (GetGameMode() == MODE_BASE)
+		if (GetGameMode() == GameMode::Original)
 		{
-			if (m_team == TEAM_COUNTER && pointer->flags & WAYPOINT_TERRORIST)
+			if (m_team == Team::Counter && pointer->flags & WAYPOINT_TERRORIST)
 				continue;
 			else if (pointer->flags & WAYPOINT_COUNTER)
 				continue;
@@ -2792,7 +2630,7 @@ bool Bot::CheckWallOnForward(void)
 	}
 	else
 	{
-		TraceResult tr2;
+		TraceResult tr2{};
 		TraceLine(tr.vecEndPos, tr.vecEndPos - g_pGlobals->v_up * 54.0f, false, false, GetEntity(), &tr2);
 
 		// we don't want fall
@@ -2822,7 +2660,7 @@ bool Bot::CheckWallOnBehind(void)
 	}
 	else
 	{
-		TraceResult tr2;
+		TraceResult tr2{};
 		TraceLine(tr.vecEndPos, tr.vecEndPos - g_pGlobals->v_up * 54.0f, false, false, GetEntity(), &tr2);
 
 		// we don't want fall
@@ -2852,7 +2690,7 @@ bool Bot::CheckWallOnLeft(void)
 	}
 	else
 	{
-		TraceResult tr2;
+		TraceResult tr2{};
 		TraceLine(tr.vecEndPos, tr.vecEndPos - g_pGlobals->v_up * 54.0f, false, false, GetEntity(), &tr2);
 
 		// we don't want fall
@@ -2882,7 +2720,7 @@ bool Bot::CheckWallOnRight(void)
 	}
 	else
 	{
-		TraceResult tr2;
+		TraceResult tr2{};
 		TraceLine(tr.vecEndPos, tr.vecEndPos - g_pGlobals->v_up * 54.0f, false, false, GetEntity(), &tr2);
 
 		// we don't want fall
@@ -3067,6 +2905,12 @@ void Bot::FacePosition(void)
 	pev->angles.y = pev->v_angle.y;
 }
 
+void Bot::LookAt(const Vector origin)
+{
+	m_lookAt = origin;
+	FacePosition();
+}
+
 void Bot::SetStrafeSpeed(const Vector moveDir, const float strafeSpeed)
 {
 	MakeVectors(pev->angles);
@@ -3109,7 +2953,7 @@ void Bot::SetStrafeSpeedNoCost(const Vector moveDir, const float strafeSpeed)
 // find hostage improve
 int Bot::FindHostage(void)
 {
-	if (m_team != TEAM_COUNTER || !(g_mapType & MAP_CS) || m_isZombieBot)
+	if (m_team != Team::Counter || !(g_mapType & MAP_CS) || m_isZombieBot)
 		return -1;
 
 	edict_t* ent = nullptr;
@@ -3150,7 +2994,7 @@ int Bot::FindHostage(void)
 
 int Bot::FindLoosedBomb(void)
 {
-	if (GetGameMode() != MODE_BASE || !(g_mapType & MAP_DE))
+	if (GetGameMode() != GameMode::Original || !(g_mapType & MAP_DE))
 		return -1;
 
 	edict_t* bombEntity = nullptr; // temporaly pointer to bomb

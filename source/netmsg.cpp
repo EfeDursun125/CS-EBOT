@@ -209,7 +209,7 @@ void NetworkMsg::Execute(void* p)
             break;
 
         case 1:
-            if (g_gameVersion != HALFLIFE)
+            if (g_gameVersion != Game::HalfLife)
             {
                 if (cstrcmp(PTR_TO_STR(p), "defuser") == 0)
                     m_bot->m_hasDefuser = (enabled != 0);
@@ -310,13 +310,13 @@ void NetworkMsg::Execute(void* p)
             {
                 g_roundEnded = true;
 
-                if (GetGameMode() == MODE_BASE)
+                if (GetGameMode() == GameMode::Original)
                 {
                     if (FStrEq(PTR_TO_STR(p), "#CTs_Win"))
-                        g_botManager->SetLastWinner(TEAM_COUNTER); // update last winner for economics
+                        g_botManager->SetLastWinner(Team::Counter); // update last winner for economics
 
                     if (FStrEq(PTR_TO_STR(p), "#Terrorists_Win"))
-                        g_botManager->SetLastWinner(TEAM_TERRORIST); // update last winner for economics
+                        g_botManager->SetLastWinner(Team::Terrorist); // update last winner for economics
                 }
 
                 g_waypoint->SetBombPosition(true);
@@ -335,16 +335,16 @@ void NetworkMsg::Execute(void* p)
                 }
             }
             else if (m_bot != nullptr && FStrEq(PTR_TO_STR(p), "#Switch_To_BurstFire"))
-                m_bot->m_weaponBurstMode = BURST_ENABLED;
+                m_bot->m_weaponBurstMode = BurstMode::Enabled;
             else if (m_bot != nullptr && FStrEq(PTR_TO_STR(p), "#Switch_To_SemiAuto"))
-                m_bot->m_weaponBurstMode = BURST_DISABLED;
+                m_bot->m_weaponBurstMode = BurstMode::Disabled;
         }
         break;
 
     case NETMSG_BARTIME:
         if (m_state == 0)
         {
-            if (GetGameMode() == MODE_BASE)
+            if (GetGameMode() == GameMode::Original)
             {
                 if (PTR_TO_INT(p) > 0)
                     m_bot->m_hasProgressBar = true; // the progress bar on a hud

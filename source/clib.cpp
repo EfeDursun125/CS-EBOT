@@ -254,7 +254,7 @@ void* cmemmove(void* dest, const void* src, size_t count)
 	return dest;
 }
 
-int ctz(unsigned int value)
+int cctz(unsigned int value)
 {
 	if (value == 0)
 		return sizeof(unsigned int) * 8;

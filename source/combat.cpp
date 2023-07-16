@@ -154,7 +154,7 @@ Vector Bot::GetEnemyPosition(void)
 	// now take in account different parts of enemy body
 	if (m_visibility & (Visibility::Head | Visibility::Body)) // visible head & body
 	{
-		if (!IsZombieMode() && m_currentWeapon == WEAPON_AWP)
+		if (!IsZombieMode() && m_currentWeapon == Weapon::Awp)
 			return targetOrigin;
 		// now check is our skill match to aim at head, else aim at enemy body
 		else if (IsZombieMode() || ChanceOf(m_skill) || UsesPistol())
@@ -183,8 +183,8 @@ float Bot::GetZOffset(float distance)
 
 	const bool zoomableRifle = UsesZoomableRifle();
 	const bool submachine = UsesSubmachineGun();
-	const bool shotgun = (m_currentWeapon == WEAPON_XM1014 || m_currentWeapon == WEAPON_M3);
-	const bool m249 = m_currentWeapon == WEAPON_M249;
+	const bool shotgun = (m_currentWeapon == Weapon::Xm1014 || m_currentWeapon == Weapon::M3);
+	const bool m249 = m_currentWeapon == Weapon::M249;
 
 	const float BurstDistance = SquaredF(300.0f);
 	const float DoubleBurstDistance = BurstDistance * 2.0f;
@@ -228,7 +228,7 @@ float Bot::GetZOffset(float distance)
 // bot can't hurt teammates, if friendly fire is not enabled...
 bool Bot::IsFriendInLineOfFire(const float distance)
 {
-	if (g_gameVersion == HALFLIFE || !engine->IsFriendlyFireOn() || GetGameMode() == MODE_DM || GetGameMode() == MODE_NOTEAM)
+	if (g_gameVersion == Game::HalfLife || !engine->IsFriendlyFireOn() || GetGameMode() == GameMode::Deathmatch || GetGameMode() == GameMode::NoTeam)
 		return false;
 
 	MakeVectors(pev->v_angle);
@@ -275,12 +275,12 @@ bool Bot::IsFriendInLineOfFire(const float distance)
 
 int CorrectGun(int weaponID)
 {
-	if (GetGameMode() != MODE_BASE)
+	if (GetGameMode() != GameMode::Original)
 		return 0;
 
-	if (weaponID == WEAPON_AUG || weaponID == WEAPON_M4A1 || weaponID == WEAPON_SG552 || weaponID == WEAPON_AK47 || weaponID == WEAPON_FAMAS || weaponID == WEAPON_GALIL)
+	if (weaponID == Weapon::Aug || weaponID == Weapon::M4A1 || weaponID == Weapon::Sg552 || weaponID == Weapon::Ak47 || weaponID == Weapon::Famas || weaponID == Weapon::Galil)
 		return 2;
-	else if (weaponID == WEAPON_SG552 || weaponID == WEAPON_G3SG1)
+	else if (weaponID == Weapon::Sg552 || weaponID == Weapon::G3SG1)
 		return 3;
 
 	return 0;
@@ -327,7 +327,7 @@ bool Bot::DoFirePause(const float distance)
 void Bot::FireWeapon(void)
 {
 	// try to switch
-	if (m_currentWeapon == WEAPON_KNIFE)
+	if (m_currentWeapon == Weapon::Knife)
 		SelectBestWeapon();
 
 	const float distance = m_enemyDistance <= m_entityDistance ? m_enemyDistance : m_entityDistance;
@@ -336,10 +336,10 @@ void Bot::FireWeapon(void)
 	if (IsFriendInLineOfFire(distance))
 		return;
 
-	const int melee = g_gameVersion == HALFLIFE ? WEAPON_CROWBAR : WEAPON_KNIFE;
+	const int melee = g_gameVersion == Game::HalfLife ? WeaponHL::Crowbar : Weapon::Knife;
 
 	FireDelay* delay = &g_fireDelay[0];
-	WeaponSelect* selectTab = g_gameVersion == HALFLIFE ? &g_weaponSelectHL[0] : &g_weaponSelect[0];
+	WeaponSelect* selectTab = g_gameVersion == Game::HalfLife ? &g_weaponSelectHL[0] : &g_weaponSelect[0];
 
 	edict_t* enemy = m_enemyDistance <= m_entityDistance ? m_nearestEnemy : m_nearestEntity;
 
@@ -364,11 +364,11 @@ void Bot::FireWeapon(void)
 				continue;
 
 			// is enough ammo available to fire AND check is better to use pistol in our current situation...
-			if (g_gameVersion == HALFLIFE)
+			if (g_gameVersion == Game::HalfLife)
 			{
-				if (selectIndex == WEAPON_SNARK || selectIndex == WEAPON_GAUSS ||selectIndex == WEAPON_EGON || (selectIndex == WEAPON_HANDGRENADE && distance > SquaredF(384.0f) && distance <= SquaredF(768.0f)) || (selectIndex == WEAPON_RPG && distance > SquaredF(320.0f)) || (selectIndex == WEAPON_CROSSBOW && distance > SquaredF(320.0f)))
+				if (selectIndex == WeaponHL::Snark || selectIndex == WeaponHL::Gauss ||selectIndex == WeaponHL::Egon || (selectIndex == WeaponHL::HandGrenade && distance > SquaredF(384.0f) && distance <= SquaredF(768.0f)) || (selectIndex == WeaponHL::Rpg && distance > SquaredF(320.0f)) || (selectIndex == WeaponHL::Crossbow && distance > SquaredF(320.0f)))
 					chosenWeaponIndex = selectIndex;
-				else if (selectIndex != WEAPON_HANDGRENADE && selectIndex != WEAPON_RPG  && selectIndex != WEAPON_CROSSBOW && (m_ammoInClip[id] > 0) && !IsWeaponBadInDistance(selectIndex, distance))
+				else if (selectIndex != WeaponHL::HandGrenade && selectIndex != WeaponHL::Rpg  && selectIndex != WeaponHL::Crossbow && (m_ammoInClip[id] > 0) && !IsWeaponBadInDistance(selectIndex, distance))
 						chosenWeaponIndex = selectIndex;
 
 			}
@@ -459,7 +459,7 @@ WeaponSelectEnd:
 	}
 
 	// if we're have a glock or famas vary burst fire mode
-	if (g_gameVersion != HALFLIFE)
+	if (g_gameVersion != Game::HalfLife)
 	{
 		CheckBurstMode(distance);
 
@@ -499,7 +499,7 @@ WeaponSelectEnd:
 	}
 
 	// need to care for burst fire?
-	if (g_gameVersion == HALFLIFE || distance <= SquaredF(512.0f))
+	if (g_gameVersion == Game::HalfLife || distance <= SquaredF(512.0f))
 	{
 		if (selectId == melee)
 			KnifeAttack();
@@ -647,29 +647,29 @@ bool Bot::KnifeAttack(const float attackDistance)
 // to attack our enemy, since current weapon is not very good in this situation
 bool Bot::IsWeaponBadInDistance(const int weaponIndex, const float distance)
 {
-	if (g_gameVersion == HALFLIFE)
+	if (g_gameVersion == Game::HalfLife)
 	{
 		const int weaponID = g_weaponSelectHL[weaponIndex].id;
-		if (weaponID == WEAPON_CROWBAR)
+		if (weaponID == WeaponHL::Crowbar)
 			return false;
 
 		// shotgun is too inaccurate at long distances, so weapon is bad
-		if (weaponID == WEAPON_SHOTGUN && distance > SquaredF(768.0f))
+		if (weaponID == WeaponHL::Shotgun && distance > SquaredF(768.0f))
 			return true;
 	}
 	else
 	{
 		const int weaponID = g_weaponSelect[weaponIndex].id;
-		if (weaponID == WEAPON_KNIFE)
+		if (weaponID == Weapon::Knife)
 			return false;
 
 		// shotguns is too inaccurate at long distances, so weapon is bad
-		if ((weaponID == WEAPON_M3 || weaponID == WEAPON_XM1014) && distance > SquaredF(768.0f))
+		if ((weaponID == Weapon::M3 || weaponID == Weapon::Xm1014) && distance > SquaredF(768.0f))
 			return true;
 
 		if (!IsZombieMode())
 		{
-			if ((weaponID == WEAPON_SCOUT || weaponID == WEAPON_AWP || weaponID == WEAPON_G3SG1 || weaponID == WEAPON_SG550) && distance <= SquaredF(512.0f))
+			if ((weaponID == Weapon::Scout || weaponID == Weapon::Awp || weaponID == Weapon::G3SG1 || weaponID == Weapon::Sg550) && distance <= SquaredF(512.0f))
 				return true;
 		}
 	}
@@ -696,7 +696,7 @@ bool Bot::HasShield(void)
 // this function returns true, is the tactical shield is drawn
 bool Bot::IsShieldDrawn(void)
 {
-	if (g_gameVersion == HALFLIFE)
+	if (g_gameVersion == Game::HalfLife)
 		return false;
 
 	if (!HasShield())
@@ -708,7 +708,7 @@ bool Bot::IsShieldDrawn(void)
 // this function returns true, if enemy protected by the shield
 bool Bot::IsEnemyProtectedByShield(edict_t* enemy)
 {
-	if (g_gameVersion == HALFLIFE)
+	if (g_gameVersion == Game::HalfLife)
 		return false;
 
 	if (FNullEnt(enemy))
@@ -729,29 +729,29 @@ bool Bot::IsEnemyProtectedByShield(edict_t* enemy)
 
 bool Bot::UsesSniper(void)
 {
-	if (g_gameVersion == HALFLIFE)
-		return m_currentWeapon == WEAPON_CROSSBOW;
+	if (g_gameVersion == Game::HalfLife)
+		return m_currentWeapon == WeaponHL::Crossbow;
 
-	return m_currentWeapon == WEAPON_AWP || m_currentWeapon == WEAPON_G3SG1 || m_currentWeapon == WEAPON_SCOUT || m_currentWeapon == WEAPON_SG550;
+	return m_currentWeapon == Weapon::Awp || m_currentWeapon == Weapon::G3SG1 || m_currentWeapon == Weapon::Scout || m_currentWeapon == Weapon::Sg550;
 }
 
 bool Bot::IsSniper(void)
 {
-	if (g_gameVersion == HALFLIFE)
+	if (g_gameVersion == Game::HalfLife)
 	{
-		if (pev->weapons & (1 << WEAPON_CROSSBOW))
+		if (pev->weapons & (1 << WeaponHL::Crossbow))
 			return true;
 
 		return false;
 	}
 
-	if (pev->weapons & (1 << WEAPON_AWP))
+	if (pev->weapons & (1 << Weapon::Awp))
 		return true;
-	else if (pev->weapons & (1 << WEAPON_G3SG1))
+	else if (pev->weapons & (1 << Weapon::G3SG1))
 		return true;
-	else if (pev->weapons & (1 << WEAPON_SCOUT))
+	else if (pev->weapons & (1 << Weapon::Scout))
 		return true;
-	else if (pev->weapons & (1 << WEAPON_SG550))
+	else if (pev->weapons & (1 << Weapon::Sg550))
 		return true;
 
 	return false;
@@ -759,8 +759,8 @@ bool Bot::IsSniper(void)
 
 bool Bot::UsesRifle(void)
 {
-	if (g_gameVersion == HALFLIFE)
-		return m_currentWeapon == WEAPON_MP5_HL;
+	if (g_gameVersion == Game::HalfLife)
+		return m_currentWeapon == WeaponHL::Mp5_HL;
 
 	WeaponSelect* selectTab = &g_weaponSelect[0];
 	int count = 0;
@@ -782,8 +782,8 @@ bool Bot::UsesRifle(void)
 
 bool Bot::UsesPistol(void)
 {
-	if (g_gameVersion == HALFLIFE)
-		return m_currentWeapon == WEAPON_GLOCK || m_currentWeapon == WEAPON_PYTHON;
+	if (g_gameVersion == Game::HalfLife)
+		return m_currentWeapon == WeaponHL::Glock || m_currentWeapon == WeaponHL::Python;
 
 	WeaponSelect* selectTab = &g_weaponSelect[0];
 	int count = 0;
@@ -806,44 +806,44 @@ bool Bot::UsesPistol(void)
 
 bool Bot::UsesSubmachineGun(void)
 {
-	if (g_gameVersion == HALFLIFE)
-		return m_currentWeapon == WEAPON_EGON;
+	if (g_gameVersion == Game::HalfLife)
+		return m_currentWeapon == WeaponHL::Egon;
 
-	return m_currentWeapon == WEAPON_MP5 || m_currentWeapon == WEAPON_TMP || m_currentWeapon == WEAPON_P90 || m_currentWeapon == WEAPON_MAC10 || m_currentWeapon == WEAPON_UMP45;
+	return m_currentWeapon == Weapon::Mp5 || m_currentWeapon == Weapon::Tmp || m_currentWeapon == Weapon::P90 || m_currentWeapon == Weapon::Mac10 || m_currentWeapon == Weapon::Ump45;
 }
 
 bool Bot::UsesZoomableRifle(void)
 {
-	if (g_gameVersion == HALFLIFE)
+	if (g_gameVersion == Game::HalfLife)
 		return false;
 
-	return m_currentWeapon == WEAPON_AUG || m_currentWeapon == WEAPON_SG552;
+	return m_currentWeapon == Weapon::Aug || m_currentWeapon == Weapon::Sg552;
 }
 
 bool Bot::UsesBadPrimary(void)
 {
-	if (g_gameVersion == HALFLIFE)
-		return m_currentWeapon == WEAPON_HORNETGUN;
+	if (g_gameVersion == Game::HalfLife)
+		return m_currentWeapon == WeaponHL::HornetGun;
 
-	return m_currentWeapon == WEAPON_M3 || m_currentWeapon == WEAPON_UMP45 || m_currentWeapon == WEAPON_MAC10 || m_currentWeapon == WEAPON_TMP || m_currentWeapon == WEAPON_P90;
+	return m_currentWeapon == Weapon::M3 || m_currentWeapon == Weapon::Ump45 || m_currentWeapon == Weapon::Mac10 || m_currentWeapon == Weapon::Tmp || m_currentWeapon == Weapon::P90;
 }
 
 int Bot::CheckGrenades(void)
 {
-	if (pev->weapons & (1 << WEAPON_HEGRENADE))
-		return WEAPON_HEGRENADE;
-	else if (pev->weapons & (1 << WEAPON_FBGRENADE))
-		return WEAPON_FBGRENADE;
-	else if (pev->weapons & (1 << WEAPON_SMGRENADE))
-		return WEAPON_SMGRENADE;
+	if (pev->weapons & (1 << Weapon::HeGrenade))
+		return Weapon::HeGrenade;
+	else if (pev->weapons & (1 << Weapon::FbGrenade))
+		return Weapon::FbGrenade;
+	else if (pev->weapons & (1 << Weapon::SmGrenade))
+		return Weapon::SmGrenade;
 	return -1;
 }
 
 void Bot::SelectKnife(void)
 {
-	if (g_gameVersion == HALFLIFE)
+	if (g_gameVersion == Game::HalfLife)
 	{
-		if (m_currentWeapon == WEAPON_CROWBAR)
+		if (m_currentWeapon == WeaponHL::Crowbar)
 			return;
 
 		if (m_weaponSelectDelay > engine->GetTime())
@@ -854,7 +854,7 @@ void Bot::SelectKnife(void)
 	else
 	{
 		// already have
-		if (m_currentWeapon == WEAPON_KNIFE)
+		if (m_currentWeapon == Weapon::Knife)
 			return;
 
 		if (m_isBomber)
@@ -878,7 +878,7 @@ void Bot::SelectBestWeapon(void)
 	if (!m_hasEnemiesNear && !m_hasEntitiesNear && (m_spawnTime + engine->GetFreezeTime() + 7.0f) > engine->GetTime())
 		return;
 
-	WeaponSelect* selectTab = g_gameVersion == HALFLIFE ? &g_weaponSelectHL[0] : &g_weaponSelect[0];
+	WeaponSelect* selectTab = g_gameVersion == Game::HalfLife ? &g_weaponSelectHL[0] : &g_weaponSelect[0];
 
 	int selectIndex = -1;
 	int chosenWeaponIndex = -1;
@@ -897,7 +897,7 @@ void Bot::SelectBestWeapon(void)
 		if (pev->waterlevel == 3 && g_weaponDefs[id].flags & ITEM_FLAG_NOFIREUNDERWATER)
 			continue;
 
-		if (g_gameVersion == HALFLIFE)
+		if (g_gameVersion == Game::HalfLife)
 			chosenWeaponIndex = selectIndex;
 		else
 		{
@@ -954,7 +954,7 @@ void Bot::SelectPistol(void)
 
 int Bot::GetHighestWeapon(void)
 {
-	WeaponSelect* selectTab = g_gameVersion == HALFLIFE ? &g_weaponSelectHL[0] : &g_weaponSelect[0];
+	WeaponSelect* selectTab = g_gameVersion == Game::HalfLife ? &g_weaponSelectHL[0] : &g_weaponSelect[0];
 
 	int weapons = pev->weapons;
 	int num = 0;
@@ -994,7 +994,7 @@ void Bot::CheckReload(void)
 	}
 
 	// do not check for reload
-	if (m_currentWeapon == g_gameVersion == HALFLIFE ? WEAPON_CROWBAR : WEAPON_KNIFE)
+	if (m_currentWeapon == (g_gameVersion == Game::HalfLife ? WeaponHL::Crowbar : Weapon::Knife))
 	{
 		m_reloadState = ReloadState::Nothing;
 		m_isReloading = false;
@@ -1074,60 +1074,60 @@ int Bot::CheckMaxClip(const int weaponId, int* weaponIndex)
 
 	switch (*weaponIndex)
 	{
-	case WEAPON_M249:
+	case Weapon::M249:
 		maxClip = 100;
 		break;
 
-	case WEAPON_P90:
+	case Weapon::P90:
 		maxClip = 50;
 		break;
 
-	case WEAPON_GALIL:
+	case Weapon::Galil:
 		maxClip = 35;
 		break;
 
-	case WEAPON_ELITE:
-	case WEAPON_MP5:
-	case WEAPON_TMP:
-	case WEAPON_MAC10:
-	case WEAPON_M4A1:
-	case WEAPON_AK47:
-	case WEAPON_SG552:
-	case WEAPON_AUG:
-	case WEAPON_SG550:
+	case Weapon::Elite:
+	case Weapon::Mp5:
+	case Weapon::Tmp:
+	case Weapon::Mac10:
+	case Weapon::M4A1:
+	case Weapon::Ak47:
+	case Weapon::Sg552:
+	case Weapon::Aug:
+	case Weapon::Sg550:
 		maxClip = 30;
 		break;
 
-	case WEAPON_UMP45:
-	case WEAPON_FAMAS:
+	case Weapon::Ump45:
+	case Weapon::Famas:
 		maxClip = 25;
 		break;
 
-	case WEAPON_GLOCK18:
-	case WEAPON_FN57:
-	case WEAPON_G3SG1:
+	case Weapon::Glock18:
+	case Weapon::FiveSeven:
+	case Weapon::G3SG1:
 		maxClip = 20;
 		break;
 
-	case WEAPON_P228:
+	case Weapon::P228:
 		maxClip = 13;
 		break;
 
-	case WEAPON_USP:
+	case Weapon::Usp:
 		maxClip = 12;
 		break;
 
-	case WEAPON_AWP:
-	case WEAPON_SCOUT:
+	case Weapon::Awp:
+	case Weapon::Scout:
 		maxClip = 10;
 		break;
 
-	case WEAPON_M3:
+	case Weapon::M3:
 		maxClip = 8;
 		break;
 
-	case WEAPON_DEAGLE:
-	case WEAPON_XM1014:
+	case Weapon::Deagle:
+	case Weapon::Xm1014:
 		maxClip = 7;
 		break;
 	}
