@@ -8,18 +8,14 @@ extern bool g_bombDefusing;
 extern bool g_bombSayString;
 extern bool g_roundEnded;
 extern bool g_waypointOn;
-extern bool g_navmeshOn;
 extern bool g_waypointsChanged;
 extern bool g_autoWaypoint;
 extern bool g_editNoclip;
 extern bool g_isMetamod;
 extern bool g_isFakeCommand;
-extern bool g_isMessage;
 extern bool g_analyzewaypoints;
-extern bool g_analyzenavmesh;
 extern bool g_analyzeputrequirescrouch;
 extern bool g_expanded[Const_MaxWaypoints];
-extern bool g_isUsingNAV;
 extern bool g_hasDoors;
 
 extern bool g_sgdWaypoint;
@@ -39,8 +35,7 @@ extern float g_DelayTimer;
 
 extern int g_mapType;
 extern int g_numWaypoints;
-extern int g_numNavAreas;
-extern int g_gameVersion;
+extern Game g_gameVersion;
 extern int g_fakeArgc;
 extern int bot_conntimes;
 

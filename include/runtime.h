@@ -3274,9 +3274,10 @@ public:
     // Returns:
     //   Popped from stream character.
     //
-    inline uint8_t GetCharacter(void) const
+    inline int GetCharacter(void)
     {
-        return static_cast<uint8_t>(fgetc(m_handle));
+        Assert(m_handle != nullptr);
+        return fgetc(m_handle);
     }
 
     //
@@ -3378,9 +3379,10 @@ public:
     // Returns:
     //   Character that was putted into the stream.
     //
-    inline bool PutCharacter(uint8_t character) const
+    inline char PutCharacter(char character)
     {
-        return fputc(static_cast<int>(character), m_handle) != EOF;
+        Assert(m_handle != nullptr);
+        return static_cast<char>(fputc(character, m_handle));
     }
 
     //

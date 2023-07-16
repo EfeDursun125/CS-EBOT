@@ -61,24 +61,23 @@ enum class Process
 };
 
 // supported cs's
-enum GameVersion
+enum class Game
 {
-	CSVER_CSTRIKE = 1, // Counter-Strike 1.6 and Above
-	CSVER_CZERO = 2, // Counter-Strike: Condition Zero
-	CSVER_VERYOLD = 3, // Counter-Strike 1.3-1.5 with/without Steam
-	CSVER_XASH = 4, // Xash3D
-	HALFLIFE = 5
+	CStrike = 1, // Counter-Strike 1.6 and Above
+	CZero = 2, // Counter-Strike: Condition Zero
+	Old = 3, // Counter-Strike 1.3-1.5 with/without Steam
+	Xash = 4, // Xash3D
+	HalfLife = 5 // Half-Life
 };
 
 // log levels
-enum LogLevel
+enum class Log
 {
-	LOG_DEFAULT = 1, // default log message
-	LOG_WARNING = 2, // warning log message
-	LOG_ERROR = 3, // error log message
-	LOG_IGNORE = 4, // additional flag
-	LOG_FATAL = 5, // fatal error log message
-	LOG_MEMORY = 6 // memory error log message
+	Default = 1, // default log message
+	Warning = 2, // warning log message
+	Error = 3, // error log message
+	Fatal = 4, // fatal error log message
+	Memory = 5 // memory error log message
 
 };
 
@@ -98,17 +97,17 @@ enum ChatType
 // personalities defines
 enum Personality
 {
-	PERSONALITY_NORMAL = 0,
-	PERSONALITY_RUSHER,
-	PERSONALITY_CAREFUL
+	Normal = 0,
+	Rusher,
+	Careful
 };
 
 // counter-strike team id's
 enum Team
 {
-	TEAM_TERRORIST = 0,
-	TEAM_COUNTER,
-	TEAM_COUNT
+	Terrorist = 0,
+	Counter,
+	Count
 };
 
 // client flags
@@ -149,73 +148,73 @@ enum Radio
 // counter-strike weapon id's
 enum Weapon
 {
-	WEAPON_P228 = 1,
-	WEAPON_SHIELDGUN = 2,
-	WEAPON_SCOUT = 3,
-	WEAPON_HEGRENADE = 4,
-	WEAPON_XM1014 = 5,
-	WEAPON_C4 = 6,
-	WEAPON_MAC10 = 7,
-	WEAPON_AUG = 8,
-	WEAPON_SMGRENADE = 9,
-	WEAPON_ELITE = 10,
-	WEAPON_FN57 = 11,
-	WEAPON_UMP45 = 12,
-	WEAPON_SG550 = 13,
-	WEAPON_GALIL = 14,
-	WEAPON_FAMAS = 15,
-	WEAPON_USP = 16,
-	WEAPON_GLOCK18 = 17,
-	WEAPON_AWP = 18,
-	WEAPON_MP5 = 19,
-	WEAPON_M249 = 20,
-	WEAPON_M3 = 21,
-	WEAPON_M4A1 = 22,
-	WEAPON_TMP = 23,
-	WEAPON_G3SG1 = 24,
-	WEAPON_FBGRENADE = 25,
-	WEAPON_DEAGLE = 26,
-	WEAPON_SG552 = 27,
-	WEAPON_AK47 = 28,
-	WEAPON_KNIFE = 29,
-	WEAPON_P90 = 30,
-	WEAPON_KEVLAR = 31,
-	WEAPON_KEVHELM = 32,
-	WEAPON_DEFUSER = 33
+	P228 = 1,
+	Shield = 2,
+	Scout = 3,
+	HeGrenade = 4,
+	Xm1014 = 5,
+	C4 = 6,
+	Mac10 = 7,
+	Aug = 8,
+	SmGrenade = 9,
+	Elite = 10,
+	FiveSeven = 11,
+	Ump45 = 12,
+	Sg550 = 13,
+	Galil = 14,
+	Famas = 15,
+	Usp = 16,
+	Glock18 = 17,
+	Awp = 18,
+	Mp5 = 19,
+	M249 = 20,
+	M3 = 21,
+	M4A1 = 22,
+	Tmp = 23,
+	G3SG1 = 24,
+	FbGrenade = 25,
+	Deagle = 26,
+	Sg552 = 27,
+	Ak47 = 28,
+	Knife = 29,
+	P90 = 30,
+	Kevlar = 31,
+	KevlarHelmet = 32,
+	Defuser = 33
 };
 
 // half-life weapon id's
 enum WeaponHL
 {
-	WEAPON_CROWBAR = 1,
-	WEAPON_GLOCK = 2,
-	WEAPON_PYTHON = 3,
-	WEAPON_MP5_HL = 4,
-	WEAPON_CHAINGUN = 5,
-	WEAPON_CROSSBOW = 6,
-	WEAPON_SHOTGUN = 7,
-	WEAPON_RPG = 8,
-	WEAPON_GAUSS = 9,
-	WEAPON_EGON = 10,
-	WEAPON_HORNETGUN = 11,
-	WEAPON_HANDGRENADE = 12,
-	WEAPON_TRIPMINE = 13,
-	WEAPON_SATCHEL = 14,
-	WEAPON_SNARK = 15
+	Crowbar = 1,
+	Glock = 2,
+	Python = 3,
+	Mp5_HL = 4,
+	ChainGun = 5,
+	Crossbow = 6,
+	Shotgun = 7,
+	Rpg = 8,
+	Gauss = 9,
+	Egon = 10,
+	HornetGun = 11,
+	HandGrenade = 12,
+	TripMine = 13,
+	Satchel = 14,
+	Snark = 15
 };
 
 // defines for pickup items
-enum PickupType
+enum class PickupType
 {
-	PICKTYPE_NONE,
-	PICKTYPE_WEAPON,
-	PICKTYPE_DROPPEDC4,
-	PICKTYPE_PLANTEDC4,
-	PICKTYPE_HOSTAGE,
-	PICKTYPE_BUTTON,
-	PICKTYPE_SHIELDGUN,
-	PICKTYPE_DEFUSEKIT,
-	PICKTYPE_GETENTITY
+	None,
+	Weapon,
+	DroppedC4,
+	PlantedC4,
+	Hostage,
+	Button,
+	Shield,
+	DefuseKit,
+	GetEntity
 };
 
 // reload state
@@ -247,10 +246,10 @@ enum StartMsg
 };
 
 // famas/glock burst mode status + m4a1/usp silencer
-enum BurstMode
+enum class BurstMode
 {
-	BURST_ENABLED = 1,
-	BURST_DISABLED = 2
+	Enabled = 1,
+	Disabled = 2
 };
 
 // visibility flags
@@ -305,14 +304,6 @@ enum WaypointFlag
 	WAYPOINT_COUNTER = (1 << 30)  // it's a specific ct point
 };
 
-enum NavAreaFlag
-{
-	NAV_JUMP = (1 << 1),
-	NAV_CROUCH = (1 << 2),
-	NAV_LADDER = (1 << 3),
-	NAV_DONT_HIDE = (1 << 4)
-};
-
 // defines for waypoint connection flags field (16 bits are available)
 enum PathFlag
 {
@@ -332,14 +323,14 @@ enum PathConnection
 };
 
 // E-BOT Supported Game Modes
-enum GameMode
+enum class GameMode
 {
-	MODE_DM = 1,
-	MODE_ZP = 2,
-	MODE_NOTEAM = 3,
-	MODE_ZH = 4,
-	MODE_TDM = 5,
-	MODE_BASE = 0
+	Deathmatch = 1,
+	ZombiePlague = 2,
+	NoTeam = 3,
+	ZombieHell = 4,
+	TeamDeathmatch = 5,
+	Original = 0
 };
 
 enum class LiftState
@@ -368,7 +359,7 @@ const int Const_NumWeapons = 26;
 const int Const_NumWeaponsHL = 15;
 
 // A* Stuff
-enum class State { Open, Closed, New };
+enum class State {Open, Closed, New};
 
 struct AStar_t
 {
@@ -380,8 +371,8 @@ struct AStar_t
 };
 
 // weapon masks
-const int WeaponBits_Primary = ((1 << WEAPON_XM1014) | (1 << WEAPON_M3) | (1 << WEAPON_MAC10) | (1 << WEAPON_UMP45) | (1 << WEAPON_MP5) | (1 << WEAPON_TMP) | (1 << WEAPON_P90) | (1 << WEAPON_AUG) | (1 << WEAPON_M4A1) | (1 << WEAPON_SG552) | (1 << WEAPON_AK47) | (1 << WEAPON_SCOUT) | (1 << WEAPON_SG550) | (1 << WEAPON_AWP) | (1 << WEAPON_G3SG1) | (1 << WEAPON_M249) | (1 << WEAPON_FAMAS) | (1 << WEAPON_GALIL));
-const int WeaponBits_Secondary = ((1 << WEAPON_P228) | (1 << WEAPON_ELITE) | (1 << WEAPON_USP) | (1 << WEAPON_GLOCK18) | (1 << WEAPON_DEAGLE) | (1 << WEAPON_FN57));
+const int WeaponBits_Primary = ((1 << Weapon::Xm1014) | (1 << Weapon::M3) | (1 << Weapon::Mac10) | (1 << Weapon::Ump45) | (1 << Weapon::Mp5) | (1 << Weapon::Tmp) | (1 << Weapon::P90) | (1 << Weapon::Aug) | (1 << Weapon::M4A1) | (1 << Weapon::Sg552) | (1 << Weapon::Ak47) | (1 << Weapon::Scout) | (1 << Weapon::Sg550) | (1 << Weapon::Awp) | (1 << Weapon::G3SG1) | (1 << Weapon::M249) | (1 << Weapon::Famas) | (1 << Weapon::Galil));
+const int WeaponBits_Secondary = ((1 << Weapon::P228) | (1 << Weapon::Elite) | (1 << Weapon::Usp) | (1 << Weapon::Glock18) | (1 << Weapon::Deagle) | (1 << Weapon::FiveSeven));
 
 // this structure links waypoints returned from pathfinder
 struct PathNode
@@ -521,12 +512,6 @@ struct WaypointHeader
 	char author[32];
 };
 
-struct NavHeader
-{
-	int16 fileVersion;
-	int16 navNumber;
-	char author[32];
-};
 
 // define general waypoint structure
 struct PathOLD
@@ -558,15 +543,6 @@ struct Path
 	int16 index[Const_MaxPathIndex];
 	uint16 connectionFlags[Const_MaxPathIndex];
 	float gravity;
-};
-
-struct NavArea
-{
-	int16 index;
-	int32 flags;
-	Array <NavArea*> connections;
-	Array <float> bakedDist;
-	Vector corners[4];
 };
 
 // main bot class
@@ -603,7 +579,6 @@ private:
 
 	float m_timeDoorOpen; // time to next door open check
 	float m_lastChatTime; // time bot last chatted
-	float m_knifeAttackTime; // time to rush with knife (at the beginning of the round)
 	bool m_defendedBomb; // defend action issued
 
 	PathNode* m_navNode; // pointer to current node from path
@@ -752,7 +727,6 @@ private:
 
 	void FindPath(int srcIndex, int destIndex);
 	void FindShortestPath(int srcIndex, int destIndex);
-	void FindPathNavMesh(NavArea* start, NavArea* dest);
 	void SecondThink(void);
 	void CalculatePing(void);
 
@@ -767,14 +741,13 @@ public:
 	int m_skill; // bots play skill
 	int m_moneyAmount; // amount of money in bot's bank
 
-	Personality m_personality;
+	int m_personality;
 
 	bool m_isVIP; // bot is vip?
 	bool m_isBomber; // bot is bomber?
 
 	int m_startAction; // team/class selection state
 	int m_team; // bot's team
-	int m_index; // bot's index
 	bool m_isAlive; // has the player been killed or has he just respawned
 	bool m_notStarted; // team/class not chosen yet
 	bool m_isZombieBot; // checks bot if zombie
@@ -983,6 +956,7 @@ public:
 	inline Vector EyePosition(void) { return pev->origin + pev->view_ofs; };
 
 	void FacePosition(void);
+	void LookAt(const Vector origin);
 	void NewRound(void);
 	void EquipInBuyzone(const int buyCount);
 	void PushMessageQueue(const int message);
@@ -1042,7 +1016,7 @@ public:
 	BotControl(void);
 	~BotControl(void);
 
-	bool EconomicsValid(int team) { return m_economicsGood[team]; }
+	bool EconomicsValid(const int team) { return m_economicsGood[team]; }
 
 	int GetLastWinner(void) const { return m_lastWinner; }
 	void SetLastWinner(int winner) { m_lastWinner = winner; }
@@ -1052,7 +1026,7 @@ public:
 	Bot* GetBot(int index);
 	Bot* GetBot(edict_t* ent);
 	Bot* FindOneValidAliveBot(void);
-	Bot* GetHighestSkillBot(int team);
+	Bot* GetHighestSkillBot(const int team);
 	void SelectLeaderEachTeam(const int team);
 
 	int GetBotsNum(void);
@@ -1066,19 +1040,19 @@ public:
 
 	void AddRandom(void) { AddBot("", -1, -1, -1, -1); }
 	void AddBot(const String& name, int skill, int personality, int team, int member);
-	void FillServer(int selection, int personality = PERSONALITY_NORMAL, int skill = -1, int numToAdd = -1);
+	void FillServer(int selection, int personality = Personality::Normal, int skill = -1, int numToAdd = -1);
 
 	void RemoveAll(void);
 	void RemoveRandom(void);
 	void RemoveFromTeam(Team team, bool removeAll = false);
 	void RemoveMenu(edict_t* ent, int selection);
-	void KillAll(int team = -1);
+	void KillAll(const int team = Team::Count);
 	void MaintainBotQuota(void);
 	void InitQuota(void);
 
 	void ListBots(void);
 	void SetWeaponMode(int selection);
-	void CheckTeamEconomics(int team);
+	void CheckTeamEconomics(const int team);
 
 	int AddBotAPI(const String& name, int skill, int team);
 
@@ -1186,8 +1160,8 @@ public:
 	void DeleteByIndex(int index);
 	void ToggleFlags(int toggleFlag);
 	void SetRadius(const int16 radius);
-	bool IsConnected(int pointA, int pointB);
-	bool IsConnected(int num);
+	bool IsConnected(const int pointA, const int pointB);
+	bool IsConnected(const int num);
 	void CreatePath(const int dir);
 	void DeletePath(void);
 	void DeletePathByIndex(int nodeFrom, int nodeTo);
@@ -1233,63 +1207,18 @@ public:
 	String CheckSubfolderFileOLD(void);
 };
 
-class NavMesh : public Singleton <NavMesh>
-{
-	friend class Bot;
-
-private:
-	NavArea* m_area[Const_MaxWaypoints];
-
-	bool m_navmeshLoaded;
-
-public:
-	NavMesh(void);
-	~NavMesh(void);
-
-	void Initialize(void);
-	String CheckSubfolderFile(void);
-
-	bool IsConnected(int start, int goal);
-	void SaveNav(void);
-	bool LoadNav(void);
-	void DrawNavArea(void);
-	void Analyze(void);
-
-	NavArea* CreateArea(const Vector origin);
-	void CreateAreaAuto(const Vector start, const Vector goal);
-	void DeleteArea(NavArea* area);
-	void ConnectArea(NavArea* start, NavArea* end);
-	void DisconnectArea(NavArea* start, const NavArea* end);
-	void OptimizeNavMesh(void);
-
-	NavArea* GetNavArea(int id);
-	NavArea* GetNearestNavArea(const Vector origin);
-	bool DoNavAreasIntersect(NavArea* area1, NavArea* area2, const float tolerance = 0.0f);
-	bool DoPositionIntersect(const Vector origin, NavArea* area, const float tolerance = 0.0f);
-	float GetNavAreaSize(const NavArea* area);
-
-	Vector GetClosestPosition(NavArea* area, const Vector origin);
-	Vector GetCenter(const NavArea* area);
-	Vector GetCornerPosition(NavArea* area, int corner);
-	Vector GetRandomPosition(NavArea* area);
-	Vector GetAimingPosition(void);
-
-	void ExpandNavArea(NavArea* area, const float radius = 50.0f);
-};
-
 #define g_netMsg NetworkMsg::GetObjectPtr()
 #define g_botManager BotControl::GetObjectPtr()
 #define g_waypoint Waypoint::GetObjectPtr()
-#define g_navmesh NavMesh::GetObjectPtr()
 
 // prototypes of bot functions...
 extern int GetWeaponReturn(bool isString, const char* weaponAlias, int weaponID = -1);
 extern int GetTeam(edict_t* ent);
-extern int GetGameMode(void);
+extern GameMode GetGameMode(void);
 extern bool IsBreakable(edict_t* ent);
 extern bool IsZombieEntity(edict_t* ent);
 
-extern void SetGameMode(int gamemode);
+extern void SetGameMode(GameMode gamemode);
 extern bool IsZombieMode(void);
 extern bool IsDeathmatchMode(void);
 extern bool IsValidWaypoint(const int index);
@@ -1349,10 +1278,10 @@ extern void HudMessage(edict_t* ent, bool toCenter, const Color& rgb, char* form
 
 extern void AutoLoadGameMode(void);
 
-extern bool SetEntityAction(int index, int team, int action);
-extern void SetEntityActionData(int i, int index = -1, int team = -1, int action = -1);
+extern bool SetEntityAction(const int index, const int team, const int action);
+extern void SetEntityActionData(const int i, const int index = -1, const int team = -1, const int action = -1);
 
-extern void AddLogEntry(int logLevel, const char* format, ...);
+extern void AddLogEntry(Log logLevel, const char* format, ...);
 
 extern void MOD_AddLogEntry(int mode, char* format);
 
@@ -1376,7 +1305,6 @@ extern ConVar ebot_gamemod;
 
 #include <callbacks.h>
 #include <globals.h>
-#include <compress.h>
 #include <resource.h>
 
 #endif // EBOT_INCLUDED

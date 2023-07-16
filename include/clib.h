@@ -33,7 +33,7 @@ extern void cstrcpy(char* dest, const char* src);
 extern void cmemcpy(void* dest, const void* src, const size_t size);
 extern void cmemset(void* dest, const int value, const size_t count);
 extern void* cmemmove(void* dest, const void* src, size_t count);
-extern int ctz(unsigned int value);
+extern int cctz(unsigned int value);
 extern int ctolower(const int value);
 extern int ctoupper(const int value);
 extern int cstricmp(const char* str1, const char* str2);
