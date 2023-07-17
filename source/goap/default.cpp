@@ -70,6 +70,8 @@ void Bot::DefaultUpdate(void)
 				if (SetProcess(Process::Camp, "i will camp until game ends", true, AddTime(9999999.0f)))
 					return;
 			}
+
+			CheckRadioCommands();
 		}
 		else
 		{

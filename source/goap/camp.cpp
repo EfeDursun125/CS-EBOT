@@ -43,6 +43,8 @@ void Bot::CampUpdate(void)
 			if (ebot_chat.GetBool() && m_lastChatTime + 10.0f < engine->GetTime() && g_lastChatTime + 5.0f < engine->GetTime() && !RepliesToPlayer()) // bot chatting turned on?
 				m_lastChatTime = engine->GetTime();
 		}
+
+		CheckRadioCommands();
 	}
 	else
 	{
@@ -96,7 +98,9 @@ void Bot::CampUpdate(void)
 	}
 	else
 	{
-		if ((m_hasEnemiesNear || m_hasEntitiesNear) && m_currentWaypointIndex != m_campIndex)
+		if (OutOfBombTimer())
+			SetProcess(Process::Escape, "escaping from the bomb", true, GetBombTimeleft());
+		else if ((m_hasEnemiesNear || m_hasEntitiesNear) && m_currentWaypointIndex != m_campIndex)
 		{
 			if (SetProcess(Process::Attack, "i found a target", false, 999999.0f))
 				return;
@@ -193,7 +197,7 @@ bool Bot::CampReq(void)
 	if (!IsValidWaypoint(m_campIndex))
 		return false;
 
-	if (!IsZombieMode() && IsWaypointOccupied(m_campIndex, false))
+	if (!IsZombieMode() && IsWaypointOccupied(m_campIndex))
 		return false;
 
 	if (!CampingAllowed())
