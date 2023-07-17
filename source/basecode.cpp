@@ -711,6 +711,10 @@ void Bot::RadioMessage(const int message)
 	if (GetGameMode() == GameMode::Deathmatch)
 		return;
 
+	// stop spamming
+	if (m_radioEntity == GetEntity())
+		return;
+
 	m_radioSelect = message;
 	PushMessageQueue(CMENU_RADIO);
 	m_radiotimer = AddTime(CRandomFloat(m_numFriendsLeft, m_numFriendsLeft * 1.5f));
@@ -1548,184 +1552,157 @@ bool Bot::IsEnemyReachable(void)
 
 void Bot::CheckRadioCommands(void)
 {
-	if (!m_isSlowThink)
+	if (m_isBomber)
 		return;
 
-	if (m_numFriendsLeft == 0)
+	if (m_numFriendsLeft <= 0)
 		return;
 
 	if (FNullEnt(m_radioEntity) || !IsAlive(m_radioEntity))
 		return;
 
+	if (m_radioOrder != Radio::ReportTeam && m_radioOrder != Radio::ShesGonnaBlow && m_hasFriendsNear && !FNullEnt(m_nearestFriend) && m_nearestFriend != m_radioEntity)
+	{
+		RadioMessage(Radio::Negative);
+		return;
+	}
+
 	// dynamic range :)
 	// less bots = more teamwork required
-	if (CRandomFloat(1.0f, 100.0f) <= 1.0f * m_numFriendsLeft * 0.33333333333f)
+	/*if (CRandomFloat(1.0f, 100.0f) <= 1.0f * m_numFriendsLeft * 0.33333333333f)
+	{
+		RadioMessage(Radio::Negative);
 		return;
+	}*/
 
-	float distance = (GetEntityOrigin(m_radioEntity) - pev->origin).GetLengthSquared();
+	int mode = 1;
 
 	switch (m_radioOrder)
 	{
 	case Radio::FollowMe:
-		RadioMessage(Radio::Negative);
-
+		mode = 2;
 		break;
-
 	case Radio::StickTogether:
-		RadioMessage(Radio::Negative);
-
+		mode = 2;
 		break;
-
 	case Radio::CoverMe:
-		RadioMessage(Radio::Negative);
-
+		if (g_bombPlanted || m_isBomber)
+			mode = 3;
+		else
+			mode = 2;
 		break;
-
 	case Radio::HoldPosition:
-		RadioMessage(Radio::Negative);
-
+		if (g_bombPlanted)
+		{
+			if (m_inBombZone)
+			{
+				m_defendedBomb = false;
+				mode = 3;
+			}
+		}
+		else
+			mode = 3;
 		break;
-
 	case Radio::TakingFire:
-		RadioMessage(Radio::Negative);
-
+		mode = 2;
 		break;
-
 	case Radio::YouTakePoint:
-		RadioMessage(Radio::Negative);
-
+		if ((!g_bombPlanted && m_inBombZone && m_team == Team::Counter) || (g_bombPlanted && m_inBombZone && m_team == Team::Terrorist))
+			mode = 3;
+		else
+			mode = 2;
 		break;
-
 	case Radio::EnemySpotted:
-		RadioMessage(Radio::Negative);
-
+		if (m_inBombZone)
+			mode = 3;
+		else
+			mode = 2;
 		break;
-
 	case Radio::NeedBackup:
-		RadioMessage(Radio::Negative);
-
-		break;
-
+		mode = 2;
 	case Radio::GoGoGo:
-		RadioMessage(Radio::Negative);
-
-		break;
-
+		if (GetProcess() == Process::Camp)
+			FinishCurrentProcess("my teammate told me move");
+		RadioMessage(Radio::Affirmative);
+		SetWalkTime(-1.0f);
 	case Radio::ShesGonnaBlow:
-		RadioMessage(Radio::Negative);
-
+		if (OutOfBombTimer())
+		{
+			RadioMessage(Radio::Affirmative);
+			SetProcess(Process::Escape, "my teammate told me i must escape from the bomb", true, GetBombTimeleft());
+		}
+		else
+			RadioMessage(Radio::Negative);
 		break;
-
 	case Radio::RegroupTeam:
-		RadioMessage(Radio::Negative);
-
+		mode = 2;
 		break;
-
 	case Radio::StormTheFront:
-		RadioMessage(Radio::Negative);
-
+		if (CRandomInt(1, 2) == 1)
+			RadioMessage(Radio::Affirmative);
+		else
+			RadioMessage(Radio::Negative);
 		break;
-
 	case Radio::Fallback:
 		RadioMessage(Radio::Negative);
-
 		break;
-
 	case Radio::ReportTeam:
-		/*switch (GetCurrentTask()->taskID)
+		if (m_enemySeeTime + 6.0f < engine->GetTime())
 		{
-		case TASK_NORMAL:
-			if (IsValidWaypoint(GetCurrentTask()->data))
+			if (!FNullEnt(m_nearestEnemy) && !IsAlive(m_nearestEnemy))
+				RadioMessage(Radio::EnemyDown);
+			else if (m_hasEnemiesNear)
 			{
-				if (!FNullEnt(m_enemy))
-				{
-					if (IsAlive(m_enemy))
-						RadioMessage(Radio::EnemySpotted);
-					else
-						RadioMessage(Radio::EnemyDown);
-				}
-				else if (!FNullEnt(m_lastEnemy))
-				{
-					if (IsAlive(m_lastEnemy))
-						RadioMessage(Radio::EnemySpotted);
-					else
-						RadioMessage(Radio::EnemyDown);
-				}
-				else if (m_seeEnemyTime + 10.0f > engine->GetTime())
-					RadioMessage(Radio::EnemySpotted);
+				if (!FNullEnt(m_nearestEnemy) && IsAttacking(m_nearestEnemy))
+					RadioMessage(Radio::TakingFire);
 				else
-					RadioMessage(Radio::SectorClear);
+					RadioMessage(Radio::NeedBackup);
 			}
-
-			break;
-
-		case TASK_MOVETOPOSITION:
-			if (m_seeEnemyTime + 10.0f > engine->GetTime())
-				RadioMessage(Radio::EnemySpotted);
-			else if (FNullEnt(m_enemy) && FNullEnt(m_lastEnemy))
-				RadioMessage(Radio::SectorClear);
-
-			break;
-
-		case TASK_CAMP:
-			RadioMessage(Radio::InPosition);
-
-			break;
-
-		case TASK_GOINGFORCAMP:
-			RadioMessage(Radio::HoldPosition);
-
-			break;
-
-		case TASK_PLANTBOMB:
-			RadioMessage(Radio::HoldPosition);
-
-			break;
-
-		case TASK_DEFUSEBOMB:
-			RadioMessage(Radio::CoverMe);
-
-			break;
-
-		case TASK_FIGHTENEMY:
-			if (!FNullEnt(m_enemy))
-			{
-				if (IsAlive(m_enemy))
-					RadioMessage(Radio::EnemySpotted);
-				else
-					RadioMessage(Radio::EnemyDown);
-			}
-			else if (m_seeEnemyTime + 10.0f > engine->GetTime())
-				RadioMessage(Radio::EnemySpotted);
-
-			break;
-
-		default:
-			if (ChanceOf(15))
-				RadioMessage(Radio::ReportingIn);
-			else if (ChanceOf(15))
-				RadioMessage(Radio::FollowMe);
-			else if (m_seeEnemyTime + 10.0f > engine->GetTime())
-				RadioMessage(Radio::EnemySpotted);
 			else
-				RadioMessage(Radio::Negative);
-
-			break;
-		}*/
-
+				RadioMessage(Radio::EnemySpotted);
+		}
+		else if (GetProcess() == Process::Camp)
+			RadioMessage(Radio::InPosition);
+		else if (m_enemySeeTime + 24.0f < engine->GetTime())
+			RadioMessage(Radio::SectorClear);
 		break;
-
 	case Radio::SectorClear:
-		// is bomb planted and it's a ct
-		RadioMessage(Radio::Negative);
-
+		if (GetProcess() == Process::Camp && m_enemySeeTime + 12.0f < engine->GetTime())
+		{
+			RadioMessage(Radio::Affirmative);
+			FinishCurrentProcess("my teammate told me sector is clear");
+		}
 		break;
-
 	case Radio::GetInPosition:
-		RadioMessage(Radio::Negative);
-
+		mode = 3;
 		break;
 	}
+
+	if (mode == 2)
+	{
+		const int index = g_waypoint->FindNearest(m_radioEntity->v.origin, 99999999.0f, -1, m_radioEntity);
+		if (IsValidWaypoint(index))
+		{
+			RadioMessage(Radio::Affirmative);
+			FindPath(m_currentWaypointIndex, index);
+		}
+		else
+			RadioMessage(Radio::Negative);
+	}
+	else if (mode == 3)
+	{
+		const int index = FindDefendWaypoint(m_radioEntity->v.origin + m_radioEntity->v.view_ofs);
+		if (IsValidWaypoint(index))
+		{
+			RadioMessage(Radio::Affirmative);
+			m_campIndex = index;
+			SetProcess(Process::Camp, "i will hold this position for my teammate", true, AddTime(CRandomFloat(ebot_camp_min.GetFloat(), ebot_camp_max.GetFloat())));
+		}
+		else
+			RadioMessage(Radio::Negative);
+	}
+	else
+		RadioMessage(Radio::Negative);
 
 	m_radioOrder = 0; // radio command has been handled, reset
 }

@@ -240,7 +240,7 @@ void NetworkMsg::Execute(void* p)
             break;
 
         case 2:
-            edict_t * victim = INDEXENT(victimIndex);
+            edict_t* victim = INDEXENT(victimIndex);
             if (FNullEnt(victim) || !IsValidPlayer(victim))
                 break;
 

@@ -86,7 +86,7 @@ int Bot::FindGoal(void)
 				const bool noTimeLeft = OutOfBombTimer();
 
 				if (noTimeLeft)
-					SetProcess(Process::Escape, "escaping from the bomb", true, 60.0f);
+					SetProcess(Process::Escape, "escaping from the bomb", true, GetBombTimeleft());
 				else if (m_team == Team::Counter)
 				{
 					const Vector bombOrigin = g_waypoint->GetBombPosition();
@@ -595,7 +595,7 @@ void Bot::DoWaypointNav(void)
 	}
 	else
 	{
-		if (HasNextPath() && m_navNode->next->index == m_chosenGoalIndex && IsWaypointOccupied(m_chosenGoalIndex, true))
+		if (HasNextPath() && m_navNode->next->index == m_chosenGoalIndex && IsWaypointOccupied(m_chosenGoalIndex))
 		{
 			m_chosenGoalIndex = -1;
 			DeleteSearchNodes();
@@ -1678,9 +1678,6 @@ void Bot::FindPath(int srcIndex, int destIndex)
 
 void Bot::FindShortestPath(int srcIndex, int destIndex)
 {
-	if (srcIndex == destIndex)
-		return;
-
 	// if we're stuck, find nearest waypoint
 	if (!IsValidWaypoint(srcIndex))
 	{
@@ -1692,7 +1689,6 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 	if (!IsValidWaypoint(destIndex))
 		destIndex = g_waypoint->m_otherPoints.GetRandomElement();
 
-	// again...
 	if (srcIndex == destIndex)
 		return;
 
@@ -2315,10 +2311,6 @@ void Bot::ChangeWptIndex(const int waypointIndex)
 
 int Bot::FindDefendWaypoint(const Vector& origin)
 {
-	// where to defend?
-	if (origin == nullvec)
-		return -1;
-
 	// no camp waypoints
 	if (g_waypoint->m_campPoints.IsEmpty())
 		return -1;
@@ -2347,7 +2339,7 @@ int Bot::FindDefendWaypoint(const Vector& origin)
 				continue;
 		}
 
-		if (!IsWaypointOccupied(index, false))
+		if (!IsWaypointOccupied(index))
 		{
 			TraceResult tr{};
 			TraceLine(pointer->origin, origin, true, true, GetEntity(), &tr);
@@ -2822,29 +2814,6 @@ void Bot::FacePosition(void)
 		pev->angles.y = pev->v_angle.y;
 		return;
 	}
-	else if (aimType == 3)
-	{
-		m_idealAngles = pev->v_angle;
-		Vector direction = (m_lookAt - EyePosition()).ToAngles() + pev->punchangle;
-		direction.x = -direction.x; // invert for engine
-
-		const float aimSpeed = ((m_skill * 0.05f) + 12.0f);
-		const float speedLimit = aimSpeed * CRandomFloat(0.75f, 0.85f);
-		const float speedDelta = aimSpeed * m_frameInterval;
-
-		m_idealAngles.x += cclampf(AngleNormalize(direction.x - m_idealAngles.x) * speedDelta, -speedLimit, speedLimit);
-		m_idealAngles.y += cclampf(AngleNormalize(direction.y - m_idealAngles.y) * speedDelta, -speedLimit, speedLimit);
-
-		if (m_idealAngles.x < -89.0f)
-			m_idealAngles.x = -89.0f;
-		else if (m_idealAngles.x > 89.0f)
-			m_idealAngles.x = 89.0f;
-
-		pev->v_angle = m_idealAngles;
-		pev->angles.x = -pev->v_angle.x * 0.33333333333f;
-		pev->angles.y = pev->v_angle.y;
-		return;
-	}
 
 	// adjust all body and view angles to face an absolute vector
 	Vector direction = (m_lookAt - EyePosition()).ToAngles() + pev->punchangle;
@@ -3024,36 +2993,24 @@ int Bot::FindLoosedBomb(void)
 	return -1;
 }
 
-bool Bot::IsWaypointOccupied(int index, bool needZeroVelocity)
+bool Bot::IsWaypointOccupied(const int index)
 {
-	if (!IsValidWaypoint(index))
-		return false;
-
-	if (pev->solid == SOLID_NOT)
-		return false;
-
-	for (const auto& client : g_clients)
+	for (const auto& bot : g_botManager->m_bots)
 	{
-		if (FNullEnt(client.ent) || !(client.flags & (CFLAG_USED | CFLAG_ALIVE)) || client.team != m_team || client.ent == GetEntity())
+		if (bot == nullptr)
 			continue;
 
-		// do not check clients far away from us
-		if ((pev->origin - client.ent->v.origin).GetLengthSquared() > SquaredF(320.0f))
+		if (bot == this)
 			continue;
 
-		if (needZeroVelocity && client.ent->v.velocity != nullvec)
+		if (!bot->m_isAlive)
 			continue;
 
-		const auto path = g_waypoint->GetPath(index);
-		const float length = (client.ent->v.origin - path->origin).GetLengthSquared();
-		if (length < cclampf(static_cast<float>(Squared(path->radius) * 2), SquaredF(40.0f), SquaredF(90.0f)))
+		if (bot->m_currentWaypointIndex == index)
 			return true;
 
-		auto bot = g_botManager->GetBot(client.index);
-		if (bot == nullptr || bot == this || !bot->m_isAlive)
-			continue;
-
-		return bot->m_currentWaypointIndex == index;
+		if (bot->m_chosenGoalIndex == index)
+			return true;
 	}
 
 	return false;
