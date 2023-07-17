@@ -673,7 +673,7 @@ private:
 	float InFieldOfView(const Vector& dest);
 
 	bool IsBombDefusing(const Vector bombOrigin);
-	bool IsWaypointOccupied(int index, bool needZeroVelocity = false);
+	bool IsWaypointOccupied(const int index);
 
 	bool IsNotAttackLab(edict_t* entity);
 
