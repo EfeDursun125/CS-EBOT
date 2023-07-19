@@ -1212,7 +1212,7 @@ public:
 #define g_waypoint Waypoint::GetObjectPtr()
 
 // prototypes of bot functions...
-extern int GetWeaponReturn(bool isString, const char* weaponAlias, int weaponID = -1);
+extern int GetWeaponReturn(const bool isString, const char* weaponAlias, const int weaponID = -1);
 extern int GetTeam(edict_t* ent);
 extern GameMode GetGameMode(void);
 extern bool IsBreakable(edict_t* ent);

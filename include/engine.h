@@ -1291,7 +1291,7 @@ typedef struct KeyValueData_s
 } KeyValueData;
 
 
-#define ARRAYSIZE_HLSDK(p)       (sizeof(p)/sizeof(p[0]))
+#define ARRAYSIZE_HLSDK(p) (sizeof(p) / sizeof(p[0]))
 typedef struct customization_s customization_t;
 
 typedef struct
