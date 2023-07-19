@@ -2458,7 +2458,7 @@ void ClientCommand(edict_t* ent)
 
 		if (FStrEq(arg1, "dropme") || FStrEq(arg1, "dropc4"))
 		{
-			if (FindNearestPlayer(reinterpret_cast <void**> (&bot), ent, 300.0, true, true, true))
+			if (FindNearestPlayer(reinterpret_cast <void**> (&bot), ent, 300.0f, true, true, true))
 			{
 				char* c4;
 				cstrcpy(c4, arg1);
@@ -2490,7 +2490,7 @@ void ClientCommand(edict_t* ent)
 		}
 	}
 
-	int clientIndex = ENTINDEX(ent) - 1;
+	const int clientIndex = ENTINDEX(ent) - 1;
 
 	// check if this player alive, and issue something
 	if ((g_clients[clientIndex].flags & CFLAG_ALIVE) && g_radioSelect[clientIndex] != 0 && cstrncmp(command, "menuselect", 10) == 0)

@@ -373,7 +373,7 @@ void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
 		return;
 
 	g_isFakeCommand = true;
-	const int length = cstrlen(command);
+	const size_t length = cstrlen(command);
 
 	while (stringIndex < length)
 	{
@@ -443,10 +443,10 @@ const char* GetField(const char* string, int fieldId, bool endLine)
 	// reset the string
 	cmemset(field, 0, sizeof(field));
 
-	int length, i, index = 0, fieldCount = 0, start, stop;
+	int i, index = 0, fieldCount = 0, start, stop;
 
 	field[0] = 0; // reset field
-	length = cstrlen(string); // get length of string
+	const size_t length = cstrlen(string); // get length of string
 
 	// while we have not reached end of line
 	while (index < length && fieldCount <= fieldId)
@@ -534,7 +534,6 @@ void CreatePath(char* path)
 	{
 		if (*ofs == '/')
 		{
-			// create the directory
 			*ofs = 0;
 #ifdef PLATFORM_WIN32
 			mkdir(path);
@@ -1608,15 +1607,15 @@ bool FindNearestPlayer(void** pvHolder, edict_t* to, float searchDistance, bool 
 
 	// fill the holder
 	if (needBot)
-		*pvHolder = reinterpret_cast <void*> (g_botManager->GetBot(survive));
+		*pvHolder = reinterpret_cast<void*>(g_botManager->GetBot(survive));
 	else
-		*pvHolder = reinterpret_cast <void*> (survive);
+		*pvHolder = reinterpret_cast<void*>(survive);
 
 	return true;
 }
 
 // this function returning weapon id from the weapon alias and vice versa.
-int GetWeaponReturn(bool needString, const char* weaponAlias, int weaponID)
+int GetWeaponReturn(const bool needString, const char* weaponAlias, const int weaponID)
 {
 	// structure definition for weapon tab
 	struct WeaponTab_t
@@ -1664,7 +1663,8 @@ int GetWeaponReturn(bool needString, const char* weaponAlias, int weaponID)
 	// if we need to return the string, find by weapon id
 	if (needString && weaponID != -1)
 	{
-		for (int i = 0; i < ARRAYSIZE_HLSDK(weaponTab); i++)
+		const auto size = ARRAYSIZE_HLSDK(weaponTab);
+		for (int i = 0; i < size; i++)
 		{
 			if (weaponTab[i].weaponID == weaponID) // is weapon id found?
 				return MAKE_STRING(weaponTab[i].alias);
@@ -1674,7 +1674,8 @@ int GetWeaponReturn(bool needString, const char* weaponAlias, int weaponID)
 	}
 
 	// else search weapon by name and return weapon id
-	for (int i = 0; i < ARRAYSIZE_HLSDK(weaponTab); i++)
+	const auto size = ARRAYSIZE_HLSDK(weaponTab);
+	for (int i = 0; i < size; i++)
 	{
 		if (cstrncmp(weaponTab[i].alias, weaponAlias, cstrlen(weaponTab[i].alias)) == 0)
 			return weaponTab[i].weaponID;

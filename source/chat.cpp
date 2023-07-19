@@ -13,7 +13,8 @@ void StripTags(char* buffer)
     const int length = cstrlen(buffer); // get length of string
 
     // foreach known tag...
-    for (index = 0; index < ARRAYSIZE_HLSDK(tagOpen); index++)
+    auto size = ARRAYSIZE_HLSDK(tagOpen);
+    for (index = 0; index < size; index++)
     {
         fieldStart = cstrstr(buffer, tagOpen[index]) - buffer; // look for a tag start
 
@@ -39,7 +40,8 @@ void StripTags(char* buffer)
         cstrtrim(buffer); // if so, string is just a tag
 
         // strip just the tag part..
-        for (index = 0; index < ARRAYSIZE_HLSDK(tagOpen); index++)
+        size = ARRAYSIZE_HLSDK(tagOpen);
+        for (index = 0; index < size; index++)
         {
             fieldStart = cstrstr(buffer, tagOpen[index]) - buffer; // look for a tag start
 
