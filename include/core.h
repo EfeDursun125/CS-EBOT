@@ -353,7 +353,7 @@ const int FV_WAYPOINT = 125;
 
 const int Const_MaxHostages = 8;
 const int Const_MaxPathIndex = 8;
-const int Const_MaxWaypoints = 8192;
+const int Const_MaxWaypoints = 16384;
 const int Const_MaxWeapons = 32;
 const int Const_NumWeapons = 26;
 const int Const_NumWeaponsHL = 15;
@@ -877,6 +877,7 @@ public:
 
 	bool IsEnemyViewable(edict_t* player);
 	bool AllowPickupItem(void);
+	bool NextPath(PathNode* node);
 
 	void CheckStuck(const float maxSpeed);
 	void ResetStuck(void);
@@ -1213,6 +1214,7 @@ public:
 
 // prototypes of bot functions...
 extern int GetWeaponReturn(const bool isString, const char* weaponAlias, const int weaponID = -1);
+extern unsigned int GetPlayerPriority(edict_t* player);
 extern int GetTeam(edict_t* ent);
 extern GameMode GetGameMode(void);
 extern bool IsBreakable(edict_t* ent);
