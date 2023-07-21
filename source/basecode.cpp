@@ -2042,13 +2042,29 @@ void Bot::LookAtAround(void)
 		if (bot != nullptr)
 		{
 			m_lookAt = bot->m_lookAt;
-			/*if (IsValidWaypoint(bot->m_chosenGoalIndex) && m_currentWaypointIndex != bot->m_chosenGoalIndex)
+			if (bot->GetProcess() == Process::Camp)
 			{
-				m_prevGoalIndex = m_chosenGoalIndex;
-				m_chosenGoalIndex = bot->m_chosenGoalIndex;
-				DeleteSearchNodes();
-				bot->SetProcess(Process::Pause, "waiting my friend", true, (pev->origin - m_friendOrigin).GetLength2D() / m_nearestFriend->v.maxspeed);
-			}*/
+				const int index = g_waypoint->FindNearest(m_lookAt, 999999.0f, -1, bot->GetEntity());
+				if (IsValidWaypoint(index) && m_chosenGoalIndex != index)
+				{
+					RadioMessage(Radio::GetInPosition);
+					m_chosenGoalIndex = index;
+					FindPath(m_currentWaypointIndex, m_chosenGoalIndex);
+					m_chosenGoalIndex = bot->m_chosenGoalIndex;
+				}
+			}
+			else if (GetProcess() == Process::Camp)
+			{
+				const int index = g_waypoint->FindNearest(m_lookAt, 999999.0f, -1, bot->GetEntity());
+				if (IsValidWaypoint(index) && m_chosenGoalIndex != index)
+				{
+					FinishCurrentProcess("i need to help my friend");
+					RadioMessage(Radio::Fallback);
+					m_chosenGoalIndex = index;
+					FindPath(m_currentWaypointIndex, m_chosenGoalIndex);
+					m_chosenGoalIndex = bot->m_chosenGoalIndex;
+				}
+			}
 		}
 		else
 		{

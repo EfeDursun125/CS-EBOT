@@ -10,7 +10,6 @@ ConVar ebot_analyze_wall_check_distance("ebot_analyze_wall_check_distance", "24"
 ConVar ebot_analyze_max_jump_height("ebot_analyze_max_jump_height", "62");
 ConVar ebot_analyze_goal_check_distance("ebot_analyze_goal_check_distance", "200");
 ConVar ebot_analyze_create_camp_waypoints("ebot_analyze_create_camp_waypoints", "1");
-ConVar ebot_use_old_analyzer("ebot_use_old_analyzer", "0");
 ConVar ebot_analyzer_min_fps("ebot_analyzer_min_fps", "30.0");
 ConVar ebot_analyze_auto_start("ebot_analyze_auto_start", "1");
 ConVar ebot_download_waypoints("ebot_download_waypoints", "0");
@@ -98,145 +97,124 @@ void AnalyzeThread(void)
 {
     const float goalDist = SquaredF(ebot_analyze_goal_check_distance.GetFloat());
 
-    if (!ebot_use_old_analyzer.GetBool())
+    if (!FNullEnt(g_hostEntity))
     {
-        if (!FNullEnt(g_hostEntity))
-        {
-            char message[] =
-                "+-----------------------------------------------+\n"
-                " Analyzing the map for walkable places \n"
-                "+-----------------------------------------------+\n";
+        char message[] =
+            "+-----------------------------------------------+\n"
+            " Analyzing the map for walkable places \n"
+            "+-----------------------------------------------+\n";
 
-            HudMessage(g_hostEntity, true, Color(100, 100, 255), message);
-        }
-        else if (!IsDedicatedServer() && engine->GetTime() <= 10.0f) // let the player join first...
-            return;
-
-        static float magicTimer;
-        for (int i = 0; i < g_numWaypoints; i++)
-        {
-            if (g_expanded[i])
-                continue;
-            
-            if (magicTimer >= engine->GetTime())
-                continue;
-
-            if ((ebot_analyzer_min_fps.GetFloat() + g_pGlobals->frametime) <= 1.0f / g_pGlobals->frametime)
-                magicTimer = AddTime(g_pGlobals->frametime * 0.054f); // pause
-
-            const Vector WayVec = g_waypoint->GetPath(i)->origin;
-            const float range = ebot_analyze_distance.GetFloat();
-
-            for (int dir = 1; dir < 8; dir++)
-            {
-                switch (dir)
-                {
-                    case 1:
-                    {
-                        Vector Next;
-                        Next.x = WayVec.x + range;
-                        Next.y = WayVec.y;
-                        Next.z = WayVec.z;
-
-                        CreateWaypoint(WayVec, Next, range, goalDist);
-                    }
-                    case 2:
-                    {
-                        Vector Next;
-                        Next.x = WayVec.x - range;
-                        Next.y = WayVec.y;
-                        Next.z = WayVec.z;
-
-                        CreateWaypoint(WayVec, Next, range, goalDist);
-                    }
-                    case 3:
-                    {
-                        Vector Next;
-                        Next.x = WayVec.x;
-                        Next.y = WayVec.y + range;
-                        Next.z = WayVec.z;
-
-                        CreateWaypoint(WayVec, Next, range, goalDist);
-                    }
-                    case 4:
-                    {
-                        Vector Next;
-                        Next.x = WayVec.x;
-                        Next.y = WayVec.y - range;
-                        Next.z = WayVec.z;
-
-                        CreateWaypoint(WayVec, Next, range, goalDist);
-                    }
-                    case 5:
-                    {
-                        Vector Next;
-                        Next.x = WayVec.x + range;
-                        Next.y = WayVec.y;
-                        Next.z = WayVec.z + 128.0f;
-
-                        CreateWaypoint(WayVec, Next, range, goalDist);
-                    }
-                    case 6:
-                    {
-                        Vector Next;
-                        Next.x = WayVec.x - range;
-                        Next.y = WayVec.y;
-                        Next.z = WayVec.z + 128.0f;
-
-                        CreateWaypoint(WayVec, Next, range, goalDist);
-                    }
-                    case 7:
-                    {
-                        Vector Next;
-                        Next.x = WayVec.x;
-                        Next.y = WayVec.y + range;
-                        Next.z = WayVec.z + 128.0f;
-
-                        CreateWaypoint(WayVec, Next, range, goalDist);
-                    }
-                    case 8:
-                    {
-                        Vector Next;
-                        Next.x = WayVec.x;
-                        Next.y = WayVec.y - range;
-                        Next.z = WayVec.z + 128.0f;
-
-                        CreateWaypoint(WayVec, Next, range, goalDist);
-                    }
-                }
-            }
-
-            g_expanded[i] = true;
-        }
-
-        if (magicTimer + 2.0f < engine->GetTime())
-        {
-            g_analyzewaypoints = false;
-            g_waypointOn = false;
-            g_waypoint->AnalyzeDeleteUselessWaypoints();
-            g_waypoint->AddGoals();
-            g_waypoint->Save();
-            g_waypoint->Load();
-            ServerCommand("exec addons/ebot/ebot.cfg");
-        }
-
-        return;
+        HudMessage(g_hostEntity, true, Color(100, 100, 255), message);
     }
+    else if (!IsDedicatedServer() && engine->GetTime() <= 10.0f) // let the player join first...
+        return;
 
+    static float magicTimer;
     for (int i = 0; i < g_numWaypoints; i++)
     {
-        if (IsValidWaypoint(i))
+        if (g_expanded[i])
+            continue;
+
+        if (magicTimer >= engine->GetTime())
+            continue;
+
+        if ((ebot_analyzer_min_fps.GetFloat() + g_pGlobals->frametime) <= 1.0f / g_pGlobals->frametime)
+            magicTimer = AddTime(g_pGlobals->frametime * 0.054f); // pause
+
+        const Vector WayVec = g_waypoint->GetPath(i)->origin;
+        const float range = ebot_analyze_distance.GetFloat();
+
+        for (int dir = 1; dir < 8; dir++)
         {
-            Vector WayVec = g_waypoint->GetPath(i)->origin;
-            float ran = ebot_analyze_distance.GetFloat();
+            switch (dir)
+            {
+            case 1:
+            {
+                Vector Next;
+                Next.x = WayVec.x + range;
+                Next.y = WayVec.y;
+                Next.z = WayVec.z;
 
-            Vector Start;
-            Start.x = WayVec.x + CRandomFloat(((-ran) - 5.0f), (ran + 5.0f));
-            Start.y = WayVec.y + CRandomFloat(((-ran) - 5.0f), (ran + 5.0f));
-            Start.z = WayVec.z + CRandomFloat(1, ran);
+                CreateWaypoint(WayVec, Next, range, goalDist);
+            }
+            case 2:
+            {
+                Vector Next;
+                Next.x = WayVec.x - range;
+                Next.y = WayVec.y;
+                Next.z = WayVec.z;
 
-            CreateWaypoint(WayVec, Start, ran, goalDist);
+                CreateWaypoint(WayVec, Next, range, goalDist);
+            }
+            case 3:
+            {
+                Vector Next;
+                Next.x = WayVec.x;
+                Next.y = WayVec.y + range;
+                Next.z = WayVec.z;
+
+                CreateWaypoint(WayVec, Next, range, goalDist);
+            }
+            case 4:
+            {
+                Vector Next;
+                Next.x = WayVec.x;
+                Next.y = WayVec.y - range;
+                Next.z = WayVec.z;
+
+                CreateWaypoint(WayVec, Next, range, goalDist);
+            }
+            case 5:
+            {
+                Vector Next;
+                Next.x = WayVec.x + range;
+                Next.y = WayVec.y;
+                Next.z = WayVec.z + 128.0f;
+
+                CreateWaypoint(WayVec, Next, range, goalDist);
+            }
+            case 6:
+            {
+                Vector Next;
+                Next.x = WayVec.x - range;
+                Next.y = WayVec.y;
+                Next.z = WayVec.z + 128.0f;
+
+                CreateWaypoint(WayVec, Next, range, goalDist);
+            }
+            case 7:
+            {
+                Vector Next;
+                Next.x = WayVec.x;
+                Next.y = WayVec.y + range;
+                Next.z = WayVec.z + 128.0f;
+
+                CreateWaypoint(WayVec, Next, range, goalDist);
+            }
+            case 8:
+            {
+                Vector Next;
+                Next.x = WayVec.x;
+                Next.y = WayVec.y - range;
+                Next.z = WayVec.z + 128.0f;
+
+                CreateWaypoint(WayVec, Next, range, goalDist);
+            }
+            }
         }
+
+        g_expanded[i] = true;
+    }
+
+    if (magicTimer + 2.0f < engine->GetTime())
+    {
+        g_analyzewaypoints = false;
+        g_waypointOn = false;
+        g_waypoint->AnalyzeDeleteUselessWaypoints();
+        g_waypoint->AddGoals();
+        g_waypoint->Save();
+        g_waypoint->Load();
+        ServerCommand("exec addons/ebot/ebot.cfg");
     }
 }
 

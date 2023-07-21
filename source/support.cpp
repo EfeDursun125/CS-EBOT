@@ -1683,3 +1683,48 @@ int GetWeaponReturn(const bool needString, const char* weaponAlias, const int we
 
 	return -1; // no weapon was found return -1
 }
+
+// return priority of player (0 = max pri)
+unsigned int GetPlayerPriority(edict_t* player)
+{
+	if (FNullEnt(player))
+		return 0xFFFFFFFF;
+
+	// human players have highest priority
+	auto bot = g_botManager->GetBot(player);
+	if (bot != nullptr)
+	{
+		// bots doing something important for the current scenario have high priority
+		if (GetGameMode() == GameMode::Original)
+		{
+			if (bot->m_isBomber)
+				return 2;
+
+			if (bot->m_isVIP)
+				return 2;
+
+			if (bot->HasHostage())
+				return 2;
+
+			if (bot->pev->health < 3)
+				return 2;
+		}
+
+		if (bot->GetProcess() == Process::Pause)
+			return 1;
+
+		if (bot->GetProcess() == Process::ThrowFB)
+			return 1;
+
+		if (bot->GetProcess() == Process::ThrowSM)
+			return 1;
+
+		if (bot->GetProcess() == Process::ThrowHE)
+			return 1;
+
+		// everyone else is ranked by their unique ID (which cannot be zero)
+		return bot->GetIndex() + 3;
+	}
+
+	return 1;
+}
