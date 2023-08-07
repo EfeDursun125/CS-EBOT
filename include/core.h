@@ -345,6 +345,17 @@ enum class LiftState
 	Leaving
 };
 
+class FishBrain
+{
+	Vector m_lastDangerArea;
+	float m_lastDangerTime;
+
+	void GetDanger()
+	{
+		return;
+	}
+};
+
 // bot known file 
 const char FH_WAYPOINT_NEW[] = "EBOTWP";
 const char FH_WAYPOINT[] = "PODWAY!";
@@ -373,6 +384,7 @@ struct AStar_t
 // weapon masks
 const int WeaponBits_Primary = ((1 << Weapon::Xm1014) | (1 << Weapon::M3) | (1 << Weapon::Mac10) | (1 << Weapon::Ump45) | (1 << Weapon::Mp5) | (1 << Weapon::Tmp) | (1 << Weapon::P90) | (1 << Weapon::Aug) | (1 << Weapon::M4A1) | (1 << Weapon::Sg552) | (1 << Weapon::Ak47) | (1 << Weapon::Scout) | (1 << Weapon::Sg550) | (1 << Weapon::Awp) | (1 << Weapon::G3SG1) | (1 << Weapon::M249) | (1 << Weapon::Famas) | (1 << Weapon::Galil));
 const int WeaponBits_Secondary = ((1 << Weapon::P228) | (1 << Weapon::Elite) | (1 << Weapon::Usp) | (1 << Weapon::Glock18) | (1 << Weapon::Deagle) | (1 << Weapon::FiveSeven));
+const int WeaponBits_SecondaryNODEFAULT = ((1 << Weapon::P228) | (1 << Weapon::Elite) | (1 << Weapon::Deagle) | (1 << Weapon::FiveSeven));
 
 // this structure links waypoints returned from pathfinder
 struct PathNode
@@ -403,8 +415,6 @@ struct WeaponSelect
 	char* modelName; // model name to separate cs weapons
 	int price; // price when buying
 	int minPrimaryAmmo; // minimum primary ammo
-	int teamStandard; // used by team (number) (standard map)
-	int teamAS; // used by team (as map)
 	int buyGroup; // group in buy menu (standard map)
 	int buySelect; // select item in buy menu (standard map)
 	int newBuySelectT; // for counter-strike v1.6
@@ -512,7 +522,6 @@ struct WaypointHeader
 	char author[32];
 };
 
-
 // define general waypoint structure
 struct PathOLD
 {
@@ -544,6 +553,14 @@ struct Path
 	uint16 connectionFlags[Const_MaxPathIndex];
 	float gravity;
 };
+
+/*constexpr int MAX_BRAIN = 5;
+
+class FishBrain
+{
+	Vector m_dangerAreas[MAX_BRAIN];
+	float m_dangerTime[MAX_BRAIN];
+};*/
 
 // main bot class
 class Bot
@@ -841,10 +858,16 @@ public:
 
 	int m_heuristic;
 	bool m_2dH;
+	bool m_hasProfile;
 
 	int m_campIndex;
+	int m_weaponPrefs[Const_NumWeapons];
 
-	Bot(edict_t* bot, int skill, int personality, int team, int member);
+	Array <String> m_favoritePrimary;
+	Array <String> m_favoriteSecondary;
+	Array <String> m_favoriteStuff;
+
+	Bot(edict_t* bot, const int skill, const int personality, const int team, const int member);
 	~Bot(void);
 
 	// NEW AI
@@ -856,7 +879,7 @@ public:
 	Process GetProcess(void);
 	float GetProcessTime(void);
 
-	bool SetProcess(const Process process, const char* debugNote = "clear", const bool rememberProcess = false, const float time = 999999.0f);
+	bool SetProcess(const Process process, const char* debugNote = "clear", const bool rememberProcess = false, const float time = 9999999.0f);
 	void StartProcess(const Process process);
 	void EndProcess(const Process process);
 	void FinishCurrentProcess(const char* debugNote = "finished by the system");
@@ -946,6 +969,7 @@ public:
 	bool ThrowFBReq(void);
 	bool ThrowSMReq(void);
 
+	int GetWeaponID(const char* weapon);
 	int GetAmmo(void);
 	inline int GetAmmoInClip(void) { return m_ammoInClip[m_currentWeapon]; }
 
@@ -990,6 +1014,7 @@ public:
 	bool UsesZoomableRifle(void);
 	bool UsesBadPrimary(void);
 	bool HasPrimaryWeapon(void);
+	bool HasSecondaryWeapon(void);
 	bool HasShield(void);
 	bool IsSniper(void);
 	bool IsShieldDrawn(void);
@@ -1174,11 +1199,11 @@ public:
 	void SgdWp_Set(const char* modset);
 
 	float GetTravelTime(const float maxSpeed, const Vector src, const Vector origin);
-	void CalculateWayzone(int index);
+	void CalculateWayzone(const int index);
 	Vector GetBottomOrigin(const Path* waypoint);
 
 	bool Download(void);
-	bool Load(int mode = 0);
+	bool Load(const int mode = 0);
 	void Save(void);
 	void SaveOLD(void);
 
@@ -1241,7 +1266,6 @@ extern bool IsVisible(const Vector& origin, edict_t* ent);
 extern Vector GetWalkablePosition(const Vector& origin, edict_t* ent = nullptr, bool returnNullVec = false, float height = 1000.0f);
 extern bool IsAlive(const edict_t* ent);
 extern bool IsInViewCone(const Vector& origin, edict_t* ent);
-extern bool IsWeaponShootingThroughWall(int id);
 extern bool IsValidBot(edict_t* ent);
 extern bool IsValidBot(int index);
 extern bool IsValidPlayer(edict_t* ent);

@@ -39,13 +39,9 @@ extern Game g_gameVersion;
 extern int g_fakeArgc;
 extern int bot_conntimes;
 
-extern int g_normalWeaponPrefs[Const_NumWeapons];
-extern int g_rusherWeaponPrefs[Const_NumWeapons];
-extern int g_carefulWeaponPrefs[Const_NumWeapons];
 extern int g_radioSelect[32];
 extern int g_lastRadio[2];
 extern int g_storeAddbotVars[4];
-extern int* g_weaponPrefs[];
 
 extern int g_modelIndexLaser;
 extern int g_modelIndexArrow;

@@ -1896,6 +1896,9 @@ private:
     //
     bool IsTrimChar(char input)
     {
+        if (input == 0)
+            return false;
+
         return input == ' ' || input == '\t' || input == '\n';
     }
 
@@ -2766,7 +2769,7 @@ public:
         char* str = m_bufferPtr;
         char* last = nullptr;
 
-        while (*str != 0)
+        while (str != nullptr && *str != 0)
         {
             if (IsTrimChar(*str))
             {
@@ -2809,6 +2812,7 @@ public:
             cmemmove(buffer, str, (length + 1) * sizeof(char));
             ReleaseBuffer(length);
         }
+
         return *this;
     }
 
@@ -2836,7 +2840,7 @@ public:
         const char* str = m_bufferPtr;
         const char* last = nullptr;
 
-        while (*str != 0)
+        while (str != nullptr && *str != 0)
         {
             if (*str == ch)
             {
@@ -3140,141 +3144,115 @@ public:
 //
 class File
 {
-    //
-    // Group: Private members.
-    //
-private:
-
-    //
-    // Variable: m_handle
-    // Pointer to C file stream.
-    //
+protected:
     FILE* m_handle;
-
-    // Variable: m_size
-    // Number of bytes in file.
-    //
-    int m_size;
+    int m_fileSize;
 
     //
-    // Group: (Con/De)structors.
+    // Group: (Con/De)structors
     //
 public:
+
     //
     // Function: File
+    //  Default file class, constructor.
     //
-    // Default file class constructor.
-    //
-    inline File(void) : m_handle(nullptr), m_size(0)
+    File(void)
     {
+        m_handle = nullptr;
+        m_fileSize = 0;
     }
 
     //
     // Function: File
+    //  Default file class, constructor, with file opening.
     //
-    // Default file class, constructor, with file opening.
-    //
-    // Parameters:
-    //   filePath - String containing file name.
-    //   mode - String containing open mode for file.
-    //
-    inline File(const String& filePath, const String& mode = "rt") : m_handle(nullptr), m_size(0)
+    File(String fileName, String mode = "rt")
     {
-        Open(filePath, mode);
+        Open(fileName, mode);
     }
 
     //
     // Function: ~File
+    //  Default file class, destructor.
     //
-    // Default file class, destructor.
-    //
-    inline ~File(void)
+    ~File(void)
     {
-        if (IsValid())
-            fclose(m_handle);
+        Close();
     }
 
     //
-    // Group: Functions.
-    //
-public:
-    //
     // Function: Open
-    //
-    // Opens file and gets it's size.
+    //  Opens file and gets it's size.
     //
     // Parameters:
-    //	  filePath - String containing file name.
-    //	  mode - String containing open mode for file.
+    //  fileName - String containing file name.
+    //  mode - String containing open mode for file.
     //
     // Returns:
-    //   True if operation succeeded, false otherwise.
+    //  True if operation succeeded, false otherwise.
     //
-    inline bool Open(const String& filePath, const String& mode = "rt")
+    bool Open(const String& fileName, const String& mode)
     {
-        m_handle = fopen(filePath, mode);
-
-        if (!IsValid())
+        if ((m_handle = fopen(fileName.GetBuffer(), mode.GetBuffer())) == nullptr)
             return false;
 
-        fseek(m_handle, 0l, SEEK_END);
-        m_size = ftell(m_handle); // get the filesize.
-        fseek(m_handle, 0l, SEEK_SET);
+        fseek(m_handle, 0L, SEEK_END);
+        m_fileSize = ftell(m_handle);
+        fseek(m_handle, 0L, SEEK_SET);
 
         return true;
     }
 
     //
     // Function: Close
+    //  Closes file, and destroys STDIO file object.
     //
-    // Closes file, and destroys STDIO file object.
-    //
-    inline void Close(void)
+    void Close(void)
     {
-        if (IsValid())
+        if (m_handle != nullptr)
         {
             fclose(m_handle);
             m_handle = nullptr;
         }
 
-        m_size = 0;
+        m_fileSize = 0;
     }
 
     //
-    // Function: IsEndOfFile
-    //
-    // Checks whether we reached end of file.
+    // Function: Eof
+    //  Checks whether we reached end of file.
     //
     // Returns:
-    //   True if reached, false otherwise.
+    //  True if reached, false otherwise.
     //
-    inline bool IsEndOfFile(void) const
+    bool Eof(void)
     {
-        return feof(m_handle) != 0;
+        Assert(m_handle != nullptr);
+        return feof(m_handle) ? true : false;
     }
 
     //
     // Function: Flush
-    //
-    // Flushes file stream.
+    //  Flushes file stream.
     //
     // Returns:
-    //   True if operation succeeded, false otherwise.
+    //  True if operation succeeded, false otherwise.
     //
-    inline bool Flush(void) const
+    bool Flush(void)
     {
-        return fflush(m_handle) == 0;
+        Assert(m_handle != nullptr);
+        return fflush(m_handle) ? false : true;
     }
 
     //
     // Function: GetCharacter
-    //
-    // Pops one character from the file stream.
+    //  Pops one character from the file stream.
     //
     // Returns:
-    //   Popped from stream character.
+    //  Popped from stream character
     //
-    inline int GetCharacter(void)
+    int GetCharacter(void)
     {
         Assert(m_handle != nullptr);
         return fgetc(m_handle);
@@ -3282,212 +3260,201 @@ public:
 
     //
     // Function: GetBuffer
-    //
-    // Gets the line from file stream, and stores it inside string class.
+    //  Gets the single line, from the non-binary stream.
     //
     // Parameters:
-    //	  buffer - String buffer, that should receive line.
-    //	  count - Maximum size of buffer.
+    //  buffer - Pointer to buffer, that should receive string.
+    //  count - Max. size of buffer.
     //
     // Returns:
-    //   True if operation succeeded, false otherwise.
+    //  Pointer to string containing popped line.
     //
-    inline bool GetBuffer(String& buffer, int count = 256) const
+    char* GetBuffer(char* buffer, const int count)
     {
-        char* tempBuffer = new char[static_cast<uint32_t>(count)];
-        buffer.SetEmpty();
-
-        if (tempBuffer == nullptr)
-            return false;
-
-        if (fgets(tempBuffer, count, m_handle) != nullptr)
-        {
-            buffer = tempBuffer;
-            delete[] tempBuffer;
-
-            return true;
-        }
-
-        delete[] tempBuffer;
-
-        return false;
+        Assert(m_handle != nullptr);
+        return fgets(buffer, count, m_handle);
     }
 
     //
     // Function: GetBuffer
-    //
-    // Gets the line from file stream, and stores it inside string class.
+    //  Gets the line from file stream, and stores it inside string class.
     //
     // Parameters:
-    //	  buffer - String buffer, that should receive line.
-    //	  count - Maximum size of buffer.
+    //  buffer - String buffer, that should receive line.
+    //  count - Max. size of buffer.
     //
     // Returns:
-    //   True if operation succeeded, false otherwise.
+    //  True if operation succeeded, false otherwise.
     //
-    inline bool GetBuffer(char* buffer, int count = 256) const
+    bool GetBuffer(String& buffer, const int count)
     {
-        return fgets(buffer, count, m_handle) != nullptr;
+        Assert(m_handle != nullptr);
+        return !String(fgets(buffer, count, m_handle)).IsEmpty();
     }
 
     //
     // Function: Print
-    //
-    // Puts formatted buffer, into stream.
+    //  Puts formatted buffer, into stream.
     //
     // Parameters:
-    //	  format - String to write.
+    //  format - 
     //
     // Returns:
-    //   Number of bytes, that was written.
+    //  Number of bytes, that was written.
     //
-    inline int Print(const char* format, ...) const
+    int Print(const char* format, ...)
     {
-        va_list ap;
+        Assert(m_handle != nullptr);
 
+        va_list ap;
         va_start(ap, format);
         const int written = vfprintf(m_handle, format, ap);
         va_end(ap);
+
+        if (written < 0)
+            return 0;
 
         return written;
     }
 
     //
-    // Function: Print
-    //
-    // Puts formatted buffer, into stream.
-    //
-    // Parameters:
-    //	  format - String to write.
-    //
-    // Returns
-    //   Number of bytes, that was written.
-    //
-    inline int Print(const String& message) const
-    {
-        return fprintf(m_handle, message);
-    }
-
-    //
     // Function: PutCharacter
-    //
-    // Puts character into file stream.
+    //  Puts character into file stream.
     //
     // Parameters:
-    //	  character - Character that should be put into stream.
+    //  ch - Character that should be put into stream.
     //
     // Returns:
-    //   Character that was putted into the stream.
+    //  Character that was putted into the stream.
     //
-    inline char PutCharacter(char character)
+    char PutCharacter(char ch)
     {
         Assert(m_handle != nullptr);
-        return static_cast<char>(fputc(character, m_handle));
+        return static_cast<char>(fputc(ch, m_handle));
     }
 
     //
     // Function: PutString
-    //
-    // Puts buffer into the file stream.
+    //  Puts buffer into the file stream.
     //
     // Parameters:
-    //	  string - Buffer that should be put, into stream.
+    //  buffer - Buffer that should be put, into stream.
     //
     // Returns:
-    //   True if operation succeeded, false otherwise.
+    //  True, if operation succeeded, false otherwise.
     //
-    inline bool PutString(const String& string) const
+    bool PutString(String buffer)
     {
-        return fputs(string, m_handle) != EOF;
+        Assert(m_handle != nullptr);
+
+        if (fputs(buffer.GetBuffer(), m_handle) < 0)
+            return false;
+
+        return true;
     }
 
     //
     // Function: Read
-    //
-    // Reads buffer from file stream in binary format.
+    //  Reads buffer from file stream in binary format.
     //
     // Parameters:
-    //	  buffer - Holder for read buffer.
-    //	  size - Size of the buffer to read.
-    //	  count - Number of buffer chunks to read.
+    //  buffer - Holder for read buffer.
+    //  size - Size of the buffer to read.
+    //  count - Number of buffer chunks to read.
     //
     // Returns:
-    //   Number of bytes red from file.
+    //  Number of bytes red from file.
     //
-    inline bool Read(void* buffer, uint32_t size, uint32_t count = 1) const
+    int Read(void* buffer, const int size, const int count = 1)
     {
-        return fread(buffer, size, count, m_handle) == count;
+        Assert(m_handle != nullptr);
+        return fread(buffer, size, count, m_handle);
     }
 
     //
     // Function: Write
-    //
-    // Writes binary buffer into file stream.
+    //  Writes binary buffer into file stream.
     //
     // Parameters:
-    //	  buffer - Buffer holder, that should be written into file stream.
-    //	  size - Size of the buffer that should be written.
-    //	  count - Number of buffer chunks to write.
+    //  buffer - Buffer holder, that should be written into file stream.
+    //  size - Size of the buffer that should be written.
+    //  count - Number of buffer chunks to write.
     //
     // Returns:
-    //   Numbers of bytes written to file.
+    //  Numbers of bytes written to file.
     //
-    inline bool Write(void* buffer, uint32_t size, uint32_t count = 1) const
+    int Write(void* buffer, const int size, const int count = 1)
     {
-        return fwrite(buffer, size, count, m_handle) == count;
+        Assert(m_handle != nullptr);
+        return fwrite(buffer, size, count, m_handle);
     }
 
     //
     // Function: Seek
-    //
-    // Seeks file stream with specified parameters.
+    //  Seeks file stream with specified parameters.
     //
     // Parameters:
-    //	  offset - Offset where cursor should be set.
-    //	  origin - Type of offset set.
+    //  offset - Offset where cursor should be set.
+    //  origin - Type of offset set.
     //
     // Returns:
-    //   True if operation success, false otherwise.
+    //  True if operation success, false otherwise.
     //
-    inline bool Seek(long offset, int origin) const
+    bool Seek(const long offset, const int origin)
     {
-        return fseek(m_handle, offset, origin) == 0;
+        Assert(m_handle != nullptr);
+
+        if (fseek(m_handle, offset, origin) != 0)
+            return false;
+
+        return true;
     }
 
     //
     // Function: Rewind
+    //  Rewinds the file stream.
     //
-    // Rewinds the file stream.
-    //
-    inline void Rewind(void) const
+    void Rewind(void)
     {
+        Assert(m_handle != nullptr);
         rewind(m_handle);
     }
 
     //
     // Function: GetSize
-    //
-    // Gets the file size of opened file stream.
+    //  Gets the file size of opened file stream.
     //
     // Returns:
-    //   Number of bytes in file.
+    //  Number of bytes in file.
     //
-    inline int GetSize(void) const
+    int GetSize(void)
     {
-        return m_size;
+        return m_fileSize;
     }
 
     //
     // Function: IsValid
-    //
-    // Checks whether file stream is valid.
+    //  Checks whether file stream is valid.
     //
     // Returns:
-    //   True if file stream valid, false otherwise.
+    //  True if file stream valid, false otherwise.
     //
-    inline bool IsValid(void) const
+    bool IsValid(void)
     {
         return m_handle != nullptr;
+    }
+
+public:
+    static inline bool Accessible(const String& filename)
+    {
+        File fp;
+        if (fp.Open(filename, "rb"))
+        {
+            fp.Close();
+            return true;
+        }
+
+        return false;
     }
 };
 

@@ -31,11 +31,6 @@
 #ifdef PLATFORM_WIN32
 
 #include <direct.h>
-#include <windows.h>
-#include <winsock2.h>
-#include <sys/types.h>
-
-typedef int socklen_t;
 
 #define DLL_ENTRYPOINT int STDCALL DllMain (void *, unsigned long dwReason, void *)
 #define DLL_DETACHING (dwReason == 0)
