@@ -910,13 +910,10 @@ void Bot::SelectBestWeapon(void)
 
 			if (id == m_currentWeapon)
 			{
-				// dont be fool
-				if (m_isReloading)
-					ammoLeft = false;
-				else if (GetAmmoInClip() > 0)
+				if (GetAmmoInClip() > 0)
 					ammoLeft = true;
 			}
-			else if (m_ammo[g_weaponDefs[id].ammo1] > 0)
+			else if (id < 33 && id > -1 && g_weaponDefs != nullptr && m_ammo != nullptr && m_ammo[g_weaponDefs[id].ammo1] > 0)
 				ammoLeft = true;
 
 			if (ammoLeft)

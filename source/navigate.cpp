@@ -1441,7 +1441,7 @@ char* Bot::GetHeuristicName(void)
 }
 
 // this function finds a path from srcIndex to destIndex
-void Bot::FindPath(int srcIndex, int destIndex)
+void Bot::FindPath(int srcIndex, int destIndex, edict_t* enemy)
 {
 	if (srcIndex == destIndex)
 		return;
@@ -1623,19 +1623,31 @@ void Bot::FindPath(int srcIndex, int destIndex)
 			if (self == -1)
 				continue;
 
-			const int32 flags = g_waypoint->GetPath(self)->flags;
-			if (flags & WAYPOINT_FALLCHECK)
+			if (self != destIndex)
 			{
-				TraceResult tr{};
-				const Vector origin = g_waypoint->GetPath(self)->origin;
-				TraceLine(origin, origin - Vector(0.0f, 0.0f, 60.0f), false, false, GetEntity(), &tr);
-				if (tr.flFraction == 1.0f)
-					continue;
-			}
-			else if (flags & WAYPOINT_SPECIFICGRAVITY)
-			{
-				if (pev->gravity * (1600.0f - engine->GetGravity()) < g_waypoint->GetPath(self)->gravity)
-					continue;
+				const int32 flags = g_waypoint->GetPath(self)->flags;
+				if (flags & WAYPOINT_FALLCHECK)
+				{
+					TraceResult tr{};
+					const Vector origin = g_waypoint->GetPath(self)->origin;
+					TraceLine(origin, origin - Vector(0.0f, 0.0f, 60.0f), false, false, GetEntity(), &tr);
+					if (tr.flFraction == 1.0f)
+						continue;
+				}
+				else if (flags & WAYPOINT_SPECIFICGRAVITY)
+				{
+					if (pev->gravity * (1600.0f - engine->GetGravity()) < g_waypoint->GetPath(self)->gravity)
+						continue;
+				}
+				else if (enemy != nullptr)
+				{
+					const Vector origin = g_waypoint->GetPath(self)->origin;
+					if (::IsInViewCone(origin, enemy) && IsVisible(origin, enemy))
+					{
+						if ((GetEntityOrigin(enemy) - origin).GetLengthSquared() - (pev->origin - origin).GetLengthSquared() <= 0.0f)
+							continue;
+					}
+				}
 			}
 
 			// calculate the F value as F = G + H

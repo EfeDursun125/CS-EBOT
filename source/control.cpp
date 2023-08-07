@@ -310,16 +310,16 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 		if (CRandomInt(1, 3) == 1)
 			m_bots[index]->m_favoritePrimary.Push("shield");
 
-		if (CRandomInt(1, 2) == 1)
+		if (CRandomInt(1, 3) == 1)
 			m_bots[index]->m_favoriteSecondary.Push("deagle");
 		else
 		{
-			const int id = CRandomInt(1, 3);
+			const int id = CRandomInt(1, 5);
 			if (id == 1)
 				m_bots[index]->m_favoriteSecondary.Push("fiveseven");
 			else if (id == 2)
 				m_bots[index]->m_favoriteSecondary.Push("elites");
-			else
+			else if (id == 3)
 				m_bots[index]->m_favoriteSecondary.Push("p228");
 		}
 	}

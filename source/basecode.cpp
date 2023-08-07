@@ -1923,6 +1923,27 @@ void Bot::LookAtAround(void)
 		if (bot != nullptr)
 		{
 			m_lookAt = bot->m_lookAt;
+			if ((m_currentWeapon == Weapon::M3 || m_currentWeapon == Weapon::Xm1014 || m_currentWeapon == Weapon::M249) && !FNullEnt(bot->m_nearestEnemy))
+			{
+				const int index = g_waypoint->FindNearest(GetEntityOrigin(bot->m_nearestEnemy), 999999.0f, -1, bot->GetEntity());
+				if (IsValidWaypoint(index) && m_chosenGoalIndex != index)
+				{
+					RadioMessage(Radio::GetInPosition);
+					m_chosenGoalIndex = index;
+					FindPath(m_currentWaypointIndex, m_chosenGoalIndex, bot->m_nearestEnemy);
+					const int index = FindDefendWaypoint(pev->origin + pev->view_ofs);
+					if (IsValidWaypoint(index))
+					{
+						bot->RadioMessage(Radio::Affirmative);
+						bot->m_campIndex = index;
+						bot->m_chosenGoalIndex = index;
+						bot->SetProcess(Process::Camp, "i will hold this position for my teammate's plan, my teammate will flank the enemy!", true, AddTime(ebot_camp_max.GetFloat()));
+					}
+					else
+						bot->RadioMessage(Radio::Negative);
+				}
+			}
+
 			if (bot->GetProcess() == Process::Camp)
 			{
 				const int index = g_waypoint->FindNearest(m_lookAt, 999999.0f, -1, bot->GetEntity());
