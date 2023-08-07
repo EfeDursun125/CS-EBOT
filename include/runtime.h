@@ -1969,7 +1969,10 @@ public:
     //
     const char* GetBuffer(void)
     {
-        if (m_bufferPtr == nullptr || *m_bufferPtr == 0x0)
+        if (m_bufferPtr == nullptr)
+            return "";
+
+        if (*m_bufferPtr == 0)
             return "";
 
         return &m_bufferPtr[0];
@@ -1984,7 +1987,10 @@ public:
     //
     const char* GetBuffer(void) const
     {
-        if (m_bufferPtr == nullptr || *m_bufferPtr == 0x0)
+        if (m_bufferPtr == nullptr)
+            return "";
+
+        if (*m_bufferPtr == 0)
             return "";
 
         return &m_bufferPtr[0];

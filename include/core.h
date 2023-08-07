@@ -364,7 +364,7 @@ const int FV_WAYPOINT = 125;
 
 const int Const_MaxHostages = 8;
 const int Const_MaxPathIndex = 8;
-const int Const_MaxWaypoints = 16384;
+const int Const_MaxWaypoints = 8192;
 const int Const_MaxWeapons = 32;
 const int Const_NumWeapons = 26;
 const int Const_NumWeaponsHL = 15;
@@ -742,7 +742,7 @@ private:
 	float GetBombTimeleft(void);
 	float GetEstimatedReachTime(void);
 
-	void FindPath(int srcIndex, int destIndex);
+	void FindPath(int srcIndex, int destIndex, edict_t* enemy = nullptr);
 	void FindShortestPath(int srcIndex, int destIndex);
 	void SecondThink(void);
 	void CalculatePing(void);
