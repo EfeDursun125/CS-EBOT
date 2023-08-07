@@ -53,7 +53,7 @@ void Bot::AttackUpdate(void)
 				{
 					if (!CheckWallOnBehind() && !CheckWallOnForward() && !CheckWallOnLeft() && !CheckWallOnRight())
 					{
-						if (pev->fov == 90.0f && !(pev->button & IN_ATTACK2) && !(pev->oldbuttons & IN_ATTACK2))
+						if (UsesSniper() && pev->fov == 90.0f && !(pev->button & IN_ATTACK2) && !(pev->oldbuttons & IN_ATTACK2))
 							pev->button |= IN_ATTACK2;
 
 						wait = cclampf(csqrtf(distance) * 0.01f, 5.0f, 15.0f);
