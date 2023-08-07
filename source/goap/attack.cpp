@@ -83,9 +83,13 @@ void Bot::AttackUpdate(void)
 	const int melee = g_gameVersion == Game::HalfLife ? WeaponHL::Crowbar : Weapon::Knife;
 	if (m_currentWeapon == melee)
 	{
-		m_destOrigin = m_enemyOrigin;
-		m_moveSpeed = pev->maxspeed;
-		m_strafeSpeed = 0.0f;
+		if (IsEnemyReachable())
+		{
+			DeleteSearchNodes();
+			MoveTo(m_enemyOrigin);
+		}
+		else
+			FollowPath(m_enemyOrigin);
 		return;
 	}
 	else
@@ -265,6 +269,10 @@ void Bot::AttackUpdate(void)
 			pev->button &= ~IN_JUMP;
 		}
 	}
+
+	const Vector directionOld = m_enemyOrigin - pev->origin;
+	m_moveAngles = directionOld.ToAngles();
+	m_moveAngles.ClampAngles();
 }
 
 void Bot::AttackEnd(void)

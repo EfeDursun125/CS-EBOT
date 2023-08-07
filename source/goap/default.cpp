@@ -68,7 +68,10 @@ void Bot::DefaultUpdate(void)
 			{
 				m_campIndex = m_zhCampPointIndex;
 				if (SetProcess(Process::Camp, "i will camp until game ends", true, AddTime(9999999.0f)))
+				{
+					DeleteSearchNodes();
 					return;
+				}
 			}
 
 			CheckRadioCommands();
@@ -107,7 +110,7 @@ void Bot::DefaultUpdate(void)
 		}
 		else
 		{
-			if (m_hasEnemiesNear)
+			if (m_hasEnemiesNear || m_hasEntitiesNear)
 			{
 				if (SetProcess(Process::Attack, "i found a target", false, 999999.0f))
 					return;
