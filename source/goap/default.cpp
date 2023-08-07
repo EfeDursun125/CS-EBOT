@@ -112,7 +112,12 @@ void Bot::DefaultUpdate(void)
 		{
 			if (m_hasEnemiesNear || m_hasEntitiesNear)
 			{
-				if (SetProcess(Process::Attack, "i found a target", false, 999999.0f))
+				if (m_currentWeapon == Weapon::M3 || m_currentWeapon == Weapon::Xm1014)
+				{
+					if (((m_hasEnemiesNear && m_enemySeeTime + 2.0f < engine->GetTime()) || (m_hasEntitiesNear && m_entitySeeTime + 2.0f < engine->GetTime())) && SetProcess(Process::Attack, "i found a target", false, 999999.0f))
+						return;
+				}
+				else if (SetProcess(Process::Attack, "i found a target", false, 999999.0f))
 					return;
 			}
 			else if (m_isBomber && m_waypointFlags & WAYPOINT_GOAL && m_navNode == nullptr)
