@@ -1,4 +1,4 @@
-#include <core.h>
+﻿#include <core.h>
 
 #ifdef PLATFORM_LINUX
 #include <cstdlib>
@@ -1816,6 +1816,9 @@ bool Waypoint::Load(int mode)
                     }
                 }
 
+                for (int i = 0; i < g_numWaypoints; i++)
+                    delete paths[i];
+
                 //Save(); add me in final release, don't break people's waypoints...
             }
 
@@ -1907,7 +1910,7 @@ void Waypoint::Save(void)
     header.mapName[31] = 0;
     header.fileVersion = FV_WAYPOINT;
     header.pointNumber = g_numWaypoints;
-
+    
     File fp(CheckSubfolderFile(false), "wb");
 
     // file was opened
@@ -1970,6 +1973,14 @@ void Waypoint::SaveOLD(void)
 
         for (int i = 0; i < header.pointNumber; i++)
         {
+            paths[i] = new PathOLD;
+
+            if (paths[i] == nullptr)
+            {
+                AddLogEntry(Log::Memory, "unexpected memory error");
+                break;
+            }
+
             paths[i]->pathNumber = i;
             paths[i]->origin = m_paths[i]->origin;
             paths[i]->flags = m_paths[i]->flags;
@@ -2031,6 +2042,9 @@ void Waypoint::SaveOLD(void)
         // save the waypoint paths...
         for (int i = 0; i < header.pointNumber; i++)
             fp.Write(paths[i], sizeof(PathOLD));
+
+        for (int i = 0; i < header.pointNumber; i++)
+            delete paths[i];
 
         fp.Close();
     }

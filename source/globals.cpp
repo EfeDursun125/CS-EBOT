@@ -85,23 +85,6 @@ edict_t* g_worldEdict = nullptr;
 edict_t* g_hostEntity = nullptr;
 globalvars_t* g_pGlobals = nullptr;
 
-// default tables for personality weapon preferences, overridden by weapons.cfg
-int g_normalWeaponPrefs[Const_NumWeapons] =
-{ 0, 2, 1, 4, 5, 6, 3, 12, 10, 24, 25, 13, 11, 8, 7, 22, 23, 18, 21, 17, 19, 15, 17, 9, 14, 16 };
-
-int g_rusherWeaponPrefs[Const_NumWeapons] =
-{ 0, 2, 1, 4, 5, 6, 3, 24, 19, 22, 23, 20, 21, 10, 12, 13, 7, 8, 11, 9, 18, 17, 19, 15, 16, 14 };
-
-int g_carefulWeaponPrefs[Const_NumWeapons] =
-{ 0, 2, 1, 4, 5, 6, 3, 7, 8, 12, 10, 13, 11, 9, 24, 18, 14, 17, 16, 15, 19, 20, 21, 22, 23, 25 };
-
-int* g_weaponPrefs[] =
-{
-   g_normalWeaponPrefs,
-   g_rusherWeaponPrefs,
-   g_carefulWeaponPrefs
-};
-
 extern "C" int GetEntityAPI2(DLL_FUNCTIONS * functionTable, int* interfaceVersion);
 
 // metamod engine & dllapi function tables
@@ -133,50 +116,50 @@ plugin_info_t Plugin_info =
 
 WeaponSelect g_weaponSelect[Const_NumWeapons + 1] =
 {
-	{Weapon::Knife,		"weapon_knife",     "knife.mdl",     0,    0, -1, -1,  0,  0,  0,  0,  false, true},
-	{Weapon::Usp,			"weapon_usp",       "usp.mdl",       500,  1, -1, -1,  1,  1,  2,  2,  false, false},
-	{Weapon::Glock18,		"weapon_glock18",   "glock18.mdl",   400,  1, -1, -1,  1,  2,  1,  1,  false, false},
-	{Weapon::Deagle,		"weapon_deagle",	"deagle.mdl",	 650,  1,  0,  0,  1,  3,  4,  4,  true,  false},
-	{Weapon::P228,		"weapon_p228",      "p228.mdl",      600,  1,  2,  2,  1,  4,  3,  3,  false, false},
-	{Weapon::Elite,		"weapon_elite",     "elite.mdl",     1000, 1,  2,  2,  1,  5,  5,  5,  false, false},
-	{Weapon::FiveSeven,		"weapon_fiveseven", "fiveseven.mdl", 750,  1,  1,  1,  1,  6,  5,  5,  false, false},
-	{Weapon::M3,			"weapon_m3",        "m3.mdl",        1700, 1,  2, -1,  2,  1,  1,  1,  false, false},
-	{Weapon::Xm1014,		"weapon_xm1014",    "xm1014.mdl",    3000, 1,  2, -1,  2,  2,  2,  2,  false, false},
-	{Weapon::Mp5,			"weapon_mp5navy",   "mp5.mdl",       1500, 1,  2,  1,  3,  1,  2,  2,  false, true},
-	{Weapon::Tmp,			"weapon_tmp",       "tmp.mdl",       1250, 1,  1,  1,  3,  2,  1,  1,  false, true},
-	{Weapon::P90,			"weapon_p90",       "p90.mdl",       2350, 1,  2,  1,  3,  3,  4,  4,  false, true},
-	{Weapon::Mac10,		"weapon_mac10",     "mac10.mdl",     1400, 1,  0,  0,  3,  4,  1,  1,  false, true},
-	{Weapon::Ump45,		"weapon_ump45",     "ump45.mdl",     1700, 1,  2,  2,  3,  5,  3,  3,  false, true},
-	{Weapon::Ak47,		"weapon_ak47",      "ak47.mdl",      2500, 1,  0,  0,  4,  1,  2,  2,  true,  true},
-	{Weapon::Sg552,		"weapon_sg552",     "sg552.mdl",     3500, 1,  0, -1,  4,  2,  4,  4,  true,  true},
-	{Weapon::M4A1,		"weapon_m4a1",      "m4a1.mdl",      3100, 1,  1,  1,  4,  3,  3,  3,  true,  true},
-	{Weapon::Galil,		"weapon_galil",     "galil.mdl",     2000, 1,  0,  0,  4,  -1, 1,  1,  true,  true},
-	{Weapon::Famas,		"weapon_famas",     "famas.mdl",     2250, 1,  1,  1,  4,  -1, 1,  1,  true,  true},
-	{Weapon::Aug,			"weapon_aug",       "aug.mdl",       3500, 1,  1,  1,  4,  4,  4,  4,  true,  true},
-	{Weapon::Scout,		"weapon_scout",		"scout.mdl",	 2750, 1,  2,  0,  4,  5,  3,  2,  false, false},
-	{Weapon::Awp,			"weapon_awp",       "awp.mdl",       4750, 1,  2,  0,  4,  6,  5,  6,  true,  false},
-	{Weapon::G3SG1,		"weapon_g3sg1",     "g3sg1.mdl",     5000, 1,  0,  2,  4,  7,  6,  6,  true,  false},
-	{Weapon::Sg550,		"weapon_sg550",     "sg550.mdl",     4200, 1,  1,  1,  4,  8,  5,  5,  true,  false},
-	{Weapon::M249,		"weapon_m249",      "m249.mdl",      5750, 1,  2,  1,  5,  1,  1,  1,  true,  true},
-	{Weapon::Shield,	"weapon_shield",    "shield.mdl",    2200, 0,  1,  1,  8,  -1, 8,  8,  false, false},
-	{0,					"",                 "",              0,    0,  0,  0,  0,   0, 0,  0,  false, false}
+	{Weapon::Knife,		"weapon_knife",     "knife.mdl",     0,    0,  0,  0,  0,  0,  false, true},
+	{Weapon::Usp,			"weapon_usp",       "usp.mdl",       500,  1,  1,  1,  2,  2,  false, false},
+	{Weapon::Glock18,		"weapon_glock18",   "glock18.mdl",   400,  1,  1,  2,  1,  1,  false, false},
+	{Weapon::Deagle,		"weapon_deagle",	"deagle.mdl",	 650,  1,  1,  3,  4,  4,  true,  false},
+	{Weapon::P228,		"weapon_p228",      "p228.mdl",      600,  1,  1,  4,  3,  3,  false, false},
+	{Weapon::Elite,		"weapon_elite",     "elite.mdl",     1000, 1,  1,  5,  5,  5,  false, false},
+	{Weapon::FiveSeven,		"weapon_fiveseven", "fiveseven.mdl", 750,  1,  1,  6,  5,  5,  false, false},
+	{Weapon::M3,			"weapon_m3",        "m3.mdl",        1700, 1,  2,  1,  1,  1,  false, false},
+	{Weapon::Xm1014,		"weapon_xm1014",    "xm1014.mdl",    3000, 1,  2,  2,  2,  2,  false, false},
+	{Weapon::Mp5,			"weapon_mp5navy",   "mp5.mdl",       1500, 1,  3,  1,  2,  2,  false, true},
+	{Weapon::Tmp,			"weapon_tmp",       "tmp.mdl",       1250, 1,  3,  2,  1,  1,  false, true},
+	{Weapon::P90,			"weapon_p90",       "p90.mdl",       2350, 1,  3,  3,  4,  4,  false, true},
+	{Weapon::Mac10,		"weapon_mac10",     "mac10.mdl",     1400, 1,  3,  4,  1,  1,  false, true},
+	{Weapon::Ump45,		"weapon_ump45",     "ump45.mdl",     1700, 1,  3,  5,  3,  3,  false, true},
+	{Weapon::Ak47,		"weapon_ak47",      "ak47.mdl",      2500, 1,  4,  1,  2,  2,  true,  true},
+	{Weapon::Sg552,		"weapon_sg552",     "sg552.mdl",     3500, 1,  4,  2,  4,  4,  true,  true},
+	{Weapon::M4A1,		"weapon_m4a1",      "m4a1.mdl",      3100, 1,  4,  3,  3,  3,  true,  true},
+	{Weapon::Galil,		"weapon_galil",     "galil.mdl",     2000, 1,  4,  -1, 1,  1,  true,  true},
+	{Weapon::Famas,		"weapon_famas",     "famas.mdl",     2250, 1,  4,  -1, 1,  1,  true,  true},
+	{Weapon::Aug,			"weapon_aug",       "aug.mdl",       3500, 1,  4,  4,  4,  4,  true,  true},
+	{Weapon::Scout,		"weapon_scout",		"scout.mdl",	 2750, 1,  4,  5,  3,  2,  false, false},
+	{Weapon::Awp,			"weapon_awp",       "awp.mdl",       4750, 1,  4,  6,  5,  6,  true,  false},
+	{Weapon::G3SG1,		"weapon_g3sg1",     "g3sg1.mdl",     5000, 1,  4,  7,  6,  6,  true,  false},
+	{Weapon::Sg550,		"weapon_sg550",     "sg550.mdl",     4200, 1,  4,  8,  5,  5,  true,  false},
+	{Weapon::M249,		"weapon_m249",      "m249.mdl",      5750, 1,  5,  1,  1,  1,  true,  true},
+	{Weapon::Shield,	"weapon_shield",    "shield.mdl",    2200, 0,  8,  -1, 8,  8,  false, false},
+	{0,					"",                 "",              0,    0,   0,   0, 0,  0,  false, false}
 };
 
 WeaponSelect g_weaponSelectHL[Const_NumWeaponsHL + 1] =
 {
-	{WeaponHL::Crowbar, "weapon_crowbar", "crowbar.mdl", 0, 0, -1, -1, 0, 0, 0, 0, false, true},
-	{WeaponHL::Glock, "weapon_9mmhandgun", "9mmhandgun.mdl", 2222, 1, -1, -1, 1, 1, 2, 2, false, false},
-	{WeaponHL::Python, "weapon_357", "357.mdl", 3333, 1, -1, -1, 1, 2, 1, 1, false, false},
-	{WeaponHL::Mp5_HL, "weapon_9mmAR",	"9mmar.mdl", 4444, 1, 0, 0, 1, 3, 4, 4, false, false},
-	{WeaponHL::Crossbow, "weapon_crossbow", "crossbow.mdl", 5555, 1, 2, 2, 1, 5, 5, 5, false, false},
-	{WeaponHL::Shotgun, "weapon_shotgun", "shotgun.mdl", 5555, 1, 1, 1, 1, 6, 5, 5, false, false},
-	{WeaponHL::Rpg, "weapon_rpg", "rpg.mdl", 8888, 1, 2, -1, 2, 1, 1, 1, false, false},
-	{WeaponHL::Gauss, "weapon_gauss", "gauss.mdl", 6666, 1, 2, -1, 2, 2, 2, 2, false, false},
-	{WeaponHL::Egon, "weapon_egon", "egon.mdl", 7777, 1, 2, 1, 3, 1, 2, 2, false, true},
-	{WeaponHL::HornetGun, "weapon_hornetgun", "hgun.mdl", 3333, 1, 1, 1, 3, 2, 1, 1, false, true},
-	{WeaponHL::HandGrenade, "weapon_handgrenade", "grenade.mdl", 1111, 1, 2, 1, 3, 3, 4, 4, false, false},
-	{WeaponHL::Snark, "weapon_snark", "squeak.mdl", 9999, 1, 0, 0, 4, 1, 2, 2, false, true},
-	{0,	"", "", 0, 0, 0, 0, 0, 0, 0, 0, false, false}
+	{WeaponHL::Crowbar, "weapon_crowbar", "crowbar.mdl", 0, 0, 0, 0, 0, 0, false, true},
+	{WeaponHL::Glock, "weapon_9mmhandgun", "9mmhandgun.mdl", 2222, 1, 1, 1, 2, 2, false, false},
+	{WeaponHL::Python, "weapon_357", "357.mdl", 3333, 1, 1, 2, 1, 1, false, false},
+	{WeaponHL::Mp5_HL, "weapon_9mmAR",	"9mmar.mdl", 4444, 1, 1, 3, 4, 4, false, false},
+	{WeaponHL::Crossbow, "weapon_crossbow", "crossbow.mdl", 5555, 1, 1, 5, 5, 5, false, false},
+	{WeaponHL::Shotgun, "weapon_shotgun", "shotgun.mdl", 5555, 1, 1, 6, 5, 5, false, false},
+	{WeaponHL::Rpg, "weapon_rpg", "rpg.mdl", 8888, 1, 2, 1, 1, 1, false, false},
+	{WeaponHL::Gauss, "weapon_gauss", "gauss.mdl", 6666, 1, 2, 2, 2, 2, false, false},
+	{WeaponHL::Egon, "weapon_egon", "egon.mdl", 7777, 1, 3, 1, 2, 2, false, true},
+	{WeaponHL::HornetGun, "weapon_hornetgun", "hgun.mdl", 3333, 1, 3, 2, 1, 1, false, true},
+	{WeaponHL::HandGrenade, "weapon_handgrenade", "grenade.mdl", 1111, 1, 3, 3, 4, 4, false, false},
+	{WeaponHL::Snark, "weapon_snark", "squeak.mdl", 9999, 1, 4, 1, 2, 2, false, true},
+	{0,	"", "", 0, 0, 0, 0, 0, 0, false, false}
 };
 
 // weapon firing delay based on skill (min and max delay for each weapon)

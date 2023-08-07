@@ -17,7 +17,7 @@ int CRandomInt(const int min, const int max)
 
 float CRandomFloat(const float min, const float max)
 {
-	return next() * (max - min) / (UINT64_MAX - 1) + min;
+	return next() * (max - min) / UINT64_MAX + min;
 }
 
 bool ChanceOf(const int number)
@@ -98,9 +98,20 @@ float crsqrtf(const float value)
 	return _mm_cvtss_f32(_mm_rsqrt_ss(_mm_load_ss(&value)));;
 }
 
-float cpowf(const float a, const float b)
+// https://baptiste-wicht.com/posts/2017/09/cpp11-performance-tip-when-to-use-std-pow.html
+float cpowf(const float x, size_t y)
 {
-	return powf(a, b);
+	if (y < 1)
+		return csqrtf(x);
+
+	float r = 1.0f;
+	while (y > 0)
+	{
+		r *= x;
+		--y;
+	}
+
+	return r;
 }
 
 float cabsf(const float value)
@@ -152,7 +163,7 @@ size_t cstrlen(const char* str)
 		return 0;
 
 	size_t length = 0;
-	while (str[length] != '\0')
+	while (length < SIZE_MAX && str[length] != '\0')
 		length++;
 
 	return length;

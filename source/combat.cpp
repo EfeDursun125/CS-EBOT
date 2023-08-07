@@ -687,6 +687,11 @@ bool Bot::HasPrimaryWeapon(void)
 	return (pev->weapons & WeaponBits_Primary) != 0;
 }
 
+bool Bot::HasSecondaryWeapon(void)
+{
+	return (pev->weapons & WeaponBits_SecondaryNODEFAULT) != 0;
+}
+
 // this function returns true, if bot has a tactical shield
 bool Bot::HasShield(void)
 {

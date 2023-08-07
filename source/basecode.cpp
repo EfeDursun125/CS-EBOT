@@ -246,7 +246,7 @@ bool Bot::IsBehindSmokeClouds(edict_t* ent)
 // this function returns the best weapon of this bot (based on personality prefs)
 int Bot::GetBestWeaponCarried(void)
 {
-	int* ptr = g_weaponPrefs[m_personality];
+	int* ptr = m_weaponPrefs;
 	int weaponIndex = 0;
 	int weapons = pev->weapons;
 
@@ -270,7 +270,7 @@ int Bot::GetBestWeaponCarried(void)
 // this function returns the best secondary weapon of this bot (based on personality prefs)
 int Bot::GetBestSecondaryWeaponCarried(void)
 {
-	int* ptr = g_weaponPrefs[m_personality];
+	int* ptr = m_weaponPrefs;
 	int weaponIndex = 0;
 	int weapons = pev->weapons;
 
@@ -303,7 +303,7 @@ bool Bot::RateGroundWeapon(edict_t* ent)
 
 	int hasWeapon = 0;
 	int groundIndex = 0;
-	int* ptr = g_weaponPrefs[m_personality];
+	int* ptr = m_weaponPrefs;
 
 	const WeaponSelect* weaponTab = &g_weaponSelect[0];
 
@@ -913,7 +913,7 @@ bool Bot::IsRestricted(const int weaponIndex)
 bool Bot::IsMorePowerfulWeaponCanBeBought(void)
 {
 	// if bot is not rich enough or non-standard weapon mode enabled return false
-	if (g_weaponSelect[25].teamStandard != Team::Counter || m_moneyAmount < 4000 || IsNullString(ebot_restrictweapons.GetString()))
+	if (m_moneyAmount < 4000 || IsNullString(ebot_restrictweapons.GetString()))
 		return false;
 
 	// also check if bot has really bad weapon, maybe it's time to change it
@@ -944,196 +944,63 @@ void Bot::PerformWeaponPurchase(void)
 	m_nextBuyTime = engine->GetTime();
 	WeaponSelect* selectedWeapon = nullptr;
 
-	int* ptr = g_weaponPrefs[m_personality] + Const_NumWeapons;
-
 	switch (m_buyState)
 	{
 	case 0:
-		if ((!HasShield() && !HasPrimaryWeapon()) && (g_botManager->EconomicsValid(m_team) || IsMorePowerfulWeaponCanBeBought()))
+		if (!m_favoritePrimary.IsEmpty() && !HasPrimaryWeapon() && !HasShield())
 		{
-			int gunMoney = 0, playerMoney = m_moneyAmount;
-			int likeGunId[2] = { 0, 0 };
-			int loadTime = 0;
-
-			do
+			for (int i = 0; i < m_favoritePrimary.GetElementNumber(); i++)
 			{
-				ptr--;
-				gunMoney = 0;
+				if (HasPrimaryWeapon())
+					break;
 
-				InternalAssert(*ptr > -1);
-				InternalAssert(*ptr < Const_NumWeapons);
+				if (HasShield())
+					break;
 
-				selectedWeapon = &g_weaponSelect[*ptr];
-				loadTime++;
-
-				if (selectedWeapon->buyGroup == 1)
+				if (cstrlen((char*)m_favoritePrimary.GetAt(i)) < 1)
 					continue;
 
-				if ((g_mapType & MAP_AS) && selectedWeapon->teamAS != 2 && selectedWeapon->teamAS != m_team)
+				if (IsRestricted(GetWeaponID((char*)m_favoritePrimary.GetAt(i))))
 					continue;
 
-				if ((g_gameVersion == Game::Old || g_gameVersion == Game::Xash) && selectedWeapon->buySelect == -1)
-					continue;
-
-				if (selectedWeapon->teamStandard != Team::Count && selectedWeapon->teamStandard != m_team)
-					continue;
-
-				if (IsRestricted(selectedWeapon->id))
-					continue;
-
-				gunMoney = selectedWeapon->price;
-
-				if (playerMoney <= gunMoney)
-					continue;
-
-				const int gunMode = BuyWeaponMode(selectedWeapon->id);
-
-				if (playerMoney < gunMoney + (gunMode * 125))
-					continue;
-
-				if (likeGunId[0] == 0)
-					likeGunId[0] = selectedWeapon->id;
-				else
-				{
-					if (gunMode <= BuyWeaponMode(likeGunId[0]))
-					{
-						if ((BuyWeaponMode(likeGunId[1]) > BuyWeaponMode(likeGunId[0])) || (BuyWeaponMode(likeGunId[1]) == BuyWeaponMode(likeGunId[0]) && (CRandomInt(1, 2) == 2)))
-							likeGunId[1] = likeGunId[0];
-
-						likeGunId[0] = selectedWeapon->id;
-					}
-					else
-					{
-						if (likeGunId[1] != 0)
-						{
-							if (gunMode <= BuyWeaponMode(likeGunId[1]))
-								likeGunId[1] = selectedWeapon->id;
-						}
-						else
-							likeGunId[1] = selectedWeapon->id;
-					}
-				}
-			} while (loadTime < Const_NumWeapons);
-
-			if (likeGunId[0] != 0)
-			{
-				WeaponSelect* buyWeapon = &g_weaponSelect[0];
-				int weaponId = likeGunId[0];
-				if (likeGunId[1] != 0)
-					weaponId = likeGunId[(CRandomInt(1, 7) > 3) ? 0 : 1];
-
-				for (int i = 0; i < Const_NumWeapons; i++)
-				{
-					if (buyWeapon[i].id == weaponId)
-					{
-						FakeClientCommand(GetEntity(), "buy;menuselect %d", buyWeapon[i].buyGroup);
-
-						if (g_gameVersion == Game::Old || g_gameVersion == Game::Xash)
-							FakeClientCommand(GetEntity(), "menuselect %d", buyWeapon[i].buySelect);
-						else
-						{
-							if (m_team == Team::Terrorist)
-								FakeClientCommand(GetEntity(), "menuselect %d", buyWeapon[i].newBuySelectT);
-							else
-								FakeClientCommand(GetEntity(), "menuselect %d", buyWeapon[i].newBuySelectCT);
-						}
-					}
-				}
+				FakeClientCommand(GetEntity(), "%s", (char*)m_favoritePrimary.GetAt(i));
 			}
 		}
-		else if (HasPrimaryWeapon() && !HasShield())
-			m_reloadState = ReloadState::Primary;
 
 		break;
 
 	case 1:
-		if (pev->armorvalue < CRandomInt(40, 80) && (g_botManager->EconomicsValid(m_team) || HasPrimaryWeapon()))
+		if ((g_botManager->EconomicsValid(m_team) || HasPrimaryWeapon()) && pev->armorvalue < CRandomFloat(40.0f, 80.0f))
 		{
 			if (m_moneyAmount > 1600 && !IsRestricted(Weapon::KevlarHelmet))
 				FakeClientCommand(GetEntity(), "buyequip;menuselect 2");
-			else
+			else if (m_moneyAmount > 800 && !IsRestricted(Weapon::Kevlar))
 				FakeClientCommand(GetEntity(), "buyequip;menuselect 1");
 		}
 		break;
 
 	case 2:
-		if ((HasPrimaryWeapon() && m_moneyAmount > CRandomInt(6000, 9000)))
+		if (!m_favoriteSecondary.IsEmpty() && !HasSecondaryWeapon() && (HasPrimaryWeapon() || HasShield()))
 		{
-			int likeGunId = 0;
-			int loadTime = 0;
-			do
+			for (int i = 0; i < m_favoriteSecondary.GetElementNumber(); i++)
 			{
-				ptr--;
+				if (HasSecondaryWeapon())
+					break;
 
-				InternalAssert(*ptr > -1);
-				InternalAssert(*ptr < Const_NumWeapons);
-
-				selectedWeapon = &g_weaponSelect[*ptr];
-				loadTime++;
-
-				if (selectedWeapon->buyGroup != 1)
+				if (cstrlen((char*)m_favoriteSecondary.GetAt(i)) < 1)
 					continue;
 
-				if ((g_mapType & MAP_AS) && selectedWeapon->teamAS != 2 && selectedWeapon->teamAS != m_team)
+				if (IsRestricted(GetWeaponID((char*)m_favoriteSecondary.GetAt(i))))
 					continue;
 
-				if ((g_gameVersion == Game::Old || g_gameVersion == Game::Xash) && selectedWeapon->buySelect == -1)
-					continue;
-
-				if (selectedWeapon->teamStandard != 2 && selectedWeapon->teamStandard != m_team)
-					continue;
-
-				if (IsRestricted(selectedWeapon->id))
-					continue;
-
-				if (m_moneyAmount <= (selectedWeapon->price + 125))
-					continue;
-
-				const int gunMode = BuyWeaponMode(selectedWeapon->id);
-
-				if (likeGunId == 0)
-				{
-					if ((pev->weapons & ((1 << Weapon::Usp) | (1 << Weapon::Glock18))))
-					{
-						if (gunMode < 2)
-							likeGunId = selectedWeapon->id;
-					}
-					else
-						likeGunId = selectedWeapon->id;
-				}
-				else
-				{
-					if (gunMode < BuyWeaponMode(likeGunId))
-						likeGunId = selectedWeapon->id;
-				}
-			} while (loadTime < Const_NumWeapons);
-
-			if (likeGunId != 0)
-			{
-				const WeaponSelect* buyWeapon = &g_weaponSelect[0];
-				for (int i = 0; i < Const_NumWeapons; i++)
-				{
-					if (buyWeapon[i].id == likeGunId)
-					{
-						FakeClientCommand(GetEntity(), "buy;menuselect %d", buyWeapon[i].buyGroup);
-
-						if (g_gameVersion == Game::Old || g_gameVersion == Game::Xash)
-							FakeClientCommand(GetEntity(), "menuselect %d", buyWeapon[i].buySelect);
-						else
-						{
-							if (m_team == Team::Terrorist)
-								FakeClientCommand(GetEntity(), "menuselect %d", buyWeapon[i].newBuySelectT);
-							else
-								FakeClientCommand(GetEntity(), "menuselect %d", buyWeapon[i].newBuySelectCT);
-						}
-					}
-				}
+				FakeClientCommand(GetEntity(), "%s", (char*)m_favoriteSecondary.GetAt(i));
 			}
 		}
+
 		break;
 
 	case 3:
-		if (!HasPrimaryWeapon() && !ChanceOf(m_skill) && !IsRestricted(Weapon::Shield))
+		if (!HasPrimaryWeapon() && !IsRestricted(Weapon::Shield) && !ChanceOf(m_skill))
 		{
 			FakeClientCommand(GetEntity(), "buyequip");
 			FakeClientCommand(GetEntity(), "menuselect 8");
@@ -1152,25 +1019,25 @@ void Bot::PerformWeaponPurchase(void)
 		break;
 
 	case 4:
-		if (ChanceOf(m_skill) && !IsRestricted(Weapon::HeGrenade))
+		if (ChanceOf(m_skill / 2) && !IsRestricted(Weapon::HeGrenade))
 		{
 			FakeClientCommand(GetEntity(), "buyequip");
 			FakeClientCommand(GetEntity(), "menuselect 4");
 		}
 
-		if (ChanceOf(m_skill) && g_botManager->EconomicsValid(m_team) && !IsRestricted(Weapon::FbGrenade))
+		if (ChanceOf(m_skill / 2) && !IsRestricted(Weapon::FbGrenade))
 		{
 			FakeClientCommand(GetEntity(), "buyequip");
 			FakeClientCommand(GetEntity(), "menuselect 3");
 		}
 
-		if (ChanceOf(m_skill) && g_botManager->EconomicsValid(m_team) && !IsRestricted(Weapon::FbGrenade))
+		if (ChanceOf(m_skill / 2) && !IsRestricted(Weapon::FbGrenade))
 		{
 			FakeClientCommand(GetEntity(), "buyequip");
 			FakeClientCommand(GetEntity(), "menuselect 3");
 		}
 
-		if (ChanceOf(m_skill) && g_botManager->EconomicsValid(m_team) && !IsRestricted(Weapon::SmGrenade))
+		if (ChanceOf(m_skill / 2) && !IsRestricted(Weapon::SmGrenade))
 		{
 			FakeClientCommand(GetEntity(), "buyequip");
 			FakeClientCommand(GetEntity(), "menuselect 5");
@@ -1179,7 +1046,7 @@ void Bot::PerformWeaponPurchase(void)
 		break;
 
 	case 5:
-		if ((g_mapType & MAP_DE) && m_team == Team::Counter && ChanceOf(m_skill) && m_moneyAmount > 200 && !IsRestricted(Weapon::Defuser))
+		if ((g_mapType & MAP_DE) && m_team == Team::Counter && ChanceOf(m_skill) && m_moneyAmount > 800 && !IsRestricted(Weapon::Defuser))
 		{
 			if (g_gameVersion == Game::Old || g_gameVersion == Game::Xash)
 				FakeClientCommand(GetEntity(), "buyequip;menuselect 6");
@@ -1200,6 +1067,20 @@ void Bot::PerformWeaponPurchase(void)
 
 		if (m_reloadState != ReloadState::Primary)
 			m_reloadState = ReloadState::Secondary;
+
+		if (!m_favoriteStuff.IsEmpty())
+		{
+			for (int i = 0; i < m_favoriteStuff.GetElementNumber(); i++)
+			{
+				if (cstrlen((char*)m_favoriteStuff.GetAt(i)) < 1)
+					continue;
+
+				if (IsRestricted(GetWeaponID((char*)m_favoriteStuff.GetAt(i))))
+					continue;
+
+				FakeClientCommand(GetEntity(), "%s", (char*)m_favoriteStuff.GetAt(i));
+			}
+		}
 
 		break;
 
@@ -2840,7 +2721,7 @@ float Bot::GetEstimatedReachTime(void)
 			estimatedTime = 3.0f;
 
 		// check for too high values
-		if (estimatedTime > 8.0f)
+		else if (estimatedTime > 8.0f)
 			estimatedTime = 8.0f;
 	}
 
@@ -3060,4 +2941,79 @@ bool Bot::IsBombDefusing(const Vector bombOrigin)
 	}
 
 	return defusingInProgress;
+}
+
+int Bot::GetWeaponID(const char* weapon)
+{
+	int id = Weapon::KevlarHelmet;
+	if (cstrcmp(weapon, "p228"))
+		id = Weapon::P228;
+	else if (cstrcmp(weapon, "shield"))
+		id = Weapon::Shield;
+	else if (cstrcmp(weapon, "scout"))
+		id = Weapon::Scout;
+	else if (cstrcmp(weapon, "hegren"))
+		id = Weapon::HeGrenade;
+	else if (cstrcmp(weapon, "xm1014"))
+		id = Weapon::Xm1014;
+	else if (cstrcmp(weapon, "mac10"))
+		id = Weapon::Mac10;
+	else if (cstrcmp(weapon, "aug"))
+		id = Weapon::Aug;
+	else if (cstrcmp(weapon, "sgren"))
+		id = Weapon::SmGrenade;
+	else if (cstrcmp(weapon, "elites"))
+		id = Weapon::Elite;
+	else if (cstrcmp(weapon, "fiveseven"))
+		id = Weapon::FiveSeven;
+	else if (cstrcmp(weapon, "ump45"))
+		id = Weapon::Ump45;
+	else if (cstrcmp(weapon, "sg550"))
+		id = Weapon::Sg550;
+	else if (cstrcmp(weapon, "galil"))
+		id = Weapon::Galil;
+	else if (cstrcmp(weapon, "famas"))
+		id = Weapon::Famas;
+	else if (cstrcmp(weapon, "usp"))
+		id = Weapon::Usp;
+	else if (cstrcmp(weapon, "glock18"))
+		id = Weapon::Glock18;
+	else if (cstrcmp(weapon, "glock"))
+		id = Weapon::Glock18;
+	else if (cstrcmp(weapon, "awp"))
+		id = Weapon::Awp;
+	else if (cstrcmp(weapon, "mp5"))
+		id = Weapon::Mp5;
+	else if (cstrcmp(weapon, "m249"))
+		id = Weapon::M249;
+	else if (cstrcmp(weapon, "m3"))
+		id = Weapon::M3;
+	else if (cstrcmp(weapon, "m4a1"))
+		id = Weapon::M4A1;
+	else if (cstrcmp(weapon, "tmp"))
+		id = Weapon::Tmp;
+	else if (cstrcmp(weapon, "g3sg1"))
+		id = Weapon::G3SG1;
+	else if (cstrcmp(weapon, "flash"))
+		id = Weapon::FbGrenade;
+	else if (cstrcmp(weapon, "flashbang"))
+		id = Weapon::FbGrenade;
+	else if (cstrcmp(weapon, "deagle"))
+		id = Weapon::Deagle;
+	else if (cstrcmp(weapon, "sg552"))
+		id = Weapon::Sg552;
+	else if (cstrcmp(weapon, "ak47"))
+		id = Weapon::Ak47;
+	else if (cstrcmp(weapon, "p90"))
+		id = Weapon::P90;
+	else if (cstrcmp(weapon, "vesthelmet"))
+		id = Weapon::KevlarHelmet;
+	else if (cstrcmp(weapon, "vesthelm"))
+		id = Weapon::KevlarHelmet;
+	else if (cstrcmp(weapon, "vest"))
+		id = Weapon::Kevlar;
+	else if (cstrcmp(weapon, "defuser"))
+		id = Weapon::Defuser;
+
+	return id;
 }

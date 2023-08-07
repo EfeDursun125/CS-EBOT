@@ -173,9 +173,9 @@ void NetworkMsg::Execute(void* p)
         }
         break;
 
-        /*case NETMSG_DAMAGE:
+        case NETMSG_DAMAGE:
         // this message gets sent when the bots are getting damaged.
-        switch (m_state)
+        /*switch (m_state)
         {
         case 0:
             damageArmor = PTR_TO_INT(p);
@@ -191,8 +191,8 @@ void NetworkMsg::Execute(void* p)
             if (m_bot != nullptr && (damageArmor > 0 || damageTaken > 0))
                 m_bot->TakeDamage(m_bot->pev->dmg_inflictor, damageTaken, damageArmor, damageBits);
             break;
-        }
-        break;*/
+        }*/
+        break;
 
     case NETMSG_MONEY:
         // this message gets sent when the bots money amount changes
@@ -209,20 +209,17 @@ void NetworkMsg::Execute(void* p)
             break;
 
         case 1:
-            if (g_gameVersion != Game::HalfLife)
+            if (cstrcmp(PTR_TO_STR(p), "defuser") == 0)
+                m_bot->m_hasDefuser = (enabled != 0);
+            else if (cstrcmp(PTR_TO_STR(p), "buyzone") == 0)
             {
-                if (cstrcmp(PTR_TO_STR(p), "defuser") == 0)
-                    m_bot->m_hasDefuser = (enabled != 0);
-                else if (cstrcmp(PTR_TO_STR(p), "buyzone") == 0)
-                {
-                    m_bot->m_inBuyZone = (enabled != 0);
-                    m_bot->EquipInBuyzone(0);
-                }
-                else if (cstrcmp(PTR_TO_STR(p), "vipsafety") == 0)
-                    m_bot->m_inVIPZone = (enabled != 0);
-                else if (cstrcmp(PTR_TO_STR(p), "c4") == 0)
-                    m_bot->m_inBombZone = (enabled == 2);
+                m_bot->m_inBuyZone = (enabled != 0);
+                m_bot->EquipInBuyzone(0);
             }
+            else if (cstrcmp(PTR_TO_STR(p), "vipsafety") == 0)
+                m_bot->m_inVIPZone = (enabled != 0);
+            else if (cstrcmp(PTR_TO_STR(p), "c4") == 0)
+                m_bot->m_inBombZone = (enabled == 2);
 
             break;
         }

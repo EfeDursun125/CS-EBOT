@@ -852,28 +852,6 @@ void AutoLoadGameMode(void)
 			ServerPrint("*** E-BOT Auto Game Mode Setting: N/A ***");
 	}
 }
-// returns if weapon can pierce through a wall
-bool IsWeaponShootingThroughWall(int id)
-{
-	if (g_gameVersion == Game::HalfLife)
-		return false;
-
-	int i = 0;
-	while (g_weaponSelect[i].id)
-	{
-		if (g_weaponSelect[i].id == id)
-		{
-			if (g_weaponSelect[i].shootsThru)
-				return true;
-
-			return false;
-		}
-
-		i++;
-	}
-
-	return false;
-}
 
 void SetGameMode(GameMode gamemode)
 {

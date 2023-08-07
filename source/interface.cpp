@@ -907,68 +907,6 @@ void InitConfig(void)
 		}
 	}
 
-	// GENERAL DATA INITIALIZATION
-	if (OpenConfig("general.cfg", "General configuration file not found. Loading defaults", &fp))
-	{
-		while (fp.GetBuffer(line, 255))
-		{
-			SKIP_COMMENTS();
-
-			Array <String> pair = String(line).Split('=');
-
-			if (pair.GetElementNumber() != 2)
-				continue;
-
-			pair[0].Trim().Trim();
-			pair[1].Trim().Trim();
-
-			Array <String> splitted = pair[1].Split(',');
-
-			if (pair[0] == "MapStandard")
-			{
-				if (splitted.GetElementNumber() != Const_NumWeapons)
-					AddLogEntry(Log::Fatal, "%s entry in general config is not valid.", pair[0][0]);
-
-				for (int i = 0; i < Const_NumWeapons; i++)
-					g_weaponSelect[i].teamStandard = splitted[i];
-			}
-			else if (pair[0] == "MapAS")
-			{
-				if (splitted.GetElementNumber() != Const_NumWeapons)
-					AddLogEntry(Log::Fatal, "%s entry in general config is not valid.", pair[0][0]);
-
-				for (int i = 0; i < Const_NumWeapons; i++)
-					g_weaponSelect[i].teamAS = splitted[i];
-			}
-			else if (pair[0] == "PersonalityNormal")
-			{
-				if (splitted.GetElementNumber() != Const_NumWeapons)
-					AddLogEntry(Log::Fatal, "%s entry in general config is not valid.", pair[0][0]);
-
-				for (int i = 0; i < Const_NumWeapons; i++)
-					g_normalWeaponPrefs[i] = splitted[i];
-			}
-			else if (pair[0] == "PersonalityRusher")
-			{
-				if (splitted.GetElementNumber() != Const_NumWeapons)
-					AddLogEntry(Log::Fatal, "%s entry in general config is not valid.", pair[0][0]);
-
-				for (int i = 0; i < Const_NumWeapons; i++)
-					g_rusherWeaponPrefs[i] = splitted[i];
-			}
-			else if (pair[0] == "PersonalityCareful")
-			{
-				if (splitted.GetElementNumber() != Const_NumWeapons)
-					AddLogEntry(Log::Fatal, "%s entry in general config is not valid.", pair[0][0]);
-
-				for (int i = 0; i < Const_NumWeapons; i++)
-					g_carefulWeaponPrefs[i] = splitted[i];
-			}
-		}
-
-		fp.Close();
-	}
-
 	// AVATARS INITITALIZATION
 	if (OpenConfig("avatars.cfg", "Avatars config file not found. Avatars will not be displayed.", &fp))
 	{
@@ -981,11 +919,6 @@ void InitConfig(void)
 
 		fp.Close();
 	}
-
-	// set personality weapon pointers here
-	g_weaponPrefs[Personality::Normal] = reinterpret_cast <int*> (&g_normalWeaponPrefs);
-	g_weaponPrefs[Personality::Rusher] = reinterpret_cast <int*> (&g_rusherWeaponPrefs);
-	g_weaponPrefs[Personality::Careful] = reinterpret_cast <int*> (&g_carefulWeaponPrefs);
 }
 
 void CommandHandler_NotMM(void)

@@ -228,11 +228,12 @@ bool Bot::GoalIsValid(void)
 void Bot::MoveTo(const Vector targetPosition)
 {
 	const Vector directionOld = (targetPosition + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval);
+	const Vector directionNormal = directionOld.Normalize2D();
+	SetStrafeSpeed(directionNormal, pev->maxspeed);
 	m_moveAngles = directionOld.ToAngles();
 	m_moveAngles.ClampAngles();
 	m_moveAngles.x = -m_moveAngles.x; // invert for engine
 	m_moveSpeed = pev->maxspeed;
-	m_strafeSpeed = 0.0f;
 }
 
 void Bot::MoveOut(const Vector targetPosition)

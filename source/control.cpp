@@ -1,4 +1,4 @@
-#include <core.h>
+﻿#include <core.h>
 
 ConVar ebot_quota("ebot_quota", "10");
 ConVar ebot_forceteam("ebot_force_team", "any");
@@ -64,17 +64,6 @@ void BotControl::CallGameEntity(entvars_t* vars)
 
 	if (playerFunction != nullptr)
 		(*playerFunction) (vars);
-}
-
-String CheckSubfolderFile(const char botName[96])
-{
-	String returnFile = "";
-	returnFile = FormatBuffer("%s/%s.cfg", FormatBuffer("%s/addons/ebot/profiles/", GetModName()), botName);
-
-	if (TryFileOpen(returnFile))
-		return returnFile;
-
-	return FormatBuffer("%s%s.cfg", FormatBuffer("%s/addons/ebot/profiles/", GetModName()), botName);
 }
 
 // this function completely prepares bot entity (edict) for creation, creates team, skill, sets name etc, and
@@ -206,6 +195,141 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 
 	// set values
 	m_bots[index]->m_senseChance = CRandomInt(10, 90);
+	m_bots[index]->m_hasProfile = false;
+
+	m_bots[index]->m_favoritePrimary.RemoveAll();
+	m_bots[index]->m_favoriteSecondary.RemoveAll();
+	m_bots[index]->m_favoriteStuff.RemoveAll();
+
+	const auto filePath = FormatBuffer("%s/addons/ebot/profiles/%s.ep", GetModName(), ebotName);
+	File file(filePath, "rt+");
+	if (file.IsValid())
+	{
+		char line[255];
+		while (file.GetBuffer(line, 255))
+		{
+			if ((line[0] == '/') || (line[0] == '\r') || (line[0] == '\n') || (line[0] == 0) || (line[0] == ' ') || (line[0] == '\t'))
+				continue;
+
+			Array <String> pair = String(line).Split('=');
+
+			if (pair.GetElementNumber() != 2)
+				continue;
+
+			pair[0].Trim().Trim();
+			pair[1].Trim().Trim();
+
+			if (pair[0] == "Personaltiy")
+			{
+				const int per = pair[1];
+				if (per >= Personality::Normal || per <= Personality::Careful)
+				{
+					personality = static_cast<Personality>(per);
+					m_bots[index]->m_personality = personality;
+				}
+			}
+			else if (pair[0] == "FavoritePrimary")
+			{
+				Array <String> splitted = pair[1].Split(',');
+				for (int i = 0; i < splitted.GetElementNumber(); i++)
+					m_bots[index]->m_favoritePrimary.Push(splitted[i].Trim().Trim());
+			}
+			else if (pair[0] == "FavoriteSecondary")
+			{
+				Array <String> splitted = pair[1].Split(',');
+				for (int i = 0; i < splitted.GetElementNumber(); i++)
+					m_bots[index]->m_favoriteSecondary.Push(splitted[i].Trim().Trim());
+			}
+			else if (pair[0] == "FavoriteStuff")
+			{
+				Array <String> splitted = pair[1].Split(',');
+				for (int i = 0; i < splitted.GetElementNumber(); i++)
+					m_bots[index]->m_favoriteStuff.Push(splitted[i].Trim().Trim());
+			}
+		}
+
+		ServerPrint("E-Bot profile loaded for %s!", ebotName);
+		m_bots[index]->m_hasProfile = true;
+
+		file.Close(); // Close the file after reading
+	}
+
+	if (!m_bots[index]->m_hasProfile)
+	{
+		if (CRandomInt(1, 4) == 1)
+			m_bots[index]->m_favoritePrimary.Push("m249");
+
+		if (CRandomInt(1, 3) == 1)
+			m_bots[index]->m_favoritePrimary.Push("g3sg1");
+
+		if (CRandomInt(1, 3) == 1)
+			m_bots[index]->m_favoritePrimary.Push("sg550");
+
+		if (CRandomInt(1, 2) == 1)
+			m_bots[index]->m_favoritePrimary.Push("awp");
+
+		if (CRandomInt(1, 2) == 1)
+			m_bots[index]->m_favoritePrimary.Push("sg552");
+
+		if (CRandomInt(1, 2) == 1)
+			m_bots[index]->m_favoritePrimary.Push("aug");
+
+		if (CRandomInt(1, 2) == 1)
+			m_bots[index]->m_favoritePrimary.Push("ak47");
+
+		if (CRandomInt(1, 2) == 1)
+			m_bots[index]->m_favoritePrimary.Push("m4a1");
+
+		if (CRandomInt(1, 2) == 1)
+			m_bots[index]->m_favoritePrimary.Push("xm1014");
+
+		if (CRandomInt(1, 2) == 1)
+			m_bots[index]->m_favoritePrimary.Push("scout");
+
+		if (CRandomInt(1, 2) == 1)
+			m_bots[index]->m_favoritePrimary.Push("famas");
+
+		if (CRandomInt(1, 2) == 1)
+			m_bots[index]->m_favoritePrimary.Push("galil");
+
+		if (CRandomInt(1, 2) == 1)
+			m_bots[index]->m_favoritePrimary.Push("m3");
+
+		if (CRandomInt(1, 2) == 1)
+			m_bots[index]->m_favoritePrimary.Push("ump45");
+
+		if (CRandomInt(1, 2) == 1)
+			m_bots[index]->m_favoritePrimary.Push("mp5");
+
+		if (CRandomInt(1, 2) == 1)
+			m_bots[index]->m_favoritePrimary.Push("mac10");
+
+		if (CRandomInt(1, 2) == 1)
+			m_bots[index]->m_favoritePrimary.Push("tmp");
+
+		if (CRandomInt(1, 3) == 1)
+			m_bots[index]->m_favoritePrimary.Push("shield");
+
+		if (CRandomInt(1, 2) == 1)
+			m_bots[index]->m_favoriteSecondary.Push("deagle");
+		else
+		{
+			const int id = CRandomInt(1, 3);
+			if (id == 1)
+				m_bots[index]->m_favoriteSecondary.Push("fiveseven");
+			else if (id == 2)
+				m_bots[index]->m_favoriteSecondary.Push("elites");
+			else
+				m_bots[index]->m_favoriteSecondary.Push("p228");
+		}
+	}
+
+	int i = 0;
+	if (i < m_bots[index]->m_favoritePrimary.GetElementNumber(); i++)
+		m_bots[index]->m_weaponPrefs[i] = m_bots[index]->GetWeaponID((char*)m_bots[index]->m_favoritePrimary.GetAt(i));
+
+	if (i < m_bots[index]->m_favoriteSecondary.GetElementNumber(); i++)
+		m_bots[index]->m_weaponPrefs[i] = m_bots[index]->GetWeaponID((char*)m_bots[index]->m_favoriteSecondary.GetAt(i));
 
 	return index;
 }
@@ -757,13 +881,8 @@ void BotControl::SetWeaponMode(int selection)
 	   {"Sniper"},
 	   {"Standard"}
 	};
-	selection--;
 
-	for (int i = 0; i < Const_NumWeapons; i++)
-	{
-		g_weaponSelect[i].teamStandard = tabMapStandart[selection][i];
-		g_weaponSelect[i].teamAS = tabMapAS[selection][i];
-	}
+	selection--;
 
 	if (selection == 0)
 		ebot_knifemode.SetInt(1);
@@ -1026,7 +1145,6 @@ Bot::Bot(edict_t* bot, int skill, int personality, int team, int member)
 
 	default:
 		m_personality = Personality::Normal;
-		break;
 	}
 
 	cmemset(&m_ammoInClip, 0, sizeof(m_ammoInClip));
@@ -1240,8 +1358,8 @@ void Bot::Kick(void)
 	if (g_botManager->GetBotsNum() - 1 < ebot_quota.GetInt())
 		ebot_quota.SetInt(g_botManager->GetBotsNum() - 1);
 
-	//if (ebot_save_bot_names.GetBool() && !g_botManager->m_savedBotNames.IsEmpty()) CRASH...
-	//	g_botManager->m_savedBotNames.PopNoReturn();
+	if (ebot_save_bot_names.GetBool() && !g_botManager->m_savedBotNames.IsEmpty())
+		g_botManager->m_savedBotNames.PopNoReturn();
 }
 
 // this function handles the selection of teams & class
