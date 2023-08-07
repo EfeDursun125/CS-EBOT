@@ -1090,7 +1090,12 @@ int Spawn(edict_t* ent)
 	if (g_isMetamod)
 		RETURN_META_VALUE(MRES_IGNORED, 0);
 
-	return (*g_functionTable.pfnSpawn) (ent);
+	const int result = (*g_functionTable.pfnSpawn) (ent); // get result
+
+	if (ent->v.rendermode == kRenderTransTexture)
+		ent->v.flags &= ~FL_WORLDBRUSH; // clear the FL_WORLDBRUSH flag out of transparent ents
+
+	return result;
 }
 
 int Spawn_Post(edict_t* ent)

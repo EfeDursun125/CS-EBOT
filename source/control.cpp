@@ -321,6 +321,10 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 				m_bots[index]->m_favoriteSecondary.Push("elites");
 			else if (id == 3)
 				m_bots[index]->m_favoriteSecondary.Push("p228");
+			else if (id == 4)
+				m_bots[index]->m_favoriteSecondary.Push("usp");
+			else
+				m_bots[index]->m_favoriteSecondary.Push("glock");
 		}
 	}
 
@@ -1282,7 +1286,6 @@ void Bot::NewRound(void)
 
 	m_radioEntity = nullptr;
 	m_radioOrder = 0;
-	m_defendedBomb = false;
 
 	m_lastChatTime = engine->GetTime();
 	pev->button = 0;
