@@ -53,7 +53,7 @@ void Bot::AttackUpdate(void)
 				{
 					if (!CheckWallOnBehind() && !CheckWallOnForward() && !CheckWallOnLeft() && !CheckWallOnRight())
 					{
-						if (UsesSniper() && pev->fov == 90.0f && !(pev->button & IN_ATTACK2) && !(pev->oldbuttons & IN_ATTACK2))
+						if (pev->fov == 90.0f && !(pev->button & IN_ATTACK2) && !(pev->oldbuttons & IN_ATTACK2))
 							pev->button |= IN_ATTACK2;
 
 						wait = cclampf(csqrtf(distance) * 0.01f, 5.0f, 15.0f);
@@ -80,7 +80,7 @@ void Bot::AttackUpdate(void)
 		FireWeapon();
 
 	const float distance = m_enemyDistance;
-	const int melee = g_gameVersion == Game::HalfLife ? WeaponHL::Crowbar : Weapon::Knife;
+	const int melee = g_gameVersion & Game::HalfLife ? WeaponHL::Crowbar : Weapon::Knife;
 	if (m_currentWeapon == melee)
 	{
 		if (IsEnemyReachable())
@@ -101,7 +101,7 @@ void Bot::AttackUpdate(void)
 		}
 	}
 
-	if (g_gameVersion == Game::HalfLife)
+	if (g_gameVersion & Game::HalfLife)
 	{
 		if (m_currentWeapon == WeaponHL::Mp5_HL && distance > SquaredF(300.0f) && distance <= SquaredF(800.0f))
 		{
@@ -115,7 +115,7 @@ void Bot::AttackUpdate(void)
 	int approach;
 	if (!m_hasEnemiesNear && !m_hasEntitiesNear) // if suspecting enemy stand still
 		approach = 49;
-	else if (g_gameVersion != Game::HalfLife && (m_isReloading || m_isVIP)) // if reloading or vip back off
+	else if (!(g_gameVersion & Game::HalfLife) && (m_isReloading || m_isVIP)) // if reloading or vip back off
 		approach = 29;
 	else
 	{

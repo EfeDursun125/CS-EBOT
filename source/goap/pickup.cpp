@@ -164,7 +164,7 @@ void Bot::PickupUpdate(void)
 
 		if (itemDistance <= SquaredF(64.0f))
 		{
-			if (g_gameVersion == Game::Xash)
+			if (g_gameVersion & Game::Xash)
 				pev->button |= IN_USE;
 			else // use game dll function to make sure the hostage is correctly 'used'
 				MDLL_Use(m_pickupItem, GetEntity());
@@ -206,7 +206,7 @@ void Bot::PickupUpdate(void)
 		{
 			if (angleToEntity <= 10) // facing it directly?
 			{
-				if (g_gameVersion == Game::Xash)
+				if (g_gameVersion & Game::Xash)
 					pev->button |= IN_USE;
 				else
 					MDLL_Use(m_pickupItem, GetEntity());
