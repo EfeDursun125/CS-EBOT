@@ -41,7 +41,7 @@ int g_storeAddbotVars[4];
 int g_radioSelect[32];
 int g_fakeArgc = 0;
 int bot_conntimes = 0;
-Game g_gameVersion = Game::CStrike;
+int g_gameVersion = Game::CStrike;
 int g_numWaypoints = 0;
 int g_mapType = 0;
 
@@ -193,6 +193,11 @@ FireDelay g_fireDelay[Const_NumWeapons + 1] =
    {Weapon::Shield,0,   256, 0.00f, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, 0.0f, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}},
    {0,               0,   256, 0.00f, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, 0.0f, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}}
 };
+
+bool IsCStrike(void)
+{
+	return (g_gameVersion & Game::CStrike);
+}
 
 // bot menus
 MenuText g_menus[28] =

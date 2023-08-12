@@ -573,7 +573,7 @@ void RoundInit(void)
 
 	g_waypoint->SetBombPosition(true);
 
-	if (g_gameVersion != Game::HalfLife)
+	if (!(g_gameVersion & Game::HalfLife))
 	{
 		if (ebot_auto_gamemode.GetBool())
 			AutoLoadGameMode();
@@ -668,8 +668,6 @@ void AutoLoadGameMode(void)
 				}
 				else
 					SetGameMode(bteGameModAi[i]);
-
-				g_gameVersion = Game::CZero;
 
 				// Only ZM3 need restart the round
 				if (checkShowTextTime < 3 && i == 7)
@@ -1420,30 +1418,30 @@ void DetectCSVersion(void)
 {
 	const char* const infoBuffer = "Game Registered: %s (0x%d)";
 	if (g_engfuncs.pfnCVarGetPointer("host_ver") != nullptr)
-		g_gameVersion = Game::Xash;
+		g_gameVersion |= Game::Xash;
 
 	// switch version returned by dll loader
-	if (g_gameVersion == Game::Xash)
+	if (g_gameVersion & Game::Xash)
 		ServerPrint(infoBuffer, "Xash Engine", sizeof(Bot));
-	else if (g_gameVersion == Game::Old)
+	else if (g_gameVersion & Game::Old)
 		ServerPrint(infoBuffer, "CS 1.x (WON)", sizeof(Bot));
-	else if (g_gameVersion == Game::CZero)
+	else if (g_gameVersion & Game::CZero)
 		ServerPrint(infoBuffer, "CS: CZ (Steam)", sizeof(Bot));
-	else if (g_gameVersion == Game::HalfLife)
+	else if (g_gameVersion & Game::HalfLife)
 		ServerPrint(infoBuffer, "Half-Life", sizeof(Bot));
-	else if (g_gameVersion == Game::CStrike)
+	else if (g_gameVersion & Game::CStrike)
 	{
 		uint8_t* detection = (*g_engfuncs.pfnLoadFileForMe) ("events/galil.sc", nullptr);
 
 		if (detection != nullptr)
 		{
 			ServerPrint(infoBuffer, "CS 1.6 (Steam)", sizeof(Bot));
-			g_gameVersion = Game::CStrike; // just to be sure
+			g_gameVersion |= Game::CStrike; // just to be sure
 		}
 		else if (detection == nullptr)
 		{
 			ServerPrint(infoBuffer, "CS 1.5 (WON)", sizeof(Bot));
-			g_gameVersion = Game::Old; // reset it to WON
+			g_gameVersion |= Game::Old; // reset it to WON
 		}
 
 		// if we have loaded the file free it

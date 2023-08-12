@@ -168,7 +168,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 	// displays bot about information
 	else if (cstricmp(arg0, "about_bot") == 0 || cstricmp(arg0, "about") == 0)
 	{
-		if (g_gameVersion == Game::Old || g_gameVersion == Game::HalfLife)
+		if (g_gameVersion & Game::Old || g_gameVersion & Game::HalfLife)
 		{
 			ServerPrint("Cannot do this on your game version");
 			return 1;
@@ -997,12 +997,15 @@ int Spawn(edict_t* ent)
 		g_hasDoors = false; // reset doors if they are removed by a custom plugin
 		g_mapType = 0; // reset map type as worldspawn is the first entity spawned
 		g_worldEdict = ent; // save the world entity for future use
+
+		if (g_gameVersion & Game::HalfLife)
+			PRECACHE_MODEL("models/player/gordon/gordon.mdl");
 	}
 	else if (cstrcmp(entityClassname, "func_door") == 0 || cstrcmp(entityClassname, "func_door_rotating") == 0)
 		g_hasDoors = true;
 	else if (cstrcmp(entityClassname, "player_weaponstrip") == 0)
 	{
-		if ((g_gameVersion == Game::Old || g_gameVersion == Game::HalfLife) && (STRING(ent->v.target))[0] == '\0')
+		if ((g_gameVersion & Game::Old || g_gameVersion & Game::HalfLife) && (STRING(ent->v.target))[0] == '\0')
 		{
 			ent->v.target = MAKE_STRING("fake");
 			ent->v.targetname = MAKE_STRING("fake");
@@ -1019,11 +1022,30 @@ int Spawn(edict_t* ent)
 	}
 	else
 	{
-		if (g_gameVersion != Game::HalfLife)
+		if (g_gameVersion & Game::HalfLife)
 		{
 			if (cstrcmp(entityClassname, "info_player_start") == 0)
 			{
-				SET_MODEL(ent, "models/player/urban/urban.mdl");
+				SET_MODEL(ent, "models/player/gordon/gordon.mdl");
+				ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
+				ent->v.renderamt = 127; // set its transparency amount
+				ent->v.effects |= EF_NODRAW;
+			}
+			else if (cstrcmp(entityClassname, "info_player_deathmatch") == 0)
+			{
+				SET_MODEL(ent, "models/player/gordon/gordon.mdl");
+				ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
+				ent->v.renderamt = 127; // set its transparency amount
+				ent->v.effects |= EF_NODRAW;
+			}
+
+			g_mapType |= MAP_DE;
+		}
+		else if (!(g_gameVersion & Game::HalfLife))
+		{
+			if (cstrcmp(entityClassname, "info_player_start") == 0)
+			{
+				SET_MODEL(ent, "models/player/gsg9/gsg9.mdl");
 				ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
 				ent->v.renderamt = 127; // set its transparency amount
 				ent->v.effects |= EF_NODRAW;
@@ -1090,12 +1112,7 @@ int Spawn(edict_t* ent)
 	if (g_isMetamod)
 		RETURN_META_VALUE(MRES_IGNORED, 0);
 
-	const int result = (*g_functionTable.pfnSpawn) (ent); // get result
-
-	if (ent->v.rendermode == kRenderTransTexture)
-		ent->v.flags &= ~FL_WORLDBRUSH; // clear the FL_WORLDBRUSH flag out of transparent ents
-
-	return result;
+	return (*g_functionTable.pfnSpawn) (ent);
 }
 
 int Spawn_Post(edict_t* ent)
@@ -2690,7 +2707,7 @@ void FrameThread(void)
 
 	float ut = 1.0f;
 
-	if (g_gameVersion == Game::Xash)
+	if (g_gameVersion & Game::Xash)
 	{
 		const auto simulate = g_engfuncs.pfnCVarGetPointer("sv_forcesimulating");
 		if (simulate != nullptr && simulate->value != 1.0f)
@@ -2855,7 +2872,7 @@ void pfnMessageBegin(int msgDest, int msgType, const float* origin, edict_t* ed)
 	}
 	NetworkMsg::GetObjectPtr()->Reset();
 
-	if (msgDest == MSG_SPEC && g_gameVersion != Game::Old && msgType == NetworkMsg::GetObjectPtr()->GetId(NETMSG_HLTV))
+	if (msgDest == MSG_SPEC && !(g_gameVersion & Game::Old) && msgType == NetworkMsg::GetObjectPtr()->GetId(NETMSG_HLTV))
 		NetworkMsg::GetObjectPtr()->SetMessage(NETMSG_HLTV);
 
 	NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_WLIST);
@@ -3457,6 +3474,7 @@ DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* 
 		{ "retrocs", "rcs_i386.so", "rcs.dll", "Retro Counter-Strike", Game::Old },
 		{ "valve", "hl.so", "hl.dll", "Half-Life", Game::HalfLife },
 		{ "gearbox", "opfor.so", "opfor.dll", "Half-Life: Opposing Force", Game::HalfLife },
+		{ "dmc", "dmc.so", "dmc.dll", "Deathmatch Classic", Game::DMC },
 		{ "", "", "", "", Game::HalfLife }
 	};
 
@@ -3528,7 +3546,7 @@ DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* 
 	GetEngineFunctions(functionTable, nullptr);
 
 	if (g_engfuncs.pfnCVarGetPointer("host_ver") != nullptr)
-		g_gameVersion = Game::Xash;
+		g_gameVersion |= Game::Xash;
 
 	// give the engine functions to the other DLL...
 	(*g_funcPointers) (functionTable, pGlobals);

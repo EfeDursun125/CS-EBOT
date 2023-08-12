@@ -47,7 +47,7 @@ void Bot::PushMessageQueue(const int message)
 			}
 		}
 	}
-	else if (message == CMENU_BUY && g_gameVersion == Game::HalfLife)
+	else if (message == CMENU_BUY && g_gameVersion & Game::HalfLife)
 	{
 		m_buyingFinished = true;
 		m_isVIP = false;
@@ -182,7 +182,7 @@ bool Bot::ItemIsVisible(Vector destination, char* itemName)
 	if (tr.flFraction < 1.0f)
 	{
 		// check for standard items
-		if (g_gameVersion == Game::HalfLife)
+		if (g_gameVersion & Game::HalfLife)
 		{
 			if (tr.flFraction > 0.95f && !FNullEnt(tr.pHit) && cstrcmp(STRING(tr.pHit->v.classname), itemName) == 0)
 				return true;
@@ -417,7 +417,7 @@ void Bot::FindItem(void)
 			const auto origin = GetEntityOrigin(ent);
 			if ((pev->origin - origin).GetLengthSquared() <= SquaredF(128.0f))
 			{
-				if (g_gameVersion == Game::Xash)
+				if (g_gameVersion & Game::Xash)
 					pev->button |= IN_USE;
 				else
 					MDLL_Use(ent, GetEntity());
@@ -435,7 +435,7 @@ void Bot::FindItem(void)
 			const auto origin = GetEntityOrigin(ent);
 			if ((pev->origin - origin).GetLengthSquared() <= SquaredF(128.0f))
 			{
-				if (g_gameVersion == Game::Xash)
+				if (g_gameVersion & Game::Xash)
 					pev->button |= IN_USE;
 				else
 					MDLL_Use(ent, GetEntity());
@@ -446,7 +446,7 @@ void Bot::FindItem(void)
 			m_moveSpeed = pev->maxspeed;
 			m_strafeSpeed = 0.0f;
 		}
-		else if (g_gameVersion == Game::HalfLife)
+		else if (g_gameVersion & Game::HalfLife)
 		{
 			if (m_currentWeapon != WeaponHL::Snark && cstrncmp("monster_snark", STRING(ent->v.classname), 13) == 0)
 			{
@@ -575,18 +575,23 @@ void Bot::FindItem(void)
 			{
 				allowPickup = false;
 
-				const int index = FindDefendWaypoint(entityOrigin);
-				if (IsValidWaypoint(index))
+				if (!m_defendedBomb)
 				{
-					const float timeMidBlowup = g_timeBombPlanted + ((engine->GetC4TimerTime() * 0.5f) + engine->GetC4TimerTime() * 0.25f) - g_waypoint->GetTravelTime(m_moveSpeed, pev->origin, g_waypoint->GetPath(index)->origin);
+					m_defendedBomb = true;
 
-					if (timeMidBlowup > engine->GetTime())
+					const int index = FindDefendWaypoint(entityOrigin);
+					if (IsValidWaypoint(index))
 					{
-						m_campIndex = index;
-						SetProcess(Process::Camp, "i will defend the bomb", true, AddTime(timeMidBlowup));
+						const float timeMidBlowup = g_timeBombPlanted + ((engine->GetC4TimerTime() * 0.5f) + engine->GetC4TimerTime() * 0.25f) - g_waypoint->GetTravelTime(m_moveSpeed, pev->origin, g_waypoint->GetPath(index)->origin);
+
+						if (timeMidBlowup > engine->GetTime())
+						{
+							m_campIndex = index;
+							SetProcess(Process::Camp, "i will defend the bomb", true, AddTime(timeMidBlowup));
+						}
+						else
+							RadioMessage(Radio::ShesGonnaBlow);
 					}
-					else
-						RadioMessage(Radio::ShesGonnaBlow);
 				}
 			}
 		}
@@ -688,7 +693,7 @@ void Bot::FindItem(void)
 // this function inserts the radio message into the message queue
 void Bot::RadioMessage(const int message)
 {
-	if (g_gameVersion == Game::HalfLife)
+	if (g_gameVersion & Game::HalfLife)
 		return;
 
 	if (ebot_use_radio.GetInt() <= 0)
@@ -725,7 +730,7 @@ void Bot::CheckMessageQueue(void)
 	const auto state = GetMessageQueue();
 
 	// nothing to do?
-	if (state == CMENU_IDLE || (state == CMENU_RADIO && (GetGameMode() == GameMode::Deathmatch || g_gameVersion == Game::HalfLife)))
+	if (state == CMENU_IDLE || (state == CMENU_RADIO && (GetGameMode() == GameMode::Deathmatch || !IsCStrike())))
 		return;
 
 	switch (state)
@@ -1043,7 +1048,7 @@ void Bot::PerformWeaponPurchase(void)
 	case 5:
 		if ((g_mapType & MAP_DE) && m_team == Team::Counter && ChanceOf(m_skill) && m_moneyAmount > 800 && !IsRestricted(Weapon::Defuser))
 		{
-			if (g_gameVersion == Game::Old || g_gameVersion == Game::Xash)
+			if (g_gameVersion & Game::Old || g_gameVersion & Game::Xash)
 				FakeClientCommand(GetEntity(), "buyequip;menuselect 6");
 			else
 				FakeClientCommand(GetEntity(), "defuser"); // use alias in SteamCS
@@ -1471,7 +1476,10 @@ void Bot::CheckRadioCommands(void)
 		if (g_bombPlanted)
 		{
 			if (m_inBombZone)
+			{
+				m_defendedBomb = false;
 				mode = 3;
+			}
 		}
 		else
 			mode = 3;
@@ -1582,7 +1590,7 @@ void Bot::CheckRadioCommands(void)
 
 void Bot::SetWalkTime(const float time)
 {
-	if (g_gameVersion == Game::HalfLife)
+	if (g_gameVersion & Game::HalfLife)
 		return;
 
 	if (!ebot_walkallow.GetBool())
@@ -1717,13 +1725,13 @@ void Bot::BaseUpdate(void)
 					}
 				}
 
-				if (g_gameVersion == Game::HalfLife && !(pev->oldbuttons & IN_ATTACK))
+				if (g_gameVersion & Game::HalfLife && !(pev->oldbuttons & IN_ATTACK))
 					pev->button |= IN_ATTACK;
 			}
 		}
 		else
 		{
-			if (g_gameVersion == Game::HalfLife)
+			if (g_gameVersion & Game::HalfLife)
 			{
 				// idk why ???
 				if (pev->maxspeed <= 10.0f)
@@ -1887,7 +1895,7 @@ void Bot::LookAtAround(void)
 		const Vector origin = g_waypoint->GetPath(m_currentWaypointIndex)->origin;
 		if ((pev->origin - origin).GetLengthSquared() <= SquaredF(80.0f))
 		{
-			if (g_gameVersion == Game::Xash)
+			if (g_gameVersion & Game::Xash)
 			{
 				m_lookAt = origin;
 				if (!(pev->button & IN_USE) && !(pev->oldbuttons & IN_USE))
@@ -1909,58 +1917,54 @@ void Bot::LookAtAround(void)
 			}
 		}
 	}
-	else if (!m_isZombieBot && m_hasFriendsNear && !FNullEnt(m_nearestFriend) && (((IsAttacking(m_nearestFriend) && cstrncmp(STRING(m_nearestFriend->v.viewmodel), "models/v_knife", 14) != 0)) || !IsAlive(m_nearestFriend)))
+	else if (!m_isZombieBot && m_hasFriendsNear && !FNullEnt(m_nearestFriend) && IsAttacking(m_nearestFriend) && cstrncmp(STRING(m_nearestFriend->v.viewmodel), "models/v_knife", 14) != 0)
 	{
 		auto bot = g_botManager->GetBot(m_nearestFriend);
 		if (bot != nullptr)
 		{
 			m_lookAt = bot->m_lookAt;
-
-			if (!IsZombieMode())
+			if ((m_currentWeapon == Weapon::M3 || m_currentWeapon == Weapon::Xm1014 || m_currentWeapon == Weapon::M249) && !FNullEnt(bot->m_nearestEnemy))
 			{
-				if ((m_currentWeapon == Weapon::M3 || m_currentWeapon == Weapon::Xm1014 || m_currentWeapon == Weapon::M249) && !FNullEnt(bot->m_nearestEnemy))
+				const int index = g_waypoint->FindNearest(GetEntityOrigin(bot->m_nearestEnemy), 999999.0f, -1, bot->GetEntity());
+				if (IsValidWaypoint(index) && m_chosenGoalIndex != index)
 				{
-					const int index = g_waypoint->FindNearest(GetEntityOrigin(bot->m_nearestEnemy), 999999.0f, -1, bot->GetEntity());
-					if (IsValidWaypoint(index) && m_chosenGoalIndex != index)
+					RadioMessage(Radio::GetInPosition);
+					m_chosenGoalIndex = index;
+					FindPath(m_currentWaypointIndex, m_chosenGoalIndex, bot->m_nearestEnemy);
+					const int index = FindDefendWaypoint(pev->origin + pev->view_ofs);
+					if (IsValidWaypoint(index))
 					{
-						RadioMessage(Radio::GetInPosition);
-						m_chosenGoalIndex = index;
-						FindPath(m_currentWaypointIndex, m_chosenGoalIndex, bot->m_nearestEnemy);
-						const int index = FindDefendWaypoint(pev->origin + pev->view_ofs);
-						if (IsValidWaypoint(index))
-						{
-							bot->RadioMessage(Radio::Affirmative);
-							bot->m_campIndex = index;
-							bot->m_chosenGoalIndex = index;
-							bot->SetProcess(Process::Camp, "i will hold this position for my teammate's plan, my teammate will flank the enemy!", true, AddTime(ebot_camp_max.GetFloat()));
-						}
-						else
-							bot->RadioMessage(Radio::Negative);
+						bot->RadioMessage(Radio::Affirmative);
+						bot->m_campIndex = index;
+						bot->m_chosenGoalIndex = index;
+						bot->SetProcess(Process::Camp, "i will hold this position for my teammate's plan, my teammate will flank the enemy!", true, AddTime(ebot_camp_max.GetFloat()));
 					}
+					else
+						bot->RadioMessage(Radio::Negative);
 				}
+			}
 
-				if (bot->GetProcess() == Process::Camp)
+			if (bot->GetProcess() == Process::Camp)
+			{
+				const int index = g_waypoint->FindNearest(m_lookAt, 999999.0f, -1, bot->GetEntity());
+				if (IsValidWaypoint(index) && m_chosenGoalIndex != index)
 				{
-					const int index = g_waypoint->FindNearest(m_lookAt, 999999.0f, -1, bot->GetEntity());
-					if (IsValidWaypoint(index) && m_chosenGoalIndex != index)
-					{
-						RadioMessage(Radio::GetInPosition);
-						m_chosenGoalIndex = index;
-						FindPath(m_currentWaypointIndex, m_chosenGoalIndex);
-						m_chosenGoalIndex = bot->m_chosenGoalIndex;
-					}
+					RadioMessage(Radio::GetInPosition);
+					m_chosenGoalIndex = index;
+					FindPath(m_currentWaypointIndex, m_chosenGoalIndex);
+					m_chosenGoalIndex = bot->m_chosenGoalIndex;
 				}
-				else if (GetProcess() == Process::Camp)
+			}
+			else if (GetProcess() == Process::Camp)
+			{
+				const int index = g_waypoint->FindNearest(m_lookAt, 999999.0f, -1, bot->GetEntity());
+				if (IsValidWaypoint(index) && m_chosenGoalIndex != index)
 				{
-					const int index = g_waypoint->FindNearest(m_lookAt, 999999.0f, -1, bot->GetEntity());
-					if (IsValidWaypoint(index) && m_chosenGoalIndex != index)
-					{
-						FinishCurrentProcess("i need to help my friend");
-						RadioMessage(Radio::Fallback);
-						m_chosenGoalIndex = index;
-						FindPath(m_currentWaypointIndex, m_chosenGoalIndex);
-						m_chosenGoalIndex = bot->m_chosenGoalIndex;
-					}
+					FinishCurrentProcess("i need to help my friend");
+					RadioMessage(Radio::Fallback);
+					m_chosenGoalIndex = index;
+					FindPath(m_currentWaypointIndex, m_chosenGoalIndex);
+					m_chosenGoalIndex = bot->m_chosenGoalIndex;
 				}
 			}
 		}
@@ -2051,26 +2055,24 @@ void Bot::LookAtAround(void)
 		}
 	}
 
+	if (m_searchTime > engine->GetTime())
+		return;
+
 	Vector selectRandom;
-	if (m_searchTime < engine->GetTime())
+	Vector bestLookPos = EyePosition();
+	bestLookPos.x += CRandomFloat(-1024.0f, 1024.0f);
+	bestLookPos.y += CRandomFloat(-1024.0f, 1024.0f);
+	bestLookPos.z += CRandomFloat(-256.0f, 256.0f);
+
+	const int index = g_waypoint->FindNearestInCircle(bestLookPos, 999999.0f);
+	if (IsValidWaypoint(index))
 	{
-		Vector bestLookPos = EyePosition();
-		bestLookPos.x += CRandomFloat(-1024.0f, 1024.0f);
-		bestLookPos.y += CRandomFloat(-1024.0f, 1024.0f);
-		bestLookPos.z += CRandomFloat(-256.0f, 256.0f);
-
-		const int index = g_waypoint->FindNearestInCircle(bestLookPos, 999999.0f);
-		if (IsValidWaypoint(index))
-		{
-			const Path* pointer = g_waypoint->GetPath(index);
-			const Vector waypointOrigin = pointer->origin;
-			const float waypointRadius = static_cast<float>(pointer->radius);
-			selectRandom.x = waypointOrigin.x + CRandomFloat(-waypointRadius, waypointRadius);
-			selectRandom.y = waypointOrigin.y + CRandomFloat(-waypointRadius, waypointRadius);
-			selectRandom.z = waypointOrigin.z + 36.0f;
-		}
-
-		m_searchTime = AddTime(0.25f);
+		const Path* pointer = g_waypoint->GetPath(index);
+		const Vector waypointOrigin = pointer->origin;
+		const float waypointRadius = static_cast<float>(pointer->radius);
+		selectRandom.x = waypointOrigin.x + CRandomFloat(-waypointRadius, waypointRadius);
+		selectRandom.y = waypointOrigin.y + CRandomFloat(-waypointRadius, waypointRadius);
+		selectRandom.z = waypointOrigin.z + 36.0f;
 	}
 
 	auto isVisible = [&](void)
@@ -2108,13 +2110,15 @@ void Bot::LookAtAround(void)
 			m_lookAt.z = waypointOrigin.z + 36.0f;
 		}
 	}
+
+	m_searchTime = AddTime(0.25f);
 }
 
 void Bot::SecondThink(void)
 {
 	if (g_gameVersion != Game::HalfLife)
 	{
-		// Don't forget me :(
+		// don't forget me :(
 		/*if (ebot_use_flare.GetBool() && !m_isReloading && !m_isZombieBot && GetGameMode() == GameMode::ZombiePlague && FNullEnt(m_enemy) && !FNullEnt(m_lastEnemy))
 		{
 			if (pev->weapons & (1 << Weapon::SmGrenade) && ChanceOf(40))
@@ -2140,7 +2144,7 @@ void Bot::SecondThink(void)
 
 void Bot::CalculatePing(void)
 {
-	if (g_gameVersion == Game::Old)
+	if (g_gameVersion & Game::Old)
 		return;
 
 	extern ConVar ebot_ping;
@@ -2308,10 +2312,6 @@ void Bot::DebugModeMsg(void)
 				sprintf(weaponName, "weapon_c4");
 				break;
 
-			case Weapon::Defuser:
-				sprintf(weaponName, "weapon_defuser");
-				break;
-
 			default:
 				sprintf(weaponName, "Unknown! (%d)", m_currentWeapon);
 			}
@@ -2319,7 +2319,7 @@ void Bot::DebugModeMsg(void)
 		else
 			sprintf(weaponName, selectTab->weaponName);
 
-		char gamemodName[32];
+		char gamemodName[80];
 		switch (GetGameMode())
 		{
 		case GameMode::Original:
@@ -2524,7 +2524,7 @@ void Bot::TakeBlinded(const Vector fade, const int alpha)
 	if (fade.x != 255 || fade.y != 255 || fade.z != 255 || alpha <= 170)
 		return;
 
-	SetProcess(Process::Pause, "i'm blind", true, CRandomFloat(2.0f, 4.0f));
+	SetProcess(Process::Pause, "i'm blind", false, CRandomFloat(1.0f, 2.0f));
 }
 
 // this function, asks bot to discard his current primary weapon (or c4) to the user that requsted it with /drop*
@@ -2889,7 +2889,7 @@ bool Bot::IsShootableBreakable(edict_t* ent)
 // this function is gets called when bot enters a buyzone, to allow bot to buy some stuff
 void Bot::EquipInBuyzone(const int iBuyCount)
 {
-	if (g_gameVersion == Game::HalfLife)
+	if (g_gameVersion & Game::HalfLife)
 		return;
 
 	static float lastEquipTime = 0.0f;

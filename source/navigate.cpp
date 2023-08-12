@@ -476,7 +476,7 @@ void Bot::DoWaypointNav(void)
 				if (!(pev->oldbuttons & IN_USE && pev->button & IN_USE))
 				{
 					// do not use door directrly under xash, or we will get failed assert in gamedll code
-					if (g_gameVersion == Game::Xash)
+					if (g_gameVersion & Game::Xash)
 					{
 						m_lookAt = origin;
 						pev->button |= IN_USE;
@@ -1446,7 +1446,7 @@ void Bot::FindPath(int srcIndex, int destIndex, edict_t* enemy)
 	if (srcIndex == destIndex)
 		return;
 
-	if (g_gameVersion == Game::HalfLife)
+	if (g_gameVersion & Game::HalfLife)
 	{
 		FindShortestPath(srcIndex, destIndex);
 		return;

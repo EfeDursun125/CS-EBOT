@@ -268,19 +268,26 @@ void Bot::PrepareChatMessage(char* text)
             }
             else if (*pattern == 'd')
             {
-                if (g_gameVersion == Game::CZero)
+                if (g_gameVersion & Game::CZero)
                 {
                     if (CRandomInt(1, 10) <= 3)
                         cstrcat(m_tempStrings, "CZ");
                     else
                         cstrcat(m_tempStrings, "Condition Zero");
                 }
-                else if ((g_gameVersion == Game::CStrike) || (g_gameVersion == Game::Old))
+                else if ((g_gameVersion & Game::CStrike) || (g_gameVersion & Game::Old))
                 {
                     if (CRandomInt(1, 10) <= 3)
                         cstrcat(m_tempStrings, "CS");
                     else
                         cstrcat(m_tempStrings, "Counter-Strike");
+                }
+                else if (g_gameVersion & Game::HalfLife)
+                {
+                    if (CRandomInt(1, 10) <= 3)
+                        cstrcat(m_tempStrings, "HL");
+                    else
+                        cstrcat(m_tempStrings, "Half-Life");
                 }
             }
             else if (*pattern == 'v')
@@ -321,8 +328,8 @@ bool Bot::CheckKeywords(char* tempMessage, char* reply)
         }
     }
 
-    // didn't find a keyword? 60% of the time use some universal reply
-    if (ChanceOf(60) && !g_chatFactory[CHAT_NOKW].IsEmpty())
+    // didn't find a keyword? 80% of the time use some universal reply
+    if (ChanceOf(80) && !g_chatFactory[CHAT_NOKW].IsEmpty())
     {
         cstrcpy(reply, g_chatFactory[CHAT_NOKW].GetRandomElement().GetBuffer());
         return true;
