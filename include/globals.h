@@ -35,7 +35,7 @@ extern float g_DelayTimer;
 
 extern int g_mapType;
 extern int g_numWaypoints;
-extern Game g_gameVersion;
+extern int g_gameVersion;
 extern int g_fakeArgc;
 extern int bot_conntimes;
 
@@ -76,5 +76,7 @@ extern EntityAPI_t g_entityAPI;
 extern FuncPointers_t g_funcPointers;
 extern NewEntityAPI_t g_getNewEntityAPI;
 extern BlendAPI_t g_serverBlendingAPI;
+
+extern bool IsCStrike(void);
 
 #endif // GLOBALS_INCLUDED

@@ -1989,7 +1989,7 @@ public:
     {
         if (m_bufferPtr == nullptr)
             return "";
-
+        
         if (*m_bufferPtr == 0)
             return "";
 

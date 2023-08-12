@@ -61,13 +61,14 @@ enum class Process
 };
 
 // supported cs's
-enum class Game
+enum Game
 {
-	CStrike = 1, // Counter-Strike 1.6 and Above
-	CZero = 2, // Counter-Strike: Condition Zero
-	Old = 3, // Counter-Strike 1.3-1.5 with/without Steam
-	Xash = 4, // Xash3D
-	HalfLife = 5 // Half-Life
+	CStrike = (1 << 1), // Counter-Strike 1.6 and Above
+	CZero = (1 << 2), // Counter-Strike: Condition Zero
+	Old = (1 << 3), // Counter-Strike 1.3-1.5 with/without Steam
+	Xash = (1 << 4), // Xash3D
+	HalfLife = (1 << 5), // Half-Life
+	DMC = (1 << 6) // Deathmatch Classic
 };
 
 // log levels
@@ -596,6 +597,7 @@ private:
 
 	float m_timeDoorOpen; // time to next door open check
 	float m_lastChatTime; // time bot last chatted
+	bool m_defendedBomb; // defend action issued
 
 	PathNode* m_navNode; // pointer to current node from path
 	PathNode* m_navNodeStart; // pointer to start of path finding nodes
