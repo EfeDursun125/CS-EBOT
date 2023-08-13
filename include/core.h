@@ -597,7 +597,6 @@ private:
 
 	float m_timeDoorOpen; // time to next door open check
 	float m_lastChatTime; // time bot last chatted
-	bool m_defendedBomb; // defend action issued
 
 	PathNode* m_navNode; // pointer to current node from path
 	PathNode* m_navNodeStart; // pointer to start of path finding nodes
