@@ -575,23 +575,18 @@ void Bot::FindItem(void)
 			{
 				allowPickup = false;
 
-				if (!m_defendedBomb)
+				const int index = FindDefendWaypoint(entityOrigin);
+				if (IsValidWaypoint(index))
 				{
-					m_defendedBomb = true;
+					const float timeMidBlowup = g_timeBombPlanted + ((engine->GetC4TimerTime() * 0.5f) + engine->GetC4TimerTime() * 0.25f) - g_waypoint->GetTravelTime(m_moveSpeed, pev->origin, g_waypoint->GetPath(index)->origin);
 
-					const int index = FindDefendWaypoint(entityOrigin);
-					if (IsValidWaypoint(index))
+					if (timeMidBlowup > engine->GetTime())
 					{
-						const float timeMidBlowup = g_timeBombPlanted + ((engine->GetC4TimerTime() * 0.5f) + engine->GetC4TimerTime() * 0.25f) - g_waypoint->GetTravelTime(m_moveSpeed, pev->origin, g_waypoint->GetPath(index)->origin);
-
-						if (timeMidBlowup > engine->GetTime())
-						{
-							m_campIndex = index;
-							SetProcess(Process::Camp, "i will defend the bomb", true, AddTime(timeMidBlowup));
-						}
-						else
-							RadioMessage(Radio::ShesGonnaBlow);
+						m_campIndex = index;
+						SetProcess(Process::Camp, "i will defend the bomb", true, AddTime(timeMidBlowup));
 					}
+					else
+						RadioMessage(Radio::ShesGonnaBlow);
 				}
 			}
 		}
@@ -1476,10 +1471,7 @@ void Bot::CheckRadioCommands(void)
 		if (g_bombPlanted)
 		{
 			if (m_inBombZone)
-			{
-				m_defendedBomb = false;
 				mode = 3;
-			}
 		}
 		else
 			mode = 3;

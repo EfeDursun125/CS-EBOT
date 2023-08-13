@@ -1299,7 +1299,6 @@ void Bot::NewRound(void)
 
 	m_radioEntity = nullptr;
 	m_radioOrder = 0;
-	m_defendedBomb = false;
 
 	m_lastChatTime = engine->GetTime();
 	pev->button = 0;

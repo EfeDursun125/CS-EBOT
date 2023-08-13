@@ -1,5 +1,6 @@
 #include <core.h>
 #include <vector>
+#include <thread>
 
 ConVar ebot_zombies_as_path_cost("ebot_zombie_count_as_path_cost", "1");
 ConVar ebot_aim_type("ebot_aim_type", "2");
@@ -1448,7 +1449,8 @@ void Bot::FindPath(int srcIndex, int destIndex, edict_t* enemy)
 
 	if (g_gameVersion & Game::HalfLife)
 	{
-		FindShortestPath(srcIndex, destIndex);
+		thread core(&Bot::FindShortestPath, this, srcIndex, destIndex);
+		core.detach();
 		return;
 	}
 
@@ -1682,11 +1684,13 @@ void Bot::FindPath(int srcIndex, int destIndex, edict_t* enemy)
 	{
 		const int index = PossiblePath.GetRandomElement();
 		m_chosenGoalIndex = index;
-		FindShortestPath(srcIndex, index);
+		thread core(&Bot::FindShortestPath, this, srcIndex, index);
+		core.detach();
 		return;
 	}
 	
-	FindShortestPath(srcIndex, destIndex);
+	thread core(&Bot::FindShortestPath, this, srcIndex, destIndex);
+	core.detach();
 }
 
 void Bot::FindShortestPath(int srcIndex, int destIndex)
@@ -1712,6 +1716,54 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 		waypoints[i].parent = -1;
 		waypoints[i].state = State::New;
 	}
+
+	const float (*hcalc) (const int, const int) = nullptr;
+
+	if (m_2dH)
+	{
+		switch (m_heuristic)
+		{
+		case 1:
+			hcalc = HF_Distance2D;
+			break;
+		case 2:
+			hcalc = HF_Manhattan2D;
+			break;
+		case 3:
+			hcalc = HF_Chebyshev2D;
+			break;
+		case 4:
+			hcalc = HF_Euclidean2D;
+			break;
+		default:
+			hcalc = HF_Distance2D;
+			break;
+		}
+	}
+	else
+	{
+		switch (m_heuristic)
+		{
+		case 1:
+			hcalc = HF_Distance;
+			break;
+		case 2:
+			hcalc = HF_Manhattan;
+			break;
+		case 3:
+			hcalc = HF_Chebyshev;
+			break;
+		case 4:
+			hcalc = HF_Euclidean;
+			break;
+		default:
+			hcalc = HF_Distance;
+			break;
+		}
+	}
+
+	if (hcalc == nullptr)
+		return;
 
 	// put start node into open list
 	const auto srcWaypoint = &waypoints[srcIndex];
@@ -1781,22 +1833,7 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 			if (self == -1)
 				continue;
 
-			const int32 flags = g_waypoint->GetPath(self)->flags;
-			if (flags & WAYPOINT_FALLCHECK)
-			{
-				TraceResult tr{};
-				const Vector origin = g_waypoint->GetPath(self)->origin;
-				TraceLine(origin, origin - Vector(0.0f, 0.0f, 60.0f), false, false, GetEntity(), &tr);
-				if (tr.flFraction == 1.0f)
-					continue;
-			}
-			else if (flags & WAYPOINT_SPECIFICGRAVITY)
-			{
-				if (pev->gravity * (1600.0f - engine->GetGravity()) < g_waypoint->GetPath(self)->gravity)
-					continue;
-			}
-
-			const float f = HF_Chebyshev(self, destIndex);
+			const float f = hcalc(self, destIndex);
 			const auto childWaypoint = &waypoints[self];
 			if (childWaypoint->state == State::New || childWaypoint->f > f)
 			{
@@ -1804,7 +1841,6 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 				childWaypoint->parent = currentIndex;
 				childWaypoint->state = State::Open;
 				childWaypoint->f = f;
-
 				openList.Insert(self, childWaypoint->f);
 			}
 		}
@@ -2927,7 +2963,8 @@ void Bot::FacePosition(void)
 void Bot::LookAt(const Vector origin)
 {
 	m_lookAt = origin;
-	FacePosition();
+	thread core(&Bot::FacePosition, this);
+	core.detach();
 }
 
 void Bot::SetStrafeSpeed(const Vector moveDir, const float strafeSpeed)
@@ -2967,7 +3004,6 @@ void Bot::SetStrafeSpeedNoCost(const Vector moveDir, const float strafeSpeed)
 	else
 		m_strafeSpeed = -strafeSpeed;
 }
-
 
 // find hostage improve
 int Bot::FindHostage(void)
@@ -3088,7 +3124,7 @@ edict_t* Bot::FindNearestButton(const char* className)
 	// find the nearest button which can open our target
 	while (!FNullEnt(searchEntity = FIND_ENTITY_BY_TARGET(searchEntity, className)))
 	{
-		float distance = (pev->origin - GetEntityOrigin(searchEntity)).GetLengthSquared();
+		const float distance = (pev->origin - GetEntityOrigin(searchEntity)).GetLengthSquared();
 		if (distance < nearestDistance)
 		{
 			nearestDistance = distance;
