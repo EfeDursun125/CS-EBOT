@@ -1563,11 +1563,6 @@ typedef uint8_t BYTE;
 #define MAX_PATH PATH_MAX
 #include <limits.h>
 #include <stdarg.h>
-#ifndef min
-#define min(a,b) (((a) < (b)) ? (a) : (b))
-#endif
-#ifndef max
-#define max(a,b) (((a) > (b)) ? (a) : (b))
 #define _vsnprintf(a,b,c,d) vsnprintf(a,b,c,d)
 #endif
 #endif //_WIN32
@@ -3132,5 +3127,3 @@ public:
         return m_fraction;
     }
 };
-
-#endif

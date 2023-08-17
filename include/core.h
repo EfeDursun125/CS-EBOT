@@ -715,8 +715,8 @@ private:
 	bool OutOfBombTimer(void);
 	void SetWaypointOrigin(void);
 
-	Vector CheckToss(const Vector& start, Vector end);
-	Vector CheckThrow(const Vector& start, Vector end);
+	Vector CheckToss(const Vector& start, const Vector end);
+	Vector CheckThrow(const Vector& start, const Vector end);
 	Vector GetEnemyPosition(void);
 	float GetZOffset(float distance);
 
