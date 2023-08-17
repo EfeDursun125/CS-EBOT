@@ -1176,16 +1176,17 @@ void Bot::CheckGrenadeThrow(void)
 					allowThrowing = true;
 
 					// check the throwing
-					m_throw = g_waypoint->GetPath(searchTab[count--])->origin;
-					Vector src = CheckThrow(EyePosition(), m_throw);
+					const Vector origin = g_waypoint->GetPath(searchTab[count--])->origin;
+					Vector src = CheckThrow(EyePosition(), origin);
 
 					if (src.GetLengthSquared() <= SquaredF(100.0f))
-						src = CheckToss(EyePosition(), m_throw);
+						src = CheckToss(EyePosition(), origin);
 
 					if (src == nullvec)
 						allowThrowing = false;
-					else
-						break;
+
+					m_throw = src;
+					break;
 				}
 			}
 
@@ -1214,15 +1215,16 @@ void Bot::CheckGrenadeThrow(void)
 
 		ITERATE_ARRAY(inRadius, i)
 		{
-			m_throw = g_waypoint->GetPath(i)->origin;
-			Vector src = CheckThrow(EyePosition(), m_throw);
+			const Vector origin = g_waypoint->GetPath(i)->origin;
+			Vector src = CheckThrow(EyePosition(), origin);
 
 			if (src.GetLengthSquared() <= SquaredF(100.0f))
-				src = CheckToss(EyePosition(), m_throw);
+				src = CheckToss(EyePosition(), origin);
 
 			if (src == nullvec)
 				continue;
 
+			m_throw = src;
 			allowThrowing = true;
 			break;
 		}
@@ -1432,6 +1434,9 @@ void Bot::CheckRadioCommands(void)
 		return;
 
 	if (m_numFriendsLeft <= 0)
+		return;
+
+	if (m_radioOrder == Radio::Affirmative || m_radioOrder != Radio::Negative)
 		return;
 
 	if (FNullEnt(m_radioEntity) || !IsAlive(m_radioEntity))
@@ -2516,7 +2521,7 @@ void Bot::TakeBlinded(const Vector fade, const int alpha)
 	if (fade.x != 255 || fade.y != 255 || fade.z != 255 || alpha <= 170)
 		return;
 
-	SetProcess(Process::Pause, "i'm blind", false, CRandomFloat(1.0f, 2.0f));
+	SetProcess(Process::Pause, "i'm blind", false, CRandomFloat(2.0f, 5.0f));
 }
 
 // this function, asks bot to discard his current primary weapon (or c4) to the user that requsted it with /drop*

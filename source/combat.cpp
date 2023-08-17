@@ -573,6 +573,12 @@ WeaponSelectEnd:
 
 bool Bot::KnifeAttack(const float attackDistance)
 {
+	if (g_gameVersion & Game::HalfLife)
+	{
+		pev->button |= IN_ATTACK;
+		return true;
+	}
+
 	Vector origin = nullvec;
 	float distance = FLT_MAX;
 

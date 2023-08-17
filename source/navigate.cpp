@@ -2322,12 +2322,40 @@ bool Bot::NextPath(PathNode* node)
 			const auto index = g_waypoint->GetPath(tempNode->index)->index[C];
 			if (IsValidWaypoint(index) && index != tempNode->next->index && g_waypoint->IsConnected(index, tempNode->next->index) && !IsWaypointOccupied(index))
 			{
-				if (g_waypoint->Reachable(GetEntity(), index) && !IsDeadlyDrop(g_waypoint->GetPath(index)->origin))
+				const auto ent = GetEntity();
+				if (g_waypoint->Reachable(ent, index) && !IsDeadlyDrop(g_waypoint->GetPath(index)->origin))
 				{
 					m_navNode = tempNode;
 					ChangeWptIndex(index);
 					SetWaypointOrigin();
 					return true;
+				}
+				else if (GetProcess() == Process::Default && m_hasFriendsNear && !FNullEnt(m_nearestFriend) && GetPlayerPriority(ent) > GetPlayerPriority(m_nearestFriend))
+				{
+					Bot* bot = g_botManager->GetBot(m_nearestFriend);
+					if (bot != nullptr)
+					{
+						if (bot->GetProcess() == Process::Default && bot->m_navNode != nullptr)
+						{
+							PathNode* friendNode = bot->m_navNode;
+							m_navNode = friendNode;
+							ChangeWptIndex(friendNode->index);
+							SetWaypointOrigin();
+							return true;
+						}
+					}
+					else if (m_nearestFriend->v.speed > (m_nearestFriend->v.maxspeed * 0.25))
+					{
+						const int index = g_waypoint->FindNearest(m_nearestFriend->v.origin + m_nearestFriend->v.velocity, 99999999.0f, -1, ent);
+						if (IsValidWaypoint(index))
+						{
+							ChangeWptIndex(index);
+							SetWaypointOrigin();
+							return true;
+						}
+					}
+
+					SetProcess(Process::Pause, "waiting for my friend", true, cminf((g_waypoint->GetPath(index)->origin - g_waypoint->GetPath(node->index)->origin).GetLength() / pev->maxspeed, 4.0f));
 				}
 			}
 		}
@@ -3092,17 +3120,22 @@ bool Bot::IsWaypointOccupied(const int index)
 		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != m_team || client.ent == GetEntity())
 			continue;
 
-		const Path* pointer = g_waypoint->GetPath(index);
-		if (((client.ent->v.origin + client.ent->v.velocity * m_frameInterval) - pointer->origin).GetLengthSquared() <= SquaredI(pointer->radius + 54))
-			return true;
-
 		auto bot = g_botManager->GetBot(client.index);
 		if (bot != nullptr)
 		{
 			if (bot->m_chosenGoalIndex == index)
 				return true;
 
+			if (bot->m_currentWaypointIndex == index)
+				return true;
+
 			if (bot->m_prevWptIndex[0] == index)
+				return true;
+		}
+		else
+		{
+			const Path* pointer = g_waypoint->GetPath(index);
+			if (((client.ent->v.origin + client.ent->v.velocity * m_frameInterval) - pointer->origin).GetLengthSquared() <= SquaredI(pointer->radius + 54))
 				return true;
 		}
 	}

@@ -323,15 +323,25 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 					m_bots[index]->m_favoriteSecondary.Push("elites");
 				else if (id == 3)
 					m_bots[index]->m_favoriteSecondary.Push("p228");
+				else if (id == 4)
+					m_bots[index]->m_favoriteSecondary.Push("glock");
+				else
+					m_bots[index]->m_favoriteSecondary.Push("usp");
 			}
 		}
 
 		int i = 0;
-		if (i < m_bots[index]->m_favoritePrimary.GetElementNumber(); i++)
-			m_bots[index]->m_weaponPrefs[i] = m_bots[index]->GetWeaponID((char*)m_bots[index]->m_favoritePrimary.GetAt(i));
+		if (!m_bots[index]->m_favoritePrimary.IsEmpty())
+		{
+			if (i < m_bots[index]->m_favoritePrimary.GetElementNumber(); i++)
+				m_bots[index]->m_weaponPrefs[i] = m_bots[index]->GetWeaponID((char*)m_bots[index]->m_favoritePrimary.GetAt(i));
+		}
 
-		if (i < m_bots[index]->m_favoriteSecondary.GetElementNumber(); i++)
-			m_bots[index]->m_weaponPrefs[i] = m_bots[index]->GetWeaponID((char*)m_bots[index]->m_favoriteSecondary.GetAt(i));
+		if (!m_bots[index]->m_favoriteSecondary.IsEmpty())
+		{
+			if (i < m_bots[index]->m_favoriteSecondary.GetElementNumber(); i++)
+				m_bots[index]->m_weaponPrefs[i] = m_bots[index]->GetWeaponID((char*)m_bots[index]->m_favoriteSecondary.GetAt(i));
+		}
 	}
 	else if (g_gameVersion & Game::HalfLife)
 	{
