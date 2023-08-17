@@ -4,19 +4,19 @@ void Bot::ThrowFBStart(void)
 {
 	SelectWeaponByName("weapon_flashbang");
 
-	TraceResult tr{};
+	/*TraceResult tr{};
 	TraceHull(EyePosition(), m_lookAt, false, point_hull, GetEntity(), &tr);
 	if (tr.flFraction != 1.0f)
 	{
 		const int index = g_waypoint->FindNearest(m_lookAt, 9999999.0f, -1, GetEntity());
 		if (IsValidWaypoint(index))
 			m_lookAt = g_waypoint->GetPath(index)->origin;
-	}
+	}*/
 }
 
 void Bot::ThrowFBUpdate(void)
 {
-	LookAt(m_throw);
+	LookAt(-m_throw);
 
 	if (m_currentWeapon != Weapon::FbGrenade)
 	{
