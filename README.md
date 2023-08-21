@@ -1,6 +1,8 @@
 # CS 1.6 E-BOT ![GitHub all releases](https://img.shields.io/github/downloads/EfeDursun125/CS-EBOT/total)
 [Click HERE To Join EBOT Discord Server](http://discord.gg/v7PesBamXt)
 
+[Please Download From The Blog For Support This Project](https://ebots-for-cs.blogspot.com/)
+
 
 AI Bot for Counter-Strike based on SyPB
 
