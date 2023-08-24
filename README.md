@@ -8,6 +8,7 @@ AI Bot for Counter-Strike based on SyPB
 
 This bot can be used for default gamemodes, deathmatch and zombie.
 
+<a href="https://www.buymeacoffee.com/efedursun125"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=efedursun125&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" /></a>
 
 # E-Bot Requires VCRedist (For Windows)
 If you see badf load on console (when you type "meta list") install this.
