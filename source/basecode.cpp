@@ -947,7 +947,10 @@ void Bot::PerformWeaponPurchase(void)
 			for (int i = 0; i < m_favoritePrimary.GetElementNumber(); i++)
 			{
 				if (HasPrimaryWeapon())
+				{
+					FakeClientCommand(GetEntity(), "primammo");
 					break;
+				}
 
 				if (HasShield())
 					break;
@@ -980,7 +983,10 @@ void Bot::PerformWeaponPurchase(void)
 			for (int i = 0; i < m_favoriteSecondary.GetElementNumber(); i++)
 			{
 				if (HasSecondaryWeapon())
+				{
+					FakeClientCommand(GetEntity(), "secammo");
 					break;
+				}
 
 				if (cstrlen((char*)m_favoriteSecondary.GetAt(i)) < 1)
 					continue;
@@ -1137,10 +1143,10 @@ int Bot::BuyWeaponMode(const int weaponId)
 	return gunMode;
 }
 
-void Bot::CheckGrenadeThrow(void)
+void Bot::CheckGrenadeThrow(edict_t* targetEntity)
 {
 	const int grenadeToThrow = CheckGrenades();
-	if (grenadeToThrow == -1 || FNullEnt(m_nearestEnemy))
+	if (grenadeToThrow == -1 || FNullEnt(targetEntity))
 		return;
 
 	const Vector targetOrigin = m_enemyOrigin;
@@ -1149,45 +1155,39 @@ void Bot::CheckGrenadeThrow(void)
 		float distance = (targetOrigin - pev->origin).GetLengthSquared();
 
 		// is enemy to high to throw
-		if ((targetOrigin.z > (pev->origin.z + 650.0f)) || !(m_nearestEnemy->v.flags & (FL_PARTIALGROUND | FL_DUCKING)))
+		if ((targetOrigin.z > (pev->origin.z + 650.0f)) || !(targetEntity->v.flags & (FL_PARTIALGROUND | FL_DUCKING)))
 			distance = FLT_MAX; // just some crazy value
 
 		// enemy is within a good throwing distance ?
-		if (distance > (grenadeToThrow == Weapon::SmGrenade ? SquaredF(400.0f) : SquaredF(600.0f)) && distance <= SquaredF(800.0f))
+		if (distance > (grenadeToThrow == Weapon::SmGrenade ? SquaredF(400.0f) : SquaredF(600)) && distance < SquaredF(1000.0f))
 		{
 			bool allowThrowing = true;
 
-			if (allowThrowing)
+			const Vector enemyPredict = (targetEntity->v.velocity * 0.5f).SkipZ() + targetOrigin;
+			int searchTab[4], count = 4;
+
+			float searchRadius = targetEntity->v.velocity.GetLength2D();
+
+			// check the search radius
+			if (searchRadius < 128.0f)
+				searchRadius = 128.0f;
+
+			// search waypoints
+			g_waypoint->FindInRadius(enemyPredict, searchRadius, searchTab, &count);
+
+			while (count > 0)
 			{
-				const Vector enemyPredict = (m_nearestEnemy->v.velocity * 0.5f).SkipZ() + targetOrigin;
-				int searchTab[4], count = 4;
+				// check the throwing
+				m_throw = g_waypoint->GetPath(searchTab[count--])->origin;
+				Vector src = CheckThrow(EyePosition(), m_throw);
 
-				float searchRadius = m_nearestEnemy->v.velocity.GetLength2D();
+				if (src.GetLengthSquared() < 100.0f)
+					src = CheckToss(EyePosition(), m_throw);
 
-				// check the search radius
-				if (searchRadius < 128.0f)
-					searchRadius = 128.0f;
-
-				// search waypoints
-				g_waypoint->FindInRadius(enemyPredict, searchRadius, searchTab, &count);
-
-				while (count > 0)
-				{
-					allowThrowing = true;
-
-					// check the throwing
-					const Vector origin = g_waypoint->GetPath(searchTab[count--])->origin;
-					Vector src = CheckThrow(EyePosition(), origin);
-
-					if (src.GetLengthSquared() <= SquaredF(100.0f))
-						src = CheckToss(EyePosition(), origin);
-
-					if (src == nullvec)
-						allowThrowing = false;
-
-					m_throw = src;
+				if (src == nullvec)
+					allowThrowing = false;
+				else
 					break;
-				}
 			}
 
 			// start explosive grenade throwing?
@@ -1208,23 +1208,22 @@ void Bot::CheckGrenadeThrow(void)
 	}
 	else if (grenadeToThrow == Weapon::FbGrenade && (targetOrigin - pev->origin).GetLengthSquared() <= SquaredF(800.0f))
 	{
-		bool allowThrowing = true;
+		bool allowThrowing = false;
 		Array <int> inRadius;
 
-		g_waypoint->FindInRadius(inRadius, 256.0f, (targetOrigin + (m_nearestEnemy->v.velocity * 0.5f).SkipZ()));
+		g_waypoint->FindInRadius(inRadius, 256.0f, (targetOrigin + (targetEntity->v.velocity * 0.5f).SkipZ()));
 
 		ITERATE_ARRAY(inRadius, i)
 		{
-			const Vector origin = g_waypoint->GetPath(i)->origin;
-			Vector src = CheckThrow(EyePosition(), origin);
+			m_throw = g_waypoint->GetPath(i)->origin;
+			Vector src = CheckThrow(EyePosition(), m_throw);
 
-			if (src.GetLengthSquared() <= SquaredF(100.0f))
-				src = CheckToss(EyePosition(), origin);
+			if (src.GetLengthSquared() < 100)
+				src = CheckToss(EyePosition(), m_throw);
 
 			if (src == nullvec)
 				continue;
 
-			m_throw = src;
 			allowThrowing = true;
 			break;
 		}
@@ -1972,11 +1971,8 @@ void Bot::LookAtAround(void)
 			MakeVectors(m_nearestFriend->v.angles);
 			TraceLine(eyePosition, eyePosition + g_pGlobals->v_forward * 2000.0f, false, false, m_nearestFriend, &tr);
 
-			if (tr.pHit)
-			{
-				if (tr.pHit != GetEntity())
-					m_lookAt = GetEntityOrigin(tr.pHit);
-			}
+			if (tr.pHit != GetEntity())
+				m_lookAt = GetEntityOrigin(tr.pHit);
 			else
 				m_lookAt = tr.vecEndPos;
 		}
@@ -2022,21 +2018,17 @@ void Bot::LookAtAround(void)
 				maxDist = 768.0f;
 			}
 
-			if ((pev->origin - client.ent->v.origin).GetLengthSquared() > SquaredF(maxDist))
+			if (((pev->origin + pev->velocity) - (client.ent->v.origin + client.ent->v.velocity)).GetLengthSquared() > SquaredF(maxDist))
 				continue;
 
-			Vector playerArea;
 			if (m_isZombieBot)
 			{
-				playerArea = client.ent->v.origin + client.ent->v.view_ofs;
 				if (!m_hasEnemiesNear && (FNullEnt(m_nearestEnemy) || GetTeam(m_nearestEnemy) == m_team))
 				{
 					m_nearestEnemy = client.ent;
 					DeleteSearchNodes();
 				}
 			}
-			else
-				playerArea = client.ent->v.origin + client.ent->v.view_ofs;
 
 			const int skill = m_personality == Personality::Rusher ? 30 : 10;
 			if (m_skill > skill)
@@ -2046,30 +2038,41 @@ void Bot::LookAtAround(void)
 			}
 
 			m_pauseTime = AddTime(CRandomFloat(2.0f, 5.0f));
-			m_lookAt = playerArea;
+			m_lookAt = client.ent->v.origin + client.ent->v.view_ofs;
+			CheckGrenadeThrow(client.ent);
 
 			return;
 		}
 	}
 
-	if (m_searchTime > engine->GetTime())
+	if (m_navNode != nullptr && m_navNode->next != nullptr && m_navNode->next->next != nullptr)
+		m_lookAt = g_waypoint->GetPath(m_navNode->next->next->index)->origin + pev->view_ofs;
+
+	if (m_isZombieBot || m_searchTime > engine->GetTime())
 		return;
 
+	const Vector nextFrame = EyePosition() + pev->velocity;
 	Vector selectRandom;
-	Vector bestLookPos = EyePosition();
+	Vector bestLookPos = nextFrame;
 	bestLookPos.x += CRandomFloat(-1024.0f, 1024.0f);
 	bestLookPos.y += CRandomFloat(-1024.0f, 1024.0f);
 	bestLookPos.z += CRandomFloat(-256.0f, 256.0f);
 
 	const int index = g_waypoint->FindNearestInCircle(bestLookPos, 999999.0f);
-	if (IsValidWaypoint(index))
+	if (IsValidWaypoint(index) && m_knownWaypointIndex[0] != index && m_knownWaypointIndex[1] != index && m_knownWaypointIndex[2] != index && m_knownWaypointIndex[3] != index && m_knownWaypointIndex[4] != index && m_knownWaypointIndex[5] != index)
 	{
 		const Path* pointer = g_waypoint->GetPath(index);
 		const Vector waypointOrigin = pointer->origin;
 		const float waypointRadius = static_cast<float>(pointer->radius);
 		selectRandom.x = waypointOrigin.x + CRandomFloat(-waypointRadius, waypointRadius);
 		selectRandom.y = waypointOrigin.y + CRandomFloat(-waypointRadius, waypointRadius);
-		selectRandom.z = waypointOrigin.z + 36.0f;
+		selectRandom.z = waypointOrigin.z + pev->view_ofs.z;
+		m_knownWaypointIndex[0] = index;
+		m_knownWaypointIndex[1] = m_knownWaypointIndex[0];
+		m_knownWaypointIndex[2] = m_knownWaypointIndex[1];
+		m_knownWaypointIndex[3] = m_knownWaypointIndex[2];
+		m_knownWaypointIndex[4] = m_knownWaypointIndex[3];
+		m_knownWaypointIndex[5] = m_knownWaypointIndex[4];
 	}
 
 	auto isVisible = [&](void)
@@ -2084,28 +2087,8 @@ void Bot::LookAtAround(void)
 
 	if ((pev->origin - selectRandom).GetLengthSquared() > SquaredF(512.0f) && isVisible())
 	{
-		if (m_pauseTime < engine->GetTime())
-		{
-			const Vector eyePosition = EyePosition();
-			m_lookAt.x = selectRandom.x + ((selectRandom.x - eyePosition.x) * 256.0f);
-			m_lookAt.y = selectRandom.y + ((selectRandom.y - eyePosition.y) * 256.0f);
-			m_lookAt.z = selectRandom.z + 36.0f;
-			m_pauseTime = AddTime(CRandomFloat(1.0f, 2.0f));
-		}
-	}
-	else if (m_isSlowThink && pev->velocity.GetLengthSquared2D() > SquaredF(24.0f))
-	{
-		const int index = g_waypoint->FindNearestInCircle(m_destOrigin, 999999.0f);
-		if (IsValidWaypoint(index))
-		{
-			const Vector eyePosition = EyePosition();
-			const Path* pointer = g_waypoint->GetPath(index);
-			const Vector waypointOrigin = pointer->origin;
-			const float waypointRadius = static_cast<float>(pointer->radius);
-			m_lookAt.x = waypointOrigin.x + CRandomFloat(-waypointRadius, waypointRadius) + ((m_destOrigin.x - eyePosition.x) * 1024.0f);
-			m_lookAt.y = waypointOrigin.y + CRandomFloat(-waypointRadius, waypointRadius) + ((m_destOrigin.y - eyePosition.y) * 1024.0f);
-			m_lookAt.z = waypointOrigin.z + 36.0f;
-		}
+		m_lookAt = selectRandom;
+		m_pauseTime = AddTime(CRandomFloat(1.0f, 1.5f));
 	}
 
 	m_searchTime = AddTime(0.25f);
@@ -2521,7 +2504,7 @@ void Bot::TakeBlinded(const Vector fade, const int alpha)
 	if (fade.x != 255 || fade.y != 255 || fade.z != 255 || alpha <= 170)
 		return;
 
-	SetProcess(Process::Pause, "i'm blind", false, CRandomFloat(2.0f, 5.0f));
+	SetProcess(Process::Blind, "i'm blind", false, CRandomFloat(3.0f, 6.0f));
 }
 
 // this function, asks bot to discard his current primary weapon (or c4) to the user that requsted it with /drop*
@@ -2691,18 +2674,13 @@ void Bot::CheckSilencer(void)
 	if ((m_currentWeapon == Weapon::Usp && m_skill < 90) || m_currentWeapon == Weapon::M4A1 && !HasShield())
 	{
 		const int random = (m_personality == Personality::Rusher ? 33 : m_personality == Personality::Careful ? 99 : 66);
-
-		// aggressive bots don't like the silencer
 		if (ChanceOf(m_currentWeapon == Weapon::Usp ? random / 3 : random))
 		{
 			if (pev->weaponanim > 6) // is the silencer not attached...
 				pev->button |= IN_ATTACK2; // attach the silencer
 		}
-		else
-		{
-			if (pev->weaponanim <= 6) // is the silencer attached...
-				pev->button |= IN_ATTACK2; // detach the silencer
-		}
+		else if (pev->weaponanim <= 6) // is the silencer attached...
+			pev->button |= IN_ATTACK2; // detach the silencer
 	}
 }
 

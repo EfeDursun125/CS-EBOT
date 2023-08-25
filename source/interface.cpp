@@ -686,9 +686,9 @@ void LoadEntityData(void)
 
 	for (int i = 0; i < engine->GetMaxClients(); i++)
 	{
-		entity = INDEXENT(i);
+		entity = INDEXENT(i + 1);
 
-		if (FNullEnt(entity) || (!(entity->v.flags & FL_CLIENT) && !(entity->v.flags & FL_FAKECLIENT)))
+		if (FNullEnt(entity))
 		{
 			g_clients[i].flags = 0;
 			g_clients[i].ent = nullptr;
@@ -2826,7 +2826,7 @@ void pfnClientCommand(edict_t* ent, char* format, ...)
 	// using FakeClientCommand().
 
 	// is the target entity an official bot, or a third party bot ?
-	if (IsValidBot(ent))
+	if (g_isFakeCommand || IsValidBot(ent) || ent->v.flags & FL_FAKECLIENT || ent->v.flags & FL_DORMANT)
 	{
 		if (g_isMetamod)
 			RETURN_META(MRES_SUPERCEDE); // prevent bots to be forced to issue client commands
@@ -3118,7 +3118,7 @@ void pfnClientPrintf(edict_t* ent, PRINT_TYPE printType, const char* message)
 	// as it will crash your server. Why would you, anyway ? bots have no client DLL as far as
 	// we know, right ? But since stupidity rules this world, we do a preventive check :)
 
-	if (IsValidBot(ent))
+	if (g_isFakeCommand || IsValidBot(ent) || ent->v.flags & FL_FAKECLIENT || ent->v.flags & FL_DORMANT)
 	{
 		if (g_isMetamod)
 			RETURN_META(MRES_SUPERCEDE);

@@ -106,7 +106,7 @@ void AnalyzeThread(void)
 
         HudMessage(g_hostEntity, true, Color(100, 100, 255), message);
     }
-    else if (!IsDedicatedServer() && engine->GetTime() <= 10.0f) // let the player join first...
+    else if (!IsDedicatedServer() && engine->GetTime() < 20.0f) // let the player join first...
         return;
 
     static float magicTimer;
@@ -1700,7 +1700,7 @@ bool Waypoint::Download(void)
             return true;
         }
 
-        ServerPrint("Error: Could not initialize curl handle\n");
+        ServerPrint("Error: Could not initialize cURL handle\n");
         curl_global_cleanup();
     }
     else
@@ -1896,8 +1896,10 @@ void Waypoint::Save(void)
 
     cstrcpy(header.author, waypointAuthor);
 
+    char* path = FormatBuffer("%s/%s.ewp", GetWaypointDir(), GetMapName());
+
     // remember the original waypoint author
-    File rf(CheckSubfolderFile(false), "rb");
+    File rf(path, "rb");
     if (rf.IsValid())
     {
         rf.Read(&header, sizeof(header));
@@ -1910,8 +1912,8 @@ void Waypoint::Save(void)
     header.mapName[31] = 0;
     header.fileVersion = FV_WAYPOINT;
     header.pointNumber = g_numWaypoints;
-    
-    File fp(CheckSubfolderFile(false), "wb");
+
+    File fp(path, "wb");
 
     // file was opened
     if (fp.IsValid())
@@ -1926,7 +1928,7 @@ void Waypoint::Save(void)
         fp.Close();
     }
     else
-        AddLogEntry(Log::Error, "Error writing '%s.ewp' waypoint file", GetMapName());
+        AddLogEntry(Log::Error, "Error writing '%s' waypoint file", GetMapName());
 }
 
 void Waypoint::SaveOLD(void)
@@ -1946,8 +1948,10 @@ void Waypoint::SaveOLD(void)
 
     cstrcpy(header.author, waypointAuthor);
 
+    String path = FormatBuffer("%s/%s.pwf", GetWaypointDir(), GetMapName());
+
     // remember the original waypoint author
-    File rf(CheckSubfolderFileOLD(), "rb");
+    File rf(path, "rb");
     if (rf.IsValid())
     {
         rf.Read(&header, sizeof(header));
@@ -1961,7 +1965,7 @@ void Waypoint::SaveOLD(void)
     header.fileVersion = 7;
     header.pointNumber = cmin(g_numWaypoints, 1024);
 
-    File fp(CheckSubfolderFileOLD(), "wb");
+    File fp(path, "wb");
 
     // file was opened
     if (fp.IsValid())
@@ -2026,10 +2030,10 @@ void Waypoint::SaveOLD(void)
 
                     if (paths[i]->connectionFlags[x] & PATHFLAG_JUMP)
                     {
-                        const float timeToReachWaypoint = csqrtf(cpowf(waypointOrigin.x - myOrigin.x, 2.0f) + cpowf(waypointOrigin.y - myOrigin.y, 2.0f)) / 250.0f;
+                        const float timeToReachWaypoint = csqrtf(SquaredF(waypointOrigin.x - myOrigin.x) + SquaredF(waypointOrigin.y - myOrigin.y)) / 250.0f;
                         paths[i]->connectionVelocity[x].x = (waypointOrigin.x - myOrigin.x) / timeToReachWaypoint;
                         paths[i]->connectionVelocity[x].y = (waypointOrigin.y - myOrigin.y) / timeToReachWaypoint;
-                        paths[i]->connectionVelocity[x].z = 2.0f * (waypointOrigin.z - myOrigin.z - 0.5f * 1.0f * cpowf(timeToReachWaypoint, 2.0f)) / timeToReachWaypoint;
+                        paths[i]->connectionVelocity[x].z = 2.0f * (waypointOrigin.z - myOrigin.z - 0.5f * 1.0f * SquaredF(timeToReachWaypoint)) / timeToReachWaypoint;
 
                         const float limit = (250.0f * 1.25f);
                         if (paths[i]->connectionVelocity[x].z > limit)
@@ -2087,7 +2091,7 @@ float Waypoint::GetTravelTime(const float maxSpeed, const Vector src, const Vect
     if (src == nullvec || origin == nullvec)
         return 10.0f;
 
-    return (origin - src).GetLengthSquared2D() / SquaredF(cabsf(maxSpeed));
+    return (origin - src).GetLength2D() / cabsf(maxSpeed);
 }
 
 bool Waypoint::Reachable(edict_t* entity, const int index)
@@ -3177,8 +3181,9 @@ void Waypoint::CreateBasic(void)
 
 Path* Waypoint::GetPath(const int id)
 {
+    // to avoid crash
     if (!IsValidWaypoint(id))
-        return m_paths[1];
+        return m_paths[CRandomInt(0, g_numWaypoints - 1)];
 
     return m_paths[id];
 }

@@ -90,28 +90,23 @@ int cmin(const int a, const int b)
 
 float csqrtf(const float value)
 {
-	return _mm_cvtss_f32(_mm_sqrt_ss(_mm_load_ss(&value)));;
+	return _mm_cvtss_f32(_mm_sqrt_ss(_mm_load_ss(&value)));
 }
 
 float crsqrtf(const float value)
 {
-	return _mm_cvtss_f32(_mm_rsqrt_ss(_mm_load_ss(&value)));;
+	return _mm_cvtss_f32(_mm_rsqrt_ss(_mm_load_ss(&value)));
 }
 
-// https://baptiste-wicht.com/posts/2017/09/cpp11-performance-tip-when-to-use-std-pow.html
-float cpowf(const float x, size_t y)
+float cpowf(const float x, const float y)
 {
-	if (y < 1)
+	if (y == 0.5f)
 		return csqrtf(x);
 
-	float r = 1.0f;
-	while (y > 0)
-	{
-		r *= x;
-		--y;
-	}
+	if (y == 2.0f)
+		return SquaredF(x);
 
-	return r;
+	return powf(x, y);
 }
 
 float cabsf(const float value)

@@ -203,7 +203,9 @@ int BotControl::CreateBot(String name, int skill, int personality, int team, int
 
 	if (g_gameVersion & Game::CStrike || g_gameVersion & Game::CZero)
 	{
-		const auto filePath = FormatBuffer("%s/addons/ebot/profiles/%s.ep", GetModName(), ebotName);
+		char* folder = FormatBuffer("%s/addons/ebot/profiles", GetModName());
+		CreatePath(folder);
+		const char* filePath = FormatBuffer("%s/%s", folder, ebotName);
 		File file(filePath, "rt+");
 		if (file.IsValid())
 		{
@@ -1241,6 +1243,14 @@ void Bot::NewRound(void)
 	m_stuckArea = pev->origin;
 	m_stuckTimer = AddTime(engine->GetFreezeTime() + 1.28f);
 
+	m_hasEnemiesNear = false;
+	m_hasEntitiesNear = false;
+	m_hasFriendsNear = false;
+
+	m_nearestEnemy = nullptr;
+	m_nearestEntity = nullptr;
+	m_nearestFriend = nullptr;
+
 	// delete all allocated path nodes
 	DeleteSearchNodes();
 	m_weaponSelectDelay = engine->GetTime();
@@ -1356,7 +1366,7 @@ void Bot::Kill(void)
 	hurtEntity->v.dmgtime = 2.0f;
 	hurtEntity->v.effects |= EF_NODRAW;
 
-	(*g_engfuncs.pfnSetOrigin) (hurtEntity, Vector(-4000, -4000, -4000));
+	(*g_engfuncs.pfnSetOrigin) (hurtEntity, Vector(-4000.0f, -4000.0f, -4000.0f));
 
 	KeyValueData kv;
 	kv.szClassName = const_cast<char*>(g_weaponDefs[m_currentWeapon].className);
