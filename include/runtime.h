@@ -1279,8 +1279,8 @@ public:
     //
     T PopNoReturn(void)
     {
-        T element = m_elements[m_itemCount - 1];
-        RemoveAt(m_itemCount - 1);
+        if (m_itemCount > 0)
+            RemoveAt(m_itemCount - 1);
     }
 
     T& Last(void)

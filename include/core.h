@@ -57,7 +57,9 @@ enum class Process
 	Pickup,
 	ThrowHE,
 	ThrowFB,
-	ThrowSM
+	ThrowSM,
+	Blind,
+	Jump
 };
 
 // supported cs's
@@ -606,6 +608,7 @@ private:
 	int m_prevWptIndex[3]; // previous waypoint indices from waypoint find
 	int m_waypointFlags; // current waypoint flags
 	int m_loosedBombWptIndex; // nearest to loosed bomb waypoint
+	int m_knownWaypointIndex[5]; // checks if bot already aimed at this waypoint
 
 	unsigned short m_currentTravelFlags; // connection flags like jumping
 	bool m_jumpFinished; // has bot finished jumping
@@ -677,7 +680,7 @@ private:
 	bool IsInViewCone(const Vector& origin);
 	bool CheckVisibility(edict_t* targetEntity);
 
-	void CheckGrenadeThrow(void);
+	void CheckGrenadeThrow(edict_t* targetEntity);
 
 	edict_t* FindNearestButton(const char* className);
 	edict_t* FindButton(void);
@@ -929,6 +932,8 @@ public:
 	void ThrowHEStart(void);
 	void ThrowFBStart(void);
 	void ThrowSMStart(void);
+	void BlindStart(void);
+	void JumpStart(void);
 
 	void DefaultUpdate(void);
 	void AttackUpdate(void);
@@ -942,6 +947,8 @@ public:
 	void ThrowHEUpdate(void);
 	void ThrowFBUpdate(void);
 	void ThrowSMUpdate(void);
+	void BlindUpdate(void);
+	void JumpUpdate(void);
 
 	void DefaultEnd(void);
 	void AttackEnd(void);
@@ -955,6 +962,8 @@ public:
 	void ThrowHEEnd(void);
 	void ThrowFBEnd(void);
 	void ThrowSMEnd(void);
+	void BlindEnd(void);
+	void JumpEnd(void);
 
 	bool DefaultReq(void);
 	bool AttackReq(void);
@@ -968,6 +977,8 @@ public:
 	bool ThrowHEReq(void);
 	bool ThrowFBReq(void);
 	bool ThrowSMReq(void);
+	bool BlindReq(void);
+	bool JumpReq(void);
 
 	int GetWeaponID(const char* weapon);
 	int GetAmmo(void);
@@ -1239,7 +1250,6 @@ public:
 
 // prototypes of bot functions...
 extern int GetWeaponReturn(const bool isString, const char* weaponAlias, const int weaponID = -1);
-extern unsigned int GetPlayerPriority(edict_t* player);
 extern int GetTeam(edict_t* ent);
 extern GameMode GetGameMode(void);
 extern bool IsBreakable(edict_t* ent);
@@ -1270,7 +1280,7 @@ extern bool IsValidBot(edict_t* ent);
 extern bool IsValidBot(int index);
 extern bool IsValidPlayer(edict_t* ent);
 extern bool OpenConfig(const char* fileName, char* errorIfNotExists, File* outFile);
-extern bool FindNearestPlayer(void** holder, edict_t* to, float searchDistance = 4096.0, bool sameTeam = false, bool needBot = false, bool needAlive = false, bool needDrawn = false);
+extern bool FindNearestPlayer(void** holder, edict_t* to, float searchDistance = 4096.0f, bool sameTeam = false, bool needBot = false, bool needAlive = false, bool needDrawn = false);
 
 extern const char* GetEntityName(edict_t* entity);
 
