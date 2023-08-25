@@ -1042,7 +1042,7 @@ private:
 	bool m_economicsGood[2]; // is team able to buy anything
 
 protected:
-	int CreateBot(String name, int skill, int personality, int team, int member);
+	int CreateBot(String name, int skill, int personality, const int team, const int member);
 
 public:
 	Bot* m_bots[32]; // all available bots
@@ -1056,11 +1056,11 @@ public:
 	bool EconomicsValid(const int team) { return m_economicsGood[team]; }
 
 	int GetLastWinner(void) const { return m_lastWinner; }
-	void SetLastWinner(int winner) { m_lastWinner = winner; }
+	void SetLastWinner(const int winner) { m_lastWinner = winner; }
 
 	int GetIndex(edict_t* ent);
-	int GetIndex(int index);
-	Bot* GetBot(int index);
+	int GetIndex(const int index);
+	Bot* GetBot(const int index);
 	Bot* GetBot(edict_t* ent);
 	Bot* FindOneValidAliveBot(void);
 	Bot* GetHighestSkillBot(const int team);
@@ -1072,17 +1072,16 @@ public:
 	void Think(void);
 	void DoJoinQuitStuff(void);
 	void Free(void);
-	void Free(int index);
-	void CheckBotNum(void);
+	void Free(const int index);
 
 	void AddRandom(void) { AddBot("", -1, -1, -1, -1); }
-	void AddBot(const String& name, int skill, int personality, int team, int member);
-	void FillServer(int selection, int personality = Personality::Normal, int skill = -1, int numToAdd = -1);
+	void AddBot(const String& name, const int skill, const int personality, const int team, const int member);
+	void FillServer(int selection, const int personality = Personality::Normal, const int skill = -1, const int numToAdd = -1);
 
 	void RemoveAll(void);
 	void RemoveRandom(void);
-	void RemoveFromTeam(Team team, bool removeAll = false);
-	void RemoveMenu(edict_t* ent, int selection);
+	void RemoveFromTeam(const Team team, const bool removeAll = false);
+	void RemoveMenu(edict_t* ent, const int selection);
 	void KillAll(const int team = Team::Count);
 	void MaintainBotQuota(void);
 	void InitQuota(void);
@@ -1091,7 +1090,7 @@ public:
 	void SetWeaponMode(int selection);
 	void CheckTeamEconomics(const int team);
 
-	int AddBotAPI(const String& name, int skill, int team);
+	int AddBotAPI(const String& name, const int skill, const int team);
 
 	static void CallGameEntity(entvars_t* vars);
 };
@@ -1277,7 +1276,7 @@ extern Vector GetWalkablePosition(const Vector& origin, edict_t* ent = nullptr, 
 extern bool IsAlive(const edict_t* ent);
 extern bool IsInViewCone(const Vector& origin, edict_t* ent);
 extern bool IsValidBot(edict_t* ent);
-extern bool IsValidBot(int index);
+extern bool IsValidBot(const int index);
 extern bool IsValidPlayer(edict_t* ent);
 extern bool OpenConfig(const char* fileName, char* errorIfNotExists, File* outFile);
 extern bool FindNearestPlayer(void** holder, edict_t* to, float searchDistance = 4096.0f, bool sameTeam = false, bool needBot = false, bool needAlive = false, bool needDrawn = false);
