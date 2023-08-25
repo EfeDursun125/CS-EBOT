@@ -14,8 +14,10 @@ void Bot::DefaultUpdate(void)
 	{
 		if (m_isSlowThink)
 		{
-			CheckGrenadeThrow();
 			FindEnemyEntities();
+
+			if (m_hasEnemiesNear && !FNullEnt(m_nearestEnemy))
+				CheckGrenadeThrow(m_nearestEnemy);
 		}
 		else
 			FindFriendsAndEnemiens();
@@ -59,7 +61,7 @@ void Bot::DefaultUpdate(void)
 		if (m_isSlowThink)
 		{
 			// revert the zoom to normal
-			if (pev->fov != 90.0f)
+			if (UsesSniper() && pev->fov != 90.0f)
 				pev->button |= IN_ATTACK2;
 
 			FindEnemyEntities();

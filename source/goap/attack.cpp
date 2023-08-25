@@ -21,6 +21,15 @@ void Bot::AttackUpdate(void)
 
 	if (!m_hasEnemiesNear && !m_hasEntitiesNear)
 	{
+		if (g_bombPlanted && (m_team == Team::Counter || IsBombDefusing(g_waypoint->GetBombPosition())))
+		{
+			if (!FNullEnt(m_nearestEnemy) && IsAlive(m_nearestEnemy))
+				CheckGrenadeThrow(m_nearestEnemy);
+
+			FinishCurrentProcess("no target exist");
+			return;
+		}
+
 		// health based wait time
 		float wait = 2.0f - (pev->health / pev->max_health);
 
@@ -72,7 +81,7 @@ void Bot::AttackUpdate(void)
 			FinishCurrentProcess("no target exist");
 		}
 		else if (!FNullEnt(m_nearestEnemy) && IsAlive(m_nearestEnemy))
-			CheckGrenadeThrow();
+			CheckGrenadeThrow(m_nearestEnemy);
 
 		return;
 	}
@@ -90,6 +99,7 @@ void Bot::AttackUpdate(void)
 		}
 		else
 			FollowPath(m_enemyOrigin);
+
 		return;
 	}
 	else

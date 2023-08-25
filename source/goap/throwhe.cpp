@@ -3,20 +3,29 @@
 void Bot::ThrowHEStart(void)
 {
 	SelectWeaponByName("weapon_hegrenade");
-
-	/*TraceResult tr{};
-	TraceHull(EyePosition(), m_lookAt, false, point_hull, GetEntity(), &tr);
-	if (tr.flFraction != 1.0f)
-	{
-		const int index = g_waypoint->FindNearest(m_lookAt, 9999999.0f, -1, GetEntity());
-		if (IsValidWaypoint(index))
-			m_lookAt = g_waypoint->GetPath(index)->origin;
-	}*/
 }
 
 void Bot::ThrowHEUpdate(void)
 {
-	LookAt(-m_throw);
+	edict_t* ent = nullptr;
+	while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "grenade")))
+	{
+		if (ent->v.owner == GetEntity() && strcmp(STRING(ent->v.model) + 9, "hegrenade.mdl") == 0)
+		{
+			Vector grenade = CheckThrow(EyePosition(), m_throw);
+
+			if (grenade.GetLengthSquared() < 100)
+				grenade = CheckToss(EyePosition(), m_throw);
+
+			if (grenade.GetLengthSquared() > 100)
+				ent->v.velocity = grenade;
+
+			FinishCurrentProcess("i have throwed HE grenade");
+			return;
+		}
+	}
+
+	LookAt(m_throw + pev->velocity * -m_frameInterval);
 
 	if (m_currentWeapon != Weapon::HeGrenade)
 	{
@@ -36,5 +45,8 @@ void Bot::ThrowHEEnd(void)
 
 bool Bot::ThrowHEReq(void)
 {
+	if (!IsZombieMode() && ((pev->origin + pev->velocity * m_frameInterval) - (m_throw + pev->velocity * -m_frameInterval)).GetLengthSquared() < SquaredF(400.0f))
+		return false;
+
 	return true;
 }

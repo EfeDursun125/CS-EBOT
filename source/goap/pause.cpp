@@ -7,31 +7,14 @@ void Bot::PauseStart(void)
 
 void Bot::PauseUpdate(void)
 {
-	if (IsOnFloor() && m_jumpTime + 0.1f < engine->GetTime())
+	m_moveSpeed = 0.0f;
+	m_strafeSpeed = 0.0f;
+	FindEnemyEntities();
+	FindFriendsAndEnemiens();
+	if (m_hasEnemiesNear || m_hasEntitiesNear)
 	{
-		m_moveSpeed = 0.0f;
-		m_strafeSpeed = 0.0f;
-
-		if (m_isSlowThink && GetProcessTime() > 2.0f)
-		{
-			FindEnemyEntities();
-			FindFriendsAndEnemiens();
-			if (m_hasEnemiesNear || m_hasEntitiesNear)
-			{
-				FinishCurrentProcess("enemies found me");
-				return;
-			}
-		}
-	}
-	else
-	{
-		const Vector directionOld = (m_destOrigin + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval);
-		const Vector directionNormal = directionOld.Normalize2D();
-		SetStrafeSpeedNoCost(directionNormal, pev->maxspeed);
-		m_moveAngles = directionOld.ToAngles();
-		m_moveAngles.ClampAngles();
-		m_moveAngles.x = -m_moveAngles.x;
-		m_moveSpeed = pev->maxspeed;
+		FinishCurrentProcess("enemies found me");
+		return;
 	}
 }
 

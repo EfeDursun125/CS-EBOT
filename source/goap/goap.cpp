@@ -74,6 +74,12 @@ void Bot::StartProcess(const Process process)
 	case Process::ThrowSM:
 		ThrowSMStart();
 		break;
+	case Process::Blind:
+		BlindStart();
+		break;
+	case Process::Jump:
+		JumpStart();
+		break;
 	}
 }
 
@@ -115,6 +121,12 @@ void Bot::EndProcess(const Process process)
 		break;
 	case Process::ThrowSM:
 		ThrowSMEnd();
+		break;
+	case Process::Blind:
+		BlindEnd();
+		break;
+	case Process::Jump:
+		JumpEnd();
 		break;
 	}
 }
@@ -158,6 +170,12 @@ void Bot::UpdateProcess(void)
 		break;
 	case Process::ThrowSM:
 		ThrowSMUpdate();
+		break;
+	case Process::Blind:
+		BlindUpdate();
+		break;
+	case Process::Jump:
+		JumpUpdate();
 		break;
 	default:
 		SetProcess(Process::Default, "unknown process");
@@ -237,6 +255,10 @@ bool Bot::IsReadyForTheProcess(const Process process)
 		return ThrowFBReq();
 	case Process::ThrowSM:
 		return ThrowSMReq();
+	case Process::Blind:
+		return BlindReq();
+	case Process::Jump:
+		return JumpReq();
 	}
 
 	return true;
@@ -272,6 +294,10 @@ char* Bot::GetProcessName(const Process process)
 		return "THROW FB GRENADE";
 	case Process::ThrowSM:
 		return "THROW SM GRENADE";
+	case Process::Blind:
+		return "BLINDED";
+	case Process::Jump:
+		return "JUMPING";
 	}
 
 	return "UNKNOWN";
