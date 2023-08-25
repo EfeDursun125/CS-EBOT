@@ -358,6 +358,9 @@ void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
 	// supply directly the whole string as if you were typing it in the bot's "console". It
 	// is supposed to work exactly like the pfnClientCommand (server-sided client command).
 
+	if (g_isFakeCommand)
+		return;
+
 	if (!IsValidBot(fakeClient))
 		return;
 
@@ -1115,7 +1118,7 @@ bool IsValidBot(edict_t* ent)
 	return false;
 }
 
-bool IsValidBot(int index)
+bool IsValidBot(const int index)
 {
 	if (g_botManager->GetIndex(index) != -1)
 		return true;

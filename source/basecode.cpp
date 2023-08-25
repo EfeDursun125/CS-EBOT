@@ -1239,31 +1239,33 @@ bool Bot::IsEnemyReachable(void)
 	if (m_enemyReachableTimer > engine->GetTime())
 		return m_isEnemyReachable;
 
+	const float time = engine->GetTime();
+
 	// NO!
 	if (IsOnLadder())
 	{
 		m_isEnemyReachable = false;
-		m_enemyReachableTimer = AddTime(CRandomFloat(0.33f, 0.66f));
+		m_enemyReachableTimer = time + CRandomFloat(0.33f, 0.66f);
 		return m_isEnemyReachable;
 	}
 
 	if (m_currentTravelFlags & PATHFLAG_JUMP)
 	{
 		m_isEnemyReachable = false;
-		m_enemyReachableTimer = AddTime(CRandomFloat(0.33f, 0.66f));
+		m_enemyReachableTimer = time + CRandomFloat(0.33f, 0.66f);
 		return m_isEnemyReachable;
 	}
 
 	if (!m_hasEnemiesNear || FNullEnt(m_nearestEnemy))
 	{
 		m_isEnemyReachable = false;
-		m_enemyReachableTimer = AddTime(CRandomFloat(0.33f, 0.66f));
+		m_enemyReachableTimer = time + CRandomFloat(0.33f, 0.66f);
 		return m_isEnemyReachable;
 	}
 
 	if (!m_isEnemyReachable && (!(m_nearestEnemy->v.flags & FL_ONGROUND) || (m_nearestEnemy->v.flags & FL_PARTIALGROUND && !(m_nearestEnemy->v.flags & FL_DUCKING))))
 	{
-		m_enemyReachableTimer = AddTime(CRandomFloat(0.33f, 0.66f));
+		m_enemyReachableTimer = time + CRandomFloat(0.33f, 0.66f);
 		return m_isEnemyReachable;
 	}
 
@@ -1271,20 +1273,20 @@ bool Bot::IsEnemyReachable(void)
 
 	const int ownIndex = IsValidWaypoint(m_currentWaypointIndex) ? m_currentWaypointIndex : (m_currentWaypointIndex = g_waypoint->FindNearest(pev->origin, 999999.0f, -1, GetEntity()));
 	const int enemyIndex = g_waypoint->FindNearest(m_enemyOrigin, 999999.0f, -1, GetEntity());
-	const auto currentWaypoint = g_waypoint->GetPath(ownIndex);
+	const Path* currentWaypoint = g_waypoint->GetPath(ownIndex);
 
 	if (m_isZombieBot)
 	{
 		if (ownIndex == enemyIndex)
 		{
 			m_isEnemyReachable = true;
-			m_enemyReachableTimer = AddTime(CRandomFloat(0.33f, 0.66f));
+			m_enemyReachableTimer = time + CRandomFloat(0.33f, 0.66f);
 			return m_isEnemyReachable;
 		}
 		else if (currentWaypoint->flags & WAYPOINT_FALLRISK || currentWaypoint->flags & WAYPOINT_ZOMBIEPUSH)
 		{
 			m_isEnemyReachable = false;
-			m_enemyReachableTimer = AddTime(CRandomFloat(0.33f, 0.66f));
+			m_enemyReachableTimer = time + CRandomFloat(0.33f, 0.66f);
 			return m_isEnemyReachable;
 		}
 
@@ -1298,7 +1300,7 @@ bool Bot::IsEnemyReachable(void)
 			pev->speed = pev->maxspeed;
 			m_moveSpeed = pev->maxspeed;
 
-			m_enemyReachableTimer = AddTime(CRandomFloat(0.33f, 0.66f));
+			m_enemyReachableTimer = time + CRandomFloat(0.33f, 0.66f);
 			return m_isEnemyReachable;
 		}
 
@@ -1311,7 +1313,7 @@ bool Bot::IsEnemyReachable(void)
 			if (tr.flFraction == 1.0f || (enemyDistance < SquaredF(125.0f) && tr.pHit == m_nearestEnemy))
 			{
 				m_isEnemyReachable = true;
-				m_enemyReachableTimer = AddTime(CRandomFloat(0.33f, 0.66f));
+				m_enemyReachableTimer = time + CRandomFloat(0.33f, 0.66f);
 				return m_isEnemyReachable;
 			}
 		}
@@ -1329,7 +1331,7 @@ bool Bot::IsEnemyReachable(void)
 				if (tr.flFraction == 1.0f)
 				{
 					m_isEnemyReachable = true;
-					m_enemyReachableTimer = AddTime(CRandomFloat(0.33f, 0.66f));
+					m_enemyReachableTimer = time + CRandomFloat(0.33f, 0.66f);
 					return m_isEnemyReachable;
 				}
 			}
@@ -1340,13 +1342,13 @@ bool Bot::IsEnemyReachable(void)
 		if (enemyIndex == ownIndex)
 		{
 			m_isEnemyReachable = true;
-			m_enemyReachableTimer = AddTime(CRandomFloat(0.33f, 0.66f));
+			m_enemyReachableTimer = time + CRandomFloat(0.33f, 0.66f);
 			return m_isEnemyReachable;
 		}
 		else if (currentWaypoint->flags & WAYPOINT_FALLRISK)
 		{
 			m_isEnemyReachable = false;
-			m_enemyReachableTimer = AddTime(CRandomFloat(0.33f, 0.66f));
+			m_enemyReachableTimer = time + CRandomFloat(0.33f, 0.66f);
 			return m_isEnemyReachable;
 		}
 
@@ -1366,7 +1368,7 @@ bool Bot::IsEnemyReachable(void)
 			if (enemyDistance < escapeDist)
 			{
 				m_isEnemyReachable = true;
-				m_enemyReachableTimer = AddTime(CRandomFloat(0.33f, 0.66f));
+				m_enemyReachableTimer = time + CRandomFloat(0.33f, 0.66f);
 				return m_isEnemyReachable;
 			}
 		}
@@ -1399,14 +1401,14 @@ bool Bot::IsEnemyReachable(void)
 						if (tr.flFraction == 1.0f)
 						{
 							m_isEnemyReachable = true;
-							m_enemyReachableTimer = AddTime(CRandomFloat(0.33f, 0.66f));
+							m_enemyReachableTimer = time + CRandomFloat(0.33f, 0.66f);
 							return m_isEnemyReachable;
 						}
 					}
 				}
 			}
 
-			m_enemyReachableTimer = AddTime(CRandomFloat(0.33f, 0.66f));
+			m_enemyReachableTimer = time + CRandomFloat(0.33f, 0.66f);
 			return m_isEnemyReachable;
 		}
 		else if (enemyDistance < escapeDist)
@@ -1417,13 +1419,13 @@ bool Bot::IsEnemyReachable(void)
 			if (tr.flFraction == 1.0f)
 			{
 				m_isEnemyReachable = true;
-				m_enemyReachableTimer = AddTime(CRandomFloat(0.33f, 0.66f));
+				m_enemyReachableTimer = time + CRandomFloat(0.33f, 0.66f);
 				return m_isEnemyReachable;
 			}
 		}
 	}
 
-	m_enemyReachableTimer = AddTime(CRandomFloat(0.33f, 0.66f));
+	m_enemyReachableTimer = time + CRandomFloat(0.33f, 0.66f);
 	return m_isEnemyReachable;
 }
 
@@ -1506,7 +1508,7 @@ void Bot::CheckRadioCommands(void)
 		if (OutOfBombTimer())
 		{
 			RadioMessage(Radio::Affirmative);
-			SetProcess(Process::Escape, "my teammate told me i must escape from the bomb", true, GetBombTimeleft());
+			SetProcess(Process::Escape, "my teammate told me i must escape from the bomb", true, AddTime(GetBombTimeleft()));
 		}
 		else
 			RadioMessage(Radio::Negative);
@@ -1601,10 +1603,11 @@ void Bot::SetWalkTime(const float time)
 	if (!m_buyingFinished)
 		return;
 
-	if ((m_spawnTime + engine->GetFreezeTime() + 7.0f) > engine->GetTime())
+	const float time2 = engine->GetTime();
+	if ((m_spawnTime + engine->GetFreezeTime() + 7.0f) > time2)
 		return;
 
-	m_walkTime = AddTime(time + 1.0f - (pev->health / pev->max_health));
+	m_walkTime = time2 + (time + 1.0f - (pev->health / pev->max_health));
 }
 
 float Bot::GetMaxSpeed(void)
@@ -1648,11 +1651,17 @@ bool Bot::IsNotAttackLab(edict_t* entity)
 
 void Bot::BaseUpdate(void)
 {
-	// run playermovement
-	const byte adjustedMSec = static_cast<byte>(cminf(250.0f, (engine->GetTime() - m_msecInterval) * 1000.0f));
-	m_msecInterval = engine->GetTime();
-	PLAYER_RUN_MOVE(GetEntity(), m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, static_cast <unsigned short> (pev->button), pev->impulse, adjustedMSec);
+	edict_t* me = GetEntity();
+	if (me == nullptr)
+		return;
 
+	// run playermovement
+	const float time = engine->GetTime();
+	const byte adjustedMSec = static_cast<byte>(cminf(250.0f, (time - m_msecInterval) * 1000.0f));
+	m_msecInterval = time;
+	PLAYER_RUN_MOVE(me, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, static_cast<unsigned short>(pev->button), pev->impulse, adjustedMSec);
+
+	// reset
 	pev->impulse = 0;
 	pev->button = 0;
 	m_moveSpeed = 0.0f;
@@ -1667,34 +1676,33 @@ void Bot::BaseUpdate(void)
 		StartGame();
 	else
 	{
-		if (m_slowthinktimer < engine->GetTime())
+		if (m_slowthinktimer > time)
+			m_isSlowThink = false;
+		else
 		{
 			m_isSlowThink = true;
 			CheckSlowThink();
-			if (m_slowthinktimer < engine->GetTime())
-				m_slowthinktimer = AddTime(CRandomFloat(0.9f, 1.1f));
+			m_slowthinktimer = time + CRandomFloat(0.9f, 1.1f);
 		}
-		else
-			m_isSlowThink = false;
 
 		if (!m_isAlive)
 		{
 			if (!g_isFakeCommand)
 			{
 				extern ConVar ebot_random_join_quit;
-				if (ebot_random_join_quit.GetBool() && m_stayTime > 0.0f && m_stayTime < engine->GetTime())
+				if (ebot_random_join_quit.GetBool() && m_stayTime > 0.0f && m_stayTime < time)
 				{
 					Kick();
 					return;
 				}
 
 				extern ConVar ebot_chat;
-				if (ebot_chat.GetBool() && !RepliesToPlayer() && m_lastChatTime + 10.0f < engine->GetTime() && g_lastChatTime + 5.0f < engine->GetTime()) // bot chatting turned on?
+				if (ebot_chat.GetBool() && !RepliesToPlayer() && m_lastChatTime + 10.0f < time && g_lastChatTime + 5.0f < time) // bot chatting turned on?
 				{
-					m_lastChatTime = engine->GetTime();
+					m_lastChatTime = time;
 					if (ChanceOf(ebot_chat_percent.GetInt()) && !g_chatFactory[CHAT_DEAD].IsEmpty())
 					{
-						g_lastChatTime = engine->GetTime();
+						g_lastChatTime = time;
 
 						char* pickedPhrase = g_chatFactory[CHAT_DEAD].GetRandomElement();
 						bool sayBufferExists = false;
@@ -1764,8 +1772,8 @@ void Bot::BaseUpdate(void)
 	CheckMessageQueue();
 
 	// avoid frame drops
-	m_frameInterval = engine->GetTime() - m_frameDelay;
-	m_frameDelay = engine->GetTime();
+	m_frameInterval = time - m_frameDelay;
+	m_frameDelay = time;
 }
 
 void Bot::CheckSlowThink(void)
@@ -2044,9 +2052,13 @@ void Bot::LookAtAround(void)
 			return;
 		}
 	}
-
-	if (m_navNode != nullptr && m_navNode->next != nullptr && m_navNode->next->next != nullptr)
-		m_lookAt = g_waypoint->GetPath(m_navNode->next->next->index)->origin + pev->view_ofs;
+	
+	if (m_navNode != nullptr && m_navNode->next != nullptr)
+	{
+		const PathNode* third = m_navNode->next->next;
+		if (third != nullptr)
+			m_lookAt = g_waypoint->GetPath(third->index)->origin + pev->view_ofs;
+	}
 
 	if (m_isZombieBot || m_searchTime > engine->GetTime())
 		return;
@@ -2406,12 +2418,10 @@ void Bot::DebugModeMsg(void)
 
 	// now draw line from source to destination
 	PathNode* node = &m_navNode[0];
-
-	Vector src = nullvec;
 	while (node != nullptr)
 	{
 		Path* path = g_waypoint->GetPath(node->index);
-		src = path->origin;
+		const Vector src = path->origin;
 		node = node->next;
 
 		if (node != nullptr)
@@ -2504,7 +2514,7 @@ void Bot::TakeBlinded(const Vector fade, const int alpha)
 	if (fade.x != 255 || fade.y != 255 || fade.z != 255 || alpha <= 170)
 		return;
 
-	SetProcess(Process::Blind, "i'm blind", false, CRandomFloat(3.0f, 6.0f));
+	SetProcess(Process::Blind, "i'm blind", false, AddTime(CRandomFloat(3.0f, 6.0f)));
 }
 
 // this function, asks bot to discard his current primary weapon (or c4) to the user that requsted it with /drop*
