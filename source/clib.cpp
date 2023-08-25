@@ -98,15 +98,10 @@ float crsqrtf(const float value)
 	return _mm_cvtss_f32(_mm_rsqrt_ss(_mm_load_ss(&value)));
 }
 
-float cpowf(const float x, const float y)
+// http://wurstcaptures.untergrund.net/assembler_tricks.html
+float cpowf(const float a, const float b)
 {
-	if (y == 0.5f)
-		return csqrtf(x);
-
-	if (y == 2.0f)
-		return SquaredF(x);
-
-	return powf(x, y);
+	return (a / (b - a * b + a));
 }
 
 float cabsf(const float value)
@@ -130,8 +125,16 @@ float cceilf(const float value)
 	const int intValue = static_cast<int>(value);
 	float result = static_cast<float>(intValue);
 
-	if (result < value)
-		result += 1.0f;
+	if (value > 0.0f)
+	{
+		if (result < value)
+			result += 1.0f;
+	}
+	else if (value < 0.0f)
+	{
+		if (result > value)
+			result -= 1.0f;
+	}
 
 	return result;
 }
@@ -146,8 +149,16 @@ float croundf(const float value)
 	const int intValue = static_cast<int>(value);
 	float result = static_cast<float>(intValue);
 
-	if (result + 0.5f < value)
-		result += 1.0f;
+	if (value < 0.0f)
+	{
+		if (result - 0.5f > value)
+			result -= 1.0f;
+	}
+	else
+	{
+		if (result + 0.5f < value)
+			result += 1.0f;
+	}
 
 	return result;
 }

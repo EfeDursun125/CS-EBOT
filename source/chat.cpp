@@ -390,12 +390,15 @@ void Bot::ChatSay(const bool teamSay, const char* text, ...)
     if (!IsNullString(m_lastStrings) && m_lastStrings == text)
         return;
 
-    // humanize chat
     edict_t* me = GetEntity();
+    if (me == nullptr)
+        return;
+
+    // humanize chat
     if (m_lastChatEnt == me)
         return;
 
-    FakeClientCommand(GetEntity(), "%s \"%s\"", teamSay ? "say_team" : "say", text);
+    FakeClientCommand(me, "%s \"%s\"", teamSay ? "say_team" : "say", text);
     m_lastStrings[160] = *text;
     m_lastChatEnt = me;
 }
