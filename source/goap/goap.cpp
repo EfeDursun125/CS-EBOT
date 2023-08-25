@@ -27,7 +27,7 @@ bool Bot::SetProcess(const Process process, const char* debugnote, const bool re
 		EndProcess(m_currentProcess);
 		m_currentProcess = process;
 		StartProcess(process);
-		m_currentProcessTime = AddTime(time);
+		m_currentProcessTime = time;
 		return true;
 	}
 
@@ -133,6 +133,8 @@ void Bot::EndProcess(const Process process)
 
 void Bot::UpdateProcess(void)
 {
+	const float time = engine->GetTime();
+
 	switch (m_currentProcess)
 	{
 	case Process::Default:
@@ -178,18 +180,18 @@ void Bot::UpdateProcess(void)
 		JumpUpdate();
 		break;
 	default:
-		SetProcess(Process::Default, "unknown process");
+		SetProcess(Process::Default, "unknown process", true, time + 99999999.0f);
 		break;
 	}
 
-	if (m_currentProcess > Process::Default && m_currentProcessTime < engine->GetTime())
+	if (m_currentProcess > Process::Default && m_currentProcessTime < time)
 	{
 		if (ebot_debug.GetInt() > 0)
 			ServerPrint("%s is cancelled %s process -> timed out.", GetEntityName(GetEntity()), GetProcessName(m_currentProcess));
 
 		EndProcess(m_currentProcess);
 
-		if (m_rememberedProcess != m_currentProcess && m_rememberedProcessTime > engine->GetTime() && IsReadyForTheProcess(m_rememberedProcess))
+		if (m_rememberedProcess != m_currentProcess && m_rememberedProcessTime > time && IsReadyForTheProcess(m_rememberedProcess))
 		{
 			StartProcess(m_rememberedProcess);
 			m_currentProcess = m_rememberedProcess;

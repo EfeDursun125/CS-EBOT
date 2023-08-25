@@ -13,7 +13,7 @@ void Bot::EscapeUpdate(void)
 	UpdateLooking();
 
 	if (m_currentWaypointIndex == m_chosenGoalIndex)
-		SetProcess(Process::Pause, "i have escaped from the bomb", true, 99999999.0f);
+		SetProcess(Process::Pause, "i have escaped from the bomb", true, AddTime(99999999.0f));
 	else
 	{
 		if (!m_hasEntitiesNear && m_numEnemiesLeft <= 0)

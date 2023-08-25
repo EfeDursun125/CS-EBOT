@@ -2,7 +2,7 @@
 
 void Bot::PickupStart(void)
 {
-	ResetStuck();
+
 }
 
 void Bot::PickupUpdate(void)
@@ -53,7 +53,7 @@ void Bot::PickupUpdate(void)
 
 	case PickupType::Weapon:
 		// near to weapon?
-		if (itemDistance <= SquaredF(64.0f))
+		if (itemDistance < SquaredF(64.0f))
 		{
 			int i;
 			for (i = 0; i < 7; i++)
@@ -76,10 +76,15 @@ void Bot::PickupUpdate(void)
 				if (weaponID > 0)
 				{
 					SelectWeaponbyNumber(weaponID);
-					FakeClientCommand(GetEntity(), "drop");
+
+					edict_t* me = GetEntity();
+					if (me == nullptr)
+						return;
+
+					FakeClientCommand(me, "drop");
 
 					if (HasShield()) // If we have the shield...
-						FakeClientCommand(GetEntity(), "drop"); // discard both shield and pistol
+						FakeClientCommand(me, "drop"); // discard both shield and pistol
 				}
 
 				EquipInBuyzone(0);
@@ -119,7 +124,7 @@ void Bot::PickupUpdate(void)
 			m_pickupItem = nullptr;
 			break;
 		}
-		else if (itemDistance <= SquaredF(64.0f)) // near to shield?
+		else if (itemDistance < SquaredF(64.0f)) // near to shield?
 		{
 			// get current best weapon to check if it's a primary in need to be dropped
 			const int weaponID = GetHighestWeapon();
@@ -127,13 +132,17 @@ void Bot::PickupUpdate(void)
 			if (weaponID > 6)
 			{
 				SelectWeaponbyNumber(weaponID);
-				FakeClientCommand(GetEntity(), "drop");
 
+				edict_t* me = GetEntity();
+				if (me == nullptr)
+					return;
+
+				FakeClientCommand(me, "drop");
 				if (IsValidWaypoint(m_currentWaypointIndex))
 				{
 					if (itemDistance > SquaredI(g_waypoint->GetPath(m_currentWaypointIndex)->radius))
 					{
-						SetEntityWaypoint(GetEntity());
+						SetEntityWaypoint(me);
 						m_currentWaypointIndex = -1;
 						FindWaypoint();
 					}
@@ -143,9 +152,9 @@ void Bot::PickupUpdate(void)
 		break;
 
 	case PickupType::PlantedC4:
-		if (m_team == Team::Counter && itemDistance <= SquaredF(64.0f))
+		if (m_team == Team::Counter && itemDistance < SquaredF(64.0f))
 		{
-			if (!SetProcess(Process::Defuse, "trying to defusing the bomb", false, m_hasDefuser ? 6.0f : 12.0f))
+			if (!SetProcess(Process::Defuse, "trying to defusing the bomb", false, AddTime(m_hasDefuser ? 6.0f : 12.0f)))
 				FinishCurrentProcess("cannot start to defuse bomb");
 		}
 
@@ -162,7 +171,7 @@ void Bot::PickupUpdate(void)
 
 		LookAt(destination);
 
-		if (itemDistance <= SquaredF(64.0f))
+		if (itemDistance < SquaredF(64.0f))
 		{
 			if (g_gameVersion & Game::Xash)
 				pev->button |= IN_USE;
@@ -190,7 +199,8 @@ void Bot::PickupUpdate(void)
 		break;
 
 	case PickupType::Button:
-		if (FNullEnt(m_pickupItem) || m_buttonPushTime < engine->GetTime()) // it's safer...
+		const float time = engine->GetTime();
+		if (FNullEnt(m_pickupItem) || m_buttonPushTime < time) // it's safer...
 		{
 			FinishCurrentProcess("button is gone...");
 			m_pickupType = PickupType::None;
@@ -202,9 +212,9 @@ void Bot::PickupUpdate(void)
 		// find angles from bot origin to entity...
 		const float angleToEntity = InFieldOfView(destination - EyePosition());
 
-		if (itemDistance <= SquaredF(90.0f)) // near to the button?
+		if (itemDistance < SquaredF(90.0f)) // near to the button?
 		{
-			if (angleToEntity <= 10) // facing it directly?
+			if (angleToEntity < 15) // facing it directly?
 			{
 				if (g_gameVersion & Game::Xash)
 					pev->button |= IN_USE;
@@ -213,7 +223,7 @@ void Bot::PickupUpdate(void)
 
 				m_pickupItem = nullptr;
 				m_pickupType = PickupType::None;
-				m_buttonPushTime = AddTime(engine->GetTime());
+				m_buttonPushTime = time;
 				FinishCurrentProcess("i have pushed the button");
 			}
 		}
@@ -224,7 +234,6 @@ void Bot::PickupUpdate(void)
 
 void Bot::PickupEnd(void)
 {
-	ResetStuck();
 	DeleteSearchNodes();
 	FindWaypoint();
 }

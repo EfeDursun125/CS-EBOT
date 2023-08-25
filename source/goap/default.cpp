@@ -2,8 +2,6 @@
 
 void Bot::DefaultStart(void)
 {
-	ResetStuck();
-
 	if (m_isZombieBot)
 		SelectWeaponByName("weapon_knife");
 }
@@ -80,12 +78,13 @@ void Bot::DefaultUpdate(void)
 		}
 		else
 		{
+			const float time = engine->GetTime();
 			if (m_itemCheckTime < engine->GetTime())
 			{
 				FindItem();
-				m_itemCheckTime = AddTime(g_gameVersion & Game::HalfLife ? 1.25f : CRandomFloat(1.25f, 2.5f));
+				m_itemCheckTime = time + (g_gameVersion & Game::HalfLife ? 1.0f : CRandomFloat(1.0f, 2.0f));
 
-				if (GetEntityOrigin(m_pickupItem) != nullvec && SetProcess(Process::Pickup, "i see good stuff to pick it up", true, 20.0f))
+				if (GetEntityOrigin(m_pickupItem) != nullvec && SetProcess(Process::Pickup, "i see good stuff to pick it up", true, time + 20.0f))
 					return;
 			}
 			else
@@ -116,15 +115,16 @@ void Bot::DefaultUpdate(void)
 			{
 				if (m_currentWeapon == Weapon::M3 || m_currentWeapon == Weapon::Xm1014)
 				{
-					if (((m_hasEnemiesNear && m_enemySeeTime + 2.0f < engine->GetTime()) || (m_hasEntitiesNear && m_entitySeeTime + 2.0f < engine->GetTime())) && SetProcess(Process::Attack, "i found a target", false, 999999.0f))
+					const float time = engine->GetTime();
+					if (((m_hasEnemiesNear && m_enemySeeTime + 2.0f < time) || (m_hasEntitiesNear && m_entitySeeTime + 2.0f < time)) && SetProcess(Process::Attack, "i found a target", false, time + 999999.0f))
 						return;
 				}
-				else if (SetProcess(Process::Attack, "i found a target", false, 999999.0f))
+				else if (SetProcess(Process::Attack, "i found a target", false, AddTime(999999.0f)))
 					return;
 			}
 			else if (m_isBomber && m_waypointFlags & WAYPOINT_GOAL && m_navNode == nullptr)
 			{
-				if (SetProcess(Process::Plant, "trying to plant the bomb.", false, 12.0f))
+				if (SetProcess(Process::Plant, "trying to plant the bomb.", false, AddTime(12.0f)))
 					return;
 			}
 

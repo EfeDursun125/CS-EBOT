@@ -13,6 +13,8 @@ void Bot::AttackUpdate(void)
 		return;
 	}
 
+	const float time = engine->GetTime();
+
 	FindFriendsAndEnemiens();
 	FindEnemyEntities();
 	LookAtEnemies();
@@ -75,7 +77,7 @@ void Bot::AttackUpdate(void)
 			}
 		}
 
-		if (m_enemySeeTime + wait < engine->GetTime() && m_entitySeeTime + wait < engine->GetTime())
+		if (m_enemySeeTime + wait < time && m_entitySeeTime + wait < time)
 		{
 			SetWalkTime(7.0f);
 			FinishCurrentProcess("no target exist");
@@ -88,7 +90,7 @@ void Bot::AttackUpdate(void)
 	else
 		FireWeapon();
 
-	const float distance = m_enemyDistance;
+	const float distance = GetTargetDistance();
 	const int melee = g_gameVersion & Game::HalfLife ? WeaponHL::Crowbar : Weapon::Knife;
 	if (m_currentWeapon == melee)
 	{
@@ -150,11 +152,11 @@ void Bot::AttackUpdate(void)
 	if (UsesSniper())
 	{
 		m_fightStyle = 1;
-		m_lastFightStyleCheck = engine->GetTime();
+		m_lastFightStyleCheck = time;
 	}
 	else if (UsesRifle() || UsesSubmachineGun())
 	{
-		if (m_lastFightStyleCheck + 0.5f < engine->GetTime())
+		if (m_lastFightStyleCheck + 0.5f < time)
 		{
 			if (ChanceOf(75))
 			{
@@ -176,12 +178,12 @@ void Bot::AttackUpdate(void)
 				}
 			}
 
-			m_lastFightStyleCheck = engine->GetTime();
+			m_lastFightStyleCheck = time;
 		}
 	}
 	else
 	{
-		if (m_lastFightStyleCheck + 0.5f < engine->GetTime())
+		if (m_lastFightStyleCheck + 0.5f < time)
 		{
 			if (ChanceOf(75))
 			{
@@ -191,13 +193,13 @@ void Bot::AttackUpdate(void)
 					m_fightStyle = 1;
 			}
 
-			m_lastFightStyleCheck = engine->GetTime();
+			m_lastFightStyleCheck = time;
 		}
 	}
 
 	if (m_fightStyle == 0 || ((pev->button & IN_RELOAD) || m_isReloading) || (UsesPistol() && distance < SquaredF(768.0f)) || m_currentWeapon == melee)
 	{
-		if (m_strafeSetTime < engine->GetTime())
+		if (m_strafeSetTime < time)
 		{
 			// to start strafing, we have to first figure out if the target is on the left side or right side
 			MakeVectors(m_nearestEnemy->v.v_angle);
@@ -213,7 +215,7 @@ void Bot::AttackUpdate(void)
 			if (ChanceOf(30))
 				m_combatStrafeDir = (m_combatStrafeDir == 1 ? 0 : 1);
 
-			m_strafeSetTime = AddTime(CRandomFloat(0.5f, 3.0f));
+			m_strafeSetTime = time + CRandomFloat(0.5f, 3.0f);
 		}
 
 		if (m_combatStrafeDir == 0)
@@ -223,7 +225,7 @@ void Bot::AttackUpdate(void)
 			else
 			{
 				m_combatStrafeDir = 1;
-				m_strafeSetTime = AddTime(1.5f);
+				m_strafeSetTime = time + CRandomFloat(0.75, 1.5f);
 			}
 		}
 		else
@@ -233,11 +235,11 @@ void Bot::AttackUpdate(void)
 			else
 			{
 				m_combatStrafeDir = 0;
-				m_strafeSetTime = AddTime(1.5f);
+				m_strafeSetTime = time + CRandomFloat(0.75, 1.5f);
 			}
 		}
 
-		if (m_jumpTime + 2.0f < engine->GetTime() && !IsOnLadder() && ChanceOf(m_isReloading ? 5 : 2) && !UsesSniper() && pev->velocity.GetLength2D() > float(m_skill + 50))
+		if (m_jumpTime + 2.0f < time && !IsOnLadder() && ChanceOf(m_isReloading ? 5 : 2) && !UsesSniper() && pev->velocity.GetLength2D() > float(m_skill + 50))
 			pev->button |= IN_JUMP;
 
 		if (m_moveSpeed > 0.0f && distance > SquaredF(512.0f) && m_currentWeapon != melee)
@@ -250,13 +252,13 @@ void Bot::AttackUpdate(void)
 	{
 		const Vector& src = pev->origin - Vector(0, 0, 18.0f);
 		if (!(m_visibility & (Visibility::Head | Visibility::Body)) && IsVisible(src, m_nearestEnemy))
-			m_duckTime = AddTime(1.0f);
+			m_duckTime = time + 1.0f;
 
 		m_moveSpeed = 0.0f;
 		m_strafeSpeed = 0.0f;
 	}
 
-	if (m_duckTime > engine->GetTime())
+	if (m_duckTime > time)
 	{
 		m_moveSpeed = 0.0f;
 		m_strafeSpeed = 0.0f;
@@ -287,7 +289,6 @@ void Bot::AttackUpdate(void)
 
 void Bot::AttackEnd(void)
 {
-	ResetStuck();
 	FindWaypoint();
 }
 

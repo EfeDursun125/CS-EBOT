@@ -2,7 +2,7 @@
 
 void Bot::PauseStart(void)
 {
-	ResetStuck();
+
 }
 
 void Bot::PauseUpdate(void)

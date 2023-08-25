@@ -2,7 +2,6 @@
 
 void Bot::DestroyBreakableStart(void)
 {
-	ResetStuck();
 	SelectBestWeapon();
 }
 

@@ -29,6 +29,7 @@ void Bot::CampUpdate(void)
 
 	UpdateLooking();
 
+	const float time = engine->GetTime();
 	if (m_isSlowThink)
 	{
 		// revert the zoom to normal
@@ -40,20 +41,20 @@ void Bot::CampUpdate(void)
 		if (!m_hasEnemiesNear && !g_isFakeCommand)
 		{
 			extern ConVar ebot_chat;
-			if (ebot_chat.GetBool() && m_lastChatTime + 10.0f < engine->GetTime() && g_lastChatTime + 5.0f < engine->GetTime() && !RepliesToPlayer()) // bot chatting turned on?
-				m_lastChatTime = engine->GetTime();
+			if (ebot_chat.GetBool() && m_lastChatTime + 10.0f < time && g_lastChatTime + 5.0f < time && !RepliesToPlayer()) // bot chatting turned on?
+				m_lastChatTime = time;
 		}
 
 		CheckRadioCommands();
 	}
 	else
 	{
-		if (m_itemCheckTime < engine->GetTime())
+		if (m_itemCheckTime < time)
 		{
 			FindItem();
-			m_itemCheckTime = AddTime(CRandomFloat(1.25f, 2.5f));
+			m_itemCheckTime = time + 2.0f;
 
-			if (GetEntityOrigin(m_pickupItem) != nullvec && SetProcess(Process::Pickup, "i see good stuff to pick it up", true, 20.0f))
+			if (GetEntityOrigin(m_pickupItem) != nullvec && SetProcess(Process::Pickup, "i see good stuff to pick it up", true, time + 20.0f))
 				return;
 		}
 		else
@@ -76,7 +77,7 @@ void Bot::CampUpdate(void)
 		else
 		{
 			// standing still
-			if (m_hasEnemiesNear && m_currentWeapon != Weapon::Knife && m_personality != Personality::Rusher && pev->velocity.GetLengthSquared2D() <= 18.0f)
+			if (m_hasEnemiesNear && m_currentWeapon != Weapon::Knife && m_personality != Personality::Rusher && pev->velocity.GetLengthSquared2D() < 20.0f)
 			{
 				bool crouch = true;
 				if (m_currentWeapon != Weapon::M3 ||
@@ -92,17 +93,17 @@ void Bot::CampUpdate(void)
 					crouch = false;
 
 				if (crouch && IsVisible(m_enemyOrigin, GetEntity()))
-					m_duckTime = AddTime(1.0f);
+					m_duckTime = time + 1.0f;
 			}
 		}
 	}
 	else
 	{
 		if (OutOfBombTimer())
-			SetProcess(Process::Escape, "escaping from the bomb", true, GetBombTimeleft());
+			SetProcess(Process::Escape, "escaping from the bomb", true, time + GetBombTimeleft());
 		else if ((m_hasEnemiesNear || m_hasEntitiesNear) && m_currentWaypointIndex != m_campIndex)
 		{
-			if (SetProcess(Process::Attack, "i found a target", false, 999999.0f))
+			if (SetProcess(Process::Attack, "i found a target", false, time + 99999999.0f))
 				return;
 		}
 	}
@@ -127,11 +128,11 @@ void Bot::CampUpdate(void)
 				}
 			}
 			else if (zhPath->flags & WAYPOINT_CROUCH)
-				m_duckTime = AddTime(1.0f);
+				m_duckTime = time + 1.0f;
 
 			if (!g_waypoint->m_hmMeshPoints.IsEmpty())
 			{
-				if (m_currentProcessTime <= AddTime(0.16f) || m_currentProcessTime > AddTime(60.0f))
+				if (m_currentProcessTime < time + 0.16f || m_currentProcessTime > time + 60.0f)
 				{
 					Array <int> MeshWaypoints;
 
@@ -166,7 +167,7 @@ void Bot::CampUpdate(void)
 								max = 8.0f;
 						}
 
-						m_currentProcessTime = AddTime(CRandomFloat(4.0f, max));
+						m_currentProcessTime = time + CRandomFloat(4.0f, max);
 						m_campIndex = m_myMeshWaypoint;
 						FindPath(m_currentWaypointIndex, m_myMeshWaypoint);
 					}
@@ -174,7 +175,7 @@ void Bot::CampUpdate(void)
 			}
 		}
 		else
-			m_duckTime = AddTime(1.0f);
+			m_duckTime = time + 1.0f;
 	}
 }
 
