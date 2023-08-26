@@ -55,7 +55,8 @@ void Bot::AttackUpdate(void)
 		{
 			if (IsSniper())
 			{
-				if (!UsesSniper())
+				const bool usesSniper = UsesSniper();
+				if (!usesSniper)
 					SelectBestWeapon();
 
 				const float minRange = SquaredF(384.0f);
@@ -64,7 +65,7 @@ void Bot::AttackUpdate(void)
 				{
 					if (!CheckWallOnBehind() && !CheckWallOnForward() && !CheckWallOnLeft() && !CheckWallOnRight())
 					{
-						if (UsesSniper() && pev->fov == 90.0f && !(pev->button & IN_ATTACK2) && !(pev->oldbuttons & IN_ATTACK2))
+						if (usesSniper && pev->fov == 90.0f && !(pev->button & IN_ATTACK2) && !(pev->oldbuttons & IN_ATTACK2))
 							pev->button |= IN_ATTACK2;
 
 						wait = cclampf(csqrtf(distance) * 0.01f, 5.0f, 15.0f);
