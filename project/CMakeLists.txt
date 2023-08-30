@@ -39,7 +39,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 # Source files
 file(GLOB_RECURSE EBOT_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/../source/*.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../source/goap/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../source/ssm/*.cpp
 )
 
 # Create the library

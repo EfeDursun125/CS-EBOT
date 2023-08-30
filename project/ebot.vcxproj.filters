@@ -15,44 +15,50 @@
     <ClCompile Include="..\source\support.cpp" />
     <ClCompile Include="..\source\waypoint.cpp" />
     <ClCompile Include="..\source\goap\default.cpp">
-      <Filter>GOAP</Filter>
+      <Filter>SSM</Filter>
     </ClCompile>
     <ClCompile Include="..\source\goap\attack.cpp">
-      <Filter>GOAP</Filter>
+      <Filter>SSM</Filter>
     </ClCompile>
     <ClCompile Include="..\source\goap\defuse.cpp">
-      <Filter>GOAP</Filter>
+      <Filter>SSM</Filter>
     </ClCompile>
     <ClCompile Include="..\source\goap\goap.cpp">
-      <Filter>GOAP</Filter>
+      <Filter>SSM</Filter>
     </ClCompile>
     <ClCompile Include="..\source\goap\plant.cpp">
-      <Filter>GOAP</Filter>
+      <Filter>SSM</Filter>
     </ClCompile>
     <ClCompile Include="..\source\goap\escape.cpp">
-      <Filter>GOAP</Filter>
+      <Filter>SSM</Filter>
     </ClCompile>
     <ClCompile Include="..\source\goap\destroybreakable.cpp">
-      <Filter>GOAP</Filter>
+      <Filter>SSM</Filter>
     </ClCompile>
     <ClCompile Include="..\source\goap\pause.cpp">
-      <Filter>GOAP</Filter>
+      <Filter>SSM</Filter>
     </ClCompile>
     <ClCompile Include="..\source\goap\pickup.cpp">
-      <Filter>GOAP</Filter>
+      <Filter>SSM</Filter>
     </ClCompile>
     <ClCompile Include="..\source\goap\camp.cpp">
-      <Filter>GOAP</Filter>
+      <Filter>SSM</Filter>
     </ClCompile>
     <ClCompile Include="..\source\clib.cpp" />
     <ClCompile Include="..\source\goap\throwfb.cpp">
-      <Filter>GOAP</Filter>
+      <Filter>SSM</Filter>
     </ClCompile>
     <ClCompile Include="..\source\goap\throwhe.cpp">
-      <Filter>GOAP</Filter>
+      <Filter>SSM</Filter>
     </ClCompile>
     <ClCompile Include="..\source\goap\throwsm.cpp">
-      <Filter>GOAP</Filter>
+      <Filter>SSM</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\goap\blind.cpp">
+      <Filter>SSM</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\goap\jump.cpp">
+      <Filter>SSM</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -71,7 +77,7 @@
     <ResourceCompile Include="..\include\ebot.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="GOAP">
+    <Filter Include="SSM">
       <UniqueIdentifier>{23d404aa-be3e-4f97-b62c-d689cf1dd36d}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
