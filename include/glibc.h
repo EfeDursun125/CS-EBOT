@@ -3,7 +3,6 @@ __asm__(".symver dlsym,dlsym@GLIBC_2.0");
 __asm__(".symver dlclose,dlclose@GLIBC_2.0");
 __asm__(".symver sprintf,sprintf@GLIBC_2.0");
 __asm__(".symver vsprintf,vsprintf@GLIBC_2.0");
-__asm__(".symver powf,powf@GLIBC_2.0");
 __asm__(".symver snprintf,snprintf@GLIBC_2.0");
 __asm__(".symver vsnprintf,vsnprintf@GLIBC_2.0");
 __asm__(".symver sinf,sinf@GLIBC_2.0");

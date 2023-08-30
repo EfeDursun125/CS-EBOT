@@ -704,7 +704,6 @@ private:
 	bool ItemIsVisible(Vector dest, char* itemName);
 	bool IsBehindSmokeClouds(edict_t* ent);
 
-	bool IsShootableBreakable(edict_t* ent);
 	bool RateGroundWeapon(edict_t* ent);
 	void SetStrafeSpeed(const Vector moveDir, const float strafeSpeed);
 	void SetStrafeSpeedNoCost(const Vector moveDir, const float strafeSpeed);
@@ -718,8 +717,7 @@ private:
 	bool OutOfBombTimer(void);
 	void SetWaypointOrigin(void);
 
-	Vector CheckToss(const Vector& start, const Vector end);
-	Vector CheckThrow(const Vector& start, const Vector end);
+	Vector ThrowGrenade(const Vector& start, const Vector& end);
 	Vector GetEnemyPosition(void);
 	float GetZOffset(float distance);
 
@@ -730,7 +728,7 @@ private:
 
 	bool KnifeAttack(const float attackDistance = 0.0f);
 
-	void SelectBestWeapon(void);
+	void SelectBestWeapon(const bool force = false, const bool getHighest = false);
 	void SelectPistol(void);
 	void SelectKnife(void);
 	bool IsFriendInLineOfFire(const float distance);
@@ -1102,7 +1100,7 @@ private:
 	Bot* m_bot;
 	int m_state;
 	int m_message;
-	int m_registerdMessages[NETMSG_NUM];
+	int m_registerdMessages[NETMSG_RESETHUD + 1];
 
 public:
 	NetworkMsg(void);
@@ -1110,13 +1108,13 @@ public:
 
 	void Execute(void* p);
 	void Reset(void) { m_message = NETMSG_UNDEFINED; m_state = 0; m_bot = nullptr; };
-	void HandleMessageIfRequired(int messageType, int requiredType);
+	void HandleMessageIfRequired(const int messageType, const int requiredType);
 
-	void SetMessage(int message) { m_message = message; }
+	void SetMessage(const int message) { m_message = message; }
 	void SetBot(Bot* bot) { m_bot = bot; }
 
-	int GetId(int messageType) { return m_registerdMessages[messageType]; }
-	void SetId(int messageType, int messsageIdentifier) { m_registerdMessages[messageType] = messsageIdentifier; }
+	int GetId(const int messageType) { return m_registerdMessages[messageType]; }
+	void SetId(const int messageType, const int messsageIdentifier) { m_registerdMessages[messageType] = messsageIdentifier; }
 };
 
 // waypoint operation class

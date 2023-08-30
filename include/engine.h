@@ -1906,7 +1906,6 @@ C_DLLEXPORT int GetEntityAPI2_Post(DLL_FUNCTIONS* pFunctionTable, int* interface
 
 C_DLLEXPORT int GetNewDLLFunctions_Post(NEW_DLL_FUNCTIONS* pNewFunctionTable, int* interfaceVersion);
 C_DLLEXPORT int GetEngineFunctions(enginefuncs_t* pengfuncsFromEngine, int* interfaceVersion);
-C_DLLEXPORT int GetEngineFunctions_Post(enginefuncs_t* pengfuncsFromEngine, int* interfaceVersion);
 
 #define MDLL_FUNC   gpGamedllFuncs->dllapi_table
 
@@ -2888,13 +2887,12 @@ public:
 // netmessage functions
 enum NetMsg
 {
-    NETMSG_UNDEFINED = -1,
     NETMSG_VGUI = 1,
     NETMSG_SHOWMENU = 2,
-    NETMSG_WLIST = 3,
+    NETMSG_WEAPONLIST = 3,
     NETMSG_CURWEAPON = 4,
     NETMSG_AMMOX = 5,
-    NETMSG_AMMOPICK = 6,
+    NETMSG_AMMOPICKUP = 6,
     NETMSG_DAMAGE = 7,
     NETMSG_MONEY = 8,
     NETMSG_STATUSICON = 9,
@@ -2907,7 +2905,8 @@ enum NetMsg
     NETMSG_SENDAUDIO = 17,
     NETMSG_SAYTEXT = 18,
     NETMSG_BOTVOICE = 19,
-    NETMSG_NUM = 21
+    NETMSG_RESETHUD = 20,
+    NETMSG_UNDEFINED = 0
 };
 
 class Engine : public Singleton <Engine>
