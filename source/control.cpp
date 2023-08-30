@@ -203,7 +203,7 @@ int BotControl::CreateBot(String name, int skill, int personality, const int tea
 	{
 		char* folder = FormatBuffer("%s/addons/ebot/profiles", GetModName());
 		CreatePath(folder);
-		const char* filePath = FormatBuffer("%s/%s", folder, ebotName);
+		const char* filePath = FormatBuffer("%s/%s.ep", folder, ebotName);
 		File file(filePath, "rt+");
 		if (file.IsValid())
 		{
@@ -223,12 +223,14 @@ int BotControl::CreateBot(String name, int skill, int personality, const int tea
 
 				if (pair[0] == "Personaltiy")
 				{
-					const int per = pair[1];
-					if (per >= Personality::Normal || per <= Personality::Careful)
-					{
-						personality = static_cast<Personality>(per);
+					if (pair[1] == "Rusher")
+						m_bots[index]->m_personality = Personality::Rusher;
+					else if (pair[1] == "Careful")
+						m_bots[index]->m_personality = Personality::Careful;
+					else if (pair[1] == "Normal")
+						m_bots[index]->m_personality = Personality::Normal;
+					else
 						m_bots[index]->m_personality = personality;
-					}
 				}
 				else if (pair[0] == "FavoritePrimary")
 				{
@@ -248,6 +250,8 @@ int BotControl::CreateBot(String name, int skill, int personality, const int tea
 					for (int i = 0; i < splitted.GetElementNumber(); i++)
 						m_bots[index]->m_favoriteStuff.Push(splitted[i].Trim().Trim());
 				}
+				else if (ebot_display_avatar.GetBool() && pair[0] == "SteamAvatar")
+					SET_CLIENT_KEYVALUE(index, GET_INFOKEYBUFFER(bot), "*sid", pair[1]);
 			}
 
 			ServerPrint("E-Bot profile loaded for %s!", ebotName);
@@ -959,7 +963,7 @@ void BotControl::Free(void)
 			if (ebot_save_bot_names.GetBool())
 				m_savedBotNames.Push(STRING(m_bots[i]->GetEntity()->v.netname));
 
-			m_bots[i]->m_stayTime = 0.0f;
+			m_bots[i]->m_stayTime = -1.0f;
 			delete m_bots[i];
 			m_bots[i] = nullptr;
 		}
@@ -969,7 +973,7 @@ void BotControl::Free(void)
 // this function frees one bot selected by index (used on bot disconnect)
 void BotControl::Free(const int index)
 {
-	m_bots[index]->m_stayTime = 0.0f;
+	m_bots[index]->m_stayTime = -1.0f;
 	delete m_bots[index];
 	m_bots[index] = nullptr;
 }
@@ -1000,12 +1004,8 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 	// set all info buffer keys for this bot
 	char* buffer = GET_INFOKEYBUFFER(bot);
 	SET_CLIENT_KEYVALUE(clientIndex, buffer, "_vgui_menus", "0");
-	SET_CLIENT_KEYVALUE(clientIndex, buffer, "cl_cmdrate", "30");
 	SET_CLIENT_KEYVALUE(clientIndex, buffer, "cl_updaterate", "30");
-	SET_CLIENT_KEYVALUE(clientIndex, buffer, "fps_max", "30");
-	SET_CLIENT_KEYVALUE(clientIndex, buffer, "cl_rate ", "3000");
 	SET_CLIENT_KEYVALUE(clientIndex, buffer, "rate ", "3500");
-	SET_CLIENT_KEYVALUE(clientIndex, buffer, "ex_interp", "0.016");
 	SET_CLIENT_KEYVALUE(clientIndex, buffer, "cl_dlmax", "16");
 	SET_CLIENT_KEYVALUE(clientIndex, buffer, "cl_lc", "0");
 	SET_CLIENT_KEYVALUE(clientIndex, buffer, "cl_lw", "0");
@@ -1013,10 +1013,6 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 	SET_CLIENT_KEYVALUE(clientIndex, buffer, "dm", "0");
 	SET_CLIENT_KEYVALUE(clientIndex, buffer, "_ah", "0");
 	SET_CLIENT_KEYVALUE(clientIndex, buffer, "friends", "0");
-	SET_CLIENT_KEYVALUE(clientIndex, buffer, "lefthand", "1");
-	SET_CLIENT_KEYVALUE(clientIndex, buffer, "cl_solid_players", "0");
-	SET_CLIENT_KEYVALUE(clientIndex, buffer, "hud_fastswitch", "1"); // fast switch
-	SET_CLIENT_KEYVALUE(clientIndex, buffer, "cl_fixtimerate", "3");
 
 	if (g_gameVersion & Game::HalfLife)
 	{
@@ -1099,6 +1095,14 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 	// assign team and class
 	m_wantedTeam = team;
 	m_wantedClass = member;
+
+	FakeClientCommand(bot, "cl_solid_players 0");
+	FakeClientCommand(bot, "hud_fastswitch 1");
+	FakeClientCommand(bot, "cl_fixtimerate 3");
+	FakeClientCommand(bot, "fps_max 30");
+	FakeClientCommand(bot, "cl_cmdrate 30");
+	FakeClientCommand(bot, "cl_rate 3000");
+	FakeClientCommand(bot, "ex_interp 0.016");
 
 	NewRound();
 }

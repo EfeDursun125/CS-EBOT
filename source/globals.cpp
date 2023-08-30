@@ -97,7 +97,7 @@ metamod_funcs_t gMetaFunctionTable =
    nullptr, // pfnGetNewDLLFunctions ()
    nullptr, // pfnGetNewDLLFunctions_Post ()
    GetEngineFunctions, // pfnGetEngineFunctions ()
-   GetEngineFunctions_Post, // pfnGetEngineFunctions_Post ()
+   nullptr, // pfnGetEngineFunctions_Post ()
 };
 
 // metamod plugin information

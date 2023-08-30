@@ -2847,63 +2847,70 @@ void pfnClientCommand(edict_t* ent, char* format, ...)
 	CLIENT_COMMAND(ent, buffer);
 }
 
-// this function called each time a message is about to sent
 void pfnMessageBegin(int msgDest, int msgType, const float* origin, edict_t* ed)
 {
-	// store the message type in our own variables, since the GET_USER_MSG_ID () will just do a lot of cstrcmp()'s...
+	// store the message type in our own variables, since the GET_USER_MSG_ID () will just do a lot of strcmp()'s...
 	if (g_isMetamod && NetworkMsg::GetObjectPtr()->GetId(NETMSG_MONEY) == -1)
 	{
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_VGUI, GET_USER_MSG_ID(PLID, "VGUIMenu", nullptr));
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SHOWMENU, GET_USER_MSG_ID(PLID, "ShowMenu", nullptr));
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_WLIST, GET_USER_MSG_ID(PLID, "WeaponList", nullptr));
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_WEAPONLIST, GET_USER_MSG_ID(PLID, "WeaponList", nullptr));
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_CURWEAPON, GET_USER_MSG_ID(PLID, "CurWeapon", nullptr));
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_AMMOX, GET_USER_MSG_ID(PLID, "AmmoX", nullptr));
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_AMMOPICK, GET_USER_MSG_ID(PLID, "AmmoPickup", nullptr));
-		//NetworkMsg::GetObjectPtr()->SetId(NETMSG_DAMAGE, GET_USER_MSG_ID(PLID, "Damage", nullptr));
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_AMMOPICKUP, GET_USER_MSG_ID(PLID, "AmmoPickup", nullptr));
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_DAMAGE, GET_USER_MSG_ID(PLID, "Damage", nullptr));
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_MONEY, GET_USER_MSG_ID(PLID, "Money", nullptr));
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_STATUSICON, GET_USER_MSG_ID(PLID, "StatusIcon", nullptr));
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_DEATH, GET_USER_MSG_ID(PLID, "DeathMsg", nullptr));
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SCREENFADE, GET_USER_MSG_ID(PLID, "ScreenFade", nullptr));
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_HLTV, GET_USER_MSG_ID(PLID, "HLTV", nullptr));
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_TEXTMSG, GET_USER_MSG_ID(PLID, "TextMsg", nullptr));
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SCOREINFO, GET_USER_MSG_ID(PLID, "ScoreInfo", nullptr));
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_BARTIME, GET_USER_MSG_ID(PLID, "BarTime", nullptr));
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SENDAUDIO, GET_USER_MSG_ID(PLID, "SendAudio", nullptr));
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SAYTEXT, GET_USER_MSG_ID(PLID, "SayText", nullptr));
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_RESETHUD, GET_USER_MSG_ID(PLID, "ResetHUD", nullptr));
+
+		if (!(g_gameVersion & Game::Old))
+			NetworkMsg::GetObjectPtr()->SetId(NETMSG_BOTVOICE, GET_USER_MSG_ID(PLID, "BotVoice", nullptr));
 	}
 	NetworkMsg::GetObjectPtr()->Reset();
 
-	if (msgDest == MSG_SPEC && !(g_gameVersion & Game::Old) && msgType == NetworkMsg::GetObjectPtr()->GetId(NETMSG_HLTV))
+	if (msgDest == MSG_SPEC && msgType == NetworkMsg::GetObjectPtr()->GetId(NETMSG_HLTV) && !(g_gameVersion & Game::Old))
 		NetworkMsg::GetObjectPtr()->SetMessage(NETMSG_HLTV);
 
-	NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_WLIST);
+	NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_WEAPONLIST);
 
 	if (!FNullEnt(ed))
 	{
-		const int index = g_botManager->GetIndex(ed);
+		Bot* bot = g_botManager->GetBot(ed);
 
 		// is this message for a bot?
-		if (index != -1  && g_botManager->GetBot(index)->GetEntity() == ed)
+		if (bot != nullptr && !(ed->v.flags & FL_DORMANT) && bot->GetEntity() == ed)
 		{
 			NetworkMsg::GetObjectPtr()->Reset();
-			NetworkMsg::GetObjectPtr()->SetBot(g_botManager->GetBot(index));
+			NetworkMsg::GetObjectPtr()->SetBot(bot);
 
 			// message handling is done in usermsg.cpp
 			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_VGUI);
 			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_CURWEAPON);
 			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_AMMOX);
-			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_AMMOPICK);
-			//NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_DAMAGE);
+			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_AMMOPICKUP);
+			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_DAMAGE);
 			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_MONEY);
 			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_STATUSICON);
 			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_SCREENFADE);
 			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_BARTIME);
 			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_TEXTMSG);
 			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_SHOWMENU);
+			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_RESETHUD);
 		}
 	}
 	else if (msgDest == MSG_ALL)
 	{
 		NetworkMsg::GetObjectPtr()->Reset();
+
+		NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_SCOREINFO);
 		NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_DEATH);
 		NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_TEXTMSG);
 
@@ -2932,7 +2939,6 @@ void pfnMessageEnd(void)
 
 	MESSAGE_END();
 }
-
 void pfnWriteByte(int value)
 {
 	// if this message is for a bot, call the client message function...
@@ -3001,8 +3007,6 @@ void pfnWriteCoord(float value)
 
 void pfnWriteString(const char* sz)
 {
-	//Bot *bot = g_botManager->FindOneValidAliveBot ();
-
 	// if this message is for a bot, call the client message function...
 	NetworkMsg::GetObjectPtr()->Execute((void*)sz);
 
@@ -3118,7 +3122,7 @@ void pfnClientPrintf(edict_t* ent, PRINT_TYPE printType, const char* message)
 	// as it will crash your server. Why would you, anyway ? bots have no client DLL as far as
 	// we know, right ? But since stupidity rules this world, we do a preventive check :)
 
-	if (g_isFakeCommand || IsValidBot(ent) || ent->v.flags & FL_FAKECLIENT || ent->v.flags & FL_DORMANT)
+	if (IsValidBot(ent) || ent->v.flags & FL_FAKECLIENT || ent->v.flags & FL_DORMANT)
 	{
 		if (g_isMetamod)
 			RETURN_META(MRES_SUPERCEDE);
@@ -3143,18 +3147,7 @@ void pfnSetClientMaxspeed(const edict_t* ent, float newMaxspeed)
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
 
-	if (bot != nullptr)
-		(*g_engfuncs.pfnSetClientMaxspeed) (ent, newMaxspeed);
-	else
-		(*g_engfuncs.pfnSetClientMaxspeed) (ent, newMaxspeed);
-}
-
-int pfnRegUserMsg_Post(const char* name, int size)
-{
-	if (g_isMetamod)
-		RETURN_META_VALUE(MRES_IGNORED, 0);
-
-	return REG_USER_MSG(name, size);
+	(*g_engfuncs.pfnSetClientMaxspeed) (ent, newMaxspeed);
 }
 
 int pfnRegUserMsg(const char* name, int size)
@@ -3173,21 +3166,20 @@ int pfnRegUserMsg(const char* name, int size)
 		RETURN_META_VALUE(MRES_IGNORED, 0);
 
 	const int message = REG_USER_MSG(name, size);
-
 	if (cstrcmp(name, "VGUIMenu") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_VGUI, message);
 	else if (cstrcmp(name, "ShowMenu") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SHOWMENU, message);
 	else if (cstrcmp(name, "WeaponList") == 0)
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_WLIST, message);
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_WEAPONLIST, message);
 	else if (cstrcmp(name, "CurWeapon") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_CURWEAPON, message);
 	else if (cstrcmp(name, "AmmoX") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_AMMOX, message);
 	else if (cstrcmp(name, "AmmoPickup") == 0)
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_AMMOPICK, message);
-	//else if (cstrcmp(name, "Damage") == 0)
-		//NetworkMsg::GetObjectPtr()->SetId(NETMSG_DAMAGE, message);
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_AMMOPICKUP, message);
+	else if (cstrcmp(name, "Damage") == 0)
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_DAMAGE, message);
 	else if (cstrcmp(name, "Money") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_MONEY, message);
 	else if (cstrcmp(name, "StatusIcon") == 0)
@@ -3200,12 +3192,18 @@ int pfnRegUserMsg(const char* name, int size)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_HLTV, message);
 	else if (cstrcmp(name, "TextMsg") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_TEXTMSG, message);
+	else if (cstrcmp(name, "ScoreInfo") == 0)
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SCOREINFO, message);
 	else if (cstrcmp(name, "BarTime") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_BARTIME, message);
 	else if (cstrcmp(name, "SendAudio") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SENDAUDIO, message);
 	else if (cstrcmp(name, "SayText") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SAYTEXT, message);
+	else if (cstrcmp(name, "BotVoice") == 0)
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_BOTVOICE, message);
+	else if (cstrcmp(name, "ResetHUD") == 0)
+		NetworkMsg::GetObjectPtr()->SetId(NETMSG_RESETHUD, message);
 
 	return message;
 }
@@ -3296,16 +3294,6 @@ exportc int GetNewDLLFunctions(NEW_DLL_FUNCTIONS* functionTable, int* interfaceV
 	}
 
 	gameDLLFunc.newapi_table = functionTable;
-	return true;
-}
-
-exportc int GetEngineFunctions_Post(enginefuncs_t* functionTable, int* /*interfaceVersion*/)
-{
-	if (g_isMetamod)
-		cmemset(functionTable, 0, sizeof(enginefuncs_t));
-
-	functionTable->pfnRegUserMsg = pfnRegUserMsg_Post;
-
 	return true;
 }
 

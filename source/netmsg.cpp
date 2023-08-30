@@ -6,11 +6,11 @@ NetworkMsg::NetworkMsg(void)
     m_state = 0;
     m_bot = nullptr;
 
-    for (int i = 0; i < NETMSG_NUM; i++)
-        m_registerdMessages[i] = NETMSG_UNDEFINED;
+    for (int i = 0; i < NETMSG_BOTVOICE; i++)
+        m_registerdMessages[i] = -1;
 }
 
-void NetworkMsg::HandleMessageIfRequired(int messageType, int requiredType)
+void NetworkMsg::HandleMessageIfRequired(const int messageType, const int requiredType)
 {
     if (messageType == m_registerdMessages[requiredType])
         SetMessage(requiredType);
@@ -21,16 +21,14 @@ void NetworkMsg::Execute(void* p)
     if (m_message == NETMSG_UNDEFINED)
         return; // no message or not for bot, return
 
-   // some needed variables
+    // some needed variables
     static uint8_t r, g, b;
     static uint8_t enabled;
 
-    static int damageArmor, damageTaken, damageBits;
     static int killerIndex, victimIndex, playerIndex;
     static int index, numPlayers;
     static int state, id, clip;
 
-    static Vector damageOrigin;
     static WeaponProperty weaponProp;
 
     // now starts of netmessage execution
@@ -79,7 +77,7 @@ void NetworkMsg::Execute(void* p)
 
         break;
 
-    case NETMSG_WLIST:
+    case NETMSG_WEAPONLIST:
         // this message is sent when a client joins the game. All of the weapons are sent with the weapon ID and information about what ammo is used.
 
         switch (m_state)
@@ -109,7 +107,7 @@ void NetworkMsg::Execute(void* p)
             break;
 
         case 8:
-            weaponProp.flags = PTR_TO_INT(p); // flags for weapon (WTF???)
+            weaponProp.flags = PTR_TO_INT(p);
             g_weaponDefs[weaponProp.id] = weaponProp; // store away this weapon with it's ammo information...
             break;
         }
@@ -131,12 +129,14 @@ void NetworkMsg::Execute(void* p)
         case 2:
             clip = PTR_TO_INT(p); // ammo currently in the clip for this weapon
 
-            if (id <= 31)
+            if (id < 32)
             {
                 if (state != 0)
                     m_bot->m_currentWeapon = id;
+
                 m_bot->m_ammoInClip[id] = clip;
             }
+
             break;
         }
         break;
@@ -156,7 +156,7 @@ void NetworkMsg::Execute(void* p)
         }
         break;
 
-    case NETMSG_AMMOPICK:
+    case NETMSG_AMMOPICKUP:
         // this message is sent when the bot picks up some ammo (AmmoX messages are also sent so this message is probably
         // not really necessary except it allows the HUD to draw pictures of ammo that have been picked up.  The bots
         // don't really need pictures since they don't have any eyes anyway.
@@ -172,8 +172,8 @@ void NetworkMsg::Execute(void* p)
             break;
         }
         break;
-
-        case NETMSG_DAMAGE:
+    
+    case NETMSG_DAMAGE:
         // this message gets sent when the bots are getting damaged.
         /*switch (m_state)
         {
@@ -223,6 +223,7 @@ void NetworkMsg::Execute(void* p)
 
             break;
         }
+
         break;
 
     case NETMSG_DEATH: // this message sends on death
@@ -284,6 +285,9 @@ void NetworkMsg::Execute(void* p)
         }
         break;
 
+    case NETMSG_RESETHUD:
+        break;
+
     case NETMSG_TEXTMSG:
         if (m_state == 1)
         {
@@ -336,6 +340,9 @@ void NetworkMsg::Execute(void* p)
             else if (m_bot != nullptr && FStrEq(PTR_TO_STR(p), "#Switch_To_SemiAuto"))
                 m_bot->m_weaponBurstMode = BurstMode::Disabled;
         }
+        break;
+
+    case NETMSG_SCOREINFO:
         break;
 
     case NETMSG_BARTIME:

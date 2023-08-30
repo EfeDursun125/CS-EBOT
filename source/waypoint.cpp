@@ -1896,7 +1896,7 @@ void Waypoint::Save(void)
 
     cstrcpy(header.author, waypointAuthor);
 
-    char* path = FormatBuffer("%s/%s.ewp", GetWaypointDir(), GetMapName());
+    char* path = CheckSubfolderFile(false);
 
     // remember the original waypoint author
     File rf(path, "rb");
@@ -1948,7 +1948,7 @@ void Waypoint::SaveOLD(void)
 
     cstrcpy(header.author, waypointAuthor);
 
-    String path = FormatBuffer("%s/%s.pwf", GetWaypointDir(), GetMapName());
+    const char* path = CheckSubfolderFileOLD();
 
     // remember the original waypoint author
     File rf(path, "rb");
@@ -2035,9 +2035,8 @@ void Waypoint::SaveOLD(void)
                         paths[i]->connectionVelocity[x].y = (waypointOrigin.y - myOrigin.y) / timeToReachWaypoint;
                         paths[i]->connectionVelocity[x].z = 2.0f * (waypointOrigin.z - myOrigin.z - 0.5f * 1.0f * SquaredF(timeToReachWaypoint)) / timeToReachWaypoint;
 
-                        const float limit = (250.0f * 1.25f);
-                        if (paths[i]->connectionVelocity[x].z > limit)
-                            paths[i]->connectionVelocity[x].z = limit;
+                        if (paths[i]->connectionVelocity[x].z > 250.0f)
+                            paths[i]->connectionVelocity[x].z = 250.0f;
                     }
                 }
             }

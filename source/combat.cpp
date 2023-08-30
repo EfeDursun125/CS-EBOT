@@ -299,8 +299,9 @@ bool Bot::DoFirePause(const float distance)
 	// check if we need to compensate recoil
 	if (tanf(angle) * (distance + (distance * 0.25f)) > 100.0f)
 	{
-		if (m_firePause < (engine->GetTime() - 0.4))
-			m_firePause = AddTime(CRandomFloat(0.4f, (0.4f + 1.2f * ((100 - m_skill)) * 0.01f)));
+		const float time = engine->GetTime();
+		if (m_firePause < (time - 0.4f))
+			m_firePause = time + CRandomFloat(0.4f, (0.4f + 1.2f * ((100 - m_skill)) * 0.01f));
 
 		return true;
 	}
@@ -328,9 +329,9 @@ void Bot::FireWeapon(void)
 {
 	// try to switch
 	if (m_currentWeapon == Weapon::Knife)
-		SelectBestWeapon();
+		SelectBestWeapon(true);
 
-	const float distance = m_enemyDistance <= m_entityDistance ? m_enemyDistance : m_entityDistance;
+	const float distance = GetTargetDistance();
 
 	// or if friend in line of fire, stop this too but do not update shoot time
 	if (IsFriendInLineOfFire(distance))
@@ -348,8 +349,10 @@ void Bot::FireWeapon(void)
 
 	if (ebot_knifemode.GetBool())
 		goto WeaponSelectEnd;
-	else if (!FNullEnt(enemy) && ChanceOf(m_skill) && !IsZombieEntity(enemy) && distance <= SquaredF(128.0f) && (enemy->v.health <= 30 || pev->health > enemy->v.health) && !IsOnLadder() && m_enemiesNearCount <= 1)
+	else if (!FNullEnt(enemy) && ChanceOf(m_skill) && !IsZombieEntity(enemy) && distance < SquaredF(128.0f) && (enemy->v.health < 30 || pev->health > enemy->v.health) && !IsOnLadder() && m_enemiesNearCount < 2)
 		goto WeaponSelectEnd;
+
+	const float time = engine->GetTime();
 
 	// loop through all the weapons until terminator is found...
 	while (selectTab[selectIndex].id)
@@ -366,7 +369,7 @@ void Bot::FireWeapon(void)
 			// is enough ammo available to fire AND check is better to use pistol in our current situation...
 			if (g_gameVersion & Game::HalfLife)
 			{
-				if (selectIndex == WeaponHL::Snark || selectIndex == WeaponHL::Gauss ||selectIndex == WeaponHL::Egon || (selectIndex == WeaponHL::HandGrenade && distance > SquaredF(384.0f) && distance <= SquaredF(768.0f)) || (selectIndex == WeaponHL::Rpg && distance > SquaredF(320.0f)) || (selectIndex == WeaponHL::Crossbow && distance > SquaredF(320.0f)))
+				if (selectIndex == WeaponHL::Snark || selectIndex == WeaponHL::Gauss ||selectIndex == WeaponHL::Egon || (selectIndex == WeaponHL::HandGrenade && distance > SquaredF(384.0f) && distance < SquaredF(768.0f)) || (selectIndex == WeaponHL::Rpg && distance > SquaredF(320.0f)) || (selectIndex == WeaponHL::Crossbow && distance > SquaredF(320.0f)))
 					chosenWeaponIndex = selectIndex;
 				else if (selectIndex != WeaponHL::HandGrenade && selectIndex != WeaponHL::Rpg  && selectIndex != WeaponHL::Crossbow && (m_ammoInClip[id] > 0) && !IsWeaponBadInDistance(selectIndex, distance))
 						chosenWeaponIndex = selectIndex;
@@ -401,11 +404,11 @@ void Bot::FireWeapon(void)
 				if (g_weaponDefs[id].ammo1 != -1 && m_ammo[g_weaponDefs[id].ammo1] >= selectTab[selectIndex].minPrimaryAmmo)
 				{
 					// available ammo found, reload weapon
-					if (m_reloadState == ReloadState::Nothing || m_reloadCheckTime > engine->GetTime())
+					if (m_reloadState == ReloadState::Nothing || m_reloadCheckTime > time)
 					{
 						m_isReloading = true;
 						m_reloadState = ReloadState::Primary;
-						m_reloadCheckTime = engine->GetTime();
+						m_reloadCheckTime = time;
 						RadioMessage(Radio::NeedBackup);
 					}
 
@@ -424,13 +427,13 @@ WeaponSelectEnd:
 	if (!m_isReloading)
 	{
 		m_reloadState = ReloadState::Nothing;
-		m_reloadCheckTime = AddTime(6.0f);
+		m_reloadCheckTime = time + 6.0f;
 	}
 
 	if (IsZombieMode() && m_currentWeapon == melee && selectId != melee && !m_isZombieBot)
 	{
 		m_reloadState = ReloadState::Primary;
-		m_reloadCheckTime = AddTime(2.5f);
+		m_reloadCheckTime = time + 2.5f;
 		return;
 	}
 
@@ -463,18 +466,18 @@ WeaponSelectEnd:
 	{
 		CheckBurstMode(distance);
 
-		if (HasShield() && m_shieldCheckTime < engine->GetTime() && GetProcess() != Process::Camp) // better shield gun usage
+		if (HasShield() && m_shieldCheckTime < time && GetProcess() != Process::Camp) // better shield gun usage
 		{
 			if ((distance > SquaredF(768.0f)) && !IsShieldDrawn())
 				pev->button |= IN_ATTACK2; // draw the shield
 			else if (IsShieldDrawn() || (IsValidPlayer(enemy) && enemy->v.button & IN_RELOAD))
 				pev->button |= IN_ATTACK2; // draw out the shield
 
-			m_shieldCheckTime = AddTime(engine->GetTime());
+			m_shieldCheckTime = time + 0.5f;
 		}
 	}
 
-	if (UsesSniper() && m_zoomCheckTime < engine->GetTime()) // is the bot holding a sniper rifle?
+	if (UsesSniper() && m_zoomCheckTime < time) // is the bot holding a sniper rifle?
 	{
 		if (distance > SquaredF(1500.0f) && pev->fov >= 40.0f) // should the bot switch to the long-range zoom?
 			pev->button |= IN_ATTACK2;
@@ -482,24 +485,24 @@ WeaponSelectEnd:
 		else if (distance > SquaredF(150.0f) && pev->fov >= 90.0f) // else should the bot switch to the close-range zoom ?
 			pev->button |= IN_ATTACK2;
 
-		else if (distance <= SquaredF(150.0f) && pev->fov < 90.0f) // else should the bot restore the normal view ?
+		else if (distance < SquaredF(150.0f) && pev->fov < 90.0f) // else should the bot restore the normal view ?
 			pev->button |= IN_ATTACK2;
 
-		m_zoomCheckTime = engine->GetTime();
+		m_zoomCheckTime = time;
 	}
-	else if (UsesZoomableRifle() && m_zoomCheckTime < engine->GetTime() && m_skill < 90) // else is the bot holding a zoomable rifle?
+	else if (UsesZoomableRifle() && m_zoomCheckTime < time && m_skill < 90) // else is the bot holding a zoomable rifle?
 	{
 		if (distance > SquaredF(800.0f) && pev->fov >= 90.0f) // should the bot switch to zoomed mode?
 			pev->button |= IN_ATTACK2;
 
-		else if (distance <= SquaredF(800.0f) && pev->fov < 90.0f) // else should the bot restore the normal view?
+		else if (distance < SquaredF(800.0f) && pev->fov < 90.0f) // else should the bot restore the normal view?
 			pev->button |= IN_ATTACK2;
 
-		m_zoomCheckTime = engine->GetTime();
+		m_zoomCheckTime = time;
 	}
 
 	// need to care for burst fire?
-	if (g_gameVersion & Game::HalfLife || distance <= SquaredF(512.0f))
+	if (g_gameVersion & Game::HalfLife || distance < SquaredF(512.0f))
 	{
 		if (selectId == melee)
 			KnifeAttack();
@@ -516,9 +519,6 @@ WeaponSelectEnd:
 	}
 	else
 	{
-		if (DoFirePause(distance))
-			return;
-
 		// don't attack with knife over long distance
 		if (selectId == melee)
 		{
@@ -526,49 +526,8 @@ WeaponSelectEnd:
 			return;
 		}
 
-		float delayTime = 0.0f;
-		if (selectTab[chosenWeaponIndex].primaryFireHold)
-		{
-			m_zoomCheckTime = engine->GetTime();
-			pev->button |= IN_ATTACK;  // use primary attack
-		}
-		else
-		{
-			pev->button |= IN_ATTACK;  // use primary attack
-			const float baseDelay = delay[chosenWeaponIndex].primaryBaseDelay;
-			const int val = cabs((m_skill / 20) - 5);
-			const float minDelay = delay[chosenWeaponIndex].primaryMinDelay[val];
-			const float maxDelay = delay[chosenWeaponIndex].primaryMaxDelay[val];
-			delayTime = baseDelay + CRandomFloat(minDelay, maxDelay);
-			m_zoomCheckTime = engine->GetTime();
-		}
-
-		if (distance >= SquaredF(1200.0f))
-		{
-			if (m_visibility & (Visibility::Head | Visibility::Body))
-				delayTime -= (delayTime == 0.0f) ? 0.0f : 0.02f;
-			else if (m_visibility & Visibility::Head)
-			{
-				if (distance >= SquaredF(2400.0f))
-					delayTime += (delayTime == 0.0f) ? 0.15f : 0.10f;
-				else
-					delayTime += (delayTime == 0.0f) ? 0.10f : 0.05f;
-			}
-			else if (m_visibility & Visibility::Body)
-			{
-				if (distance >= SquaredF(2400.0f))
-					delayTime += (delayTime == 0.0f) ? 0.12f : 0.08f;
-				else
-					delayTime += (delayTime == 0.0f) ? 0.08f : 0.0f;
-			}
-			else
-			{
-				if (distance >= SquaredF(2400.0f))
-					delayTime += (delayTime == 0.0f) ? 0.18f : 0.15f;
-				else
-					delayTime += (delayTime == 0.0f) ? 0.15f : 0.10f;
-			}
-		}
+		if (DoFirePause(distance))
+			return;
 	}
 }
 
@@ -872,62 +831,70 @@ void Bot::SelectKnife(void)
 		if (m_isBomber)
 			return;
 
-		if (m_walkTime > engine->GetTime())
+		const float time = engine->GetTime();
+		if (m_walkTime > time)
 			return;
 
-		if (m_weaponSelectDelay > engine->GetTime())
+		if (m_weaponSelectDelay > time)
 			return;
 
 		SelectWeaponByName("weapon_knife");
 	}
 }
 
-void Bot::SelectBestWeapon(void)
+void Bot::SelectBestWeapon(const bool force, const bool getHighest)
 {
-	if (m_weaponSelectDelay >= engine->GetTime())
-		return;
+	const float time = engine->GetTime();
+	if (!force)
+	{
+		if (m_weaponSelectDelay > time)
+			return;
 
-	if (!m_hasEnemiesNear && !m_hasEntitiesNear && (m_spawnTime + engine->GetFreezeTime() + 7.0f) > engine->GetTime())
-		return;
+		if (!m_hasEnemiesNear && !m_hasEntitiesNear && (m_spawnTime + engine->GetFreezeTime() + 7.0f) > time)
+			return;
+	}
 
 	WeaponSelect* selectTab = g_gameVersion & Game::HalfLife ? &g_weaponSelectHL[0] : &g_weaponSelect[0];
 
 	int selectIndex = -1;
 	int chosenWeaponIndex = -1;
 
-	while (selectTab[selectIndex].id)
+	if (!getHighest)
 	{
-		if (!(pev->weapons & (1 << selectTab[selectIndex].id)))
+		while (selectTab[selectIndex].id)
 		{
-			selectIndex++;
-			continue;
-		}
-
-		const int id = selectTab[selectIndex].id;
-
-		// cannot be used in water...
-		if (pev->waterlevel == 3 && g_weaponDefs[id].flags & ITEM_FLAG_NOFIREUNDERWATER)
-			continue;
-
-		if (g_gameVersion & Game::HalfLife)
-			chosenWeaponIndex = selectIndex;
-		else
-		{
-			bool ammoLeft = false;
-
-			if (id == m_currentWeapon)
+			if (!(pev->weapons & (1 << selectTab[selectIndex].id)))
 			{
-				if (GetAmmoInClip() > 0)
-					ammoLeft = true;
+				selectIndex++;
+				continue;
 			}
-			else if (id < 33 && id > -1 && g_weaponDefs != nullptr && m_ammo != nullptr && m_ammo[g_weaponDefs[id].ammo1] > 0)
-				ammoLeft = true;
 
-			if (ammoLeft)
+			const int id = selectTab[selectIndex].id;
+
+			// cannot be used in water...
+			if (pev->waterlevel == 3 && g_weaponDefs[id].flags & ITEM_FLAG_NOFIREUNDERWATER)
+				continue;
+
+			if (g_gameVersion & Game::HalfLife)
 				chosenWeaponIndex = selectIndex;
-		}
+			else
+			{
+				bool ammoLeft = false;
 
-		selectIndex++;
+				if (id == m_currentWeapon)
+				{
+					if (GetAmmoInClip() > 0)
+						ammoLeft = true;
+				}
+				else if (id < 33 && id > -1 && g_weaponDefs != nullptr && m_ammo != nullptr && m_ammo[g_weaponDefs[id].ammo1] > 0)
+					ammoLeft = true;
+
+				if (ammoLeft)
+					chosenWeaponIndex = selectIndex;
+			}
+
+			selectIndex++;
+		}
 	}
 
 	if (chosenWeaponIndex == -1)
@@ -941,7 +908,7 @@ void Bot::SelectBestWeapon(void)
 		SelectWeaponByName(selectTab[selectIndex].weaponName);
 		m_isReloading = false;
 		m_reloadState = ReloadState::Nothing;
-		m_weaponSelectDelay = AddTime(engine->GetTime());
+		m_weaponSelectDelay = time + engine->GetTime();
 	}
 }
 
@@ -956,7 +923,7 @@ void Bot::SelectPistol(void)
 	int oldWeapons = pev->weapons;
 
 	pev->weapons &= ~WeaponBits_Primary;
-	SelectBestWeapon();
+	SelectBestWeapon(false, true);
 
 	pev->weapons = oldWeapons;
 }

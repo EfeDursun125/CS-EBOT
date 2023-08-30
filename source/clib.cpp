@@ -290,6 +290,7 @@ int ctolower(const int value)
 {
 	if (value >= 'A' && value <= 'Z')
 		return value + ('a' - 'A');
+
 	return value;
 }
 
@@ -297,6 +298,7 @@ int ctoupper(const int value)
 {
 	if (value >= 'a' && value <= 'z')
 		return value - 'a' + 'A';
+
 	return value;
 }
 
