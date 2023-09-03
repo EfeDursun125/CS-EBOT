@@ -92,7 +92,7 @@ void Bot::AttackUpdate(void)
 		FireWeapon();
 
 	const float distance = GetTargetDistance();
-	const int melee = g_gameVersion & Game::HalfLife ? WeaponHL::Crowbar : Weapon::Knife;
+	const int melee = (g_gameVersion & Game::HalfLife) ? WeaponHL::Crowbar : Weapon::Knife;
 	if (m_currentWeapon == melee)
 	{
 		if (IsEnemyReachable())
@@ -107,7 +107,7 @@ void Bot::AttackUpdate(void)
 	}
 	else
 	{
-		if (distance <= SquaredF(256.0f)) // get back!
+		if (distance < SquaredF(256.0f)) // get back!
 		{
 			m_moveSpeed = -pev->maxspeed;
 			return;
@@ -116,7 +116,7 @@ void Bot::AttackUpdate(void)
 
 	if (g_gameVersion & Game::HalfLife)
 	{
-		if (m_currentWeapon == WeaponHL::Mp5_HL && distance > SquaredF(300.0f) && distance <= SquaredF(800.0f))
+		if (m_currentWeapon == WeaponHL::Mp5_HL && distance > SquaredF(300.0f) && distance < SquaredF(800.0f))
 		{
 			if (!(pev->oldbuttons & IN_ATTACK2) && !m_isSlowThink && CRandomInt(1, 3) == 1)
 				pev->button |= IN_ATTACK2;
@@ -271,7 +271,7 @@ void Bot::AttackUpdate(void)
 		m_duckTime = 0.0f;
 	}
 
-	if (!IsInWater() && !IsOnLadder() && (m_moveSpeed > 0.0f || m_strafeSpeed >= 0.0f))
+	if (!IsInWater() && !IsOnLadder() && (m_moveSpeed > 0.0f || m_strafeSpeed > 0.0f))
 	{
 		MakeVectors(pev->v_angle);
 

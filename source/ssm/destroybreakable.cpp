@@ -15,7 +15,7 @@ void Bot::DestroyBreakableUpdate(void)
 
 	CheckStuck(pev->maxspeed);
 
-	if (m_stuckWarn >= 20)
+	if (m_stuckWarn > 19)
 	{
 		FinishCurrentProcess("i'm stuck");
 		return;
@@ -26,6 +26,9 @@ void Bot::DestroyBreakableUpdate(void)
 	m_nearestEnemy = m_breakableEntity;
 	m_entityDistance = (pev->origin - m_breakable).GetLengthSquared();
 	m_nearestEntity = m_breakableEntity;
+
+	if (pev->origin.z < m_breakable.z)
+		pev->button |= IN_DUCK;
 
 	if (!m_isZombieBot && m_currentWeapon != Weapon::Knife)
 		FireWeapon();

@@ -7,10 +7,7 @@ void Bot::JumpStart(void)
 
 void Bot::JumpUpdate(void)
 {
-	if (IsZombieMode() && !m_isZombieBot)
-		UpdateLooking();
-	else
-		LookAt(m_destOrigin + pev->view_ofs);
+	UpdateLooking();
 
 	if (IsOnFloor() || IsOnLadder())
 	{
