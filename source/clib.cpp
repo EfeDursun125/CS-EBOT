@@ -56,6 +56,17 @@ float cclampf(const float a, const float b, const float c)
 	return a;
 }
 
+int cclamp(const int a, const int b, const int c)
+{
+	if (a > c)
+		return c;
+
+	if (a < b)
+		return b;
+
+	return a;
+}
+
 float cmaxf(const float a, const float b)
 {
 	if (a > b)

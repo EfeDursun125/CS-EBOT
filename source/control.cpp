@@ -1138,7 +1138,7 @@ void Bot::NewRound(void)
 		return;
 	}
 
-	SetProcess(Process::Default, "i have respawned", true, AddTime(99999999999.0f));
+	SetProcess(Process::Default, "i have respawned", true, time + 999999.0f);
 	m_rememberedProcess = Process::Default;
 	m_rememberedProcessTime = 0.0f;
 
@@ -1147,7 +1147,7 @@ void Bot::NewRound(void)
 	else
 		m_2dH = static_cast<bool>(CRandomInt(0, 1));
 
-	if (ebot_heuristic_type.GetInt() >= 1 && ebot_heuristic_type.GetInt() <= 4)
+	if (ebot_heuristic_type.GetInt() > 0 && ebot_heuristic_type.GetInt() < 5)
 		m_heuristic = ebot_heuristic_type.GetInt();
 	else
 		m_heuristic = CRandomInt(1, 4);
@@ -1280,12 +1280,12 @@ void Bot::NewRound(void)
 // base code courtesy of Lazy (from bots-united forums!)
 void Bot::Kill(void)
 {
-	edict_t* hurtEntity = (*g_engfuncs.pfnCreateNamedEntity) (MAKE_STRING("trigger_hurt"));
-	if (FNullEnt(hurtEntity))
-		return;
-
 	edict_t* me = GetEntity();
 	if (me == nullptr)
+		return;
+
+	edict_t* hurtEntity = (*g_engfuncs.pfnCreateNamedEntity) (MAKE_STRING("trigger_hurt"));
+	if (FNullEnt(hurtEntity))
 		return;
 
 	hurtEntity->v.classname = MAKE_STRING(g_weaponDefs[m_currentWeapon].className);

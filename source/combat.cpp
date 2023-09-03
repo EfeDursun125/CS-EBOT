@@ -273,19 +273,6 @@ bool Bot::IsFriendInLineOfFire(const float distance)
 	return false;
 }
 
-int CorrectGun(int weaponID)
-{
-	if (GetGameMode() != GameMode::Original)
-		return 0;
-
-	if (weaponID == Weapon::Aug || weaponID == Weapon::M4A1 || weaponID == Weapon::Sg552 || weaponID == Weapon::Ak47 || weaponID == Weapon::Famas || weaponID == Weapon::Galil)
-		return 2;
-	else if (weaponID == Weapon::Sg552 || weaponID == Weapon::G3SG1)
-		return 3;
-
-	return 0;
-}
-
 bool Bot::DoFirePause(const float distance)
 {
 	if (m_firePause > engine->GetTime())
@@ -337,12 +324,12 @@ void Bot::FireWeapon(void)
 	if (IsFriendInLineOfFire(distance))
 		return;
 
-	const int melee = g_gameVersion & Game::HalfLife ? WeaponHL::Crowbar : Weapon::Knife;
+	const int melee = (g_gameVersion & Game::HalfLife) ? WeaponHL::Crowbar : Weapon::Knife;
 
 	FireDelay* delay = &g_fireDelay[0];
-	WeaponSelect* selectTab = g_gameVersion & Game::HalfLife ? &g_weaponSelectHL[0] : &g_weaponSelect[0];
+	WeaponSelect* selectTab = (g_gameVersion & Game::HalfLife) ? &g_weaponSelectHL[0] : &g_weaponSelect[0];
 
-	edict_t* enemy = m_enemyDistance <= m_entityDistance ? m_nearestEnemy : m_nearestEntity;
+	edict_t* enemy = m_entityDistance < m_enemyDistance ? m_nearestEntity : m_nearestEnemy;
 
 	int selectId = melee, selectIndex = 0, chosenWeaponIndex = 0;
 	int weapons = pev->weapons;
@@ -512,7 +499,7 @@ WeaponSelectEnd:
 				pev->button |= IN_ATTACK;
 			else // if not, toggle buttons
 			{
-				if ((pev->oldbuttons & IN_ATTACK) == 0)
+				if (!(pev->oldbuttons & IN_ATTACK))
 					pev->button |= IN_ATTACK;
 			}
 		}
@@ -528,6 +515,8 @@ WeaponSelectEnd:
 
 		if (DoFirePause(distance))
 			return;
+
+		pev->button |= IN_ATTACK;
 	}
 }
 

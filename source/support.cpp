@@ -1201,7 +1201,7 @@ void HudMessage(edict_t* ent, const bool toCenter, const Color& rgb, char* forma
 	vsprintf(buffer, format, ap);
 	va_end(ap);
 
-	MESSAGE_BEGIN(MSG_ONE, SVC_TEMPENTITY, nullptr, ent);
+	MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, ent);
 	WRITE_BYTE(TE_TEXTMESSAGE);
 	WRITE_BYTE(1);
 	WRITE_SHORT(FixedSigned16(-1, 1 << 13));

@@ -17,8 +17,8 @@ bool g_analyzewaypoints = false;
 bool g_analyzeputrequirescrouch = false;
 bool g_expanded[Const_MaxWaypoints];
 bool g_hasDoors = false;
+bool g_sendMessage = true;
 
-bool g_sgdWaypoint = false;
 bool g_sautoWaypoint = false;
 int m_sautoRadius = 32;
 
@@ -40,7 +40,6 @@ int g_lastRadio[2];
 int g_storeAddbotVars[4];
 int g_radioSelect[32];
 int g_fakeArgc = 0;
-int bot_conntimes = 0;
 int g_gameVersion = Game::CStrike;
 int g_numWaypoints = 0;
 int g_mapType = 0;

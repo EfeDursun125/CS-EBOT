@@ -18,7 +18,7 @@ void NetworkMsg::HandleMessageIfRequired(const int messageType, const int requir
 
 void NetworkMsg::Execute(void* p)
 {
-    if (m_message == NETMSG_UNDEFINED)
+    if (m_message <= NETMSG_UNDEFINED)
         return; // no message or not for bot, return
 
     // some needed variables
@@ -38,7 +38,8 @@ void NetworkMsg::Execute(void* p)
         // this message is sent when a VGUI menu is displayed.
         if (m_state == 0)
         {
-            switch (PTR_TO_INT(p))
+            const int x = PTR_TO_INT(p);
+            switch (x)
             {
             case GMENU_TEAM:
                 m_bot->m_startAction = CMENU_TEAM;
@@ -55,25 +56,26 @@ void NetworkMsg::Execute(void* p)
     case NETMSG_SHOWMENU:
         // this message is sent when a text menu is displayed.
 
-        if (m_state < 3) // ignore first 3 fields of message
-            break;
-
-        if (cstrcmp(PTR_TO_STR(p), "#Team_Select") == 0) // team select menu?
-            m_bot->m_startAction = CMENU_TEAM;
-        else if (cstrcmp(PTR_TO_STR(p), "#Team_Select_Spect") == 0) // team select menu?
-            m_bot->m_startAction = CMENU_TEAM;
-        else if (cstrcmp(PTR_TO_STR(p), "#IG_Team_Select_Spect") == 0) // team select menu?
-            m_bot->m_startAction = CMENU_TEAM;
-        else if (cstrcmp(PTR_TO_STR(p), "#IG_Team_Select") == 0) // team select menu?
-            m_bot->m_startAction = CMENU_TEAM;
-        else if (cstrcmp(PTR_TO_STR(p), "#IG_VIP_Team_Select") == 0) // team select menu?
-            m_bot->m_startAction = CMENU_TEAM;
-        else if (cstrcmp(PTR_TO_STR(p), "#IG_VIP_Team_Select_Spect") == 0) // team select menu?
-            m_bot->m_startAction = CMENU_TEAM;
-        else if (cstrcmp(PTR_TO_STR(p), "#Terrorist_Select") == 0) // T model select?
-            m_bot->m_startAction = CMENU_CLASS;
-        else if (cstrcmp(PTR_TO_STR(p), "#CT_Select") == 0) // CT model select menu?
-            m_bot->m_startAction = CMENU_CLASS;
+        if (m_state >= 3) // ignore first 3 fields of message
+        {
+            const char* x = PTR_TO_STR(p);
+            if (cstrcmp(x, "#Team_Select") == 0) // team select menu?
+                m_bot->m_startAction = CMENU_TEAM;
+            else if (cstrcmp(x, "#Team_Select_Spect") == 0) // team select menu?
+                m_bot->m_startAction = CMENU_TEAM;
+            else if (cstrcmp(x, "#IG_Team_Select_Spect") == 0) // team select menu?
+                m_bot->m_startAction = CMENU_TEAM;
+            else if (cstrcmp(x, "#IG_Team_Select") == 0) // team select menu?
+                m_bot->m_startAction = CMENU_TEAM;
+            else if (cstrcmp(x, "#IG_VIP_Team_Select") == 0) // team select menu?
+                m_bot->m_startAction = CMENU_TEAM;
+            else if (cstrcmp(x, "#IG_VIP_Team_Select_Spect") == 0) // team select menu?
+                m_bot->m_startAction = CMENU_TEAM;
+            else if (cstrcmp(x, "#Terrorist_Select") == 0) // T model select?
+                m_bot->m_startAction = CMENU_CLASS;
+            else if (cstrcmp(x, "#CT_Select") == 0) // CT model select menu?
+                m_bot->m_startAction = CMENU_CLASS;
+        }
 
         break;
 
@@ -209,16 +211,17 @@ void NetworkMsg::Execute(void* p)
             break;
 
         case 1:
-            if (cstrcmp(PTR_TO_STR(p), "defuser") == 0)
+            const char* x = PTR_TO_STR(p);
+            if (cstrcmp(x, "defuser") == 0)
                 m_bot->m_hasDefuser = (enabled != 0);
-            else if (cstrcmp(PTR_TO_STR(p), "buyzone") == 0)
+            else if (cstrcmp(x, "buyzone") == 0)
             {
                 m_bot->m_inBuyZone = (enabled != 0);
                 m_bot->EquipInBuyzone(0);
             }
-            else if (cstrcmp(PTR_TO_STR(p), "vipsafety") == 0)
+            else if (cstrcmp(x, "vipsafety") == 0)
                 m_bot->m_inVIPZone = (enabled != 0);
-            else if (cstrcmp(PTR_TO_STR(p), "c4") == 0)
+            else if (cstrcmp(x, "c4") == 0)
                 m_bot->m_inBombZone = (enabled == 2);
 
             break;
@@ -238,14 +241,12 @@ void NetworkMsg::Execute(void* p)
             break;
 
         case 2:
-            edict_t* victim = INDEXENT(victimIndex);
-            if (FNullEnt(victim) || !IsValidPlayer(victim))
-                break;
-
-            Bot* victimer = g_botManager->GetBot(victim);
+            Bot* victimer = g_botManager->GetBot(victimIndex);
             if (victimer != nullptr)
+            {
+                victimer->m_isAlive = false;
                 victimer->DeleteSearchNodes();
-
+            }
             break;
         }
         break;
@@ -291,38 +292,39 @@ void NetworkMsg::Execute(void* p)
     case NETMSG_TEXTMSG:
         if (m_state == 1)
         {
-            if (FStrEq(PTR_TO_STR(p), "#CTs_Win") ||
-                FStrEq(PTR_TO_STR(p), "#Bomb_Defused") ||
-                FStrEq(PTR_TO_STR(p), "#Terrorists_Win") ||
-                FStrEq(PTR_TO_STR(p), "#Round_Draw") ||
-                FStrEq(PTR_TO_STR(p), "#All_Hostages_Rescued") ||
-                FStrEq(PTR_TO_STR(p), "#Target_Saved") ||
-                FStrEq(PTR_TO_STR(p), "#Hostages_Not_Rescued") ||
-                FStrEq(PTR_TO_STR(p), "#Terrorists_Not_Escaped") ||
-                FStrEq(PTR_TO_STR(p), "#VIP_Not_Escaped") ||
-                FStrEq(PTR_TO_STR(p), "#Escaping_Terrorists_Neutralized") ||
-                FStrEq(PTR_TO_STR(p), "#VIP_Assassinated") ||
-                FStrEq(PTR_TO_STR(p), "#VIP_Escaped") ||
-                FStrEq(PTR_TO_STR(p), "#Terrorists_Escaped") ||
-                FStrEq(PTR_TO_STR(p), "#CTs_PreventEscape") ||
-                FStrEq(PTR_TO_STR(p), "#Target_Bombed") ||
-                FStrEq(PTR_TO_STR(p), "#Game_Commencing") ||
-                FStrEq(PTR_TO_STR(p), "#Game_will_restart_in"))
+            const char* x = PTR_TO_STR(p);
+            if (FStrEq(x, "#CTs_Win") ||
+                FStrEq(x, "#Bomb_Defused") ||
+                FStrEq(x, "#Terrorists_Win") ||
+                FStrEq(x, "#Round_Draw") ||
+                FStrEq(x, "#All_Hostages_Rescued") ||
+                FStrEq(x, "#Target_Saved") ||
+                FStrEq(x, "#Hostages_Not_Rescued") ||
+                FStrEq(x, "#Terrorists_Not_Escaped") ||
+                FStrEq(x, "#VIP_Not_Escaped") ||
+                FStrEq(x, "#Escaping_Terrorists_Neutralized") ||
+                FStrEq(x, "#VIP_Assassinated") ||
+                FStrEq(x, "#VIP_Escaped") ||
+                FStrEq(x, "#Terrorists_Escaped") ||
+                FStrEq(x, "#CTs_PreventEscape") ||
+                FStrEq(x, "#Target_Bombed") ||
+                FStrEq(x, "#Game_Commencing") ||
+                FStrEq(x, "#Game_will_restart_in"))
             {
                 g_roundEnded = true;
 
                 if (GetGameMode() == GameMode::Original)
                 {
-                    if (FStrEq(PTR_TO_STR(p), "#CTs_Win"))
+                    if (FStrEq(x, "#CTs_Win"))
                         g_botManager->SetLastWinner(Team::Counter); // update last winner for economics
 
-                    if (FStrEq(PTR_TO_STR(p), "#Terrorists_Win"))
+                    if (FStrEq(x, "#Terrorists_Win"))
                         g_botManager->SetLastWinner(Team::Terrorist); // update last winner for economics
                 }
 
                 g_waypoint->SetBombPosition(true);
             }
-            else if (!g_bombPlanted && FStrEq(PTR_TO_STR(p), "#Bomb_Planted"))
+            else if (!g_bombPlanted && FStrEq(x, "#Bomb_Planted"))
             {
                 g_bombPlanted = true;
                 g_bombSayString = true;
@@ -335,9 +337,9 @@ void NetworkMsg::Execute(void* p)
                         bot->DeleteSearchNodes();
                 }
             }
-            else if (m_bot != nullptr && FStrEq(PTR_TO_STR(p), "#Switch_To_BurstFire"))
+            else if (m_bot != nullptr && FStrEq(x, "#Switch_To_BurstFire"))
                 m_bot->m_weaponBurstMode = BurstMode::Enabled;
-            else if (m_bot != nullptr && FStrEq(PTR_TO_STR(p), "#Switch_To_SemiAuto"))
+            else if (m_bot != nullptr && FStrEq(x, "#Switch_To_SemiAuto"))
                 m_bot->m_weaponBurstMode = BurstMode::Disabled;
         }
         break;
@@ -350,9 +352,10 @@ void NetworkMsg::Execute(void* p)
         {
             if (GetGameMode() == GameMode::Original)
             {
-                if (PTR_TO_INT(p) > 0)
+                const int x = PTR_TO_INT(p);
+                if (x > 0)
                     m_bot->m_hasProgressBar = true; // the progress bar on a hud
-                else if (PTR_TO_INT(p) == 0)
+                else if (x == 0)
                     m_bot->m_hasProgressBar = false; // no progress bar or disappeared
             }
             else

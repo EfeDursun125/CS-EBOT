@@ -1195,36 +1195,140 @@ bool Bot::IsEnemyReachable(void)
 	}
 
 	edict_t* me = GetEntity();
-	const int ownIndex = IsValidWaypoint(m_currentWaypointIndex) ? m_currentWaypointIndex : (m_currentWaypointIndex = g_waypoint->FindNearest(pev->origin, 999999.0f, -1, me));
-	const Path* currentWaypoint = g_waypoint->GetPath(ownIndex);
+	const int ownIndex = IsValidWaypoint(m_currentWaypointIndex) ? m_currentWaypointIndex : g_waypoint->FindNearest(pev->origin, 999999.0f, -1, me);
+	const int enemyIndex = g_waypoint->FindNearest(m_enemyOrigin, 999999.0f, -1, me);
+	const auto currentWaypoint = g_waypoint->GetPath(ownIndex);
+
+	if (currentWaypoint->flags & WAYPOINT_FALLRISK)
+	{
+		m_enemyReachableTimer = time + CRandomFloat(0.33f, 0.66f);
+		return m_isEnemyReachable;
+	}
 
 	if (m_isZombieBot)
 	{
-		if (currentWaypoint->flags & WAYPOINT_FALLRISK || currentWaypoint->flags & WAYPOINT_ZOMBIEPUSH)
-		{
-			m_isEnemyReachable = false;
-			m_enemyReachableTimer = time + CRandomFloat(0.33f, 0.66f);
-			return m_isEnemyReachable;
-		}
-		else if (g_waypoint->IsNodeReachable(pev->origin, m_enemyOrigin))
+		if (ownIndex == enemyIndex)
 		{
 			m_isEnemyReachable = true;
 			m_enemyReachableTimer = time + CRandomFloat(0.33f, 0.66f);
 			return m_isEnemyReachable;
 		}
-	}
-	else
-	{
-		if (currentWaypoint->flags & WAYPOINT_FALLRISK)
-		{
+		else
 			m_isEnemyReachable = false;
+
+		const float enemyDistance = (pev->origin - m_enemyOrigin).GetLengthSquared();
+		if (pev->flags & FL_DUCKING)
+		{
+			if (enemyDistance < SquaredF(54.0f) || !HasNextPath())
+				m_isEnemyReachable = true;
+
+			pev->speed = pev->maxspeed;
+			m_moveSpeed = pev->maxspeed;
+
 			m_enemyReachableTimer = time + CRandomFloat(0.33f, 0.66f);
 			return m_isEnemyReachable;
 		}
+
+		// end of the path, before repathing check the distance if we can reach to enemy
+		if (!HasNextPath())
+		{
+			m_isEnemyReachable = enemyDistance < SquaredF(512.0f);
+			if (m_isEnemyReachable)
+			{
+				m_enemyReachableTimer = time + CRandomFloat(0.33f, 0.66f);
+				return m_isEnemyReachable;
+			}
+		}
 		else
 		{
+			float radius = pev->maxspeed;
+			if (!(currentWaypoint->flags & WAYPOINT_FALLCHECK) && !(currentWaypoint->flags & WAYPOINT_FALLRISK))
+				radius += currentWaypoint->radius * 4.0f;
+
+			if (enemyDistance < SquaredF(radius))
+			{
+				TraceResult tr;
+				TraceHull(pev->origin, m_enemyOrigin, true, head_hull, me, &tr);
+
+				if (tr.flFraction == 1.0f)
+				{
+					m_isEnemyReachable = true;
+					m_enemyReachableTimer = time + CRandomFloat(0.33f, 0.66f);
+					return m_isEnemyReachable;
+				}
+			}
+		}
+	}
+	else if (m_hasEnemiesNear && !FNullEnt(m_nearestEnemy))
+	{
+		m_isEnemyReachable = false;
+		if (IsZombieMode())
+		{
+			if (enemyIndex == ownIndex)
+			{
+				m_isEnemyReachable = true;
+				m_enemyReachableTimer = time + CRandomFloat(0.33f, 0.66f);
+				return m_isEnemyReachable;
+			}
+
+			const Vector enemyVel = m_nearestEnemy->v.velocity;
+			const float enemySpeed = cabsf(m_nearestEnemy->v.speed);
+
+			const Vector enemyHead = GetPlayerHeadOrigin(m_nearestEnemy);
+			const Vector myVec = pev->origin + pev->velocity * m_frameInterval;
+
+			const float enemyDistance = (myVec - (enemyHead + enemyVel * m_frameInterval)).GetLengthSquared();
+
 			extern ConVar ebot_zp_escape_distance;
-			if ((pev->origin - m_enemyOrigin).GetLengthSquared() < SquaredF(ebot_zp_escape_distance.GetFloat()) && g_waypoint->IsNodeReachable(pev->origin, m_enemyOrigin))
+			const float escapeDist = SquaredF(enemySpeed + ebot_zp_escape_distance.GetFloat());
+
+			if (pev->flags & FL_DUCKING) // danger...
+			{
+				if (enemyDistance < escapeDist)
+				{
+					m_isEnemyReachable = true;
+					m_enemyReachableTimer = time + CRandomFloat(0.33f, 0.66f);
+					return m_isEnemyReachable;
+				}
+			}
+			else if (GetProcess() == Process::Camp)
+			{
+				if (enemyIndex == m_zhCampPointIndex)
+					m_isEnemyReachable = true;
+				else
+				{
+					if (enemyDistance < escapeDist)
+					{
+						for (int j = 0; j < Const_MaxPathIndex; j++)
+						{
+							const auto enemyWaypoint = g_waypoint->GetPath(enemyIndex);
+							if (enemyWaypoint->index[j] != -1 && enemyWaypoint->index[j] == ownIndex && !(enemyWaypoint->connectionFlags[j] & PATHFLAG_JUMP))
+							{
+								m_isEnemyReachable = true;
+								break;
+							}
+						}
+
+						if (!m_isEnemyReachable)
+						{
+							const Vector origin = GetBottomOrigin(GetEntity());
+
+							TraceResult tr;
+							TraceLine(Vector(origin.x, origin.y, (origin.z + (pev->flags & FL_DUCKING) ? 6.0f : 12.0f)), enemyHead, true, true, GetEntity(), &tr);
+							if (tr.flFraction == 1.0f)
+							{
+								m_isEnemyReachable = true;
+								m_enemyReachableTimer = time + CRandomFloat(0.33f, 0.66f);
+								return m_isEnemyReachable;
+							}
+						}
+					}
+				}
+
+				m_enemyReachableTimer = time + CRandomFloat(0.33f, 0.66f);
+				return m_isEnemyReachable;
+			}
+			else if (enemyDistance < escapeDist)
 			{
 				m_isEnemyReachable = true;
 				m_enemyReachableTimer = time + CRandomFloat(0.33f, 0.66f);
@@ -2658,9 +2762,10 @@ void Bot::EquipInBuyzone(const int iBuyCount)
 		return;
 
 	static float lastEquipTime = 0.0f;
+	const float time = engine->GetTime();
 
 	// if bot is in buy zone, try to buy ammo for this weapon...
-	if (lastEquipTime + 15.0f < engine->GetTime() && m_inBuyZone && g_timeRoundStart + CRandomFloat(10.0f, 20.0f) + engine->GetBuyTime() < engine->GetTime() && !g_bombPlanted && m_moneyAmount > 800)
+	if (lastEquipTime + 15.0f < time && m_inBuyZone && g_timeRoundStart + CRandomFloat(10.0f, 20.0f) + engine->GetBuyTime() < time && !g_bombPlanted && m_moneyAmount > 800)
 	{
 		m_buyingFinished = false;
 		m_buyState = iBuyCount;
@@ -2668,8 +2773,8 @@ void Bot::EquipInBuyzone(const int iBuyCount)
 		// push buy message
 		PushMessageQueue(CMENU_BUY);
 
-		m_nextBuyTime = engine->GetTime();
-		lastEquipTime = engine->GetTime();
+		m_nextBuyTime = time;
+		lastEquipTime = time;
 	}
 }
 

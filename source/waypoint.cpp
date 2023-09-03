@@ -106,7 +106,9 @@ void AnalyzeThread(void)
 
         HudMessage(g_hostEntity, true, Color(100, 100, 255), message);
     }
-    else if (!IsDedicatedServer() && engine->GetTime() < 20.0f) // let the player join first...
+
+    const float time = engine->GetTime();
+    if (!IsDedicatedServer() && time < 20.0f) // let the player join first...
         return;
 
     static float magicTimer;
@@ -115,11 +117,11 @@ void AnalyzeThread(void)
         if (g_expanded[i])
             continue;
 
-        if (magicTimer >= engine->GetTime())
+        if (magicTimer > time)
             continue;
 
-        if ((ebot_analyzer_min_fps.GetFloat() + g_pGlobals->frametime) <= 1.0f / g_pGlobals->frametime)
-            magicTimer = AddTime(g_pGlobals->frametime * 0.054f); // pause
+        if ((ebot_analyzer_min_fps.GetFloat() + g_pGlobals->frametime) < 1.0f / g_pGlobals->frametime)
+            magicTimer = AddTime(g_pGlobals->frametime * 0.066f); // pause
 
         const Vector WayVec = g_waypoint->GetPath(i)->origin;
         const float range = ebot_analyze_distance.GetFloat();
@@ -206,7 +208,7 @@ void AnalyzeThread(void)
         g_expanded[i] = true;
     }
 
-    if (magicTimer + 2.0f < engine->GetTime())
+    if (magicTimer + 2.0f < time)
     {
         g_analyzewaypoints = false;
         g_waypointOn = false;
@@ -673,85 +675,6 @@ void Waypoint::FindInRadius(Array <int>& queueID, const float radius, const Vect
     {
         if ((m_paths[i]->origin - origin).GetLengthSquared() < squared)
             queueID.Push(i);
-    }
-}
-
-void Waypoint::SgdWp_Set(const char* modset)
-{
-    if (cstricmp(modset, "on") == 0)
-    {
-        if (m_badMapName)
-        {
-            Initialize();
-            Load(1);
-            ChatPrint("[SgdWP] I found the bad waypoint data ***");
-            ChatPrint("[SgdWP] And I will load your bad waypoint data right now ***");
-            ChatPrint("[SgdWP] If this is bad waypoint, you need delete this ***");
-        }
-
-        ServerCommand("mp_roundtime 9");
-        ServerCommand("sv_restart 1");
-        ServerCommand("mp_timelimit 0");
-        ServerCommand("mp_freezetime 0");
-
-        g_waypointOn = true;
-        g_autoWaypoint = false;
-        g_sgdWaypoint = true;
-        g_sautoWaypoint = false;
-
-        if (g_numWaypoints < 1)
-            CreateBasic();
-
-        ChatPrint("[SgdWP] Hold 'E' Call [SgdWP] Menu *******");
-    }
-    else if (cstricmp(modset, "off") == 0)
-    {
-        g_sautoWaypoint = false;
-        g_sgdWaypoint = false;
-        g_waypointOn = false;
-    }
-    else if ((cstricmp(modset, "save") == 0 || cstricmp(modset, "save_non-check") == 0) && g_sgdWaypoint)
-    {
-        if (cstricmp(modset, "save_non-check") == 0 || g_waypoint->NodesValid())
-        {
-            Save();
-            g_sautoWaypoint = false;
-            g_sgdWaypoint = false;
-            g_waypointOn = false;
-
-            ChatPrint("[SgdWP] Save your waypoint - Finsh *******");
-            ChatPrint("[SgdWP] Please waypoints and restart the map *******");
-        }
-        else
-        {
-            g_editNoclip = false;
-            ChatPrint("[SgdWP] Cannot Save your waypoint, Your waypoint has the problems!");
-        }
-    }
-
-    edict_t* spawnEntity = nullptr;
-    while (!FNullEnt(spawnEntity = FIND_ENTITY_BY_CLASSNAME(spawnEntity, "info_player_start")))
-    {
-        if (g_sgdWaypoint)
-            spawnEntity->v.effects &= ~EF_NODRAW;
-        else
-            spawnEntity->v.effects |= EF_NODRAW;
-    }
-
-    while (!FNullEnt(spawnEntity = FIND_ENTITY_BY_CLASSNAME(spawnEntity, "info_player_deathmatch")))
-    {
-        if (g_sgdWaypoint)
-            spawnEntity->v.effects &= ~EF_NODRAW;
-        else
-            spawnEntity->v.effects |= EF_NODRAW;
-    }
-
-    while (!FNullEnt(spawnEntity = FIND_ENTITY_BY_CLASSNAME(spawnEntity, "info_vip_start")))
-    {
-        if (g_sgdWaypoint)
-            spawnEntity->v.effects &= ~EF_NODRAW;
-        else
-            spawnEntity->v.effects |= EF_NODRAW;
     }
 }
 
@@ -2387,125 +2310,6 @@ void Waypoint::Think(void)
         }
     }
 
-    if (g_sgdWaypoint)
-    {
-        if (g_autoWaypoint)
-            g_autoWaypoint = false;
-
-        g_hostEntity->v.health = 255.0f;
-
-        if (g_hostEntity->v.button & IN_USE && (g_hostEntity->v.flags & FL_ONGROUND))
-        {
-            if (m_timeGetProTarGet == 0.0f)
-                m_timeGetProTarGet = engine->GetTime();
-            else if (m_timeGetProTarGet + 1.0 < engine->GetTime())
-            {
-                DisplayMenuToClient(g_hostEntity, &g_menus[21]);
-                m_timeGetProTarGet = 0.0f;
-            }
-        }
-        else
-            m_timeGetProTarGet = 0.0f;
-
-        if (g_sautoWaypoint)
-        {
-            if (!m_ladderPoint)
-            {
-                if ((g_hostEntity->v.movetype == MOVETYPE_FLY) && !(g_hostEntity->v.flags & (FL_ONGROUND | FL_PARTIALGROUND)))
-                {
-                    if (FindNearest(GetEntityOrigin(g_hostEntity), 75.0f, WAYPOINT_LADDER) == -1)
-                    {
-                        Add(3);
-                        SetRadius(0);
-                    }
-
-                    m_ladderPoint = true;
-                }
-            }
-            else
-            {
-                if ((g_hostEntity->v.movetype == MOVETYPE_FLY) && !(g_hostEntity->v.flags & (FL_ONGROUND | FL_PARTIALGROUND)))
-                {
-                    if (FindNearest(GetEntityOrigin(g_hostEntity), 75.0f, WAYPOINT_LADDER) == -1)
-                    {
-                        Add(3);
-                        SetRadius(0);
-                    }
-                }
-            }
-
-            if (g_hostEntity->v.flags & (FL_ONGROUND | FL_PARTIALGROUND))
-            {
-                if (m_ladderPoint && !(g_hostEntity->v.movetype == MOVETYPE_FLY))
-                {
-                    Add(0);
-                    SetRadius(m_sautoRadius);
-                    m_ladderPoint = false;
-                }
-
-                if (m_fallPosition != nullvec && m_fallPoint)
-                {
-                    if (m_fallPosition.z > (GetEntityOrigin(g_hostEntity).z + 150.0f))
-                    {
-                        Add(102, m_fallPosition);
-                        SetRadius(m_sautoRadius);
-                        Add(103);
-                        SetRadius(m_sautoRadius);
-                    }
-
-                    m_fallPoint = false;
-                    m_fallPosition = nullvec;
-                }
-
-                if (g_hostEntity->v.button & IN_DUCK)
-                {
-                    if (m_timeCampWaypoint == 0.0f)
-                        m_timeCampWaypoint = engine->GetTime();
-                    else if (m_timeCampWaypoint + 2.5 < engine->GetTime())
-                    {
-                        m_timeCampWaypoint = 0.0f;
-                        DisplayMenuToClient(g_hostEntity, &g_menus[22]);
-                    }
-                }
-                else
-                    m_timeCampWaypoint = 0.0f;
-
-                float distance = (m_lastWaypoint - GetEntityOrigin(g_hostEntity)).GetLengthSquared();
-                int newWaypointDistance = (g_numWaypoints >= 800) ? 16384 : 12000;
-
-                if (g_waypoint->GetPath(g_waypoint->FindNearest(m_lastWaypoint, 10.0f))->radius == 0)
-                    newWaypointDistance = 10000;
-
-                if (distance > newWaypointDistance)
-                {
-                    for (int i = 0; i < g_numWaypoints; i++)
-                    {
-                        if (IsNodeReachable(GetEntityOrigin(g_hostEntity), m_paths[i]->origin))
-                        {
-                            distance = (m_paths[i]->origin - GetEntityOrigin(g_hostEntity)).GetLengthSquared();
-
-                            if (distance < nearestDistance)
-                                nearestDistance = distance;
-                        }
-                    }
-
-                    if (nearestDistance >= newWaypointDistance)
-                    {
-                        Add(0);
-                        SetRadius(m_sautoRadius);
-                    }
-                }
-
-                m_fallPosition = GetEntityOrigin(g_hostEntity);
-                m_learnJumpWaypoint = true;
-            }
-            else if (m_timeGetProTarGet != 0.0f)
-                m_learnJumpWaypoint = false;
-            else
-                m_fallPoint = true;
-        }
-    }
-
     // check if it's a autowaypoint mode enabled
     if (g_autoWaypoint && (g_hostEntity->v.flags & (FL_ONGROUND | FL_PARTIALGROUND)))
     {
@@ -2720,7 +2524,7 @@ void Waypoint::ShowWaypointMsg(void)
     Path* path = m_paths[nearestIndex];
 
     // draw a paths, camplines and danger directions for nearest waypoint
-    if (nearestDistance <= SquaredF(2048) && m_pathDisplayTime <= engine->GetTime())
+    if (nearestDistance < SquaredF(2048) && m_pathDisplayTime < engine->GetTime())
     {
         m_pathDisplayTime = AddTime(1.0f);
 
@@ -2812,22 +2616,6 @@ void Waypoint::ShowWaypointMsg(void)
                 "      Flags: %s\n", m_facingAtIndex, g_numWaypoints, m_paths[m_facingAtIndex]->radius, GetWaypointInfo(m_facingAtIndex));
         }
 
-        if (g_sgdWaypoint)
-        {
-            length += sprintf(&tempMessage[length], "    Hold 'E' Call [SgdWP] Menu \n"
-                "    [Auto Put Waypoint]:%s \n", g_sautoWaypoint ? "on" : "off");
-
-            if (!g_sautoWaypoint)
-                length += sprintf(&tempMessage[length], "    You Can true on [Auto put Waypoint] (menu>7) \n");
-            else
-            {
-                length += sprintf(&tempMessage[length], "    System will auto save Waypoint, you can move in the map now \n"
-                    "    Complete, you will save Waypoint (menu>9) \n\n"
-                    "    Hold 'IN_DUCK' Can make camp Waypoint \n"
-                    "    System Can auto save 'Fall' and 'Jump' Waypoint \n\n");
-            }
-        }
-
         // draw entire message
         MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, g_hostEntity);
         WRITE_BYTE(TE_TEXTMESSAGE);
@@ -2894,8 +2682,6 @@ bool Waypoint::NodesValid(void)
                     AddLogEntry(Log::Warning, "Waypoint %d connected with invalid Waypoint #%d!", i, m_paths[i]->index[j]);
                     (*g_engfuncs.pfnSetOrigin) (g_hostEntity, m_paths[i]->origin);
                     haveError = true;
-                    if (g_sgdWaypoint)
-                        ChatPrint("[SgdWP] Waypoint %d connected with invalid Waypoint #%d!", i, m_paths[i]->index[j]);
                 }
 
                 connections++;
@@ -2910,8 +2696,6 @@ bool Waypoint::NodesValid(void)
                 AddLogEntry(Log::Warning, "Waypoint %d isn't connected with any other Waypoint!", i);
                 (*g_engfuncs.pfnSetOrigin) (g_hostEntity, m_paths[i]->origin);
                 haveError = true;
-                if (g_sgdWaypoint)
-                    ChatPrint("[SgdWP] Waypoint %d isn't connected with any other Waypoint!", i);
             }
         }
 
@@ -2937,8 +2721,6 @@ bool Waypoint::NodesValid(void)
                     g_editNoclip = true;
 
                     haveError = true;
-                    if (g_sgdWaypoint)
-                        ChatPrint("[SgdWP] Waypoint %d - Pathindex %d out of Range!", i, k);
                 }
                 else if (m_paths[i]->index[k] == i)
                 {
@@ -2949,8 +2731,6 @@ bool Waypoint::NodesValid(void)
                     g_editNoclip = true;
 
                     haveError = true;
-                    if (g_sgdWaypoint)
-                        ChatPrint("[SgdWP] Waypoint %d - Pathindex %d points to itself!", i, k);
                 }
             }
         }
@@ -2962,8 +2742,6 @@ bool Waypoint::NodesValid(void)
         {
             AddLogEntry(Log::Warning, "You didn't set a Rescue Point!");
             haveError = true;
-            if (g_sgdWaypoint)
-                ChatPrint("[SgdWP] You didn't set a Rescue Point!");
         }
     }
 
@@ -2971,22 +2749,16 @@ bool Waypoint::NodesValid(void)
     {
         AddLogEntry(Log::Warning, "You didn't set any Terrorist Important Point!");
         haveError = true;
-        if (g_sgdWaypoint)
-            ChatPrint("[SgdWP] You didn't set any Terrorist Important Point!");
     }
     else if (ctPoints == 0 && GetGameMode() == GameMode::Original)
     {
         AddLogEntry(Log::Warning, "You didn't set any CT Important Point!");
         haveError = true;
-        if (g_sgdWaypoint)
-            ChatPrint("[SgdWP] You didn't set any CT Important Point!");
     }
     else if (goalPoints == 0 && GetGameMode() == GameMode::Original)
     {
         AddLogEntry(Log::Warning, "You didn't set any Goal Point!");
         haveError = true;
-        if (g_sgdWaypoint)
-            ChatPrint("[SgdWP] You didn't set any Goal Point!");
     }
 
     CenterPrint("Waypoints are saved!");

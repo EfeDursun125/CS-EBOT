@@ -204,9 +204,6 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		ClientPrint(ent, print_console, "ebot cmenu              - displaying e-bots command menu");
 		ClientPrint(ent, print_console, "ebot_add                - adds a e-bot in current game");
 
-		if (!IsDedicatedServer())
-			ServerPrintNoTag("ebot sgdwp on           - New making waypoint system from ebot");
-
 		if (cstricmp(arg1, "full") == 0 || cstricmp(arg1, "f") == 0 || cstricmp(arg1, "?") == 0)
 		{
 			ClientPrint(ent, print_console, "ebot_add_t              - creates one random e-bot to terrorist team");
@@ -1341,11 +1338,6 @@ void ClientCommand(edict_t* ent)
 			}
 			else if (client->menu == &g_menus[13]) // set waypoint flag
 			{
-				if (g_sgdWaypoint)
-					DisplayMenuToClient(ent, &g_menus[13]);
-				else
-					DisplayMenuToClient(ent, nullptr);
-
 				switch (selection)
 				{
 				case 1:
@@ -1396,11 +1388,6 @@ void ClientCommand(edict_t* ent)
 			}
 			else if (client->menu == &g_menus[26]) // set waypoint flag 2
 			{
-				if (g_sgdWaypoint)
-					DisplayMenuToClient(ent, &g_menus[26]);
-				else
-					DisplayMenuToClient(ent, nullptr);
-
 				switch (selection)
 				{
 				case 1:
@@ -1451,11 +1438,6 @@ void ClientCommand(edict_t* ent)
 			}
 			else if (client->menu == &g_menus[27]) // set waypoint flag 3
 			{
-				if (g_sgdWaypoint)
-					DisplayMenuToClient(ent, &g_menus[27]);
-				else
-					DisplayMenuToClient(ent, nullptr);
-
 				switch (selection)
 				{
 				case 1:
@@ -1659,13 +1641,6 @@ void ClientCommand(edict_t* ent)
 			}
 			else if (client->menu == &g_menus[11])
 			{
-				DisplayMenuToClient(ent, nullptr); // reset menu display
-
-				if (g_sgdWaypoint)
-					DisplayMenuToClient(ent, &g_menus[21]);
-				else
-					DisplayMenuToClient(ent, nullptr);
-
 				g_waypointOn = true;  // turn waypoints on in case
 
 				const int16 radiusValue[] = { 0, 8, 16, 32, 48, 64, 80, 96, 128 };
@@ -1836,8 +1811,6 @@ void ClientCommand(edict_t* ent)
 			}
 			else if (client->menu == &g_menus[19])
 			{
-				DisplayMenuToClient(ent, nullptr); // reset menu display
-
 				const float autoDistanceValue[] = { 0.0f, 100.0f, 130.0f, 160.0f, 190.0f, 220.0f, 250.0f };
 
 				if (selection >= 1 && selection <= 7)
@@ -1855,13 +1828,6 @@ void ClientCommand(edict_t* ent)
 			}
 			else if (client->menu == &g_menus[20])
 			{
-				//DisplayMenuToClient (ent, nullptr); // reset menu display
-
-				if (g_sgdWaypoint)
-					DisplayMenuToClient(ent, &g_menus[21]);
-				else
-					DisplayMenuToClient(ent, nullptr);
-
 				switch (selection)
 				{
 				case 1:
@@ -1937,9 +1903,8 @@ void ClientCommand(edict_t* ent)
 					break;
 
 				case 9:
-					g_waypoint->SgdWp_Set("save");
-					if (g_sgdWaypoint)
-						DisplayMenuToClient(ent, &g_menus[26]);
+					g_waypoint->Save();
+					DisplayMenuToClient(ent, &g_menus[26]);
 					break;
 
 				case 10:
@@ -1954,8 +1919,6 @@ void ClientCommand(edict_t* ent)
 			}
 			else if (client->menu == &g_menus[22])
 			{
-				DisplayMenuToClient(ent, &g_menus[22]);
-
 				switch (selection)
 				{
 				case 1:
@@ -2079,7 +2042,7 @@ void ClientCommand(edict_t* ent)
 				switch (selection)
 				{
 				case 1:
-					g_waypoint->SgdWp_Set("save_non-check");
+					g_waypoint->Save();
 					break;
 
 				case 2:
@@ -2640,33 +2603,34 @@ void JustAStuff(void)
 	{
 		for (const auto& client : g_clients)
 		{
+			if (client.index < 0)
+				continue;
+
 			if (FNullEnt(client.ent))
 				continue;
 
-			edict_t* player = client.ent;
+			if (!(client.ent->v.flags & FL_CLIENT))
+				continue;
 
-			if (!FNullEnt(player) && (player->v.flags & FL_CLIENT))
+			const char* password = ebot_password.GetString();
+			const char* key = ebot_password_key.GetString();
+
+			if (client.flags & CFLAG_OWNER)
 			{
-				const char* password = ebot_password.GetString();
-				const char* key = ebot_password_key.GetString();
-
-				if (client.flags & CFLAG_OWNER)
+				if (IsNullString(key) && IsNullString(password))
+					g_clients[client.index].flags &= ~CFLAG_OWNER;
+				else if (cstrcmp(password, INFOKEY_VALUE(GET_INFOKEYBUFFER(client.ent), (char*)key)) == 0)
 				{
-					if (IsNullString(key) && IsNullString(password))
-						g_clients[client.index].flags &= ~CFLAG_OWNER;
-					else if (cstrcmp(password, INFOKEY_VALUE(GET_INFOKEYBUFFER(client.ent), (char*)key)) == 0)
-					{
-						g_clients[client.index].flags &= ~CFLAG_OWNER;
-						ServerPrint("Player %s had lost remote access to ebot.", GetEntityName(player));
-					}
+					g_clients[client.index].flags &= ~CFLAG_OWNER;
+					ServerPrint("Player %s had lost remote access to ebot.", GetEntityName(client.ent));
 				}
-				else if (IsNullString(key) && IsNullString(password))
+			}
+			else if (IsNullString(key) && IsNullString(password))
+			{
+				if (cstrcmp(password, INFOKEY_VALUE(GET_INFOKEYBUFFER(client.ent), (char*)key)) == 0)
 				{
-					if (cstrcmp(password, INFOKEY_VALUE(GET_INFOKEYBUFFER(client.ent), (char*)key)) == 0)
-					{
-						g_clients[client.index].flags |= CFLAG_OWNER;
-						ServerPrint("Player %s had gained full remote access to ebot.", GetEntityName(player));
-					}
+					g_clients[client.index].flags |= CFLAG_OWNER;
+					ServerPrint("Player %s had gained full remote access to ebot.", GetEntityName(client.ent));
 				}
 			}
 		}
@@ -2849,6 +2813,17 @@ void pfnClientCommand(edict_t* ent, char* format, ...)
 
 void pfnMessageBegin(int msgDest, int msgType, const float* origin, edict_t* ed)
 {
+	if (!g_sendMessage)
+	{
+		// end the existing one...
+		MESSAGE_END();
+
+		if (g_isMetamod)
+			RETURN_META(MRES_SUPERCEDE);
+
+		return;
+	}
+
 	// store the message type in our own variables, since the GET_USER_MSG_ID () will just do a lot of strcmp()'s...
 	if (g_isMetamod && NetworkMsg::GetObjectPtr()->GetId(NETMSG_MONEY) == -1)
 	{
@@ -2870,13 +2845,11 @@ void pfnMessageBegin(int msgDest, int msgType, const float* origin, edict_t* ed)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SENDAUDIO, GET_USER_MSG_ID(PLID, "SendAudio", nullptr));
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SAYTEXT, GET_USER_MSG_ID(PLID, "SayText", nullptr));
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_RESETHUD, GET_USER_MSG_ID(PLID, "ResetHUD", nullptr));
-
-		if (!(g_gameVersion & Game::Old))
-			NetworkMsg::GetObjectPtr()->SetId(NETMSG_BOTVOICE, GET_USER_MSG_ID(PLID, "BotVoice", nullptr));
 	}
+
 	NetworkMsg::GetObjectPtr()->Reset();
 
-	if (msgDest == MSG_SPEC && msgType == NetworkMsg::GetObjectPtr()->GetId(NETMSG_HLTV) && !(g_gameVersion & Game::Old))
+	if (msgDest == MSG_SPEC && msgType == NetworkMsg::GetObjectPtr()->GetId(NETMSG_HLTV))
 		NetworkMsg::GetObjectPtr()->SetMessage(NETMSG_HLTV);
 
 	NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_WEAPONLIST);
@@ -2927,6 +2900,7 @@ void pfnMessageBegin(int msgDest, int msgType, const float* origin, edict_t* ed)
 	if (g_isMetamod)
 		RETURN_META(MRES_IGNORED);
 
+	g_sendMessage = false;
 	MESSAGE_BEGIN(msgDest, msgType, origin, ed);
 }
 
@@ -2938,9 +2912,19 @@ void pfnMessageEnd(void)
 		RETURN_META(MRES_IGNORED);
 
 	MESSAGE_END();
+	g_sendMessage = true;
 }
+
 void pfnWriteByte(int value)
 {
+	if (!g_sendMessage)
+	{
+		if (g_isMetamod)
+			RETURN_META(MRES_SUPERCEDE);
+
+		return;
+	}
+
 	// if this message is for a bot, call the client message function...
 	NetworkMsg::GetObjectPtr()->Execute((void*)&value);
 
@@ -2952,6 +2936,14 @@ void pfnWriteByte(int value)
 
 void pfnWriteChar(int value)
 {
+	if (!g_sendMessage)
+	{
+		if (g_isMetamod)
+			RETURN_META(MRES_SUPERCEDE);
+
+		return;
+	}
+
 	// if this message is for a bot, call the client message function...
 	NetworkMsg::GetObjectPtr()->Execute((void*)&value);
 
@@ -2963,6 +2955,14 @@ void pfnWriteChar(int value)
 
 void pfnWriteShort(int value)
 {
+	if (!g_sendMessage)
+	{
+		if (g_isMetamod)
+			RETURN_META(MRES_SUPERCEDE);
+
+		return;
+	}
+
 	// if this message is for a bot, call the client message function...
 	NetworkMsg::GetObjectPtr()->Execute((void*)&value);
 
@@ -2974,6 +2974,14 @@ void pfnWriteShort(int value)
 
 void pfnWriteLong(int value)
 {
+	if (!g_sendMessage)
+	{
+		if (g_isMetamod)
+			RETURN_META(MRES_SUPERCEDE);
+
+		return;
+	}
+
 	// if this message is for a bot, call the client message function...
 	NetworkMsg::GetObjectPtr()->Execute((void*)&value);
 
@@ -2985,6 +2993,14 @@ void pfnWriteLong(int value)
 
 void pfnWriteAngle(float value)
 {
+	if (!g_sendMessage)
+	{
+		if (g_isMetamod)
+			RETURN_META(MRES_SUPERCEDE);
+
+		return;
+	}
+
 	// if this message is for a bot, call the client message function...
 	NetworkMsg::GetObjectPtr()->Execute((void*)&value);
 
@@ -2996,6 +3012,14 @@ void pfnWriteAngle(float value)
 
 void pfnWriteCoord(float value)
 {
+	if (!g_sendMessage)
+	{
+		if (g_isMetamod)
+			RETURN_META(MRES_SUPERCEDE);
+
+		return;
+	}
+
 	// if this message is for a bot, call the client message function...
 	NetworkMsg::GetObjectPtr()->Execute((void*)&value);
 
@@ -3007,6 +3031,14 @@ void pfnWriteCoord(float value)
 
 void pfnWriteString(const char* sz)
 {
+	if (!g_sendMessage)
+	{
+		if (g_isMetamod)
+			RETURN_META(MRES_SUPERCEDE);
+
+		return;
+	}
+
 	// if this message is for a bot, call the client message function...
 	NetworkMsg::GetObjectPtr()->Execute((void*)sz);
 
@@ -3018,6 +3050,14 @@ void pfnWriteString(const char* sz)
 
 void pfnWriteEntity(int value)
 {
+	if (!g_sendMessage)
+	{
+		if (g_isMetamod)
+			RETURN_META(MRES_SUPERCEDE);
+
+		return;
+	}
+
 	// if this message is for a bot, call the client message function...
 	NetworkMsg::GetObjectPtr()->Execute((void*)&value);
 
@@ -3200,8 +3240,6 @@ int pfnRegUserMsg(const char* name, int size)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SENDAUDIO, message);
 	else if (cstrcmp(name, "SayText") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SAYTEXT, message);
-	else if (cstrcmp(name, "BotVoice") == 0)
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_BOTVOICE, message);
 	else if (cstrcmp(name, "ResetHUD") == 0)
 		NetworkMsg::GetObjectPtr()->SetId(NETMSG_RESETHUD, message);
 
@@ -3297,6 +3335,38 @@ exportc int GetNewDLLFunctions(NEW_DLL_FUNCTIONS* functionTable, int* interfaceV
 	return true;
 }
 
+const char* pfnGetPlayerAuthId(edict_t* e)
+{
+	if (IsValidBot(e))
+	{
+		if (g_isMetamod)
+			RETURN_META_VALUE(MRES_SUPERCEDE, "BOT");
+
+		return "BOT";
+	}
+
+	if (g_isMetamod)
+		RETURN_META_VALUE(MRES_IGNORED, 0);
+
+	return (*g_engfuncs.pfnGetPlayerAuthId) (e);
+}
+
+unsigned int pfnGetPlayerWONId(edict_t* e)
+{
+	if (IsValidBot(e))
+	{
+		if (g_isMetamod)
+			RETURN_META_VALUE(MRES_SUPERCEDE, 0);
+
+		return 0;
+	}
+
+	if (g_isMetamod)
+		RETURN_META_VALUE(MRES_IGNORED, 0);
+
+	return (*g_engfuncs.pfnGetPlayerWONId) (e);
+}
+
 exportc int GetEngineFunctions(enginefuncs_t* functionTable, int* /*interfaceVersion*/)
 {
 	if (g_isMetamod)
@@ -3321,6 +3391,8 @@ exportc int GetEngineFunctions(enginefuncs_t* functionTable, int* /*interfaceVer
 	functionTable->pfnCmd_Argv = pfnCmd_Argv;
 	functionTable->pfnCmd_Argc = pfnCmd_Argc;
 	functionTable->pfnSetClientMaxspeed = pfnSetClientMaxspeed;
+	functionTable->pfnGetPlayerAuthId = pfnGetPlayerAuthId;
+	functionTable->pfnGetPlayerWONId = pfnGetPlayerWONId;
 
 	return true;
 }
