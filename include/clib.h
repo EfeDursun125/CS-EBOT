@@ -14,6 +14,7 @@ extern float SquaredI(const int value);
 extern int Squared(const int value);
 extern float AddTime(const float time);
 extern float cclampf(const float a, const float b, const float c);
+extern int cclamp(const int a, const int b, const int c);
 extern float cmaxf(const float a, const float b);
 extern float cminf(const float a, const float b);
 extern int cmax(const int a, const int b);

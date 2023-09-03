@@ -17,8 +17,8 @@ extern bool g_analyzewaypoints;
 extern bool g_analyzeputrequirescrouch;
 extern bool g_expanded[Const_MaxWaypoints];
 extern bool g_hasDoors;
+extern bool g_sendMessage;
 
-extern bool g_sgdWaypoint;
 extern bool g_sautoWaypoint;
 extern int m_sautoRadius;
 
@@ -37,7 +37,6 @@ extern int g_mapType;
 extern int g_numWaypoints;
 extern int g_gameVersion;
 extern int g_fakeArgc;
-extern int bot_conntimes;
 
 extern int g_radioSelect[32];
 extern int g_lastRadio[2];

@@ -1202,9 +1202,7 @@ public:
 	void CacheWaypoint(void);
 
 	void DeleteFlags(void);
-
 	void TeleportWaypoint(void);
-	void SgdWp_Set(const char* modset);
 
 	float GetTravelTime(const float maxSpeed, const Vector src, const Vector origin);
 	void CalculateWayzone(const int index);
