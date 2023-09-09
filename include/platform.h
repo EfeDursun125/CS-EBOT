@@ -48,10 +48,6 @@
 #pragma comment (linker, "/SECTION:.data,RW")
 #endif
 
-typedef int (*EntityAPI_t) (DLL_FUNCTIONS*, int);
-typedef int (*NewEntityAPI_t) (NEW_DLL_FUNCTIONS*, int*);
-typedef int (*BlendAPI_t) (int, void**, void*, float(*)[3][4], float(*)[128][3][4]);
-typedef void(__stdcall* FuncPointers_t) (enginefuncs_t*, globalvars_t*);
 typedef void (*EntityPtr_t) (entvars_t*);
 
 #elif defined (PLATFORM_LINUX)
@@ -66,10 +62,6 @@ typedef void (*EntityPtr_t) (entvars_t*);
 #define DLL_RETENTRY return
 #define DLL_GIVEFNPTRSTODLL extern "C" void __attribute__((visibility("default")))
 
-typedef int (*EntityAPI_t) (DLL_FUNCTIONS*, int);
-typedef int (*NewEntityAPI_t) (NEW_DLL_FUNCTIONS*, int*);
-typedef int (*BlendAPI_t) (int, void**, void*, float(*)[3][4], float(*)[128][3][4]);
-typedef void (*FuncPointers_t) (enginefuncs_t*, globalvars_t*);
 typedef void (*EntityPtr_t) (entvars_t*);
 
 #else

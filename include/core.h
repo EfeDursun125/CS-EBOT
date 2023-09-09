@@ -18,6 +18,7 @@
 // reduce glibc version...
 #ifndef _WIN32
 #include <glibc.h>
+#include <cstdint>
 #endif
 
 #include <stdio.h>
@@ -66,11 +67,10 @@ enum class Process
 enum Game
 {
 	CStrike = (1 << 1), // Counter-Strike 1.6 and Above
-	CZero = (1 << 2), // Counter-Strike: Condition Zero
-	Old = (1 << 3), // Counter-Strike 1.3-1.5 with/without Steam
-	Xash = (1 << 4), // Xash3D
-	HalfLife = (1 << 5), // Half-Life
-	DMC = (1 << 6) // Deathmatch Classic
+	CZero, // Counter-Strike: Condition Zero
+	Xash, // Xash3D
+	HalfLife, // Half-Life
+	DMC // Deathmatch Classic
 };
 
 // log levels
@@ -81,7 +81,6 @@ enum class Log
 	Error = 3, // error log message
 	Fatal = 4, // fatal error log message
 	Memory = 5 // memory error log message
-
 };
 
 // chat types id's
@@ -348,17 +347,6 @@ enum class LiftState
 	Leaving
 };
 
-class FishBrain
-{
-	Vector m_lastDangerArea;
-	float m_lastDangerTime;
-
-	void GetDanger()
-	{
-		return;
-	}
-};
-
 // bot known file 
 const char FH_WAYPOINT_NEW[] = "EBOTWP";
 const char FH_WAYPOINT[] = "PODWAY!";
@@ -473,12 +461,6 @@ struct Clients
 	Vector origin; // position in the world
 	int team; // bot team
 	int flags; // client flags
-
-	int wpIndex;
-	int wpIndex2;
-	float getWPTime;
-	Vector getWpOrigin;
-
 	int index; // client index
 };
 
@@ -557,14 +539,6 @@ struct Path
 	float gravity;
 };
 
-/*constexpr int MAX_BRAIN = 5;
-
-class FishBrain
-{
-	Vector m_dangerAreas[MAX_BRAIN];
-	float m_dangerTime[MAX_BRAIN];
-};*/
-
 // main bot class
 class Bot
 {
@@ -615,7 +589,6 @@ private:
 
 	Vector m_lookAt; // vector bot should look at
 	Vector m_throw; // origin of waypoint to throw grenades
-	Vector m_idealAngles; // ideal aim angles
 	float m_lookYawVel; // look yaw velocity
 	float m_lookPitchVel; // look pich velocity
 
@@ -717,7 +690,7 @@ private:
 	bool OutOfBombTimer(void);
 	void SetWaypointOrigin(void);
 
-	Vector ThrowGrenade(const Vector& start, const Vector& end);
+	Vector ThrowGrenade(const Vector& end);
 	Vector GetEnemyPosition(void);
 	float GetZOffset(float distance);
 
@@ -799,8 +772,8 @@ public:
 	SayText m_sayTextBuffer; // holds the index & the actual message of the last unprocessed text message of a player
 	BurstMode m_weaponBurstMode; // bot using burst mode? (famas/glock18, but also silencer mode)
 
-	int m_pingOffset[2]; // offset for faking pings
-	int m_ping[3]; // bots pings in scoreboard
+	int m_pingOffset; // offset for faking pings
+	int m_ping; // bots pings in scoreboard
 
 	float m_enemyReachableTimer; // time to recheck if Enemy reachable
 	bool m_isEnemyReachable; // direct line to enemy
@@ -877,8 +850,8 @@ public:
 	void UpdateProcess(void);
 	void CheckSlowThink(void);
 
-	Process GetProcess(void);
-	float GetProcessTime(void);
+	Process GetCurrentState(void);
+	float GetCurrentStateTime(void);
 
 	bool SetProcess(const Process process, const char* debugNote = "clear", const bool rememberProcess = false, const float time = 9999999.0f);
 	void StartProcess(const Process process);
@@ -1100,7 +1073,7 @@ private:
 	Bot* m_bot;
 	int m_state;
 	int m_message;
-	int m_registerdMessages[NETMSG_RESETHUD + 1];
+	int m_registerdMessages[NETMSG_NUM];
 
 public:
 	NetworkMsg(void);
@@ -1254,9 +1227,6 @@ extern void SetGameMode(GameMode gamemode);
 extern bool IsZombieMode(void);
 extern bool IsDeathmatchMode(void);
 extern bool IsValidWaypoint(const int index);
-
-extern int GetEntityWaypoint(edict_t* ent);
-extern int SetEntityWaypoint(edict_t* ent, int mode = -1);
 
 extern float GetShootingConeDeviation(edict_t* ent, const Vector* position);
 extern float DotProduct(const Vector& a, const Vector& b);

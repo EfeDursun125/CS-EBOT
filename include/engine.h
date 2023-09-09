@@ -1992,23 +1992,6 @@ C_DLLEXPORT int GetEngineFunctions(enginefuncs_t* pengfuncsFromEngine, int* inte
 // max buffer size for printed messages
 //#define MAX_LOGMSG_LEN  1024
 
-void inline UTIL_TraceLine(const Vector& start, const Vector& end, bool ignoreMonsters, bool ignoreGlass, edict_t* ignoreEntity, TraceResult* ptr)
-{
-
-    (*g_engfuncs.pfnTraceLine) (start, end, (ignoreMonsters ? 1 : 0) | (ignoreGlass ? 0x100 : 0), ignoreEntity, ptr);
-}
-
-void inline UTIL_TraceLine(const Vector& start, const Vector& end, bool ignoreMonsters, edict_t* ignoreEntity, TraceResult* ptr)
-{
-
-    (*g_engfuncs.pfnTraceLine) (start, end, ignoreMonsters ? 1 : 0, ignoreEntity, ptr);
-}
-
-void inline UTIL_TraceHull(const Vector& start, const Vector& end, bool ignoreMonsters, int hullNumber, edict_t* ignoreEntity, TraceResult* ptr)
-{
-    (*g_engfuncs.pfnTraceHull) (start, end, ignoreMonsters ? 1 : 0, hullNumber, ignoreEntity, ptr);
-}
-
 #ifdef _WIN32
 #pragma once
 #endif
@@ -2147,7 +2130,7 @@ inline int ENTINDEX(edict_t* pentEdict)
     return (*g_engfuncs.pfnIndexOfEdict) (pentEdict);
 }
 
-inline edict_t* INDEXENT(int iEdictNum)
+inline edict_t* INDEXENT(const int iEdictNum)
 {
     return (*g_engfuncs.pfnPEntityOfEntIndex) (iEdictNum);
 }
@@ -2887,12 +2870,13 @@ public:
 // netmessage functions
 enum NetMsg
 {
+    NETMSG_UNDEFINED = -1,
     NETMSG_VGUI = 1,
     NETMSG_SHOWMENU = 2,
-    NETMSG_WEAPONLIST = 3,
+    NETMSG_WLIST = 3,
     NETMSG_CURWEAPON = 4,
     NETMSG_AMMOX = 5,
-    NETMSG_AMMOPICKUP = 6,
+    NETMSG_AMMOPICK = 6,
     NETMSG_DAMAGE = 7,
     NETMSG_MONEY = 8,
     NETMSG_STATUSICON = 9,
@@ -2905,8 +2889,7 @@ enum NetMsg
     NETMSG_SENDAUDIO = 17,
     NETMSG_SAYTEXT = 18,
     NETMSG_BOTVOICE = 19,
-    NETMSG_RESETHUD = 20,
-    NETMSG_UNDEFINED = 0
+    NETMSG_NUM = 21
 };
 
 class Engine : public Singleton <Engine>
@@ -2954,9 +2937,6 @@ public:
     }
 
 public:
-    // sends bot command
-    void IssueBotCommand(edict_t* ent, const char* fmt, ...);
-
     // pushes global convar to list that will be registered by engine
     void RegisterVariable(const char* variable, const char* value, VarType varType, ConVar* self);
 
