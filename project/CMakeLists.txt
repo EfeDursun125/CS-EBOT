@@ -45,10 +45,14 @@ file(GLOB_RECURSE EBOT_SRC
 # Create the library
 add_library(${PROJECT_NAME} SHARED ${EBOT_SRC})
 
+# Find threads
+find_package(Threads REQUIRED)
+
 # Link libraries
 target_link_libraries(${PROJECT_NAME}
     ${CMAKE_DL_LIBS}
     ${CMAKE_THREAD_LIBS_INIT}
+    Threads::Threads
 )
 
 # Set library properties
@@ -59,26 +63,6 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     PREFIX ""
     OUTPUT_NAME "ebot"
 )
-
-# List of paths to check for the curl library
-set(CURL_PATHS
-    /usr/lib/i386-linux-gnu
-    /usr/local/lib/i386-linux-gnu
-    /opt/local/lib/i386-linux-gnu
-    /some/other/path
-)
-
-# Find the curl library
-find_library(CURL_LIB NAMES curl PATHS ${CURL_PATHS} NO_DEFAULT_PATH)
-
-# If the curl library is found, add a preprocessor definition
-if (CURL_LIB)
-    message(STATUS "Found libcurl: ${CURL_LIB}")
-    add_definitions(-DCURL_AVAILABLE)
-    target_link_libraries(${PROJECT_NAME} ${CURL_LIB})
-else()
-    message(STATUS "libcurl not found or not compatible, skipping")
-endif()
 
 # Set installation directories
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
