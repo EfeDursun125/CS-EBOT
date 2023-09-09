@@ -14,7 +14,7 @@ void Bot::JumpUpdate(void)
 		m_strafeSpeed = 0.0f;
 		m_moveSpeed = 0.0f;
 
-		if (GetProcessTime() > 1.25f)
+		if (GetCurrentStateTime() > 1.25f)
 			FinishCurrentProcess("jumping finished");
 
 		return;

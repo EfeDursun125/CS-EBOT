@@ -1,12 +1,11 @@
 #include <core.h>
-extern ConVar ebot_debug;
 
-Process Bot::GetProcess(void)
+Process Bot::GetCurrentState(void)
 {
 	return m_currentProcess;
 }
 
-float Bot::GetProcessTime(void)
+float Bot::GetCurrentStateTime(void)
 {
 	return m_currentProcessTime - engine->GetTime();
 }
@@ -15,6 +14,7 @@ bool Bot::SetProcess(const Process process, const char* debugnote, const bool re
 {
 	if (m_currentProcess != process && IsReadyForTheProcess(process))
 	{
+		extern ConVar ebot_debug;
 		if (ebot_debug.GetInt() > 0)
 			ServerPrint("%s has got a new process from %s to %s | process started -> %s", GetEntityName(GetEntity()), GetProcessName(m_currentProcess), GetProcessName(process), debugnote);
 
@@ -186,6 +186,7 @@ void Bot::UpdateProcess(void)
 
 	if (m_currentProcess > Process::Default && m_currentProcessTime < time)
 	{
+		extern ConVar ebot_debug;
 		if (ebot_debug.GetInt() > 0)
 			ServerPrint("%s is cancelled %s process -> timed out.", GetEntityName(GetEntity()), GetProcessName(m_currentProcess));
 
@@ -210,6 +211,7 @@ void Bot::FinishCurrentProcess(const char* debugNote)
 {
 	if (m_currentProcess > Process::Default)
 	{
+		extern ConVar ebot_debug;
 		if (ebot_debug.GetInt() > 0)
 			ServerPrint("%s is cancelled %s process -> %s", GetEntityName(GetEntity()), GetProcessName(m_currentProcess), debugNote);
 

@@ -108,11 +108,7 @@ void Bot::PickupUpdate(void)
 			if (IsValidWaypoint(m_currentWaypointIndex))
 			{
 				if (itemDistance > SquaredI(g_waypoint->GetPath(m_currentWaypointIndex)->radius))
-				{
-					SetEntityWaypoint(GetEntity());
-					m_currentWaypointIndex = -1;
 					FindWaypoint();
-				}
 			}
 		}
 
@@ -132,20 +128,12 @@ void Bot::PickupUpdate(void)
 			if (weaponID > 6)
 			{
 				SelectWeaponbyNumber(weaponID);
+				FakeClientCommand(GetEntity(), "drop");
 
-				edict_t* me = GetEntity();
-				if (me == nullptr)
-					return;
-
-				FakeClientCommand(me, "drop");
 				if (IsValidWaypoint(m_currentWaypointIndex))
 				{
 					if (itemDistance > SquaredI(g_waypoint->GetPath(m_currentWaypointIndex)->radius))
-					{
-						SetEntityWaypoint(me);
-						m_currentWaypointIndex = -1;
 						FindWaypoint();
-					}
 				}
 			}
 		}

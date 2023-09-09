@@ -3,10 +3,34 @@
 void Bot::ThrowSMStart(void)
 {
 	SelectWeaponByName("weapon_smokegrenade");
+	pev->speed = 0.0f;
+	pev->yaw_speed = 0.0f;
+	pev->pitch_speed = 0.0f;
+	pev->velocity = nullvec;
+	m_moveSpeed = 0.0f;
+	m_strafeSpeed = 0.0f;
 }
 
 void Bot::ThrowSMUpdate(void)
 {
+	m_moveSpeed = 0.0f;
+	m_strafeSpeed = 0.0f;
+
+	edict_t* me = GetEntity();
+	if (me != nullptr)
+	{
+		edict_t* ent = nullptr;
+		while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "grenade")))
+		{
+			if (ent->v.owner == me && cstrcmp(STRING(ent->v.model) + 9, "smokegrenade.mdl") == 0)
+			{
+				ent->v.velocity = m_throw;
+				FinishCurrentProcess("i have throwed SM grenade");
+				return;
+			}
+		}
+	}
+
 	LookAt(EyePosition() + m_throw);
 
 	if (m_currentWeapon != Weapon::SmGrenade)
