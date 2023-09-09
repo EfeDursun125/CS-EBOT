@@ -1143,23 +1143,125 @@ int Bot::BuyWeaponMode(const int weaponId)
 
 void Bot::CheckGrenadeThrow(edict_t* targetEntity)
 {
+	if (FNullEnt(targetEntity))
+		return;
+
 	const int grenadeToThrow = CheckGrenades();
-	if (grenadeToThrow == -1 || FNullEnt(targetEntity))
+	if (grenadeToThrow == -1)
 		return;
 
+	m_throw = nullvec;
+	int th = -1;
 	const Vector targetOrigin = GetBottomOrigin(targetEntity);
-	const Vector velocity = ThrowGrenade(targetOrigin);
-	if (velocity != nullvec)
-		m_throw = velocity;
-	else
+	if (grenadeToThrow == Weapon::HeGrenade || grenadeToThrow == Weapon::SmGrenade)
+	{
+		float distance = (targetOrigin - pev->origin).GetLengthSquared();
+
+		// is enemy to high to throw
+		if ((targetOrigin.z > (pev->origin.z + 650.0f)) || !(targetEntity->v.flags & (FL_ONGROUND | FL_DUCKING)))
+			distance = FLT_MAX; // just some crazy value
+
+		// enemy is within a good throwing distance ?
+		if (distance > (grenadeToThrow == Weapon::SmGrenade ? SquaredF(400.0f) : SquaredF(600.0f)) && distance < SquaredF(1200.0f))
+		{
+			// care about different types of grenades
+			if (grenadeToThrow == Weapon::HeGrenade)
+			{
+				bool allowThrowing = true;
+
+				// check for teammates
+				if ((GetGameMode() == GameMode::Original || GetGameMode() == GameMode::TeamDeathmatch) && GetNearbyFriendsNearPosition(targetOrigin, SquaredF(256.0f)) > 0)
+					allowThrowing = false;
+
+				if (allowThrowing && m_seeEnemyTime + 2.0 < engine->GetTime())
+				{
+					Vector enemyPredict = ((targetEntity->v.velocity * 0.5).SkipZ() + targetOrigin);
+					int searchTab[4], count = 4;
+
+					float searchRadius = targetEntity->v.velocity.GetLength2D();
+
+					// check the search radius
+					if (searchRadius < 128.0f)
+						searchRadius = 128.0f;
+
+					// search waypoints
+					g_waypoint->FindInRadius(enemyPredict, searchRadius, searchTab, &count);
+
+					while (count > 0)
+					{
+						allowThrowing = true;
+
+						// check the throwing
+						const Vector eyePosition = EyePosition();
+						const Vector wpOrigin = g_waypoint->GetPath(searchTab[count--])->origin;
+						Vector src = CheckThrow(eyePosition, wpOrigin);
+
+						if (src.GetLengthSquared() < SquaredF(100.0f))
+							src = CheckToss(eyePosition, wpOrigin);
+
+						if (src == nullvec)
+							allowThrowing = false;
+
+						m_throw = src;
+						break;
+					}
+				}
+
+				// start explosive grenade throwing?
+				if (allowThrowing)
+					th = 1;
+			}
+			else if (grenadeToThrow == Weapon::SmGrenade && GetShootingConeDeviation(targetEntity, &pev->origin) >= 0.9f)
+				th = 2;
+		}
+	}
+	else if (grenadeToThrow == Weapon::FbGrenade && (targetOrigin - pev->origin).GetLengthSquared() < SquaredF(800.0f))
+	{
+		bool allowThrowing = true;
+		Array <int> inRadius;
+
+		g_waypoint->FindInRadius(inRadius, 256.0f, targetOrigin + (targetEntity->v.velocity * 0.5).SkipZ());
+
+		ITERATE_ARRAY(inRadius, i)
+		{
+			if (GetNearbyFriendsNearPosition(g_waypoint->GetPath(i)->origin, SquaredF(256.0f)) != 0)
+				continue;
+
+			const Vector wpOrigin = g_waypoint->GetPath(i)->origin;
+			const Vector eyePosition = EyePosition();
+			Vector src = CheckThrow(eyePosition, wpOrigin);
+
+			if (src.GetLengthSquared() < SquaredF(100.0f))
+				src = CheckToss(eyePosition, wpOrigin);
+
+			if (src == nullvec)
+				continue;
+
+			m_throw = src;
+			allowThrowing = true;
+			break;
+		}
+
+		// start concussion grenade throwing?
+		if (allowThrowing)
+			th = 3;
+	}
+
+	if (m_throw == nullvec)
 		return;
 
-	if (grenadeToThrow == Weapon::HeGrenade)
+	switch (th)
+	{
+	case 1:
 		SetProcess(Process::ThrowHE, "throwing HE grenade", false, AddTime(10.0f));
-	else if (grenadeToThrow == Weapon::SmGrenade)
+		break;
+	case 2:
 		SetProcess(Process::ThrowSM, "throwing SM grenade", false, AddTime(10.0f));
-	else
+		break;
+	case 3:
 		SetProcess(Process::ThrowFB, "throwing FB grenade", false, AddTime(10.0f));
+		break;
+	}
 }
 
 bool Bot::IsEnemyReachable(void)
@@ -1570,10 +1672,6 @@ bool Bot::IsNotAttackLab(edict_t* entity)
 
 void Bot::BaseUpdate(void)
 {
-	edict_t* me = GetEntity();
-	if (me == nullptr)
-		return;
-
 	// what if removed???
 	pev->flags |= FL_FAKECLIENT;
 
@@ -1581,7 +1679,7 @@ void Bot::BaseUpdate(void)
 	const float time = engine->GetTime();
 	const byte adjustedMSec = static_cast<byte>(cminf(250.0f, (time - m_msecInterval) * 1000.0f));
 	m_msecInterval = time;
-	PLAYER_RUN_MOVE(me, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, static_cast<unsigned short>(pev->button), pev->impulse, adjustedMSec);
+	PLAYER_RUN_MOVE(pev->pContainingEntity, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, static_cast<unsigned short>(pev->button), pev->impulse, adjustedMSec);
 
 	// reset
 	pev->impulse = 0;
@@ -1660,7 +1758,7 @@ void Bot::BaseUpdate(void)
 			if (g_gameVersion & Game::HalfLife)
 			{
 				// idk why ???
-				if (pev->maxspeed <= 10.0f)
+				if (pev->maxspeed < 11.0f)
 				{
 					const auto maxSpeed = g_engfuncs.pfnCVarGetPointer("sv_maxspeed");
 					if (maxSpeed != nullptr)
@@ -1755,13 +1853,15 @@ void Bot::CheckSlowThink(void)
 		}
 	}
 
-	edict_t* ent = GetEntity();
-	if (ent == nullptr)
+	if (pev->pContainingEntity == nullptr)
+	{
+		pev->pContainingEntity = GetEntity();
 		return;
+	}
 
-	m_isZombieBot = IsZombieEntity(ent);
-	m_team = GetTeam(ent);
-	m_isAlive = IsAlive(ent);
+	m_isZombieBot = IsZombieEntity(pev->pContainingEntity);
+	m_team = GetTeam(pev->pContainingEntity);
+	m_isAlive = IsAlive(pev->pContainingEntity);
 }
 
 bool Bot::IsAttacking(const edict_t* player)
@@ -1824,7 +1924,7 @@ void Bot::LookAtAround(void)
 	else if (m_waypointFlags & WAYPOINT_USEBUTTON)
 	{
 		const Vector origin = g_waypoint->GetPath(m_currentWaypointIndex)->origin;
-		if ((pev->origin - origin).GetLengthSquared() <= SquaredF(80.0f))
+		if ((pev->origin - origin).GetLengthSquared() < SquaredF(80.0f))
 		{
 			if (g_gameVersion & Game::Xash)
 			{
@@ -1837,7 +1937,7 @@ void Bot::LookAtAround(void)
 			{
 				edict_t* button = FindButton();
 				if (button != nullptr) // no need to look at, thanks to the game...
-					MDLL_Use(button, GetEntity());
+					MDLL_Use(button, pev->pContainingEntity);
 				else
 				{
 					m_lookAt = origin;
@@ -1854,48 +1954,59 @@ void Bot::LookAtAround(void)
 		if (bot != nullptr)
 		{
 			m_lookAt = bot->m_lookAt;
-			if ((m_currentWeapon == Weapon::M3 || m_currentWeapon == Weapon::Xm1014 || m_currentWeapon == Weapon::M249) && !FNullEnt(bot->m_nearestEnemy))
-			{
-				const int index = g_waypoint->FindNearest(GetEntityOrigin(bot->m_nearestEnemy), 999999.0f, -1, bot->GetEntity());
-				if (IsValidWaypoint(index) && m_chosenGoalIndex != index)
-				{
-					RadioMessage(Radio::GetInPosition);
-					m_chosenGoalIndex = index;
-					FindPath(m_currentWaypointIndex, m_chosenGoalIndex, bot->m_nearestEnemy);
-					const int index = FindDefendWaypoint(pev->origin + pev->view_ofs);
-					if (IsValidWaypoint(index))
-					{
-						bot->RadioMessage(Radio::Affirmative);
-						bot->m_campIndex = index;
-						bot->m_chosenGoalIndex = index;
-						bot->SetProcess(Process::Camp, "i will hold this position for my teammate's plan, my teammate will flank the enemy!", true, AddTime(ebot_camp_max.GetFloat()));
-					}
-					else
-						bot->RadioMessage(Radio::Negative);
-				}
-			}
 
-			if (bot->GetCurrentState() == Process::Camp)
+			if (bot->m_hasEnemiesNear)
 			{
-				const int index = g_waypoint->FindNearest(m_lookAt, 999999.0f, -1, bot->GetEntity());
-				if (IsValidWaypoint(index) && m_chosenGoalIndex != index)
+				edict_t* enemy = bot->m_nearestEnemy;
+				if (!FNullEnt(enemy))
 				{
-					RadioMessage(Radio::GetInPosition);
-					m_chosenGoalIndex = index;
-					FindPath(m_currentWaypointIndex, m_chosenGoalIndex);
-					m_chosenGoalIndex = bot->m_chosenGoalIndex;
-				}
-			}
-			else if (GetCurrentState() == Process::Camp)
-			{
-				const int index = g_waypoint->FindNearest(m_lookAt, 999999.0f, -1, bot->GetEntity());
-				if (IsValidWaypoint(index) && m_chosenGoalIndex != index)
-				{
-					FinishCurrentProcess("i need to help my friend");
-					RadioMessage(Radio::Fallback);
-					m_chosenGoalIndex = index;
-					FindPath(m_currentWaypointIndex, m_chosenGoalIndex);
-					m_chosenGoalIndex = bot->m_chosenGoalIndex;
+					CheckGrenadeThrow(enemy);
+
+					edict_t* ent = bot->GetEntity();
+					if ((m_currentWeapon == Weapon::M3 || m_currentWeapon == Weapon::Xm1014 || m_currentWeapon == Weapon::M249))
+					{
+						const int index = g_waypoint->FindNearest(GetEntityOrigin(enemy), 999999.0f, -1, ent);
+						if (IsValidWaypoint(index) && m_chosenGoalIndex != index)
+						{
+							RadioMessage(Radio::GetInPosition);
+							m_chosenGoalIndex = index;
+							FindPath(m_currentWaypointIndex, m_chosenGoalIndex, enemy);
+							const int index = FindDefendWaypoint(EyePosition());
+							if (IsValidWaypoint(index))
+							{
+								bot->RadioMessage(Radio::Affirmative);
+								bot->m_campIndex = index;
+								bot->m_chosenGoalIndex = index;
+								bot->SetProcess(Process::Camp, "i will hold this position for my teammate's plan, my teammate will flank the enemy!", true, AddTime(ebot_camp_max.GetFloat()));
+							}
+							else
+								bot->RadioMessage(Radio::Negative);
+						}
+					}
+
+					if (bot->GetCurrentState() == Process::Camp)
+					{
+						const int index = g_waypoint->FindNearest(m_lookAt, 999999.0f, -1, ent);
+						if (IsValidWaypoint(index) && m_chosenGoalIndex != index)
+						{
+							RadioMessage(Radio::GetInPosition);
+							m_chosenGoalIndex = index;
+							FindPath(m_currentWaypointIndex, m_chosenGoalIndex);
+							m_chosenGoalIndex = bot->m_chosenGoalIndex;
+						}
+					}
+					else if (GetCurrentState() == Process::Camp)
+					{
+						const int index = g_waypoint->FindNearest(m_lookAt, 999999.0f, -1, ent);
+						if (IsValidWaypoint(index) && m_chosenGoalIndex != index)
+						{
+							FinishCurrentProcess("i need to help my friend");
+							RadioMessage(Radio::Fallback);
+							m_chosenGoalIndex = index;
+							FindPath(m_currentWaypointIndex, m_chosenGoalIndex);
+							m_chosenGoalIndex = bot->m_chosenGoalIndex;
+						}
+					}
 				}
 			}
 		}
@@ -1906,7 +2017,7 @@ void Bot::LookAtAround(void)
 			MakeVectors(m_nearestFriend->v.angles);
 			TraceLine(eyePosition, eyePosition + g_pGlobals->v_forward * 2000.0f, false, false, m_nearestFriend, &tr);
 
-			if (tr.pHit != GetEntity())
+			if (tr.pHit != pev->pContainingEntity)
 				m_lookAt = GetEntityOrigin(tr.pHit);
 			else
 				m_lookAt = tr.vecEndPos;
@@ -2018,7 +2129,7 @@ void Bot::LookAtAround(void)
 	auto isVisible = [&](void)
 	{
 		TraceResult tr{};
-		TraceLine(EyePosition(), selectRandom, true, true, GetEntity(), &tr);
+		TraceLine(EyePosition(), selectRandom, true, true, pev->pContainingEntity, &tr);
 		if (tr.flFraction == 1.0f)
 			return true;
 
@@ -2481,72 +2592,99 @@ void Bot::ResetDoubleJumpState(void)
 	m_jumpReady = false;
 }
 
-float Dot(const Vector& a, const Vector& b)
+Vector Bot::CheckToss(const Vector& start, const Vector& stop)
 {
-	return a.x * b.x + a.y * b.y + a.z * b.z;
-}
-
-Vector ReflectVector(const Vector& vector, const Vector& normal)
-{
-	return vector - 2.0f * Dot(vector, normal) * normal;
-}
-
-Vector Bot::ThrowGrenade(const Vector& end)
-{
-	const Vector eyePosition = pev->origin + pev->view_ofs;
-	Vector angThrow = (end - eyePosition).ToAngles() + pev->punchangle;
-
-	if (angThrow.x < 0.0f)
-		angThrow.x = -10.0f + angThrow.x * 0.88888888888f;
-	else
-		angThrow.x = -10.0f + angThrow.x * 1.11111111111f;
-
-	const float flVel = cminf((90.0f - angThrow.x) * 6.0f, 750.0f);
-	MakeVectors(angThrow);
-
-	const Vector vecSrc = eyePosition + g_pGlobals->v_forward * 16.0f;
-	//const Vector vecThrow = g_pGlobals->v_forward * flVel + pev->velocity;
-	const float gravity = engine->GetGravity();
-
+	// this function returns the velocity at which an object should looped from start to land near end.
+	// returns nullvec if toss is not feasible
 	TraceResult tr{};
-	const float timeStep = 0.05f; // g_pGlobals->frametime; :(
-	Vector currentPosition = vecSrc;
-	Vector currentVelocity = flVel;
-	const Vector correctVel = flVel;
-	edict_t* me = GetEntity();
+	const float gravity = engine->GetGravity() * 0.55f;
 
-	while (currentPosition.z >= end.z)
+	Vector end = stop - pev->velocity;
+	end.z -= 15.0f;
+
+	if (fabsf(end.z - start.z) > 500.0f)
+		return nullvec;
+
+	Vector midPoint = start + (end - start) * 0.5f;
+	TraceHull(midPoint, midPoint + Vector(0.0f, 0.0f, 500.0f), true, head_hull, pev->pContainingEntity, &tr);
+
+	if (tr.flFraction < 1.0f && tr.pHit)
 	{
-		Vector nextPosition = currentPosition + currentVelocity * timeStep;
-		TraceHull(currentPosition, nextPosition, false, point_hull, me, &tr);
-
-		if (tr.flFraction != 1.0f)
-		{
-			currentVelocity = ReflectVector(currentVelocity, tr.vecPlaneNormal);
-			nextPosition = currentPosition + currentVelocity * timeStep;
-			TraceHull(nextPosition, nextPosition - Vector(0.0f, 0.0f, gravity * timeStep), true, point_hull, me, &tr);
-
-			if (tr.flFraction != 1.0f && tr.vecPlaneNormal.z > 0.9f)
-			{
-				// too far...
-				if ((end - nextPosition).GetLengthSquared() > SquaredF(100.0f))
-					return nullvec;
-				else
-					break;
-			}
-			else
-			{
-				TraceHull(currentPosition, nextPosition, false, point_hull, me, &tr);
-				currentVelocity = ReflectVector(currentVelocity, tr.vecPlaneNormal);
-				nextPosition = currentPosition + currentVelocity * timeStep;
-			}
-		}
-
-		currentPosition = nextPosition;
-		currentVelocity.z -= gravity * timeStep;
+		midPoint = tr.vecEndPos;
+		midPoint.z = tr.pHit->v.absmin.z - 1.0f;
 	}
 
-	return correctVel;
+	if (midPoint.z < start.z || midPoint.z < end.z)
+		return nullvec;
+
+	const float timeOne = csqrtf((midPoint.z - start.z) / (0.5f * gravity));
+	const float timeTwo = csqrtf((midPoint.z - end.z) / (0.5f * gravity));
+
+	if (timeOne < 0.1f)
+		return nullvec;
+
+	Vector velocity = (end - start) / (timeOne + timeTwo);
+	velocity.z = gravity * timeOne;
+
+	Vector apex = start + velocity * timeOne;
+	apex.z = midPoint.z;
+
+	TraceHull(start, apex, false, head_hull, pev->pContainingEntity, &tr);
+
+	if (tr.flFraction < 1.0f || tr.fAllSolid)
+		return nullvec;
+
+	TraceHull(end, apex, true, head_hull, pev->pContainingEntity, &tr);
+
+	if (tr.flFraction != 1.0f)
+	{
+		const float dot = -(tr.vecPlaneNormal | (apex - end).Normalize());
+		if (dot > 0.75f || tr.flFraction < 0.8f)
+			return nullvec;
+	}
+
+	return velocity * 0.777f;
+}
+
+Vector Bot::CheckThrow(const Vector& start, const Vector& end)
+{
+	// this function returns the velocity vector at which an object should be thrown from start to hit end.
+	// returns nullvec if throw is not feasible.
+	Vector velocity = end - start;
+	TraceResult tr{};
+
+	const float gravity = engine->GetGravity() * 0.55f;
+	float time = velocity.GetLength() * 0.00512820512f;
+
+	if (time < 0.01f)
+		return nullvec;
+
+	if (time > 2.0f)
+		time = 1.2f;
+
+	const float half = time * 0.5f;
+
+	velocity = velocity * (1.0f / time);
+	velocity.z += gravity * half * half;
+
+	Vector apex = start + (end - start) * 0.5f;
+	apex.z += 0.5f * gravity * half;
+
+	TraceHull(start, apex, false, head_hull, pev->pContainingEntity, &tr);
+
+	if (tr.flFraction != 1.0f)
+		return nullvec;
+
+	TraceHull(end, apex, true, head_hull, pev->pContainingEntity, &tr);
+
+	if (tr.flFraction != 1.0f || tr.fAllSolid)
+	{
+		const float dot = -(tr.vecPlaneNormal | (apex - end).Normalize());
+		if (dot > 0.75f || tr.flFraction < 0.8f)
+			return nullvec;
+	}
+
+	return velocity * 0.7793f;
 }
 
 // this function checks burst mode, and switch it depending distance to to enemy

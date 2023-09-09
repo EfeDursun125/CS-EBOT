@@ -6,6 +6,36 @@ ConVar ebot_zp_escape_distance("ebot_zm_escape_distance", "200");
 ConVar ebot_zombie_speed_factor("ebot_zombie_speed_factor", "0.54");
 ConVar ebot_sb_mode("ebot_sb_mode", "0");
 
+int Bot::GetNearbyFriendsNearPosition(const Vector origin, const float radius)
+{
+	int count = 0;
+	for (const auto& client : g_clients)
+	{
+		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != m_team || client.ent == pev->pContainingEntity)
+			continue;
+
+		if ((client.origin, origin).GetLengthSquared() < radius)
+			count++;
+	}
+
+	return count;
+}
+
+int Bot::GetNearbyEnemiesNearPosition(const Vector origin, const float radius)
+{
+	int count = 0;
+	for (const auto& client : g_clients)
+	{
+		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team == m_team)
+			continue;
+
+		if ((client.origin, origin).GetLengthSquared() < radius)
+			count++;
+	}
+
+	return count;
+}
+
 void Bot::FindFriendsAndEnemiens(void)
 {
 	edict_t* me = GetEntity();
@@ -554,10 +584,10 @@ bool Bot::KnifeAttack(const float attackDistance)
 
 	int kaMode = 0;
 
-	if (distance <= kad1)
+	if (distance < kad1)
 		kaMode = 1;
 
-	if (distance <= kad2)
+	if (distance < kad2)
 		kaMode += 2;
 
 	if (kaMode > 0)
@@ -689,6 +719,14 @@ bool Bot::IsEnemyProtectedByShield(edict_t* enemy)
 	}
 
 	return false;
+}
+
+bool Bot::UsesShotgun(void)
+{
+	if (g_gameVersion & Game::HalfLife)
+		return m_currentWeapon == WeaponHL::Shotgun;
+
+	return m_currentWeapon == Weapon::M3 || m_currentWeapon == Weapon::Xm1014;
 }
 
 bool Bot::UsesSniper(void)

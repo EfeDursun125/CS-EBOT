@@ -2476,9 +2476,10 @@ int Bot::FindDefendWaypoint(const Vector& origin)
 	Array <int> OkSpots;
 	Array <int> WorstSpots;
 
+	int index = -1;
+	TraceResult tr{};
 	for (int i = 0; i < g_waypoint->m_campPoints.GetElementNumber(); i++)
 	{
-		int index = -1;
 		g_waypoint->m_campPoints.GetAt(i, index);
 
 		if (!IsValidWaypoint(index))
@@ -2498,12 +2499,11 @@ int Bot::FindDefendWaypoint(const Vector& origin)
 
 		if (!IsWaypointOccupied(index))
 		{
-			TraceResult tr{};
-			TraceLine(pointer->origin, origin, true, true, GetEntity(), &tr);
+			TraceLine(pointer->origin, origin, true, true, pev->pContainingEntity, &tr);
 
 			if (tr.flFraction == 1.0f) // distance isn't matter
 				BestSpots.Push(index);
-			else if ((pointer->origin - origin).GetLengthSquared() <= SquaredF(1024.0f))
+			else if ((pointer->origin - origin).GetLengthSquared() < SquaredF(1024.0f))
 				OkSpots.Push(index);
 			else
 				WorstSpots.Push(index);
@@ -2511,7 +2511,6 @@ int Bot::FindDefendWaypoint(const Vector& origin)
 	}
 
 	int BestIndex = -1;
-
 	if (!BestSpots.IsEmpty())
 		BestIndex = BestSpots.GetRandomElement();
 	else if (!OkSpots.IsEmpty())
@@ -2534,20 +2533,21 @@ bool Bot::HasNextPath(void)
 bool Bot::CantMoveForward(const Vector normal)
 {
 	// first do a trace from the bot's eyes forward...
-	Vector src = EyePosition();
+	const Vector eyePosition = EyePosition();
+	Vector src = eyePosition;
 	Vector forward = src + normal * 24.0f;
 
 	MakeVectors(Vector(0.0f, pev->angles.y, 0.0f));
 
-	TraceResult* tr{};
+	TraceResult tr{};
 
 	// trace from the bot's eyes straight forward...
-	TraceLine(src, forward, true, GetEntity(), tr);
+	TraceLine(src, forward, true, pev->pContainingEntity, &tr);
 
 	// check if the trace hit something...
-	if (tr->flFraction < 1.0f)
+	if (tr.flFraction < 1.0f)
 	{
-		if (cstrncmp("func_door", STRING(tr->pHit->v.classname), 9) == 0)
+		if (cstrncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0)
 			return false;
 
 		return true;  // bot's head will hit something
@@ -2555,24 +2555,24 @@ bool Bot::CantMoveForward(const Vector normal)
 
 	// bot's head is clear, check at shoulder level...
 	// trace from the bot's shoulder left diagonal forward to the right shoulder...
-	src = EyePosition() + Vector(0.0f, 0.0f, -16.0f) - g_pGlobals->v_right * 16.0f;
-	forward = EyePosition() + Vector(0.0f, 0.0f, -16.0f) + g_pGlobals->v_right * 16.0f + normal * 24.0f;
+	src = eyePosition + Vector(0.0f, 0.0f, -16.0f) - g_pGlobals->v_right * 16.0f;
+	forward = eyePosition + Vector(0.0f, 0.0f, -16.0f) + g_pGlobals->v_right * 16.0f + normal * 24.0f;
 
-	TraceLine(src, forward, true, GetEntity(), tr);
+	TraceLine(src, forward, true, pev->pContainingEntity, &tr);
 
 	// check if the trace hit something...
-	if (tr->flFraction < 1.0f && cstrncmp("func_door", STRING(tr->pHit->v.classname), 9) != 0)
+	if (tr.flFraction < 1.0f && cstrncmp("func_door", STRING(tr.pHit->v.classname), 9) != 0)
 		return true;  // bot's body will hit something
 
 	 // bot's head is clear, check at shoulder level...
 	 // trace from the bot's shoulder right diagonal forward to the left shoulder...
-	src = EyePosition() + Vector(0.0f, 0.0f, -16.0f) + g_pGlobals->v_right * 16.0f;
-	forward = EyePosition() + Vector(0.0f, 0.0f, -16.0f) - g_pGlobals->v_right * 16.0f + normal * 24.0f;
+	src = eyePosition + Vector(0.0f, 0.0f, -16.0f) + g_pGlobals->v_right * 16.0f;
+	forward = eyePosition + Vector(0.0f, 0.0f, -16.0f) - g_pGlobals->v_right * 16.0f + normal * 24.0f;
 
-	TraceLine(src, forward, true, GetEntity(), tr);
+	TraceLine(src, forward, true, pev->pContainingEntity, &tr);
 
 	// check if the trace hit something...
-	if (tr->flFraction < 1.0f && cstrncmp("func_door", STRING(tr->pHit->v.classname), 9) != 0)
+	if (tr.flFraction < 1.0f && cstrncmp("func_door", STRING(tr.pHit->v.classname), 9) != 0)
 		return true;  // bot's body will hit something
 
 	 // now check below waist
@@ -2581,19 +2581,19 @@ bool Bot::CantMoveForward(const Vector normal)
 		src = pev->origin + Vector(0.0f, 0.0f, -19.0f + 19.0f);
 		forward = src + Vector(0.0f, 0.0f, 10.0f) + normal * 24.0f;
 
-		TraceLine(src, forward, true, GetEntity(), tr);
+		TraceLine(src, forward, true, pev->pContainingEntity, &tr);
 
 		// check if the trace hit something...
-		if (tr->flFraction < 1.0f && cstrncmp("func_door", STRING(tr->pHit->v.classname), 9) != 0)
+		if (tr.flFraction < 1.0f && cstrncmp("func_door", STRING(tr.pHit->v.classname), 9) != 0)
 			return true;  // bot's body will hit something
 
 		src = pev->origin;
 		forward = src + normal * 24.0f;
 
-		TraceLine(src, forward, true, GetEntity(), tr);
+		TraceLine(src, forward, true, pev->pContainingEntity, &tr);
 
 		// check if the trace hit something...
-		if (tr->flFraction < 1.0f && cstrncmp("func_door", STRING(tr->pHit->v.classname), 9) != 0)
+		if (tr.flFraction < 1.0f && cstrncmp("func_door", STRING(tr.pHit->v.classname), 9) != 0)
 			return true;  // bot's body will hit something
 	}
 	else
@@ -2603,20 +2603,20 @@ bool Bot::CantMoveForward(const Vector normal)
 		forward = pev->origin + Vector(0.0f, 0.0f, -17.0f) + g_pGlobals->v_right * 16.0f + normal * 24.0f;
 
 		// trace from the bot's waist straight forward...
-		TraceLine(src, forward, true, GetEntity(), tr);
+		TraceLine(src, forward, true, pev->pContainingEntity, &tr);
 
 		// check if the trace hit something...
-		if (tr->flFraction < 1.0f && cstrncmp("func_door", STRING(tr->pHit->v.classname), 9) != 0)
+		if (tr.flFraction < 1.0f && cstrncmp("func_door", STRING(tr.pHit->v.classname), 9) != 0)
 			return true;  // bot's body will hit something
 
 		 // trace from the left waist to the right forward waist pos
 		src = pev->origin + Vector(0.0f, 0.0f, -17.0f) + g_pGlobals->v_right * 16.0f;
 		forward = pev->origin + Vector(0.0f, 0.0f, -17.0f) - g_pGlobals->v_right * 16.0f + normal * 24.0f;
 
-		TraceLine(src, forward, true, GetEntity(), tr);
+		TraceLine(src, forward, true, pev->pContainingEntity, &tr);
 
 		// check if the trace hit something...
-		if (tr->flFraction < 1.0f && cstrncmp("func_door", STRING(tr->pHit->v.classname), 9) != 0)
+		if (tr.flFraction < 1.0f && cstrncmp("func_door", STRING(tr.pHit->v.classname), 9) != 0)
 			return true;  // bot's body will hit something
 	}
 
@@ -2626,7 +2626,6 @@ bool Bot::CantMoveForward(const Vector normal)
 bool Bot::CanJumpUp(const Vector normal)
 {
 	// this function check if bot can jump over some obstacle
-
 	TraceResult tr{};
 
 	// can't jump if not on ground and not on ladder/swimming
@@ -2640,7 +2639,7 @@ bool Bot::CanJumpUp(const Vector normal)
 	Vector dest = src + normal * 32.0f;
 
 	// trace a line forward at maximum jump height...
-	TraceLine(src, dest, true, GetEntity(), &tr);
+	TraceLine(src, dest, true, pev->pContainingEntity, &tr);
 
 	if (tr.flFraction < 1.0f)
 		goto CheckDuckJump;
@@ -2650,7 +2649,7 @@ bool Bot::CanJumpUp(const Vector normal)
 		src = dest;
 		dest.z = dest.z + 37.0f;
 
-		TraceLine(src, dest, true, GetEntity(), &tr);
+		TraceLine(src, dest, true, pev->pContainingEntity, &tr);
 
 		if (tr.flFraction < 1.0f)
 			return false;
@@ -2661,7 +2660,7 @@ bool Bot::CanJumpUp(const Vector normal)
 	dest = src + normal * 32.0f;
 
 	// trace a line forward at maximum jump height...
-	TraceLine(src, dest, true, GetEntity(), &tr);
+	TraceLine(src, dest, true, pev->pContainingEntity, &tr);
 
 	// if trace hit something, return false
 	if (tr.flFraction < 1.0f)
@@ -2671,7 +2670,7 @@ bool Bot::CanJumpUp(const Vector normal)
 	src = dest;
 	dest.z = dest.z + 37.0f;
 
-	TraceLine(src, dest, true, GetEntity(), &tr);
+	TraceLine(src, dest, true, pev->pContainingEntity, &tr);
 
 	// if trace hit something, return false
 	if (tr.flFraction < 1.0f)
@@ -2682,7 +2681,7 @@ bool Bot::CanJumpUp(const Vector normal)
 	dest = src + normal * 32.0f;
 
 	// trace a line forward at maximum jump height...
-	TraceLine(src, dest, true, GetEntity(), &tr);
+	TraceLine(src, dest, true, pev->pContainingEntity, &tr);
 
 	// if trace hit something, return false
 	if (tr.flFraction < 1.0f)
@@ -2692,7 +2691,7 @@ bool Bot::CanJumpUp(const Vector normal)
 	src = dest;
 	dest.z = dest.z + 37.0f;
 
-	TraceLine(src, dest, true, GetEntity(), &tr);
+	TraceLine(src, dest, true, pev->pContainingEntity, &tr);
 
 	// if trace hit something, return false
 	return tr.flFraction > 1.0f;
@@ -2704,7 +2703,7 @@ CheckDuckJump:
 	dest = src + normal * 32.0f;
 
 	// trace a line forward at maximum jump height...
-	TraceLine(src, dest, true, GetEntity(), &tr);
+	TraceLine(src, dest, true, pev->pContainingEntity, &tr);
 
 	if (tr.flFraction < 1.0f)
 		return false;
@@ -2714,7 +2713,7 @@ CheckDuckJump:
 		src = dest;
 		dest.z = dest.z + 37.0f;
 
-		TraceLine(src, dest, true, GetEntity(), &tr);
+		TraceLine(src, dest, true, pev->pContainingEntity, &tr);
 
 		// if trace hit something, check duckjump
 		if (tr.flFraction < 1.0f)
@@ -2726,7 +2725,7 @@ CheckDuckJump:
 	dest = src + normal * 32.0f;
 
 	// trace a line forward at maximum jump height...
-	TraceLine(src, dest, true, GetEntity(), &tr);
+	TraceLine(src, dest, true, pev->pContainingEntity, &tr);
 
 	// if trace hit something, return false
 	if (tr.flFraction < 1.0f)
@@ -2736,7 +2735,7 @@ CheckDuckJump:
 	src = dest;
 	dest.z = dest.z + 37.0f;
 
-	TraceLine(src, dest, true, GetEntity(), &tr);
+	TraceLine(src, dest, true, pev->pContainingEntity, &tr);
 
 	// if trace hit something, return false
 	if (tr.flFraction < 1.0f)
@@ -2747,7 +2746,7 @@ CheckDuckJump:
 	dest = src + normal * 32.0f;
 
 	// trace a line forward at maximum jump height...
-	TraceLine(src, dest, true, GetEntity(), &tr);
+	TraceLine(src, dest, true, pev->pContainingEntity, &tr);
 
 	// if trace hit something, return false
 	if (tr.flFraction < 1.0f)
@@ -2757,7 +2756,7 @@ CheckDuckJump:
 	src = dest;
 	dest.z = dest.z + 37.0f;
 
-	TraceLine(src, dest, true, GetEntity(), &tr);
+	TraceLine(src, dest, true, pev->pContainingEntity, &tr);
 
 	// if trace hit something, return false
 	return tr.flFraction > 1.0f;
@@ -2769,7 +2768,7 @@ bool Bot::CheckWallOnForward(void)
 	MakeVectors(pev->angles);
 
 	// do a trace to the forward...
-	TraceLine(pev->origin, pev->origin + g_pGlobals->v_forward * 54.0f, false, false, GetEntity(), &tr);
+	TraceLine(pev->origin, pev->origin + g_pGlobals->v_forward * 54.0f, false, false, pev->pContainingEntity, &tr);
 
 	// check if the trace hit something...
 	if (tr.flFraction != 1.0f)
@@ -2779,11 +2778,10 @@ bool Bot::CheckWallOnForward(void)
 	}
 	else
 	{
-		TraceResult tr2{};
-		TraceLine(tr.vecEndPos, tr.vecEndPos - g_pGlobals->v_up * 54.0f, false, false, GetEntity(), &tr2);
+		TraceLine(tr.vecEndPos, tr.vecEndPos - g_pGlobals->v_up * 54.0f, false, false, pev->pContainingEntity, &tr);
 
 		// we don't want fall
-		if (tr2.flFraction == 1.0f)
+		if (tr.flFraction == 1.0f)
 		{
 			m_lastWallOrigin = pev->origin;
 			return true;
@@ -2799,7 +2797,7 @@ bool Bot::CheckWallOnBehind(void)
 	MakeVectors(pev->angles);
 
 	// do a trace to the behind...
-	TraceLine(pev->origin, pev->origin - g_pGlobals->v_forward * 54.0f, false, false, GetEntity(), &tr);
+	TraceLine(pev->origin, pev->origin - g_pGlobals->v_forward * 54.0f, false, false, pev->pContainingEntity, &tr);
 
 	// check if the trace hit something...
 	if (tr.flFraction != 1.0f)
@@ -2809,11 +2807,10 @@ bool Bot::CheckWallOnBehind(void)
 	}
 	else
 	{
-		TraceResult tr2{};
-		TraceLine(tr.vecEndPos, tr.vecEndPos - g_pGlobals->v_up * 54.0f, false, false, GetEntity(), &tr2);
+		TraceLine(tr.vecEndPos, tr.vecEndPos - g_pGlobals->v_up * 54.0f, false, false, pev->pContainingEntity, &tr);
 
 		// we don't want fall
-		if (tr2.flFraction == 1.0f)
+		if (tr.flFraction == 1.0f)
 		{
 			m_lastWallOrigin = pev->origin;
 			return true;
@@ -2829,7 +2826,7 @@ bool Bot::CheckWallOnLeft(void)
 	MakeVectors(pev->angles);
 
 	// do a trace to the left...
-	TraceLine(pev->origin, pev->origin - g_pGlobals->v_right * 54.0f, false, false, GetEntity(), &tr);
+	TraceLine(pev->origin, pev->origin - g_pGlobals->v_right * 54.0f, false, false, pev->pContainingEntity, &tr);
 
 	// check if the trace hit something...
 	if (tr.flFraction != 1.0f)
@@ -2839,11 +2836,10 @@ bool Bot::CheckWallOnLeft(void)
 	}
 	else
 	{
-		TraceResult tr2{};
-		TraceLine(tr.vecEndPos, tr.vecEndPos - g_pGlobals->v_up * 54.0f, false, false, GetEntity(), &tr2);
+		TraceLine(tr.vecEndPos, tr.vecEndPos - g_pGlobals->v_up * 54.0f, false, false, pev->pContainingEntity, &tr);
 
 		// we don't want fall
-		if (tr2.flFraction == 1.0f)
+		if (tr.flFraction == 1.0f)
 		{
 			m_lastWallOrigin = pev->origin;
 			return true;
@@ -2859,7 +2855,7 @@ bool Bot::CheckWallOnRight(void)
 	MakeVectors(pev->angles);
 
 	// do a trace to the right...
-	TraceLine(pev->origin, pev->origin + g_pGlobals->v_right * 54.0f, false, false, GetEntity(), &tr);
+	TraceLine(pev->origin, pev->origin + g_pGlobals->v_right * 54.0f, false, false, pev->pContainingEntity, &tr);
 
 	// check if the trace hit something...
 	if (tr.flFraction != 1.0f)
@@ -2869,11 +2865,10 @@ bool Bot::CheckWallOnRight(void)
 	}
 	else
 	{
-		TraceResult tr2{};
-		TraceLine(tr.vecEndPos, tr.vecEndPos - g_pGlobals->v_up * 54.0f, false, false, GetEntity(), &tr2);
+		TraceLine(tr.vecEndPos, tr.vecEndPos - g_pGlobals->v_up * 54.0f, false, false, pev->pContainingEntity, &tr);
 
 		// we don't want fall
-		if (tr2.flFraction == 1.0f)
+		if (tr.flFraction == 1.0f)
 		{
 			m_lastWallOrigin = pev->origin;
 			return true;
@@ -2898,7 +2893,7 @@ bool Bot::IsDeadlyDrop(const Vector targetOriginPos)
 
 	down.z = down.z - 1000.0f;  // straight down 1000 units
 
-	TraceHull(check, down, true, head_hull, GetEntity(), &tr);
+	TraceHull(check, down, true, head_hull, pev->pContainingEntity, &tr);
 
 	if (tr.flFraction > 0.036f) // We're not on ground anymore?
 		tr.flFraction = 0.036f;
@@ -2915,7 +2910,7 @@ bool Bot::IsDeadlyDrop(const Vector targetOriginPos)
 		down = check;
 		down.z = down.z - 1000.0f;  // straight down 1000 units
 
-		TraceHull(check, down, true, head_hull, GetEntity(), &tr);
+		TraceHull(check, down, true, head_hull, pev->pContainingEntity, &tr);
 
 		if (tr.fStartSolid) // Wall blocking?
 			return false;
@@ -3034,16 +3029,16 @@ int Bot::FindHostage(void)
 		}
 
 		const Vector entOrigin = GetEntityOrigin(ent);
-		const int nearestIndex = g_waypoint->FindNearest(entOrigin, 512.0f, -1, ent);
+		int nearestIndex = g_waypoint->FindNearest(entOrigin, 512.0f, -1, ent);
 
 		if (IsValidWaypoint(nearestIndex) && canF)
 			return nearestIndex;
 		else
 		{
 			// do we need second try?
-			const int nearestIndex2 = g_waypoint->FindNearest(entOrigin);
-			if (IsValidWaypoint(nearestIndex2) && canF)
-				return nearestIndex2;
+			nearestIndex = g_waypoint->FindNearestInCircle(entOrigin);
+			if (IsValidWaypoint(nearestIndex) && canF)
+				return nearestIndex;
 		}
 	}
 
@@ -3063,16 +3058,15 @@ int Bot::FindLoosedBomb(void)
 		if (cstrcmp(STRING(bombEntity->v.model) + 9, "backpack.mdl") == 0)
 		{
 			const Vector bombOrigin = GetEntityOrigin(bombEntity);
-			const int nearestIndex = g_waypoint->FindNearest(bombOrigin, 512.0f, -1, bombEntity);
+			int nearestIndex = g_waypoint->FindNearest(bombOrigin, 512.0f, -1, bombEntity);
 			if (IsValidWaypoint(nearestIndex))
 				return nearestIndex;
 			else
 			{
 				// do we need second try?
-				const int nearestIndex2 = g_waypoint->FindNearest(bombOrigin);
-
-				if (IsValidWaypoint(nearestIndex2))
-					return nearestIndex2;
+				nearestIndex = g_waypoint->FindNearestInCircle(bombOrigin);
+				if (IsValidWaypoint(nearestIndex))
+					return nearestIndex;
 			}
 
 			break;
