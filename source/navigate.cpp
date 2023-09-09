@@ -3,7 +3,6 @@
 #include <thread>
 
 ConVar ebot_zombies_as_path_cost("ebot_zombie_count_as_path_cost", "1");
-ConVar ebot_aim_type("ebot_aim_type", "2");
 ConVar ebot_has_semiclip("ebot_has_semiclip", "0");
 ConVar ebot_use_old_jump_method("ebot_use_old_jump_method", "0");
 ConVar ebot_breakable_health_limit("ebot_breakable_health_limit", "3000.0");
@@ -2149,7 +2148,7 @@ void Bot::CheckStuck(const float maxSpeed)
 	{
 		const Vector myOrigin = pev->origin + pev->velocity * m_frameInterval;
 		const Vector friendOrigin = m_friendOrigin + m_nearestFriend->v.velocity * m_frameInterval;
-		if ((myOrigin - friendOrigin).GetLengthSquared() <= SquaredF((m_nearestFriend->v.maxspeed + pev->maxspeed) * 0.17f))
+		if ((myOrigin - friendOrigin).GetLengthSquared() < SquaredF((m_nearestFriend->v.maxspeed + pev->maxspeed) * 0.17f))
 		{
 			if (!m_isSlowThink && !IsOnLadder() && m_navNode != nullptr && IsWaypointOccupied(m_navNode->index))
 				NextPath(m_navNode);
@@ -2186,7 +2185,7 @@ void Bot::CheckStuck(const float maxSpeed)
 			}
 
 			bool doorStuck = false;
-			if (cabsf(m_nearestFriend->v.speed) > 54.0f && ((moveBack && m_stuckWarn >= 4) || m_stuckWarn >= 8))
+			if (cabsf(m_nearestFriend->v.speed) > 54.0f && ((moveBack && m_stuckWarn > 5) || m_stuckWarn > 9))
 			{
 				if ((dir | forward.Normalize2D()) < 0.0f)
 				{
@@ -2210,7 +2209,7 @@ void Bot::CheckStuck(const float maxSpeed)
 				}
 			}
 
-			if (IsOnFloor() && m_stuckWarn >= 6)
+			if (IsOnFloor() && m_stuckWarn > 7)
 			{
 				if (!(m_nearestFriend->v.button & IN_JUMP) && !(m_nearestFriend->v.oldbuttons & IN_JUMP) && ((m_nearestFriend->v.button & IN_DUCK && m_nearestFriend->v.oldbuttons & IN_DUCK) || CanJumpUp(pev->velocity.SkipZ()) || CanJumpUp(dir)))
 				{
@@ -2225,7 +2224,7 @@ void Bot::CheckStuck(const float maxSpeed)
 				}
 			}
 
-			if (doorStuck && m_stuckWarn >= 10) // ENOUGH!
+			if (doorStuck && m_stuckWarn > 11) // ENOUGH!
 			{
 				extern ConVar ebot_ignore_enemies;
 				if (!ebot_ignore_enemies.GetBool())
@@ -2271,7 +2270,7 @@ void Bot::CheckStuck(const float maxSpeed)
 			}
 		}
 	}
-	else if (m_stuckWarn >= 2 && !(m_waypointFlags & WAYPOINT_FALLRISK))
+	else if (m_stuckWarn > 3 && !(m_waypointFlags & WAYPOINT_FALLRISK))
 	{
 		bool moveBack = false;
 
@@ -2308,7 +2307,7 @@ void Bot::CheckStuck(const float maxSpeed)
 
 		return;
 	}
-	else if (m_stuckWarn >= 4 && !g_waypoint->Reachable(GetEntity(), m_currentWaypointIndex))
+	else if (m_stuckWarn > 5 && !g_waypoint->Reachable(GetEntity(), m_currentWaypointIndex))
 	{
 		DeleteSearchNodes();
 		FindWaypoint();
@@ -2320,7 +2319,7 @@ void Bot::CheckStuck(const float maxSpeed)
 	{
 		m_stuckWarn++;
 
-		if (m_stuckWarn >= 20)
+		if (m_stuckWarn > 20)
 		{
 			m_stuckWarn = 10;
 			DeleteSearchNodes();
@@ -2373,7 +2372,7 @@ bool Bot::NextPath(PathNode* node)
 					SetWaypointOrigin();
 					return true;
 				}
-				else if (GetProcess() == Process::Default && m_hasFriendsNear && !FNullEnt(m_nearestFriend))
+				else if (GetCurrentState() == Process::Default && m_hasFriendsNear && !FNullEnt(m_nearestFriend))
 				{
 					const Vector origin = g_waypoint->GetPath(m_currentWaypointIndex)->origin;
 					if ((pev->origin - origin).GetLengthSquared() > (m_nearestFriend->v.origin - origin).GetLengthSquared())
@@ -2381,7 +2380,7 @@ bool Bot::NextPath(PathNode* node)
 						Bot* bot = g_botManager->GetBot(m_nearestFriend);
 						if (bot != nullptr)
 						{
-							if (bot->GetProcess() == Process::Default && bot->m_navNode != nullptr)
+							if (bot->GetCurrentState() == Process::Default && bot->m_navNode != nullptr)
 							{
 								ChangeWptIndex(bot->m_navNode->index);
 								SetWaypointOrigin();
@@ -2935,99 +2934,32 @@ bool Bot::IsDeadlyDrop(const Vector targetOriginPos)
 
 void Bot::FacePosition(void)
 {
-	const int aimType = ebot_aim_type.GetInt();
-	if (aimType == 0)
-	{
-		Vector direction = (m_lookAt - EyePosition()).ToAngles() + pev->punchangle;
-		direction.x = -direction.x; // invert for engine
-
-		if (direction.x < -89.0f)
-			direction.x = -89.0f;
-		else if (direction.x > 89.0f)
-			direction.x = 89.0f;
-
-		pev->v_angle = direction;
-		pev->angles.x = -pev->v_angle.x * 0.33333333333f;
-		pev->angles.y = pev->v_angle.y;
-		return;
-	}
-	else if (aimType == 2)
-	{
-		m_idealAngles = pev->v_angle;
-		Vector direction = (m_lookAt - EyePosition()).ToAngles() + pev->punchangle;
-		direction.x = -direction.x; // invert for engine
-
-		const float aimSpeed = ((m_skill * 0.033f) + 9.0f) * m_frameInterval;
-
-		m_idealAngles.x += AngleNormalize(direction.x - m_idealAngles.x) * aimSpeed;
-		m_idealAngles.y += AngleNormalize(direction.y - m_idealAngles.y) * aimSpeed;
-
-		if (m_idealAngles.x < -89.0f)
-			m_idealAngles.x = -89.0f;
-		else if (m_idealAngles.x > 89.0f)
-			m_idealAngles.x = 89.0f;
-
-		pev->v_angle = m_idealAngles;
-		pev->angles.x = -pev->v_angle.x * 0.33333333333f;
-		pev->angles.y = pev->v_angle.y;
-		return;
-	}
-
-	// adjust all body and view angles to face an absolute vector
+	Vector newAngle = pev->v_angle;
 	Vector direction = (m_lookAt - EyePosition()).ToAngles() + pev->punchangle;
 	direction.x = -direction.x; // invert for engine
 
-	float accelerate = float(m_skill) * 40.0f;
-	float stiffness = float(m_skill) * 4.0f;
-	float damping = float(m_skill) * 0.25f;
+	const float aimSpeed = ((m_skill * 0.033f) + 9.0f) * m_frameInterval;
 
-	m_idealAngles = pev->v_angle;
+	const float x = AngleNormalize(direction.x - newAngle.x);
+	const float y = AngleNormalize(direction.y - newAngle.y);
 
-	float angleDiffPitch = AngleNormalize(direction.x - m_idealAngles.x);
-	float angleDiffYaw = AngleNormalize(direction.y - m_idealAngles.y);
-
-	float lockn = (m_skill + 50.0f) * m_frameInterval;
-
-	if (IsZombieMode() && !m_isZombieBot && m_isEnemyReachable)
+	if (y < x)
 	{
-		accelerate *= 2.0f;
-		stiffness *= 2.0f;
-		damping *= 2.0f;
-		lockn *= 2.0f;
-	}
-
-	if (angleDiffYaw < lockn && angleDiffYaw > -lockn)
-	{
-		m_lookYawVel = 0.0f;
-		m_idealAngles.y = direction.y;
+		newAngle.x += x * aimSpeed * 1.55f;
+		newAngle.y += y * aimSpeed;
 	}
 	else
 	{
-		const float accel = cclampf((stiffness * angleDiffYaw) - (damping * m_lookYawVel), -accelerate, accelerate);
-		m_lookYawVel += m_frameInterval * accel;
-		m_idealAngles.y += m_frameInterval * m_lookYawVel;
+		newAngle.x += x * aimSpeed;
+		newAngle.y += y * aimSpeed * 1.25f;
 	}
 
-	if (angleDiffPitch <= lockn && angleDiffPitch >= -lockn)
-	{
-		m_lookPitchVel = 0.0f;
-		m_idealAngles.x = direction.x;
-	}
-	else
-	{
-		const float accel = cclampf(stiffness * angleDiffPitch - (damping * m_lookPitchVel), -accelerate, accelerate);
-		m_lookPitchVel += m_frameInterval * accel;
-		m_idealAngles.x += m_frameInterval * m_lookPitchVel;
-	}
+	if (newAngle.x < -89.0f)
+		newAngle.x = -89.0f;
+	else if (newAngle.x > 89.0f)
+		newAngle.x = 89.0f;
 
-	if (m_idealAngles.x < -89.0f)
-		m_idealAngles.x = -89.0f;
-	else if (m_idealAngles.x > 89.0f)
-		m_idealAngles.x = 89.0f;
-
-	pev->v_angle = m_idealAngles;
-
-	// set the body angles to point the gun correctly
+	pev->v_angle = newAngle;
 	pev->angles.x = -pev->v_angle.x * 0.33333333333f;
 	pev->angles.y = pev->v_angle.y;
 }
@@ -3055,7 +2987,7 @@ void Bot::SetStrafeSpeed(const Vector moveDir, const float strafeSpeed)
 		
 		m_strafeSpeed = m_tempstrafeSpeed;
 
-		if ((m_isStuck || pev->speed >= pev->maxspeed) && !IsOnLadder() && m_jumpTime + 5.0f < engine->GetTime() && IsOnFloor())
+		if ((m_isStuck || pev->speed >= pev->maxspeed) && IsOnFloor() && !IsOnLadder() && m_jumpTime + 5.0f < engine->GetTime() && CanJumpUp(moveDir))
 			pev->button |= IN_JUMP;
 	}
 	else if (dot > 0.0f && !CheckWallOnRight())
@@ -3110,7 +3042,6 @@ int Bot::FindHostage(void)
 		{
 			// do we need second try?
 			const int nearestIndex2 = g_waypoint->FindNearest(entOrigin);
-
 			if (IsValidWaypoint(nearestIndex2) && canF)
 				return nearestIndex2;
 		}
@@ -3179,7 +3110,7 @@ bool Bot::IsWaypointOccupied(const int index)
 		else
 		{
 			const Path* pointer = g_waypoint->GetPath(index);
-			if (((client.ent->v.origin + client.ent->v.velocity * m_frameInterval) - pointer->origin).GetLengthSquared() <= SquaredI(pointer->radius + 54))
+			if (((client.ent->v.origin + client.ent->v.velocity * m_frameInterval) - pointer->origin).GetLengthSquared() < SquaredI(pointer->radius + 54))
 				return true;
 		}
 	}

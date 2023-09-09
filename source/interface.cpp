@@ -168,7 +168,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 	// displays bot about information
 	else if (cstricmp(arg0, "about_bot") == 0 || cstricmp(arg0, "about") == 0)
 	{
-		if (g_gameVersion & Game::Old || g_gameVersion & Game::HalfLife)
+		if (g_gameVersion & Game::HalfLife)
 		{
 			ServerPrint("Cannot do this on your game version");
 			return 1;
@@ -663,25 +663,20 @@ void CheckEntityAction(void)
 
 void LoadEntityData(void)
 {
+	int i;
 	edict_t* entity;
 
-	for (int i = 0; i < entityNum; i++)
+	for (i = 0; i < entityNum; i++)
 	{
 		if (g_entityId[i] == -1)
 			continue;
 
 		entity = INDEXENT(g_entityId[i]);
 		if (FNullEnt(entity) || !IsAlive(entity))
-		{
 			SetEntityActionData(i);
-			continue;
-		}
-
-		if (g_entityGetWpTime[i] + 1.0f < engine->GetTime() || g_entityWpIndex[i] == -1)
-			SetEntityWaypoint(entity);
 	}
 
-	for (int i = 0; i < engine->GetMaxClients(); i++)
+	for (i = 0; i < engine->GetMaxClients(); i++)
 	{
 		entity = INDEXENT(i + 1);
 
@@ -690,10 +685,6 @@ void LoadEntityData(void)
 			g_clients[i].flags = 0;
 			g_clients[i].ent = nullptr;
 			g_clients[i].origin = nullvec;
-			g_clients[i].wpIndex = -1;
-			g_clients[i].wpIndex2 = -1;
-			g_clients[i].getWpOrigin = nullvec;
-			g_clients[i].getWPTime = 0.0f;
 			g_clients[i].index = -1;
 			g_clients[i].team = Team::Count;
 			continue;
@@ -718,16 +709,8 @@ void LoadEntityData(void)
 				g_hostEntity->v.movetype = MOVETYPE_NOCLIP;
 
 			g_clients[i].origin = GetEntityOrigin(entity);
-			if (g_clients[i].getWPTime + 1.0f < engine->GetTime() || (g_clients[i].wpIndex == -1 && g_clients[i].wpIndex2 == -1))
-				SetEntityWaypoint(entity);
-
 			continue;
 		}
-
-		g_clients[i].wpIndex = -1;
-		g_clients[i].wpIndex2 = -1;
-		g_clients[i].getWpOrigin = nullvec;
-		g_clients[i].getWPTime = 0.0f;
 	}
 }
 
@@ -918,19 +901,6 @@ void InitConfig(void)
 	}
 }
 
-void CommandHandler_NotMM(void)
-{
-	// this function is the dedicated server command handler for the new ebot server command we
-	// registered at game start. It will be called by the engine each time a server command that
-	// starts with "meta" is entered in the server console. It works exactly the same way as
-	// ClientCommand() does, using the CmdArgc() and CmdArgv() facilities of the engine. Argv(0)
-	// is the server command itself (here "meta") and the next ones are its arguments. Just like
-	// the stdio command-line parsing in C when you write "long main (long argc, char **argv)".
-	// this function is handler for non-metamod launch of ebot, it's just print error message.
-
-	ServerPrint("You're launched standalone version of ebot. Metamod is not installed or not enabled!");
-}
-
 void GameDLLInit(void)
 {
 	// this function is a one-time call, and appears to be the second function called in the
@@ -958,14 +928,7 @@ void GameDLLInit(void)
 	// execute main config
 	ServerCommand("exec addons/ebot/ebot.cfg");
 
-	// register fake metamod command handler if we not! under mm
-	if (!g_isMetamod)
-		RegisterCommand("meta", CommandHandler_NotMM);
-
-	if (g_isMetamod)
-		RETURN_META(MRES_IGNORED);
-
-	(*g_functionTable.pfnGameInit) ();
+	RETURN_META(MRES_IGNORED);
 }
 
 int Spawn(edict_t* ent)
@@ -1002,7 +965,7 @@ int Spawn(edict_t* ent)
 		g_hasDoors = true;
 	else if (cstrcmp(entityClassname, "player_weaponstrip") == 0)
 	{
-		if ((g_gameVersion & Game::Old || g_gameVersion & Game::HalfLife) && (STRING(ent->v.target))[0] == '\0')
+		if (g_gameVersion & Game::HalfLife && (STRING(ent->v.target))[0] == '\0')
 		{
 			ent->v.target = MAKE_STRING("fake");
 			ent->v.targetname = MAKE_STRING("fake");
@@ -1010,11 +973,7 @@ int Spawn(edict_t* ent)
 		else
 		{
 			REMOVE_ENTITY(ent);
-
-			if (g_isMetamod)
-				RETURN_META_VALUE(MRES_SUPERCEDE, 0);
-
-			return (*g_functionTable.pfnSpawn) (ent);
+			RETURN_META_VALUE(MRES_SUPERCEDE, 0);
 		}
 	}
 	else
@@ -1106,10 +1065,7 @@ int Spawn(edict_t* ent)
 		}
 	}
 
-	if (g_isMetamod)
-		RETURN_META_VALUE(MRES_IGNORED, 0);
-
-	return (*g_functionTable.pfnSpawn) (ent);
+	RETURN_META_VALUE(MRES_IGNORED, 0);
 }
 
 int Spawn_Post(edict_t* ent)
@@ -1184,11 +1140,7 @@ int ClientConnect(edict_t* ent, const char* name, const char* addr, char rejectR
 		g_hostEntity = ent; // save the edict of the listen server client...
 
 	LoadEntityData();
-
-	if (g_isMetamod)
-		RETURN_META_VALUE(MRES_IGNORED, 0);
-
-	return (*g_functionTable.pfnClientConnect) (ent, name, addr, rejectReason);
+	RETURN_META_VALUE(MRES_IGNORED, 0);
 }
 
 void ClientDisconnect(edict_t* ent)
@@ -1214,11 +1166,7 @@ void ClientDisconnect(edict_t* ent)
 		g_botManager->Free(clientIndex);
 
 	LoadEntityData();
-
-	if (g_isMetamod)
-		RETURN_META(MRES_IGNORED);
-
-	(*g_functionTable.pfnClientDisconnect) (ent);
+	RETURN_META(MRES_IGNORED);
 }
 
 void ClientUserInfoChanged(edict_t* ent, char* infobuffer)
@@ -1228,28 +1176,22 @@ void ClientUserInfoChanged(edict_t* ent, char* infobuffer)
 	// change their player model). But most commonly, this function is in charge of handling
 	// team changes, recounting the teams population, etc...
 
+	if (IsValidBot(ent))
+		RETURN_META(MRES_IGNORED);
+
 	const char* passwordField = ebot_password_key.GetString();
 	const char* password = ebot_password.GetString();
 
-	if (IsNullString(passwordField) || IsNullString(password) || IsValidBot(ent))
-	{
-		if (g_isMetamod)
-			RETURN_META(MRES_IGNORED);
-
-		(*g_functionTable.pfnClientUserInfoChanged) (ent, infobuffer);
-	}
+	if (IsNullString(passwordField) || IsNullString(password))
+		RETURN_META(MRES_IGNORED);
 
 	const int clientIndex = ENTINDEX(ent) - 1;
-
 	if (cstrcmp(password, INFOKEY_VALUE(infobuffer, const_cast<char*>(passwordField))) == 0)
 		g_clients[clientIndex].flags |= CFLAG_OWNER;
 	else
 		g_clients[clientIndex].flags &= ~CFLAG_OWNER;
 
-	if (g_isMetamod)
-		RETURN_META(MRES_IGNORED);
-
-	(*g_functionTable.pfnClientUserInfoChanged) (ent, infobuffer);
+	RETURN_META(MRES_IGNORED);
 }
 
 void ClientCommand(edict_t* ent)
@@ -1293,10 +1235,8 @@ void ClientCommand(edict_t* ent)
 				ClientPrint(ent, print_withtag, "Command %s, can only be executed from server console.", arg1);
 				break;
 			}
-			if (g_isMetamod)
-				RETURN_META(MRES_SUPERCEDE);
 
-			return;
+			RETURN_META(MRES_SUPERCEDE);
 		}
 		else if (cstricmp(command, "menuselect") == 0 && !IsNullString(arg1) && g_clients[ENTINDEX(ent) - 1].menu != nullptr)
 		{
@@ -1331,10 +1271,8 @@ void ClientCommand(edict_t* ent)
 					DisplayMenuToClient(ent, nullptr);
 					break;
 				}
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
 
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[13]) // set waypoint flag
 			{
@@ -1381,10 +1319,7 @@ void ClientCommand(edict_t* ent)
 					break;
 				}
 
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
-
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[26]) // set waypoint flag 2
 			{
@@ -1431,10 +1366,7 @@ void ClientCommand(edict_t* ent)
 					break;
 				}
 
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
-
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[27]) // set waypoint flag 3
 			{
@@ -1469,10 +1401,7 @@ void ClientCommand(edict_t* ent)
 					break;
 				}
 
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
-
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[9])
 			{
@@ -1530,10 +1459,8 @@ void ClientCommand(edict_t* ent)
 					DisplayMenuToClient(ent, nullptr);
 					break;
 				}
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
 
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[10])
 			{
@@ -1634,10 +1561,8 @@ void ClientCommand(edict_t* ent)
 					DisplayMenuToClient(ent, &g_menus[9]);
 					break;
 				}
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
 
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[11])
 			{
@@ -1648,10 +1573,7 @@ void ClientCommand(edict_t* ent)
 				if ((selection >= 1) && (selection <= 9))
 					g_waypoint->SetRadius(radiusValue[selection - 1]);
 
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
-
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[0])
 			{
@@ -1682,10 +1604,8 @@ void ClientCommand(edict_t* ent)
 					break;
 
 				}
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
 
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[2])
 			{
@@ -1717,10 +1637,8 @@ void ClientCommand(edict_t* ent)
 					DisplayMenuToClient(ent, nullptr);
 					break;
 				}
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
 
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[1])
 			{
@@ -1760,10 +1678,8 @@ void ClientCommand(edict_t* ent)
 					DisplayMenuToClient(ent, nullptr);
 					break;
 				}
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
 
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[18])
 			{
@@ -1804,10 +1720,7 @@ void ClientCommand(edict_t* ent)
 					break;
 				}
 
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
-
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[19])
 			{
@@ -1816,15 +1729,12 @@ void ClientCommand(edict_t* ent)
 				if (selection >= 1 && selection <= 7)
 					g_autoPathDistance = autoDistanceValue[selection - 1];
 
-				if (g_autoPathDistance == 0)
+				if (g_autoPathDistance == 0.0f)
 					CenterPrint("AutoPath disabled");
 				else
 					CenterPrint("AutoPath maximum distance set to %f", g_autoPathDistance);
 
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
-
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[20])
 			{
@@ -1859,10 +1769,7 @@ void ClientCommand(edict_t* ent)
 					break;
 				}
 
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
-
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[21])
 			{
@@ -1912,10 +1819,7 @@ void ClientCommand(edict_t* ent)
 					break;
 				}
 
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
-
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[22])
 			{
@@ -1964,10 +1868,7 @@ void ClientCommand(edict_t* ent)
 					break;
 				}
 
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
-
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[23])
 			{
@@ -2010,10 +1911,7 @@ void ClientCommand(edict_t* ent)
 					break;
 				}
 
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
-
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[24])
 			{
@@ -2030,10 +1928,7 @@ void ClientCommand(edict_t* ent)
 					break;
 				}
 
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
-
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[25])
 			{
@@ -2050,10 +1945,7 @@ void ClientCommand(edict_t* ent)
 					break;
 				}
 
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
-
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[5])
 			{
@@ -2095,10 +1987,7 @@ void ClientCommand(edict_t* ent)
 				if (client->menu == &g_menus[4])
 					DisplayMenuToClient(ent, &g_menus[4]);
 
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
-
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[6] && fillCommand)
 			{
@@ -2121,10 +2010,8 @@ void ClientCommand(edict_t* ent)
 					DisplayMenuToClient(ent, nullptr);
 					break;
 				}
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
 
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[4] && fillCommand)
 			{
@@ -2142,10 +2029,8 @@ void ClientCommand(edict_t* ent)
 					DisplayMenuToClient(ent, nullptr);
 					break;
 				}
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
 
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[6])
 			{
@@ -2175,10 +2060,8 @@ void ClientCommand(edict_t* ent)
 					DisplayMenuToClient(ent, nullptr);
 					break;
 				}
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
 
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[4])
 			{
@@ -2198,10 +2081,8 @@ void ClientCommand(edict_t* ent)
 					DisplayMenuToClient(ent, nullptr);
 					break;
 				}
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
 
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[7] || client->menu == &g_menus[8])
 			{
@@ -2222,10 +2103,8 @@ void ClientCommand(edict_t* ent)
 					DisplayMenuToClient(ent, nullptr);
 					break;
 				}
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
 
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[3])
 			{
@@ -2247,10 +2126,8 @@ void ClientCommand(edict_t* ent)
 					DisplayMenuToClient(ent, nullptr);
 					break;
 				}
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
 
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[14])
 			{
@@ -2277,10 +2154,8 @@ void ClientCommand(edict_t* ent)
 					DisplayMenuToClient(ent, &g_menus[2]);
 					break;
 				}
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
 
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[15])
 			{
@@ -2307,10 +2182,8 @@ void ClientCommand(edict_t* ent)
 					g_botManager->RemoveMenu(ent, 1);
 					break;
 				}
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
 
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[16])
 			{
@@ -2337,10 +2210,8 @@ void ClientCommand(edict_t* ent)
 					g_botManager->RemoveMenu(ent, 2);
 					break;
 				}
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
 
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			else if (client->menu == &g_menus[17])
 			{
@@ -2363,10 +2234,8 @@ void ClientCommand(edict_t* ent)
 					g_botManager->RemoveMenu(ent, 3);
 					break;
 				}
-				if (g_isMetamod)
-					RETURN_META(MRES_SUPERCEDE);
 
-				return;
+				RETURN_META(MRES_SUPERCEDE);
 			}
 		}
 	}
@@ -2415,7 +2284,6 @@ void ClientCommand(edict_t* ent)
 	if ((g_clients[clientIndex].flags & CFLAG_ALIVE) && g_radioSelect[clientIndex] != 0 && cstrncmp(command, "menuselect", 10) == 0)
 	{
 		int radioCommand = catoi(arg1);
-
 		if (radioCommand != 0)
 		{
 			radioCommand += 10 * (g_radioSelect[clientIndex] - 1);
@@ -2441,10 +2309,7 @@ void ClientCommand(edict_t* ent)
 	else if (cstrncmp(command, "radio", 5) == 0)
 		g_radioSelect[clientIndex] = catoi(&command[5]);
 
-	if (g_isMetamod)
-		RETURN_META(MRES_IGNORED);
-
-	(*g_functionTable.pfnClientCommand) (ent);
+	RETURN_META(MRES_IGNORED);
 }
 
 void ServerActivate(edict_t* pentEdictList, int edictCount, int clientMax)
@@ -2477,47 +2342,10 @@ void ServerActivate(edict_t* pentEdictList, int edictCount, int clientMax)
 	secondTimer = 0.0f;
 	updateTimer = 0.0f;
 
-	if (g_isMetamod)
-		RETURN_META(MRES_IGNORED);
+	if (g_engfuncs.pfnCVarGetPointer("host_ver") != nullptr)
+		g_gameVersion |= Game::Xash;
 
-	(*g_functionTable.pfnServerActivate) (pentEdictList, edictCount, clientMax);
-}
-
-void ServerDeactivate(void)
-{
-	// this function is called when the server is shutting down. A particular note about map
-	// changes: changing the map means shutting down the server and starting a new one. Of course
-	// this process is transparent to the user, but either in single player when the hero reaches
-	// a new level and in multiplayer when it's time for a map change, be aware that what happens
-	// is that the server actually shuts down and restarts with a new map. Hence we can use this
-	// function to free and deinit anything which is map-specific, for example we free the memory
-	// space we m'allocated for our BSP data, since a new map means new BSP data to interpret. In
-	// any case, when the new map will be booting, ServerActivate() will be called, so we'll do
-	// the loading of new bots and the new BSP data parsing there.
-
-	secondTimer = 0.0f;
-	updateTimer = 0.0f;
-
-	if (g_isMetamod)
-		RETURN_META(MRES_IGNORED);
-
-	(*g_functionTable.pfnServerDeactivate) ();
-}
-
-void KeyValue(edict_t* ent, KeyValueData* data)
-{
-	// this function is called when the game requests a pointer to some entity's keyvalue data.
-	// The keyvalue data is held in each entity's infobuffer (basically a char buffer where each
-	// game DLL can put the stuff it wants) under - as it says - the form of a key/value pair. A
-	// common example of key/value pair is the "model", "(name of player model here)" one which
-	// is often used for client DLLs to display player characters with the right model (else they
-	// would all have the dull "models/player.mdl" one). The entity for which the keyvalue data
-	// pointer is requested is pentKeyvalue, the pointer to the keyvalue data structure pkvd.
-
-	if (g_isMetamod)
-		RETURN_META(MRES_IGNORED);
-
-	(*g_functionTable.pfnKeyValue) (ent, data);
+	RETURN_META(MRES_IGNORED);
 }
 
 void SetPing(edict_t* to)
@@ -2537,48 +2365,20 @@ void SetPing(edict_t* to)
 			return;
 	}
 
-	static int sending;
-	static const int SVC_PINGS = 17;
-
+	const int SVC_PINGS = 17;
 	for (const auto& bot : g_botManager->m_bots)
 	{
 		if (bot == nullptr)
 			continue;
 
 		const int index = bot->GetIndex() - 1;
-
-		switch (sending)
-		{
-		case 0:
-		{
-			// start a new message
-			MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_PINGS, nullptr, to);
-			WRITE_BYTE((bot->m_pingOffset[sending] * 64) + (1 + 2 * index));
-			WRITE_SHORT(bot->m_ping[sending]);
-			sending++;
-		}
-		case 1:
-		{
-			// append additional data
-			WRITE_BYTE((bot->m_pingOffset[sending] * 128) + (2 + 4 * index));
-			WRITE_SHORT(bot->m_ping[sending]);
-			sending++;
-		}
-		case 2:
-		{
-			// append additional data and end message
-			WRITE_BYTE(4 + 8 * index);
-			WRITE_SHORT(bot->m_ping[sending]);
-			WRITE_BYTE(0);
-			MESSAGE_END();
-			sending = 0;
-		}
-		}
-	}
-
-	// end message if not yet sent
-	if (sending)
-	{
+		MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_PINGS, nullptr, to);
+		WRITE_BYTE(64 + (1 + 2 * index));
+		WRITE_SHORT(bot->m_ping);
+		WRITE_BYTE(128 + (2 + 4 * index));
+		WRITE_SHORT(bot->m_ping);
+		WRITE_BYTE(4 + 8 * index);
+		WRITE_SHORT(bot->m_ping);
 		WRITE_BYTE(0);
 		MESSAGE_END();
 	}
@@ -2590,10 +2390,7 @@ void UpdateClientData(const struct edict_s* ent, int sendweapons, struct clientd
 	if (ebot_ping.GetBool())
 		SetPing(const_cast<edict_t*>(ent));
 
-	if (g_isMetamod)
-		RETURN_META(MRES_IGNORED);
-
-	(*g_functionTable.pfnUpdateClientData) (ent, sendweapons, cd);
+	RETURN_META(MRES_IGNORED);
 }
 
 void JustAStuff(void)
@@ -2701,10 +2498,7 @@ void StartFrame(void)
 			g_botManager->MaintainBotQuota();
 	}
 
-	if (g_isMetamod)
-		RETURN_META(MRES_IGNORED);
-
-	(*g_functionTable.pfnStartFrame) ();
+	RETURN_META(MRES_IGNORED);
 }
 
 void StartFrame_Post(void)
@@ -2743,35 +2537,6 @@ void GameDLLInit_Post(void)
 	RETURN_META(MRES_IGNORED);
 }
 
-void pfnChangeLevel(char* s1, char* s2)
-{
-	// the purpose of this function is to ask the engine to shutdown the server and restart a
-	// new one running the map whose name is s1. It is used ONLY IN SINGLE PLAYER MODE and is
-	// transparent to the user, because it saves the player state and equipment and restores it
-	// back in the new level. The "changelevel trigger point" in the old level is linked to the
-	// new level's spawn point using the s2 string, which is formatted as follows: "trigger_name
-	// to spawnpoint_name", without spaces (for example, "tr_1atotr_2lm" would tell the engine
-	// the player has reached the trigger point "tr_1a" and has to spawn in the next level on the
-	// spawn point named "tr_2lm".
-
-	if (g_isMetamod)
-		RETURN_META(MRES_IGNORED);
-
-	CHANGE_LEVEL(s1, s2);
-}
-
-edict_t* pfnFindEntityByString(edict_t* edictStartSearchAfter, const char* field, const char* value)
-{
-	// round starts in counter-strike 1.5
-	if (cstrcmp(value, "info_map_parameters") == 0)
-		RoundInit();
-
-	if (g_isMetamod)
-		RETURN_META_VALUE(MRES_IGNORED, 0);
-
-	return FIND_ENTITY_BY_STRING(edictStartSearchAfter, field, value);
-}
-
 void pfnClientCommand(edict_t* ent, char* format, ...)
 {
 	// this function forces the client whose player entity is ent to issue a client command.
@@ -2791,101 +2556,70 @@ void pfnClientCommand(edict_t* ent, char* format, ...)
 
 	// is the target entity an official bot, or a third party bot ?
 	if (g_isFakeCommand || IsValidBot(ent) || ent->v.flags & FL_FAKECLIENT || ent->v.flags & FL_DORMANT)
-	{
-		if (g_isMetamod)
-			RETURN_META(MRES_SUPERCEDE); // prevent bots to be forced to issue client commands
+		RETURN_META(MRES_SUPERCEDE); // prevent bots to be forced to issue client commands
 
-		return;
-	}
-
-	va_list ap;
-	char buffer[1024];
-
-	va_start(ap, format);
-	vsnprintf(buffer, sizeof(buffer), format, ap);
-	va_end(ap);
-
-	if (g_isMetamod)
-		RETURN_META(MRES_IGNORED);
-
-	CLIENT_COMMAND(ent, buffer);
+	RETURN_META(MRES_IGNORED);
 }
 
+// this function called each time a message is about to sent
 void pfnMessageBegin(int msgDest, int msgType, const float* origin, edict_t* ed)
 {
-	if (!g_sendMessage)
+	// store the message type in our own variables, since the GET_USER_MSG_ID () will just do a lot of cstrcmp()'s...
+	if (g_netMsg->GetId(NETMSG_MONEY) == -1)
 	{
-		// end the existing one...
-		MESSAGE_END();
-
-		if (g_isMetamod)
-			RETURN_META(MRES_SUPERCEDE);
-
-		return;
+		g_netMsg->SetId(NETMSG_VGUI, GET_USER_MSG_ID(PLID, "VGUIMenu", nullptr));
+		g_netMsg->SetId(NETMSG_SHOWMENU, GET_USER_MSG_ID(PLID, "ShowMenu", nullptr));
+		g_netMsg->SetId(NETMSG_WLIST, GET_USER_MSG_ID(PLID, "WeaponList", nullptr));
+		g_netMsg->SetId(NETMSG_CURWEAPON, GET_USER_MSG_ID(PLID, "CurWeapon", nullptr));
+		g_netMsg->SetId(NETMSG_AMMOX, GET_USER_MSG_ID(PLID, "AmmoX", nullptr));
+		g_netMsg->SetId(NETMSG_AMMOPICK, GET_USER_MSG_ID(PLID, "AmmoPickup", nullptr));
+		g_netMsg->SetId(NETMSG_MONEY, GET_USER_MSG_ID(PLID, "Money", nullptr));
+		g_netMsg->SetId(NETMSG_STATUSICON, GET_USER_MSG_ID(PLID, "StatusIcon", nullptr));
+		g_netMsg->SetId(NETMSG_DEATH, GET_USER_MSG_ID(PLID, "DeathMsg", nullptr));
+		g_netMsg->SetId(NETMSG_SCREENFADE, GET_USER_MSG_ID(PLID, "ScreenFade", nullptr));
+		g_netMsg->SetId(NETMSG_HLTV, GET_USER_MSG_ID(PLID, "HLTV", nullptr));
+		g_netMsg->SetId(NETMSG_TEXTMSG, GET_USER_MSG_ID(PLID, "TextMsg", nullptr));
+		g_netMsg->SetId(NETMSG_SCOREINFO, GET_USER_MSG_ID(PLID, "ScoreInfo", nullptr));
+		g_netMsg->SetId(NETMSG_BARTIME, GET_USER_MSG_ID(PLID, "BarTime", nullptr));
+		g_netMsg->SetId(NETMSG_SENDAUDIO, GET_USER_MSG_ID(PLID, "SendAudio", nullptr));
+		g_netMsg->SetId(NETMSG_SAYTEXT, GET_USER_MSG_ID(PLID, "SayText", nullptr));
 	}
 
-	// store the message type in our own variables, since the GET_USER_MSG_ID () will just do a lot of strcmp()'s...
-	if (g_isMetamod && NetworkMsg::GetObjectPtr()->GetId(NETMSG_MONEY) == -1)
-	{
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_VGUI, GET_USER_MSG_ID(PLID, "VGUIMenu", nullptr));
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SHOWMENU, GET_USER_MSG_ID(PLID, "ShowMenu", nullptr));
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_WEAPONLIST, GET_USER_MSG_ID(PLID, "WeaponList", nullptr));
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_CURWEAPON, GET_USER_MSG_ID(PLID, "CurWeapon", nullptr));
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_AMMOX, GET_USER_MSG_ID(PLID, "AmmoX", nullptr));
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_AMMOPICKUP, GET_USER_MSG_ID(PLID, "AmmoPickup", nullptr));
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_DAMAGE, GET_USER_MSG_ID(PLID, "Damage", nullptr));
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_MONEY, GET_USER_MSG_ID(PLID, "Money", nullptr));
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_STATUSICON, GET_USER_MSG_ID(PLID, "StatusIcon", nullptr));
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_DEATH, GET_USER_MSG_ID(PLID, "DeathMsg", nullptr));
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SCREENFADE, GET_USER_MSG_ID(PLID, "ScreenFade", nullptr));
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_HLTV, GET_USER_MSG_ID(PLID, "HLTV", nullptr));
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_TEXTMSG, GET_USER_MSG_ID(PLID, "TextMsg", nullptr));
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SCOREINFO, GET_USER_MSG_ID(PLID, "ScoreInfo", nullptr));
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_BARTIME, GET_USER_MSG_ID(PLID, "BarTime", nullptr));
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SENDAUDIO, GET_USER_MSG_ID(PLID, "SendAudio", nullptr));
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SAYTEXT, GET_USER_MSG_ID(PLID, "SayText", nullptr));
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_RESETHUD, GET_USER_MSG_ID(PLID, "ResetHUD", nullptr));
-	}
+	g_netMsg->Reset();
 
-	NetworkMsg::GetObjectPtr()->Reset();
+	if (msgDest == MSG_SPEC && msgType == g_netMsg->GetId(NETMSG_HLTV))
+		g_netMsg->SetMessage(NETMSG_HLTV);
 
-	if (msgDest == MSG_SPEC && msgType == NetworkMsg::GetObjectPtr()->GetId(NETMSG_HLTV))
-		NetworkMsg::GetObjectPtr()->SetMessage(NETMSG_HLTV);
-
-	NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_WEAPONLIST);
+	g_netMsg->HandleMessageIfRequired(msgType, NETMSG_WLIST);
 
 	if (!FNullEnt(ed))
 	{
-		Bot* bot = g_botManager->GetBot(ed);
+		const int index = g_botManager->GetIndex(ed);
 
 		// is this message for a bot?
-		if (bot != nullptr && !(ed->v.flags & FL_DORMANT) && bot->GetEntity() == ed)
+		if (index != -1 && !(ed->v.flags & FL_DORMANT) && g_botManager->GetBot(index)->GetEntity() == ed)
 		{
-			NetworkMsg::GetObjectPtr()->Reset();
-			NetworkMsg::GetObjectPtr()->SetBot(bot);
+			g_netMsg->Reset();
+			g_netMsg->SetBot(g_botManager->GetBot(index));
 
 			// message handling is done in usermsg.cpp
-			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_VGUI);
-			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_CURWEAPON);
-			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_AMMOX);
-			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_AMMOPICKUP);
-			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_DAMAGE);
-			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_MONEY);
-			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_STATUSICON);
-			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_SCREENFADE);
-			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_BARTIME);
-			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_TEXTMSG);
-			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_SHOWMENU);
-			NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_RESETHUD);
+			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_VGUI);
+			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_CURWEAPON);
+			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_AMMOX);
+			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_AMMOPICK);
+			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_MONEY);
+			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_STATUSICON);
+			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_SCREENFADE);
+			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_BARTIME);
+			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_TEXTMSG);
+			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_SHOWMENU);
 		}
 	}
 	else if (msgDest == MSG_ALL)
 	{
-		NetworkMsg::GetObjectPtr()->Reset();
-
-		NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_SCOREINFO);
-		NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_DEATH);
-		NetworkMsg::GetObjectPtr()->HandleMessageIfRequired(msgType, NETMSG_TEXTMSG);
+		g_netMsg->Reset();
+		g_netMsg->HandleMessageIfRequired(msgType, NETMSG_DEATH);
+		g_netMsg->HandleMessageIfRequired(msgType, NETMSG_TEXTMSG);
 
 		if (msgType == SVC_INTERMISSION)
 		{
@@ -2897,174 +2631,69 @@ void pfnMessageBegin(int msgDest, int msgType, const float* origin, edict_t* ed)
 		}
 	}
 
-	if (g_isMetamod)
-		RETURN_META(MRES_IGNORED);
-
-	g_sendMessage = false;
-	MESSAGE_BEGIN(msgDest, msgType, origin, ed);
+	RETURN_META(MRES_IGNORED);
 }
 
 void pfnMessageEnd(void)
 {
-	NetworkMsg::GetObjectPtr()->Reset();
-
-	if (g_isMetamod)
-		RETURN_META(MRES_IGNORED);
-
-	MESSAGE_END();
-	g_sendMessage = true;
+	g_netMsg->Reset();
+	RETURN_META(MRES_IGNORED);
 }
 
 void pfnWriteByte(int value)
 {
-	if (!g_sendMessage)
-	{
-		if (g_isMetamod)
-			RETURN_META(MRES_SUPERCEDE);
-
-		return;
-	}
-
 	// if this message is for a bot, call the client message function...
-	NetworkMsg::GetObjectPtr()->Execute((void*)&value);
-
-	if (g_isMetamod)
-		RETURN_META(MRES_IGNORED);
-
-	WRITE_BYTE(value);
+	g_netMsg->Execute((void*)&value);
+	RETURN_META(MRES_IGNORED);
 }
 
 void pfnWriteChar(int value)
 {
-	if (!g_sendMessage)
-	{
-		if (g_isMetamod)
-			RETURN_META(MRES_SUPERCEDE);
-
-		return;
-	}
-
 	// if this message is for a bot, call the client message function...
-	NetworkMsg::GetObjectPtr()->Execute((void*)&value);
-
-	if (g_isMetamod)
-		RETURN_META(MRES_IGNORED);
-
-	WRITE_CHAR(value);
+	g_netMsg->Execute((void*)&value);
+	RETURN_META(MRES_IGNORED);
 }
 
 void pfnWriteShort(int value)
 {
-	if (!g_sendMessage)
-	{
-		if (g_isMetamod)
-			RETURN_META(MRES_SUPERCEDE);
-
-		return;
-	}
-
 	// if this message is for a bot, call the client message function...
-	NetworkMsg::GetObjectPtr()->Execute((void*)&value);
-
-	if (g_isMetamod)
-		RETURN_META(MRES_IGNORED);
-
-	WRITE_SHORT(value);
+	g_netMsg->Execute((void*)&value);
+	RETURN_META(MRES_IGNORED);
 }
 
 void pfnWriteLong(int value)
 {
-	if (!g_sendMessage)
-	{
-		if (g_isMetamod)
-			RETURN_META(MRES_SUPERCEDE);
-
-		return;
-	}
-
 	// if this message is for a bot, call the client message function...
-	NetworkMsg::GetObjectPtr()->Execute((void*)&value);
-
-	if (g_isMetamod)
-		RETURN_META(MRES_IGNORED);
-
-	WRITE_LONG(value);
+	g_netMsg->Execute((void*)&value);
+	RETURN_META(MRES_IGNORED);
 }
 
 void pfnWriteAngle(float value)
 {
-	if (!g_sendMessage)
-	{
-		if (g_isMetamod)
-			RETURN_META(MRES_SUPERCEDE);
-
-		return;
-	}
-
 	// if this message is for a bot, call the client message function...
-	NetworkMsg::GetObjectPtr()->Execute((void*)&value);
-
-	if (g_isMetamod)
-		RETURN_META(MRES_IGNORED);
-
-	WRITE_ANGLE(value);
+	g_netMsg->Execute((void*)&value);
+	RETURN_META(MRES_IGNORED);
 }
 
 void pfnWriteCoord(float value)
 {
-	if (!g_sendMessage)
-	{
-		if (g_isMetamod)
-			RETURN_META(MRES_SUPERCEDE);
-
-		return;
-	}
-
 	// if this message is for a bot, call the client message function...
-	NetworkMsg::GetObjectPtr()->Execute((void*)&value);
-
-	if (g_isMetamod)
-		RETURN_META(MRES_IGNORED);
-
-	WRITE_COORD(value);
+	g_netMsg->Execute((void*)&value);
+	RETURN_META(MRES_IGNORED);
 }
 
 void pfnWriteString(const char* sz)
 {
-	if (!g_sendMessage)
-	{
-		if (g_isMetamod)
-			RETURN_META(MRES_SUPERCEDE);
-
-		return;
-	}
-
 	// if this message is for a bot, call the client message function...
-	NetworkMsg::GetObjectPtr()->Execute((void*)sz);
-
-	if (g_isMetamod)
-		RETURN_META(MRES_IGNORED);
-
-	WRITE_STRING(sz);
+	g_netMsg->Execute((void*)sz);
+	RETURN_META(MRES_IGNORED);
 }
 
 void pfnWriteEntity(int value)
 {
-	if (!g_sendMessage)
-	{
-		if (g_isMetamod)
-			RETURN_META(MRES_SUPERCEDE);
-
-		return;
-	}
-
 	// if this message is for a bot, call the client message function...
-	NetworkMsg::GetObjectPtr()->Execute((void*)&value);
-
-	if (g_isMetamod)
-		RETURN_META(MRES_IGNORED);
-
-	WRITE_ENTITY(value);
+	g_netMsg->Execute((void*)&value);
+	RETURN_META(MRES_IGNORED);
 }
 
 int pfnCmd_Argc(void)
@@ -3078,17 +2707,9 @@ int pfnCmd_Argc(void)
 
 	// is this a bot issuing that client command ?
 	if (g_isFakeCommand)
-	{
-		if (g_isMetamod)
-			RETURN_META_VALUE(MRES_SUPERCEDE, g_fakeArgc);
+		RETURN_META_VALUE(MRES_SUPERCEDE, g_fakeArgc);
 
-		return g_fakeArgc; // if so, then return the argument count we know
-	}
-
-	if (g_isMetamod)
-		RETURN_META_VALUE(MRES_IGNORED, 0);
-
-	return CMD_ARGC(); // ask the engine how many arguments there are
+	RETURN_META_VALUE(MRES_IGNORED, 0);
 }
 
 const char* pfnCmd_Args(void)
@@ -3105,30 +2726,15 @@ const char* pfnCmd_Args(void)
 	{
 		// is it a "say" or "say_team" client command?
 		if (cstrncmp("say ", g_fakeArgv, 4) == 0)
-		{
-			if (g_isMetamod)
-				RETURN_META_VALUE(MRES_SUPERCEDE, g_fakeArgv + 4);
+			RETURN_META_VALUE(MRES_SUPERCEDE, g_fakeArgv + 4);
 
-			return g_fakeArgv + 4; // skip the "say" bot client command
-		}
-		else if (cstrncmp("say_team ", g_fakeArgv, 9) == 0)
-		{
-			if (g_isMetamod)
-				RETURN_META_VALUE(MRES_SUPERCEDE, g_fakeArgv + 9);
+		if (cstrncmp("say_team ", g_fakeArgv, 9) == 0)
+			RETURN_META_VALUE(MRES_SUPERCEDE, g_fakeArgv + 9);
 
-			return g_fakeArgv + 9; // skip the "say_team" bot client command
-		}
-
-		if (g_isMetamod)
-			RETURN_META_VALUE(MRES_SUPERCEDE, g_fakeArgv);
-
-		return g_fakeArgv; // else return the whole bot client command string we know
+		RETURN_META_VALUE(MRES_SUPERCEDE, g_fakeArgv);
 	}
 
-	if (g_isMetamod)
-		RETURN_META_VALUE(MRES_IGNORED, nullptr);
-
-	return CMD_ARGS(); // ask the client command string to the engine
+	RETURN_META_VALUE(MRES_IGNORED, nullptr);
 }
 
 const char* pfnCmd_Argv(int argc)
@@ -3142,16 +2748,9 @@ const char* pfnCmd_Argv(int argc)
 
 	// is this a bot issuing that client command ?
 	if (g_isFakeCommand)
-	{
-		if (g_isMetamod)
-			RETURN_META_VALUE(MRES_SUPERCEDE, GetField(g_fakeArgv, argc));
+		RETURN_META_VALUE(MRES_SUPERCEDE, GetField(g_fakeArgv, argc));
 
-		return GetField(g_fakeArgv, argc); // if so, then return the wanted argument we know
-	}
-	if (g_isMetamod)
-		RETURN_META_VALUE(MRES_IGNORED, nullptr);
-
-	return CMD_ARGV(argc); // ask the argument number "argc" to the engine
+	RETURN_META_VALUE(MRES_IGNORED, nullptr);
 }
 
 void pfnClientPrintf(edict_t* ent, PRINT_TYPE printType, const char* message)
@@ -3163,17 +2762,9 @@ void pfnClientPrintf(edict_t* ent, PRINT_TYPE printType, const char* message)
 	// we know, right ? But since stupidity rules this world, we do a preventive check :)
 
 	if (IsValidBot(ent) || ent->v.flags & FL_FAKECLIENT || ent->v.flags & FL_DORMANT)
-	{
-		if (g_isMetamod)
-			RETURN_META(MRES_SUPERCEDE);
+		RETURN_META(MRES_SUPERCEDE);
 
-		return;
-	}
-
-	if (g_isMetamod)
-		RETURN_META(MRES_IGNORED);
-
-	CLIENT_PRINTF(ent, printType, message);
+	RETURN_META(MRES_IGNORED);
 }
 
 void pfnSetClientMaxspeed(const edict_t* ent, float newMaxspeed)
@@ -3184,70 +2775,10 @@ void pfnSetClientMaxspeed(const edict_t* ent, float newMaxspeed)
 	if (bot != nullptr)
 		bot->pev->maxspeed = newMaxspeed;
 
-	if (g_isMetamod)
-		RETURN_META(MRES_IGNORED);
-
-	(*g_engfuncs.pfnSetClientMaxspeed) (ent, newMaxspeed);
-}
-
-int pfnRegUserMsg(const char* name, int size)
-{
-	// this function registers a "user message" by the engine side. User messages are network
-	// messages the game DLL asks the engine to send to clients. Since many MODs have completely
-	// different client features (Counter-Strike has a radar and a timer, for example), network
-	// messages just can't be the same for every MOD. Hence here the MOD DLL tells the engine,
-	// "Hey, you have to know that I use a network message whose name is pszName and it is size
-	// packets long". The engine books it, and returns the ID number under which he recorded that
-	// custom message. Thus every time the MOD DLL will be wanting to send a message named pszName
-	// using pfnMessageBegin (), it will know what message ID number to send, and the engine will
-	// know what to do, only for non-metamod version
-
-	if (g_isMetamod)
-		RETURN_META_VALUE(MRES_IGNORED, 0);
-
-	const int message = REG_USER_MSG(name, size);
-	if (cstrcmp(name, "VGUIMenu") == 0)
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_VGUI, message);
-	else if (cstrcmp(name, "ShowMenu") == 0)
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SHOWMENU, message);
-	else if (cstrcmp(name, "WeaponList") == 0)
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_WEAPONLIST, message);
-	else if (cstrcmp(name, "CurWeapon") == 0)
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_CURWEAPON, message);
-	else if (cstrcmp(name, "AmmoX") == 0)
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_AMMOX, message);
-	else if (cstrcmp(name, "AmmoPickup") == 0)
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_AMMOPICKUP, message);
-	else if (cstrcmp(name, "Damage") == 0)
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_DAMAGE, message);
-	else if (cstrcmp(name, "Money") == 0)
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_MONEY, message);
-	else if (cstrcmp(name, "StatusIcon") == 0)
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_STATUSICON, message);
-	else if (cstrcmp(name, "DeathMsg") == 0)
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_DEATH, message);
-	else if (cstrcmp(name, "ScreenFade") == 0)
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SCREENFADE, message);
-	else if (cstrcmp(name, "HLTV") == 0)
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_HLTV, message);
-	else if (cstrcmp(name, "TextMsg") == 0)
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_TEXTMSG, message);
-	else if (cstrcmp(name, "ScoreInfo") == 0)
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SCOREINFO, message);
-	else if (cstrcmp(name, "BarTime") == 0)
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_BARTIME, message);
-	else if (cstrcmp(name, "SendAudio") == 0)
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SENDAUDIO, message);
-	else if (cstrcmp(name, "SayText") == 0)
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_SAYTEXT, message);
-	else if (cstrcmp(name, "ResetHUD") == 0)
-		NetworkMsg::GetObjectPtr()->SetId(NETMSG_RESETHUD, message);
-
-	return message;
+	RETURN_META(MRES_IGNORED);
 }
 
 gamedll_funcs_t gameDLLFunc;
-
 exportc int GetEntityAPI2(DLL_FUNCTIONS* functionTable, int* /*interfaceVersion*/)
 {
 	// this function is called right after FuncPointers_t() by the engine in the game DLL (or
@@ -3261,22 +2792,6 @@ exportc int GetEntityAPI2(DLL_FUNCTIONS* functionTable, int* /*interfaceVersion*
 	// functions this time (to use in the bot code).
 
 	cmemset(functionTable, 0, sizeof(DLL_FUNCTIONS));
-
-	if (!g_isMetamod)
-	{
-		// pass other DLLs engine callbacks to function table...
-		if ((*g_entityAPI) (&g_functionTable, 140) == 0)
-		{
-			AddLogEntry(Log::Fatal, "GetEntityAPI2: ERROR - Not Initialized.");
-			return false;  // error initializing function table!!!
-		}
-
-		gameDLLFunc.dllapi_table = &g_functionTable;
-		gpGamedllFuncs = &gameDLLFunc;
-
-		cmemcpy(functionTable, &g_functionTable, sizeof(DLL_FUNCTIONS));
-	}
-
 	functionTable->pfnGameInit = GameDLLInit;
 	functionTable->pfnSpawn = Spawn;
 	functionTable->pfnClientConnect = ClientConnect;
@@ -3284,8 +2799,6 @@ exportc int GetEntityAPI2(DLL_FUNCTIONS* functionTable, int* /*interfaceVersion*
 	functionTable->pfnClientUserInfoChanged = ClientUserInfoChanged;
 	functionTable->pfnClientCommand = ClientCommand;
 	functionTable->pfnServerActivate = ServerActivate;
-	functionTable->pfnServerDeactivate = ServerDeactivate;
-	functionTable->pfnKeyValue = KeyValue;
 	functionTable->pfnStartFrame = StartFrame;
 	functionTable->pfnUpdateClientData = UpdateClientData;
 
@@ -3305,7 +2818,6 @@ exportc int GetEntityAPI2_Post(DLL_FUNCTIONS* functionTable, int* /*interfaceVer
 	// functions this time (to use in the bot code). Post version, called only by metamod.
 
 	cmemset(functionTable, 0, sizeof(DLL_FUNCTIONS));
-
 	functionTable->pfnSpawn = Spawn_Post;
 	functionTable->pfnStartFrame = StartFrame_Post;
 	functionTable->pfnGameInit = GameDLLInit_Post;
@@ -3314,66 +2826,25 @@ exportc int GetEntityAPI2_Post(DLL_FUNCTIONS* functionTable, int* /*interfaceVer
 	return true;
 }
 
-exportc int GetNewDLLFunctions(NEW_DLL_FUNCTIONS* functionTable, int* interfaceVersion)
-{
-	// it appears that an extra function table has been added in the engine to gamedll interface
-	// since the date where the first enginefuncs table standard was frozen. These ones are
-	// facultative and we don't hook them, but since some MODs might be featuring it, we have to
-	// pass them too, else the DLL interfacing wouldn't be complete and the game possibly wouldn't
-	// run properly.
-
-	if (g_getNewEntityAPI == nullptr)
-		return false;
-
-	if (!(*g_getNewEntityAPI) (functionTable, interfaceVersion))
-	{
-		AddLogEntry(Log::Fatal, "GetNewDLLFunctions: ERROR - Not Initialized.");
-		return false;
-	}
-
-	gameDLLFunc.newapi_table = functionTable;
-	return true;
-}
-
 const char* pfnGetPlayerAuthId(edict_t* e)
 {
 	if (IsValidBot(e))
-	{
-		if (g_isMetamod)
-			RETURN_META_VALUE(MRES_SUPERCEDE, "BOT");
+		RETURN_META_VALUE(MRES_SUPERCEDE, "BOT");
 
-		return "BOT";
-	}
-
-	if (g_isMetamod)
-		RETURN_META_VALUE(MRES_IGNORED, 0);
-
-	return (*g_engfuncs.pfnGetPlayerAuthId) (e);
+	RETURN_META_VALUE(MRES_IGNORED, 0);
 }
 
 unsigned int pfnGetPlayerWONId(edict_t* e)
 {
 	if (IsValidBot(e))
-	{
-		if (g_isMetamod)
-			RETURN_META_VALUE(MRES_SUPERCEDE, 0);
+		RETURN_META_VALUE(MRES_SUPERCEDE, 0);
 
-		return 0;
-	}
-
-	if (g_isMetamod)
-		RETURN_META_VALUE(MRES_IGNORED, 0);
-
-	return (*g_engfuncs.pfnGetPlayerWONId) (e);
+	RETURN_META_VALUE(MRES_IGNORED, 0);
 }
 
 exportc int GetEngineFunctions(enginefuncs_t* functionTable, int* /*interfaceVersion*/)
 {
-	if (g_isMetamod)
-		cmemset(functionTable, 0, sizeof(enginefuncs_t));
-
-	functionTable->pfnChangeLevel = pfnChangeLevel;
-	functionTable->pfnFindEntityByString = pfnFindEntityByString;
+	cmemset(functionTable, 0, sizeof(enginefuncs_t));
 	functionTable->pfnClientCommand = pfnClientCommand;
 	functionTable->pfnMessageBegin = pfnMessageBegin;
 	functionTable->pfnMessageEnd = pfnMessageEnd;
@@ -3385,7 +2856,6 @@ exportc int GetEngineFunctions(enginefuncs_t* functionTable, int* /*interfaceVer
 	functionTable->pfnWriteCoord = pfnWriteCoord;
 	functionTable->pfnWriteString = pfnWriteString;
 	functionTable->pfnWriteEntity = pfnWriteEntity;
-	functionTable->pfnRegUserMsg = pfnRegUserMsg;
 	functionTable->pfnClientPrintf = pfnClientPrintf;
 	functionTable->pfnCmd_Args = pfnCmd_Args;
 	functionTable->pfnCmd_Argv = pfnCmd_Argv;
@@ -3395,18 +2865,6 @@ exportc int GetEngineFunctions(enginefuncs_t* functionTable, int* /*interfaceVer
 	functionTable->pfnGetPlayerWONId = pfnGetPlayerWONId;
 
 	return true;
-}
-
-exportc int Server_GetBlendingInterface(int version, void** ppinterface, void* pstudio, float(*rotationmatrix)[3][4], float(*bonetransform)[128][3][4])
-{
-	// this function synchronizes the studio model animation blending interface (i.e, what parts
-	// of the body move, which bones, which hitboxes and how) between the server and the game DLL.
-	// some MODs can be using a different hitbox scheme than the standard one.
-
-	if (g_serverBlendingAPI == nullptr)
-		return false;
-
-	return (*g_serverBlendingAPI) (version, ppinterface, pstudio, rotationmatrix, bonetransform);
 }
 
 exportc int Meta_Query(char* ifvers, plugin_info_t** pPlugInfo, mutil_funcs_t* pMetaUtilFuncs)
@@ -3498,8 +2956,6 @@ exportc void Meta_Init(void)
 {
 	// this function is called by metamod, before any other interface functions. Purpose of this
 	// function to give plugin a chance to determine is plugin running under metamod or not.
-
-	g_isMetamod = true;
 }
 
 DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* pGlobals)
@@ -3528,10 +2984,6 @@ DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* 
 		{ "cstrike", "cs.so", "mp.dll", "Counter-Strike v1.6 (Newer)", Game::CStrike },
 		{ "czero", "cs_i386.so", "mp.dll", "Counter-Strike: Condition Zero", Game::CZero },
 		{ "czero", "cs.so", "mp.dll", "Counter-Strike: Condition Zero (Newer)", Game::CZero },
-		{ "csv15", "cs_i386.so", "mp.dll", "CS 1.5 for Steam", Game::Old },
-		{ "csdm", "cs_i386.so", "mp.dll", "CSDM for Windows", Game::Old },
-		{ "cs13", "cs_i386.so", "mp.dll", "Counter-Strike v1.3", Game::Old }, // assume cs13 = cs15
-		{ "retrocs", "rcs_i386.so", "rcs.dll", "Retro Counter-Strike", Game::Old },
 		{ "valve", "hl.so", "hl.dll", "Half-Life", Game::HalfLife },
 		{ "gearbox", "opfor.so", "opfor.dll", "Half-Life: Opposing Force", Game::HalfLife },
 		{ "dmc", "dmc.so", "dmc.dll", "Deathmatch Classic", Game::DMC },
@@ -3557,59 +3009,9 @@ DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* 
 	}
 
 	if (knownMod != nullptr)
-	{
 		g_gameVersion = knownMod->modType;
-
-		if (g_isMetamod)
-			return; // we should stop the attempt for loading the real gamedll, since metamod handle this for us
-
-		sprintf(gameDLLName, "%s/dlls/%s", knownMod->name, !IsLinux() ? knownMod->winLib : knownMod->linuxLib);
-		g_gameLib = new Library(gameDLLName);
-
-		if ((g_gameLib == nullptr || (g_gameLib && !g_gameLib->IsLoaded())))
-		{
-			// try to extract the game dll out of the steam cache
-			AddLogEntry(Log::Warning, "Trying to extract dll '%s' out of the steam cache", gameDLLName);
-
-			int size;
-			uint8_t* buffer = (*g_engfuncs.pfnLoadFileForMe) (gameDLLName, &size);
-
-			if (buffer)
-			{
-				CreatePath(FormatBuffer("%s/dlls", GetModName()));
-				File fp(gameDLLName, "wb");
-
-				if (fp.IsValid())
-				{
-					// dump the game dll file and then close it
-					fp.Write(buffer, size);
-					fp.Close();
-				}
-
-				FREE_FILE(buffer);
-			}
-
-			g_gameLib = new Library(gameDLLName);
-		}
-	}
 	else
 		AddLogEntry(Log::Fatal, "Mod that you has started, not supported by this bot (gamedir: %s)", GetModName());
-
-	g_funcPointers = (FuncPointers_t)g_gameLib->GetFunctionAddr("GiveFnptrsToDll");
-	g_entityAPI = (EntityAPI_t)g_gameLib->GetFunctionAddr("GetEntityAPI");
-	g_getNewEntityAPI = (NewEntityAPI_t)g_gameLib->GetFunctionAddr("GetNewDLLFunctions");
-	g_serverBlendingAPI = (BlendAPI_t)g_gameLib->GetFunctionAddr("Server_GetBlendingInterface");
-
-	if (!g_funcPointers || !g_entityAPI || !g_getNewEntityAPI || !g_serverBlendingAPI)
-		return;
-
-	GetEngineFunctions(functionTable, nullptr);
-
-	if (g_engfuncs.pfnCVarGetPointer("host_ver") != nullptr)
-		g_gameVersion |= Game::Xash;
-
-	// give the engine functions to the other DLL...
-	(*g_funcPointers) (functionTable, pGlobals);
 }
 
 DLL_ENTRYPOINT

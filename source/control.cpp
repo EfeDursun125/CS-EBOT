@@ -49,19 +49,7 @@ BotControl::~BotControl(void)
 // this function calls gamedll player() function, in case to create player entity in game
 void BotControl::CallGameEntity(entvars_t* vars)
 {
-	if (g_isMetamod)
-	{
-		CALL_GAME_ENTITY(PLID, "player", vars);
-		return;
-	}
-
-	static EntityPtr_t playerFunction = nullptr;
-
-	if (playerFunction == nullptr)
-		playerFunction = (EntityPtr_t)g_gameLib->GetFunctionAddr("player");
-
-	if (playerFunction != nullptr)
-		(*playerFunction) (vars);
+	CALL_GAME_ENTITY(PLID, "player", vars);
 }
 
 // this function completely prepares bot entity (edict) for creation, creates team, skill, sets name etc, and
@@ -1028,7 +1016,7 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 		SET_CLIENT_KEYVALUE(clientIndex, buffer, "_cl_autowepswitch", "0");
 	}
 
-	if (!(g_gameVersion & Game::Old) && !ebot_ping.GetBool())
+	if (!ebot_ping.GetBool())
 		SET_CLIENT_KEYVALUE(clientIndex, buffer, "*bot", "1");
 
 	rejectReason[0] = 0; // reset the reject reason template string
@@ -1047,7 +1035,7 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 	}
 
 	MDLL_ClientPutInServer(bot);
-	bot->v.flags |= (FL_CLIENT | FL_FAKECLIENT);
+	bot->v.flags |= FL_FAKECLIENT;
 
 	// initialize all the variables for this bot...
 	m_notStarted = true;  // hasn't joined game yet
@@ -1096,13 +1084,7 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 	m_wantedTeam = team;
 	m_wantedClass = member;
 
-	FakeClientCommand(bot, "cl_solid_players 0");
-	FakeClientCommand(bot, "hud_fastswitch 1");
-	FakeClientCommand(bot, "cl_fixtimerate 3");
-	FakeClientCommand(bot, "fps_max 30");
-	FakeClientCommand(bot, "cl_cmdrate 30");
-	FakeClientCommand(bot, "cl_rate 3000");
-	FakeClientCommand(bot, "ex_interp 0.016");
+	FakeClientCommand(bot, "cl_solid_players 0; hud_fastswitch 1; cl_fixtimerate 3; fps_max 30; cl_cmdrate 30; cl_rate 3000; ex_interp 0.016");
 
 	NewRound();
 }
@@ -1265,8 +1247,6 @@ void Bot::NewRound(void)
 	edict_t* me = GetEntity();
 	if (me == nullptr)
 		return;
-
-	SetEntityWaypoint(me, -2);
 
 	if (!IsAlive(me)) // if bot died, clear all weapon stuff and force buying again
 	{

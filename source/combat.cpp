@@ -8,6 +8,10 @@ ConVar ebot_sb_mode("ebot_sb_mode", "0");
 
 void Bot::FindFriendsAndEnemiens(void)
 {
+	edict_t* me = GetEntity();
+	if (me == nullptr)
+		return;
+
 	m_enemyDistance = FLT_MAX;
 	m_friendDistance = FLT_MAX;
 	m_enemiesNearCount = 0;
@@ -17,30 +21,31 @@ void Bot::FindFriendsAndEnemiens(void)
 	m_hasEnemiesNear = false;
 	m_hasFriendsNear = false;
 
+	TraceResult tr{};
+	const Vector myOrigin = pev->origin + pev->view_ofs;
 	for (const auto& client : g_clients)
 	{
 		if (FNullEnt(client.ent))
 			continue;
 
-		if (client.ent == GetEntity())
+		if (client.ent == me)
 			continue;
 
 		if (!IsAlive(client.ent))
 			continue;
 
+		const Vector headOrigin = client.ent->v.origin + client.ent->v.view_ofs;
 		if (client.team == m_team)
 		{
 			m_numFriendsLeft++;
 
 			// simple check
-			const Vector friendOrigin = client.ent->v.origin + client.ent->v.view_ofs;
-			TraceResult tr{};
-			TraceLine(pev->origin, friendOrigin, true, true, GetEntity(), &tr);
+			TraceLine(myOrigin, headOrigin, true, true, me, &tr);
 			if (tr.flFraction != 1.0f)
 				continue;
 
 			m_friendsNearCount++;
-			const float distance = (pev->origin - friendOrigin).GetLengthSquared();
+			const float distance = (myOrigin - headOrigin).GetLengthSquared();
 			if (distance < m_friendDistance)
 			{
 				m_friendDistance = distance;
@@ -59,7 +64,7 @@ void Bot::FindFriendsAndEnemiens(void)
 			{
 				if (!IsZombieMode())
 				{
-					if (GetProcess() != Process::Camp && !IsAttacking(client.ent) && !IsInViewCone(client.ent->v.origin))
+					if (GetCurrentState() != Process::Camp && !IsAttacking(client.ent) && !IsInViewCone(headOrigin))
 						continue;
 
 					if (IsBehindSmokeClouds(client.ent))
@@ -71,7 +76,7 @@ void Bot::FindFriendsAndEnemiens(void)
 			}
 
 			m_enemiesNearCount++;
-			const float distance = (pev->origin - client.ent->v.origin).GetLengthSquared();
+			const float distance = (myOrigin - headOrigin).GetLengthSquared();
 			if (distance < m_enemyDistance)
 			{
 				m_enemyDistance = distance;
@@ -187,13 +192,13 @@ float Bot::GetZOffset(float distance)
 	const bool m249 = m_currentWeapon == Weapon::M249;
 
 	const float BurstDistance = SquaredF(300.0f);
-	const float DoubleBurstDistance = BurstDistance * 2.0f;
+	const float DoubleBurstDistance = BurstDistance * 4.0f;
 
 	float result = 4.0f;
 
-	if (distance <= SquaredF(2800.0f) && distance > DoubleBurstDistance)
+	if (distance > DoubleBurstDistance)
 	{
-		if (sniper) result = 3.5f;
+		if (sniper) result = 2.5f;
 		else if (zoomableRifle) result = 4.5f;
 		else if (pistol) result = 6.5f;
 		else if (submachine) result = 5.5f;
@@ -201,7 +206,7 @@ float Bot::GetZOffset(float distance)
 		else if (m249) result = 2.5f;
 		else if (shotgun) result = 10.5f;
 	}
-	else if (distance > BurstDistance && distance <= DoubleBurstDistance)
+	else if (distance > BurstDistance)
 	{
 		if (sniper) result = 3.5f;
 		else if (zoomableRifle) result = 3.5f;
@@ -211,7 +216,7 @@ float Bot::GetZOffset(float distance)
 		else if (m249) result = -1.0f;
 		else if (shotgun) result = 10.0f;
 	}
-	else if (distance < BurstDistance)
+	else
 	{
 		if (sniper) result = 4.5f;
 		else if (zoomableRifle) result = 5.0f;
@@ -334,12 +339,12 @@ void Bot::FireWeapon(void)
 	int selectId = melee, selectIndex = 0, chosenWeaponIndex = 0;
 	int weapons = pev->weapons;
 
+	const float time = engine->GetTime();
+
 	if (ebot_knifemode.GetBool())
 		goto WeaponSelectEnd;
 	else if (!FNullEnt(enemy) && ChanceOf(m_skill) && !IsZombieEntity(enemy) && distance < SquaredF(128.0f) && (enemy->v.health < 30 || pev->health > enemy->v.health) && !IsOnLadder() && m_enemiesNearCount < 2)
 		goto WeaponSelectEnd;
-
-	const float time = engine->GetTime();
 
 	// loop through all the weapons until terminator is found...
 	while (selectTab[selectIndex].id)
@@ -359,10 +364,9 @@ void Bot::FireWeapon(void)
 				if (selectIndex == WeaponHL::Snark || selectIndex == WeaponHL::Gauss ||selectIndex == WeaponHL::Egon || (selectIndex == WeaponHL::HandGrenade && distance > SquaredF(384.0f) && distance < SquaredF(768.0f)) || (selectIndex == WeaponHL::Rpg && distance > SquaredF(320.0f)) || (selectIndex == WeaponHL::Crossbow && distance > SquaredF(320.0f)))
 					chosenWeaponIndex = selectIndex;
 				else if (selectIndex != WeaponHL::HandGrenade && selectIndex != WeaponHL::Rpg  && selectIndex != WeaponHL::Crossbow && (m_ammoInClip[id] > 0) && !IsWeaponBadInDistance(selectIndex, distance))
-						chosenWeaponIndex = selectIndex;
-
+					chosenWeaponIndex = selectIndex;
 			}
-			else if ((m_ammoInClip[id] > 0) && !IsWeaponBadInDistance(selectIndex, distance))
+			else if (m_ammoInClip[id] > 0 && !IsWeaponBadInDistance(selectIndex, distance))
 				chosenWeaponIndex = selectIndex;
 		}
 
@@ -453,7 +457,7 @@ WeaponSelectEnd:
 	{
 		CheckBurstMode(distance);
 
-		if (HasShield() && m_shieldCheckTime < time && GetProcess() != Process::Camp) // better shield gun usage
+		if (HasShield() && m_shieldCheckTime < time && GetCurrentState() != Process::Camp) // better shield gun usage
 		{
 			if ((distance > SquaredF(768.0f)) && !IsShieldDrawn())
 				pev->button |= IN_ATTACK2; // draw the shield
@@ -909,8 +913,7 @@ void Bot::SelectPistol(void)
 	if (m_isReloading)
 		return;
 
-	int oldWeapons = pev->weapons;
-
+	const int oldWeapons = pev->weapons;
 	pev->weapons &= ~WeaponBits_Primary;
 	SelectBestWeapon(false, true);
 
@@ -919,15 +922,19 @@ void Bot::SelectPistol(void)
 
 int Bot::GetHighestWeapon(void)
 {
-	WeaponSelect* selectTab = g_gameVersion & Game::HalfLife ? &g_weaponSelectHL[0] : &g_weaponSelect[0];
+	WeaponSelect* selectTab = (g_gameVersion & Game::HalfLife) ? &g_weaponSelectHL[0] : &g_weaponSelect[0];
 
-	int weapons = pev->weapons;
+	const int weapons = pev->weapons;
 	int num = 0;
 	int i = 0;
 
 	// loop through all the weapons until terminator is found...
 	while (selectTab->id)
 	{
+		// cannot be used in water...
+		if (pev->waterlevel == 3 && g_weaponDefs[selectTab->id].flags & ITEM_FLAG_NOFIREUNDERWATER)
+			continue;
+
 		// is the bot carrying this weapon?
 		if (weapons & (1 << selectTab->id))
 			num = i;
@@ -959,15 +966,16 @@ void Bot::CheckReload(void)
 	}
 
 	// do not check for reload
-	if (m_currentWeapon == (g_gameVersion & Game::HalfLife ? WeaponHL::Crowbar : Weapon::Knife))
+	if (m_currentWeapon == ((g_gameVersion & Game::HalfLife) ? WeaponHL::Crowbar : Weapon::Knife))
 	{
 		m_reloadState = ReloadState::Nothing;
 		m_isReloading = false;
 		return;
 	}
 
+	const float time = engine->GetTime();
 	m_isReloading = false; // update reloading status
-	m_reloadCheckTime = AddTime(3.0f);
+	m_reloadCheckTime = time + 3.0f;
 
 	if (m_reloadState != ReloadState::Nothing)
 	{
@@ -1005,20 +1013,15 @@ void Bot::CheckReload(void)
 		}
 		else
 		{
-			// TODO: is this good for zombie?
-			// if we have enemy don't reload next weapon
-			/*if (m_seeEnemyTime + 5.0f > engine->GetTime())
+			if (m_seeEnemyTime + 5.0f > time || m_entitySeeTime + 5.0f > time)
 			{
 				m_reloadState = ReloadState::Nothing;
 				return;
-			}*/
+			}
 
 			m_reloadState++;
-
 			if (m_reloadState > ReloadState::Secondary)
 				m_reloadState = ReloadState::Nothing;
-
-			return;
 		}
 	}
 }

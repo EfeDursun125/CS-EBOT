@@ -2,7 +2,6 @@
 
 float m_randomJoinTime = 0.0f; // for simulating server
 
-bool g_isMetamod = false;
 bool g_roundEnded = true;
 bool g_bombPlanted = false;
 bool g_bombDefusing = false;
@@ -17,7 +16,6 @@ bool g_analyzewaypoints = false;
 bool g_analyzeputrequirescrouch = false;
 bool g_expanded[Const_MaxWaypoints];
 bool g_hasDoors = false;
-bool g_sendMessage = true;
 
 bool g_sautoWaypoint = false;
 int m_sautoRadius = 32;
@@ -67,12 +65,6 @@ Library* g_gameLib = nullptr;
 meta_globals_t* gpMetaGlobals = nullptr;
 gamedll_funcs_t* gpGamedllFuncs = nullptr;
 mutil_funcs_t* gpMetaUtilFuncs = nullptr;
-
-DLL_FUNCTIONS g_functionTable;
-EntityAPI_t g_entityAPI = nullptr;
-NewEntityAPI_t g_getNewEntityAPI = nullptr;
-BlendAPI_t g_serverBlendingAPI = nullptr;
-FuncPointers_t g_funcPointers = nullptr;
 
 enginefuncs_t g_engfuncs;
 WeaponProperty g_weaponDefs[Const_MaxWeapons + 1];

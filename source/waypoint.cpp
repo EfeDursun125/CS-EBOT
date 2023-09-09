@@ -282,7 +282,7 @@ void Waypoint::AddGoals(void)
 
 void Waypoint::Analyze(void)
 {
-    if (g_numWaypoints <= 0)
+    if (g_numWaypoints < 1)
         return;
 
     AnalyzeThread();

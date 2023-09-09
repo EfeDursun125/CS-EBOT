@@ -6,8 +6,8 @@ NetworkMsg::NetworkMsg(void)
     m_state = 0;
     m_bot = nullptr;
 
-    for (int i = 0; i < NETMSG_BOTVOICE; i++)
-        m_registerdMessages[i] = -1;
+    for (int i = 0; i < NETMSG_NUM; i++)
+        m_registerdMessages[i] = NETMSG_UNDEFINED;
 }
 
 void NetworkMsg::HandleMessageIfRequired(const int messageType, const int requiredType)
@@ -18,28 +18,30 @@ void NetworkMsg::HandleMessageIfRequired(const int messageType, const int requir
 
 void NetworkMsg::Execute(void* p)
 {
-    if (m_message <= NETMSG_UNDEFINED)
+    if (m_message == NETMSG_UNDEFINED)
         return; // no message or not for bot, return
 
     // some needed variables
     static uint8_t r, g, b;
     static uint8_t enabled;
 
+    static int damageArmor, damageTaken, damageBits;
     static int killerIndex, victimIndex, playerIndex;
     static int index, numPlayers;
     static int state, id, clip;
 
+    static Vector damageOrigin;
     static WeaponProperty weaponProp;
 
     // now starts of netmessage execution
     switch (m_message)
     {
     case NETMSG_VGUI:
+    {
         // this message is sent when a VGUI menu is displayed.
         if (m_state == 0)
         {
-            const int x = PTR_TO_INT(p);
-            switch (x)
+            switch (PTR_TO_INT(p))
             {
             case GMENU_TEAM:
                 m_bot->m_startAction = CMENU_TEAM;
@@ -51,12 +53,15 @@ void NetworkMsg::Execute(void* p)
                 break;
             }
         }
+
         break;
-
+    }
     case NETMSG_SHOWMENU:
+    {
         // this message is sent when a text menu is displayed.
+        if (m_state < 3) // ignore first 3 fields of message
+            break;
 
-        if (m_state >= 3) // ignore first 3 fields of message
         {
             const char* x = PTR_TO_STR(p);
             if (cstrcmp(x, "#Team_Select") == 0) // team select menu?
@@ -78,10 +83,10 @@ void NetworkMsg::Execute(void* p)
         }
 
         break;
-
-    case NETMSG_WEAPONLIST:
+    }
+    case NETMSG_WLIST:
+    {
         // this message is sent when a client joins the game. All of the weapons are sent with the weapon ID and information about what ammo is used.
-
         switch (m_state)
         {
         case 0:
@@ -109,15 +114,15 @@ void NetworkMsg::Execute(void* p)
             break;
 
         case 8:
-            weaponProp.flags = PTR_TO_INT(p);
+            weaponProp.flags = PTR_TO_INT(p); // flags for weapon (WTF???)
             g_weaponDefs[weaponProp.id] = weaponProp; // store away this weapon with it's ammo information...
             break;
         }
         break;
-
+    }
     case NETMSG_CURWEAPON:
+    {
         // this message is sent when a weapon is selected (either by the bot chosing a weapon or by the server auto assigning the bot a weapon). In CS it's also called when Ammo is increased/decreased
-
         switch (m_state)
         {
         case 0:
@@ -131,21 +136,20 @@ void NetworkMsg::Execute(void* p)
         case 2:
             clip = PTR_TO_INT(p); // ammo currently in the clip for this weapon
 
-            if (id < 32)
+            if (id <= 31)
             {
                 if (state != 0)
                     m_bot->m_currentWeapon = id;
 
                 m_bot->m_ammoInClip[id] = clip;
             }
-
             break;
         }
         break;
-
+    }
     case NETMSG_AMMOX:
+    {
         // this message is sent whenever ammo amounts are adjusted (up or down). NOTE: Logging reveals that CS uses it very unreliable!
-
         switch (m_state)
         {
         case 0:
@@ -157,12 +161,12 @@ void NetworkMsg::Execute(void* p)
             break;
         }
         break;
-
-    case NETMSG_AMMOPICKUP:
+    }
+    case NETMSG_AMMOPICK:
+    {
         // this message is sent when the bot picks up some ammo (AmmoX messages are also sent so this message is probably
-        // not really necessary except it allows the HUD to draw pictures of ammo that have been picked up.  The bots
+        // not really necessary except it allows the HUD to draw pictures of ammo that have been picked up. The bots
         // don't really need pictures since they don't have any eyes anyway.
-
         switch (m_state)
         {
         case 0:
@@ -174,62 +178,46 @@ void NetworkMsg::Execute(void* p)
             break;
         }
         break;
-    
-    case NETMSG_DAMAGE:
-        // this message gets sent when the bots are getting damaged.
-        /*switch (m_state)
-        {
-        case 0:
-            damageArmor = PTR_TO_INT(p);
-            break;
-
-        case 1:
-            damageTaken = PTR_TO_INT(p);
-            break;
-
-        case 2:
-            damageBits = PTR_TO_INT(p);
-
-            if (m_bot != nullptr && (damageArmor > 0 || damageTaken > 0))
-                m_bot->TakeDamage(m_bot->pev->dmg_inflictor, damageTaken, damageArmor, damageBits);
-            break;
-        }*/
-        break;
-
+    }
     case NETMSG_MONEY:
+    {
         // this message gets sent when the bots money amount changes
-
         if (m_state == 0)
             m_bot->m_moneyAmount = PTR_TO_INT(p); // amount of money
         break;
-
+    }
     case NETMSG_STATUSICON:
+    {
         switch (m_state)
         {
         case 0:
+        {
             enabled = PTR_TO_BYTE(p);
             break;
-
-        case 1:
-            const char* x = PTR_TO_STR(p);
-            if (cstrcmp(x, "defuser") == 0)
-                m_bot->m_hasDefuser = (enabled != 0);
-            else if (cstrcmp(x, "buyzone") == 0)
-            {
-                m_bot->m_inBuyZone = (enabled != 0);
-                m_bot->EquipInBuyzone(0);
-            }
-            else if (cstrcmp(x, "vipsafety") == 0)
-                m_bot->m_inVIPZone = (enabled != 0);
-            else if (cstrcmp(x, "c4") == 0)
-                m_bot->m_inBombZone = (enabled == 2);
-
-            break;
         }
+        case 1:
+        {
+            {
+                if (cstrcmp(PTR_TO_STR(p), "defuser") == 0)
+                    m_bot->m_hasDefuser = (enabled != 0);
+                else if (cstrcmp(PTR_TO_STR(p), "buyzone") == 0)
+                {
+                    m_bot->m_inBuyZone = (enabled != 0);
+                    m_bot->EquipInBuyzone(0);
+                }
+                else if (cstrcmp(PTR_TO_STR(p), "vipsafety") == 0)
+                    m_bot->m_inVIPZone = (enabled != 0);
+                else if (cstrcmp(PTR_TO_STR(p), "c4") == 0)
+                    m_bot->m_inBombZone = (enabled == 2);
 
+                break;
+            }
+        }
+        }
         break;
-
+    }
     case NETMSG_DEATH: // this message sends on death
+    {
         switch (m_state)
         {
         case 0:
@@ -241,17 +229,23 @@ void NetworkMsg::Execute(void* p)
             break;
 
         case 2:
-            Bot* victimer = g_botManager->GetBot(victimIndex);
+            edict_t * victim = INDEXENT(victimIndex);
+            if (FNullEnt(victim) || !IsValidPlayer(victim))
+                break;
+
+            Bot* victimer = g_botManager->GetBot(victim);
             if (victimer != nullptr)
             {
                 victimer->m_isAlive = false;
                 victimer->DeleteSearchNodes();
             }
+
             break;
         }
         break;
-
+    }
     case NETMSG_SCREENFADE: // this message gets sent when the Screen fades (Flashbang)
+    {
         switch (m_state)
         {
         case 3:
@@ -271,8 +265,9 @@ void NetworkMsg::Execute(void* p)
             break;
         }
         break;
-
+    }
     case NETMSG_HLTV: // round restart in steam cs
+    {
         switch (m_state)
         {
         case 0:
@@ -285,11 +280,9 @@ void NetworkMsg::Execute(void* p)
             break;
         }
         break;
-
-    case NETMSG_RESETHUD:
-        break;
-
+    }
     case NETMSG_TEXTMSG:
+    {
         if (m_state == 1)
         {
             const char* x = PTR_TO_STR(p);
@@ -342,12 +335,11 @@ void NetworkMsg::Execute(void* p)
             else if (m_bot != nullptr && FStrEq(x, "#Switch_To_SemiAuto"))
                 m_bot->m_weaponBurstMode = BurstMode::Disabled;
         }
-        break;
 
-    case NETMSG_SCOREINFO:
         break;
-
+    }
     case NETMSG_BARTIME:
+    {
         if (m_state == 0)
         {
             if (GetGameMode() == GameMode::Original)
@@ -361,7 +353,11 @@ void NetworkMsg::Execute(void* p)
             else
                 m_bot->m_hasProgressBar = false;
         }
+
         break;
+    }
+    default:
+        AddLogEntry(Log::Fatal, "Network message handler error. Call to unrecognized message id (%d).\n", m_message);
     }
 
     m_state++; // and finally update network message state

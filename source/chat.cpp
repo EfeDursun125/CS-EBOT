@@ -270,21 +270,21 @@ void Bot::PrepareChatMessage(char* text)
             {
                 if (g_gameVersion & Game::CZero)
                 {
-                    if (CRandomInt(1, 10) <= 3)
+                    if (CRandomInt(1, 10) < 4)
                         cstrcat(m_tempStrings, "CZ");
                     else
                         cstrcat(m_tempStrings, "Condition Zero");
                 }
-                else if ((g_gameVersion & Game::CStrike) || (g_gameVersion & Game::Old))
+                else if (g_gameVersion & Game::CStrike)
                 {
-                    if (CRandomInt(1, 10) <= 3)
+                    if (CRandomInt(1, 10) < 4)
                         cstrcat(m_tempStrings, "CS");
                     else
                         cstrcat(m_tempStrings, "Counter-Strike");
                 }
                 else if (g_gameVersion & Game::HalfLife)
                 {
-                    if (CRandomInt(1, 10) <= 3)
+                    if (CRandomInt(1, 10) < 4)
                         cstrcat(m_tempStrings, "HL");
                     else
                         cstrcat(m_tempStrings, "Half-Life");

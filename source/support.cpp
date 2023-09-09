@@ -607,9 +607,6 @@ void RoundInit(void)
 
 void AutoLoadGameMode(void)
 {
-	if (!g_isMetamod)
-		return;
-
 	const char* getModeName = GetModName();
 
 	static int checkShowTextTime = 0;
@@ -943,149 +940,6 @@ int GetTeam(edict_t* ent)
 		player_team = *((int*)ent->pvPrivateData + OFFSET_TEAM) - 1;
 
 	return player_team;
-}
-
-int SetEntityWaypoint(edict_t* ent, int mode)
-{
-	Vector origin = GetEntityOrigin(ent);
-	if (origin == nullvec)
-		return -1;
-
-	bool isPlayer = IsValidPlayer(ent);
-	int i = -1;
-
-	if (isPlayer)
-		i = ENTINDEX(ent) - 1;
-	else
-	{
-		for (int j = 0; j < entityNum; j++)
-		{
-			if (g_entityId[j] == -1 || ent != INDEXENT(g_entityId[j]))
-				continue;
-
-			i = j;
-			break;
-		}
-	}
-
-	if (i == -1)
-		return -1;
-
-	bool needCheckNewWaypoint = false;
-	float traceCheckTime = isPlayer ? g_clients[i].getWPTime : g_entityGetWpTime[i];
-	if ((isPlayer && g_clients[i].wpIndex == -1) || (!isPlayer && g_entityWpIndex[i] == -1))
-		needCheckNewWaypoint = true;
-	else if ((!isPlayer && g_entityGetWpTime[i] == engine->GetTime()) ||
-		(isPlayer && g_clients[i].getWPTime == engine->GetTime() &&
-			mode > 0 && g_clients[i].wpIndex2 == -1))
-		needCheckNewWaypoint = false;
-	else if (mode != -1)
-		needCheckNewWaypoint = true;
-	else
-	{
-		Vector getWpOrigin = nullvec;
-		int wpIndex = -1;
-		if (isPlayer)
-		{
-			getWpOrigin = g_clients[i].getWpOrigin;
-			wpIndex = g_clients[i].wpIndex;
-		}
-		else
-		{
-			getWpOrigin = g_entityGetWpOrigin[i];
-			wpIndex = g_entityWpIndex[i];
-		}
-
-		if (getWpOrigin != nullvec && wpIndex >= 0 && wpIndex < g_numWaypoints)
-		{
-			float distance = (getWpOrigin - origin).GetLengthSquared();
-			if (distance >= SquaredF(300.0f))
-				needCheckNewWaypoint = true;
-			else if (distance >= SquaredF(32.0f))
-			{
-				const Path* pointer = g_waypoint->GetPath(wpIndex);
-				const Vector wpOrigin = pointer->origin;
-				distance = (wpOrigin - origin).GetLengthSquared();
-
-				if (distance > SquaredI(pointer->radius + 32))
-					needCheckNewWaypoint = true;
-				else
-				{
-					if (traceCheckTime + 5.0f <= engine->GetTime() || (traceCheckTime + 2.5f <= engine->GetTime() && !g_waypoint->Reachable(ent, wpIndex)))
-						needCheckNewWaypoint = true;
-				}
-			}
-		}
-		else
-			needCheckNewWaypoint = true;
-	}
-
-	if (!needCheckNewWaypoint)
-	{
-		if (isPlayer)
-		{
-			g_clients[i].getWPTime = engine->GetTime();
-			return g_clients[i].wpIndex;
-		}
-
-		g_entityGetWpTime[i] = engine->GetTime();
-		return g_entityWpIndex[i];
-	}
-
-	int wpIndex = -1;
-	int wpIndex2 = -1;
-
-	if (mode == -1 || g_botManager->GetBot(ent) == nullptr)
-		wpIndex = g_waypoint->FindNearest(origin, 999999.0f, -1, ent);
-	else
-		wpIndex = g_waypoint->FindNearest(origin, 999999.0f, -1, ent, &wpIndex2, mode);
-
-	if (!isPlayer)
-	{
-		g_entityWpIndex[i] = wpIndex;
-		g_entityGetWpOrigin[i] = origin;
-		g_entityGetWpTime[i] = engine->GetTime();
-	}
-	else
-	{
-		g_clients[i].wpIndex = wpIndex;
-		g_clients[i].wpIndex2 = wpIndex2;
-		g_clients[i].getWpOrigin = origin;
-		g_clients[i].getWPTime = engine->GetTime();
-	}
-
-	return wpIndex;
-}
-
-int GetEntityWaypoint(edict_t* ent)
-{
-	if (FNullEnt(ent))
-		return -1;
-
-	if (!IsValidPlayer(ent))
-	{
-		for (int i = 0; i < entityNum; i++)
-		{
-			if (g_entityId[i] == -1)
-				continue;
-
-			if (ent != INDEXENT(g_entityId[i]))
-				continue;
-
-			if (g_entityWpIndex[i] >= 0 && g_entityWpIndex[i] < g_numWaypoints)
-				return g_entityWpIndex[i];
-
-			return SetEntityWaypoint(ent);
-		}
-
-		return g_waypoint->FindNearest(GetEntityOrigin(ent), 999999.0f, -1, ent);
-	}
-
-	const int client = ENTINDEX(ent) - 1;
-	if (g_clients[client].getWPTime < AddTime(1.25f) || (g_clients[client].wpIndex == -1 && g_clients[client].wpIndex2 == -1))
-		SetEntityWaypoint(ent);
-
-	return g_clients[client].wpIndex;
 }
 
 bool IsZombieEntity(edict_t* ent)
@@ -1426,31 +1280,12 @@ void DetectCSVersion(void)
 	// switch version returned by dll loader
 	if (g_gameVersion & Game::Xash)
 		ServerPrint(infoBuffer, "Xash Engine", sizeof(Bot));
-	else if (g_gameVersion & Game::Old)
-		ServerPrint(infoBuffer, "CS 1.x (WON)", sizeof(Bot));
 	else if (g_gameVersion & Game::CZero)
 		ServerPrint(infoBuffer, "CS: CZ (Steam)", sizeof(Bot));
 	else if (g_gameVersion & Game::HalfLife)
 		ServerPrint(infoBuffer, "Half-Life", sizeof(Bot));
-	else if (g_gameVersion & Game::CStrike)
-	{
-		uint8_t* detection = (*g_engfuncs.pfnLoadFileForMe) ("events/galil.sc", nullptr);
-
-		if (detection != nullptr)
-		{
-			ServerPrint(infoBuffer, "CS 1.6 (Steam)", sizeof(Bot));
-			g_gameVersion |= Game::CStrike; // just to be sure
-		}
-		else if (detection == nullptr)
-		{
-			ServerPrint(infoBuffer, "CS 1.5 (WON)", sizeof(Bot));
-			g_gameVersion |= Game::Old; // reset it to WON
-		}
-
-		// if we have loaded the file free it
-		if (detection != nullptr)
-			(*g_engfuncs.pfnFreeFile) (detection);
-	}
+	else
+		ServerPrint(infoBuffer, "CS 1.6 (Steam)", sizeof(Bot));
 
 	engine->GetGameConVarsPointers(); // !!! TODO !!!
 }

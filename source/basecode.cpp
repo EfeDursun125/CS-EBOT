@@ -1,4 +1,4 @@
-#include <core.h>
+﻿#include <core.h>
 
 // console variables
 ConVar ebot_debug("ebot_debug", "0");
@@ -1047,7 +1047,7 @@ void Bot::PerformWeaponPurchase(void)
 	case 5:
 		if ((g_mapType & MAP_DE) && m_team == Team::Counter && ChanceOf(m_skill) && m_moneyAmount > 800 && !IsRestricted(Weapon::Defuser))
 		{
-			if (g_gameVersion & Game::Old || g_gameVersion & Game::Xash)
+			if (g_gameVersion & Game::Xash)
 				FakeClientCommand(GetEntity(), "buyequip;menuselect 6");
 			else
 				FakeClientCommand(GetEntity(), "defuser"); // use alias in SteamCS
@@ -1148,7 +1148,7 @@ void Bot::CheckGrenadeThrow(edict_t* targetEntity)
 		return;
 
 	const Vector targetOrigin = GetBottomOrigin(targetEntity);
-	const Vector velocity = ThrowGrenade(EyePosition(), targetOrigin);
+	const Vector velocity = ThrowGrenade(targetOrigin);
 	if (velocity != nullvec)
 		m_throw = velocity;
 	else
@@ -1214,7 +1214,14 @@ bool Bot::IsEnemyReachable(void)
 			return m_isEnemyReachable;
 		}
 		else
+		{
+			if (m_personality != Personality::Careful)
+			{
+				// TODO: you know
+			}
+
 			m_isEnemyReachable = false;
+		}
 
 		const float enemyDistance = (pev->origin - m_enemyOrigin).GetLengthSquared();
 		if (pev->flags & FL_DUCKING)
@@ -1291,7 +1298,7 @@ bool Bot::IsEnemyReachable(void)
 					return m_isEnemyReachable;
 				}
 			}
-			else if (GetProcess() == Process::Camp)
+			else if (GetCurrentState() == Process::Camp)
 			{
 				if (enemyIndex == m_zhCampPointIndex)
 					m_isEnemyReachable = true;
@@ -1343,6 +1350,9 @@ bool Bot::IsEnemyReachable(void)
 
 void Bot::CheckRadioCommands(void)
 {
+	if (IsZombieMode())
+		return;
+
 	if (m_isBomber)
 		return;
 
@@ -1409,7 +1419,7 @@ void Bot::CheckRadioCommands(void)
 	case Radio::NeedBackup:
 		mode = 2;
 	case Radio::GoGoGo:
-		if (GetProcess() == Process::Camp)
+		if (GetCurrentState() == Process::Camp)
 			FinishCurrentProcess("my teammate told me move");
 		RadioMessage(Radio::Affirmative);
 		SetWalkTime(-1.0f);
@@ -1449,13 +1459,13 @@ void Bot::CheckRadioCommands(void)
 			else
 				RadioMessage(Radio::EnemySpotted);
 		}
-		else if (GetProcess() == Process::Camp)
+		else if (GetCurrentState() == Process::Camp)
 			RadioMessage(Radio::InPosition);
 		else if (m_enemySeeTime + 16.0f < engine->GetTime())
 			RadioMessage(Radio::SectorClear);
 		break;
 	case Radio::SectorClear:
-		if (GetProcess() == Process::Camp && m_enemySeeTime + 12.0f < engine->GetTime())
+		if (GetCurrentState() == Process::Camp && m_enemySeeTime + 12.0f < engine->GetTime())
 		{
 			RadioMessage(Radio::Affirmative);
 			FinishCurrentProcess("my teammate told me sector is clear");
@@ -1563,6 +1573,9 @@ void Bot::BaseUpdate(void)
 	edict_t* me = GetEntity();
 	if (me == nullptr)
 		return;
+
+	// what if removed???
+	pev->flags |= FL_FAKECLIENT;
 
 	// run playermovement
 	const float time = engine->GetTime();
@@ -1862,7 +1875,7 @@ void Bot::LookAtAround(void)
 				}
 			}
 
-			if (bot->GetProcess() == Process::Camp)
+			if (bot->GetCurrentState() == Process::Camp)
 			{
 				const int index = g_waypoint->FindNearest(m_lookAt, 999999.0f, -1, bot->GetEntity());
 				if (IsValidWaypoint(index) && m_chosenGoalIndex != index)
@@ -1873,7 +1886,7 @@ void Bot::LookAtAround(void)
 					m_chosenGoalIndex = bot->m_chosenGoalIndex;
 				}
 			}
-			else if (GetProcess() == Process::Camp)
+			else if (GetCurrentState() == Process::Camp)
 			{
 				const int index = g_waypoint->FindNearest(m_lookAt, 999999.0f, -1, bot->GetEntity());
 				if (IsValidWaypoint(index) && m_chosenGoalIndex != index)
@@ -2051,9 +2064,6 @@ void Bot::SecondThink(void)
 
 void Bot::CalculatePing(void)
 {
-	if (g_gameVersion & Game::Old)
-		return;
-
 	extern ConVar ebot_ping;
 	if (!ebot_ping.GetBool())
 		return;
@@ -2093,25 +2103,13 @@ void Bot::CalculatePing(void)
 		averagePing = CRandomInt(30, 60);
 
 	int botPing = m_basePingLevel + CRandomInt(averagePing - averagePing * 0.2f, averagePing + averagePing * 0.2f) + CRandomInt(m_difficulty + 3, m_difficulty + 6);
-
-	if (botPing <= 9)
+	if (botPing < 9)
 		botPing = CRandomInt(9, 19);
 	else if (botPing > 133)
 		botPing = CRandomInt(99, 119);
 
-	for (int j = 0; j < 2; j++)
-	{
-		for (m_pingOffset[j] = 0; m_pingOffset[j] < 4; m_pingOffset[j]++)
-		{
-			if ((botPing - m_pingOffset[j]) % 4 == 0)
-			{
-				m_ping[j] = (botPing - m_pingOffset[j]) * 0.25f;
-				break;
-			}
-		}
-	}
-
-	m_ping[2] = botPing;
+	m_ping = (botPing + m_pingOffset) / 2;
+	m_pingOffset = botPing;
 }
 
 void Bot::MoveAction(void)
@@ -2284,7 +2282,7 @@ void Bot::DebugModeMsg(void)
 
 			"Current Index: %d  Goal Index: %d  Prev Goal Index: %d \n"
 			"Nav: %d  Next Nav: %d \n"
-			"GEWI: %d  GEWI2: %d \n"
+			//"GEWI: %d  GEWI2: %d \n"
 			"Move Speed: %2.f  Strafe Speed: %2.f \n "
 			"Stuck Warnings: %d  Stuck: %s \n",
 			gamemodName,
@@ -2295,7 +2293,7 @@ void Bot::DebugModeMsg(void)
 
 			m_currentWaypointIndex, goal, m_prevGoalIndex,
 			navIndex[0], navIndex[1],
-			g_clients[client].wpIndex, g_clients[client].wpIndex2,
+			//g_clients[client].wpIndex, g_clients[client].wpIndex2,
 			m_moveSpeed, m_strafeSpeed,
 			m_stuckWarn, m_isStuck ? "Yes" : "No");
 
@@ -2483,19 +2481,6 @@ void Bot::ResetDoubleJumpState(void)
 	m_jumpReady = false;
 }
 
-Vector CalculateTossVelocity(const Vector& start, const Vector& target, const float gravity, const float maxSpeed)
-{
-	Vector tossVelocity = target - start;
-	tossVelocity.z += 0.5f * gravity;
-
-	const float timeToReachTarget = tossVelocity.GetLength() / maxSpeed;
-	tossVelocity.x /= timeToReachTarget;
-	tossVelocity.y /= timeToReachTarget;
-	tossVelocity.z -= 0.5f * gravity * timeToReachTarget;
-
-	return tossVelocity;
-}
-
 float Dot(const Vector& a, const Vector& b)
 {
 	return a.x * b.x + a.y * b.y + a.z * b.z;
@@ -2506,23 +2491,28 @@ Vector ReflectVector(const Vector& vector, const Vector& normal)
 	return vector - 2.0f * Dot(vector, normal) * normal;
 }
 
-bool IsBombOnGround(const Vector& position)
+Vector Bot::ThrowGrenade(const Vector& end)
 {
-	TraceResult tr{};
-	TraceHull(position, position - Vector(0, 0, 10), true, point_hull, nullptr, &tr);
-	return tr.flFraction != 1.0f && tr.vecPlaneNormal.z > 0.9f;
-}
+	const Vector eyePosition = pev->origin + pev->view_ofs;
+	Vector angThrow = (end - eyePosition).ToAngles() + pev->punchangle;
 
-Vector Bot::ThrowGrenade(const Vector& start, const Vector& end)
-{
+	if (angThrow.x < 0.0f)
+		angThrow.x = -10.0f + angThrow.x * 0.88888888888f;
+	else
+		angThrow.x = -10.0f + angThrow.x * 1.11111111111f;
+
+	const float flVel = cminf((90.0f - angThrow.x) * 6.0f, 750.0f);
+	MakeVectors(angThrow);
+
+	const Vector vecSrc = eyePosition + g_pGlobals->v_forward * 16.0f;
+	//const Vector vecThrow = g_pGlobals->v_forward * flVel + pev->velocity;
 	const float gravity = engine->GetGravity();
-	const float maxSpeed = 900.0f;
 
 	TraceResult tr{};
-	const float timeStep = g_pGlobals->frametime;
-	Vector currentPosition = start;
-	Vector currentVelocity = CalculateTossVelocity(start, end, gravity, maxSpeed);
-	const Vector correctVel = currentVelocity;
+	const float timeStep = 0.05f; // g_pGlobals->frametime; :(
+	Vector currentPosition = vecSrc;
+	Vector currentVelocity = flVel;
+	const Vector correctVel = flVel;
 	edict_t* me = GetEntity();
 
 	while (currentPosition.z >= end.z)
@@ -2534,9 +2524,9 @@ Vector Bot::ThrowGrenade(const Vector& start, const Vector& end)
 		{
 			currentVelocity = ReflectVector(currentVelocity, tr.vecPlaneNormal);
 			nextPosition = currentPosition + currentVelocity * timeStep;
-			TraceHull(currentPosition, nextPosition, false, point_hull, me, &tr);
+			TraceHull(nextPosition, nextPosition - Vector(0.0f, 0.0f, gravity * timeStep), true, point_hull, me, &tr);
 
-			if (IsBombOnGround(nextPosition))
+			if (tr.flFraction != 1.0f && tr.vecPlaneNormal.z > 0.9f)
 			{
 				// too far...
 				if ((end - nextPosition).GetLengthSquared() > SquaredF(100.0f))
@@ -2546,6 +2536,7 @@ Vector Bot::ThrowGrenade(const Vector& start, const Vector& end)
 			}
 			else
 			{
+				TraceHull(currentPosition, nextPosition, false, point_hull, me, &tr);
 				currentVelocity = ReflectVector(currentVelocity, tr.vecPlaneNormal);
 				nextPosition = currentPosition + currentVelocity * timeStep;
 			}
@@ -2709,7 +2700,7 @@ bool Bot::OutOfBombTimer(void)
 	if (!g_bombPlanted)
 		return false;
 
-	if (GetProcess() == Process::Defuse || m_hasProgressBar || GetProcess() == Process::Escape)
+	if (GetCurrentState() == Process::Defuse || m_hasProgressBar || GetCurrentState() == Process::Escape)
 		return false; // if CT bot already start defusing, or already escaping, return false
 
 	// calculate left time
@@ -2804,11 +2795,11 @@ bool Bot::IsBombDefusing(const Vector bombOrigin)
 		const float bombDistance = (client.ent->v.origin - bombOrigin).GetLengthSquared();
 		if (bot != nullptr)
 		{
-			if (m_team != bot->m_team || bot->GetProcess() == Process::Escape || bot->GetProcess() == Process::Camp)
+			if (m_team != bot->m_team || bot->GetCurrentState() == Process::Escape || bot->GetCurrentState() == Process::Camp)
 				continue; // skip other mess
 
 			// if close enough, mark as progressing
-			if (bombDistance <= distanceToBomb && (bot->GetProcess() == Process::Defuse || bot->m_hasProgressBar))
+			if (bombDistance < distanceToBomb && (bot->GetCurrentState() == Process::Defuse || bot->m_hasProgressBar))
 			{
 				defusingInProgress = true;
 				break;
