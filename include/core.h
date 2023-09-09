@@ -690,9 +690,13 @@ private:
 	bool OutOfBombTimer(void);
 	void SetWaypointOrigin(void);
 
-	Vector ThrowGrenade(const Vector& end);
+	Vector CheckToss(const Vector& start, const Vector& end);
+	Vector CheckThrow(const Vector& start, const Vector& end);
 	Vector GetEnemyPosition(void);
 	float GetZOffset(float distance);
+
+	int GetNearbyFriendsNearPosition(const Vector origin, const float radius);
+	int GetNearbyEnemiesNearPosition(const Vector origin, const float radius);
 
 	int CheckGrenades(void);
 	bool IsWeaponBadInDistance(const int weaponIndex, const float distance);
@@ -991,6 +995,7 @@ public:
 	bool HasHostage(void);
 	bool UsesRifle(void);
 	bool UsesPistol(void);
+	bool UsesShotgun(void);
 	bool UsesSniper(void);
 	bool UsesSubmachineGun(void);
 	bool UsesZoomableRifle(void);
