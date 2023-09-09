@@ -75,8 +75,13 @@ void Bot::AttackUpdate(void)
 				}
 				else if (m_hasFriendsNear)
 					wait = 5.0f;
+
+				pev->speed = 0.0f;
 			}
 		}
+
+		if (UsesShotgun())
+			wait += 1.0f;
 
 		if (m_enemySeeTime + wait < time && m_entitySeeTime + wait < time)
 		{

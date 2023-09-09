@@ -16,18 +16,14 @@ void Bot::ThrowHEUpdate(void)
 	m_moveSpeed = 0.0f;
 	m_strafeSpeed = 0.0f;
 
-	edict_t* me = nullptr;
-	if (me != nullptr)
+	edict_t* ent = nullptr;
+	while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "grenade")))
 	{
-		edict_t* ent = nullptr;
-		while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "grenade")))
+		if (ent->v.owner == pev->pContainingEntity && cstrcmp(STRING(ent->v.model) + 9, "hegrenade.mdl") == 0)
 		{
-			if (ent->v.owner == me && cstrcmp(STRING(ent->v.model) + 9, "hegrenade.mdl") == 0)
-			{
-				ent->v.velocity = m_throw;
-				FinishCurrentProcess("i have throwed HE grenade");
-				return;
-			}
+			ent->v.velocity = m_throw;
+			FinishCurrentProcess("i have throwed HE grenade");
+			return;
 		}
 	}
 
