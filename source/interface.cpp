@@ -2804,7 +2804,7 @@ exportc int GetEntityAPI2_Post(DLL_FUNCTIONS* functionTable, int* /*interfaceVer
 
 const char* pfnGetPlayerAuthId(edict_t* e)
 {
-	if (!IsValidBot(e))
+	if (IsValidBot(e))
 		RETURN_META_VALUE(MRES_SUPERCEDE, "BOT");
 
 	RETURN_META_VALUE(MRES_IGNORED, 0);
