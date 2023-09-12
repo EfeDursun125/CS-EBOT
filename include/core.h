@@ -1140,7 +1140,6 @@ private:
 	Array <int> m_campPoints;
 	Array <int> m_sniperPoints;
 	Array <int> m_rescuePoints;
-	Array <int> m_visitedGoals;
 	Array <int> m_zmHmPoints;
 	Array <int> m_hmMeshPoints;
 	Array <int> m_otherPoints;
@@ -1158,14 +1157,13 @@ public:
 	void AddPath(const int addIndex, const int pathIndex, const int type = 0);
 
 	int GetFacingIndex(void);
-	int FindFarest(const Vector& origin, const float maxDistance = 99999.0f);
-	int FindNearestInCircle(const Vector& origin, const float maxDistance = 99999.0f);
+	int FindFarest(const Vector origin, const float maxDistance = 99999.0f);
+	void FindFarestThread(const Vector origin, const float maxDistance, int& index);
+	int FindNearestInCircle(const Vector origin, const float maxDistance = 99999.0f);
+	void FindNearestInCircleThread(const Vector origin, const float maxDistance, int& index);
 	int FindNearest(Vector origin, float minDistance = 99999.0f, int flags = -1, edict_t* entity = nullptr, int* findWaypointPoint = (int*)-2, int mode = -1);
 	void FindInRadius(const Vector origin, const float radius, int* holdTab, int* count);
 	void FindInRadius(Array <int>& queueID, const float radius, const Vector origin);
-
-	void ChangeZBCampPoint(Vector origin);
-	bool IsZBCampPoint(int pointID, bool checkMesh = true);
 
 	void Add(const int flags, const Vector waypointOrigin = nullvec);
 	void Delete(void);
@@ -1207,9 +1205,6 @@ public:
 
 	void SetFindIndex(int index);
 	void SetLearnJumpWaypoint(int mod = -1);
-
-	bool IsGoalVisited(int index);
-	void SetGoalVisited(int index);
 
 	Vector GetBombPosition(void) { return m_foundBombOrigin; }
 	void SetBombPosition(const bool shouldReset = false);
