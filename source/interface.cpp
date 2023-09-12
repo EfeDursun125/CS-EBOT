@@ -2537,30 +2537,6 @@ void GameDLLInit_Post(void)
 	RETURN_META(MRES_IGNORED);
 }
 
-void pfnClientCommand(edict_t* ent, char* format, ...)
-{
-	// this function forces the client whose player entity is ent to issue a client command.
-	// How it works is that clients all have a g_xgv global string in their client DLL that
-	// stores the command string; if ever that string is filled with characters, the client DLL
-	// sends it to the engine as a command to be executed. When the engine has executed that
-	// command, this g_xgv string is reset to zero. Here is somehow a curious implementation of
-	// ClientCommand: the engine sets the command it wants the client to issue in his g_xgv, then
-	// the client DLL sends it back to the engine, the engine receives it then executes the
-	// command therein. Don't ask me why we need all this complicated crap. Anyhow since bots have
-	// no client DLL, be certain never to call this function upon a bot entity, else it will just
-	// make the server crash. Since hordes of uncautious, not to say stupid, programmers don't
-	// even imagine some players on their servers could be bots, this check is performed less than
-	// sometimes actually by their side, that's why we strongly recommend to check it here too. In
-	// case it's a bot asking for a client command, we handle it like we do for bot commands, ie
-	// using FakeClientCommand().
-
-	// is the target entity an official bot, or a third party bot ?
-	if (g_isFakeCommand || IsValidBot(ent) || ent->v.flags & FL_FAKECLIENT || ent->v.flags & FL_DORMANT)
-		RETURN_META(MRES_SUPERCEDE); // prevent bots to be forced to issue client commands
-
-	RETURN_META(MRES_IGNORED);
-}
-
 // this function called each time a message is about to sent
 void pfnMessageBegin(int msgDest, int msgType, const float* origin, edict_t* ed)
 {
@@ -2828,7 +2804,7 @@ exportc int GetEntityAPI2_Post(DLL_FUNCTIONS* functionTable, int* /*interfaceVer
 
 const char* pfnGetPlayerAuthId(edict_t* e)
 {
-	if (IsValidBot(e))
+	if (!IsValidBot(e))
 		RETURN_META_VALUE(MRES_SUPERCEDE, "BOT");
 
 	RETURN_META_VALUE(MRES_IGNORED, 0);
@@ -2845,7 +2821,6 @@ unsigned int pfnGetPlayerWONId(edict_t* e)
 exportc int GetEngineFunctions(enginefuncs_t* functionTable, int* /*interfaceVersion*/)
 {
 	cmemset(functionTable, 0, sizeof(enginefuncs_t));
-	functionTable->pfnClientCommand = pfnClientCommand;
 	functionTable->pfnMessageBegin = pfnMessageBegin;
 	functionTable->pfnMessageEnd = pfnMessageEnd;
 	functionTable->pfnWriteByte = pfnWriteByte;

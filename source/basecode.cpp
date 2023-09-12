@@ -1672,9 +1672,6 @@ bool Bot::IsNotAttackLab(edict_t* entity)
 
 void Bot::BaseUpdate(void)
 {
-	// what if removed???
-	pev->flags |= FL_FAKECLIENT;
-
 	// run playermovement
 	const float time = engine->GetTime();
 	const byte adjustedMSec = static_cast<byte>(cminf(250.0f, (time - m_msecInterval) * 1000.0f));
@@ -1701,6 +1698,7 @@ void Bot::BaseUpdate(void)
 		else
 		{
 			m_isSlowThink = true;
+			pev->flags |= FL_FAKECLIENT;
 			CheckSlowThink();
 			m_slowthinktimer = time + CRandomFloat(0.9f, 1.1f);
 		}

@@ -59,8 +59,7 @@ uint16 FixedUnsigned16(float value, float scale)
 
 	if (output < 0)
 		output = 0;
-
-	if (output > 0xffff)
+	else if (output > 0xffff)
 		output = 0xffff;
 
 	return static_cast<uint16>(output);
@@ -72,8 +71,7 @@ short FixedSigned16(float value, float scale)
 
 	if (output > 32767)
 		output = 32767;
-
-	if (output < -32768)
+	else if (output < -32768)
 		output = -32768;
 
 	return static_cast<short>(output);

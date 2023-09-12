@@ -450,7 +450,7 @@ void Bot::DoWaypointNav(void)
 
 						if (foundGround)
 						{
-							FindShortestPath(m_prevWptIndex[0], previousNode);
+							FindPath(m_prevWptIndex[0], previousNode);
 							break;
 						}
 					}
@@ -901,7 +901,7 @@ bool Bot::UpdateLiftHandling(void)
 				FindWaypoint();
 
 				if (IsValidWaypoint(m_prevWptIndex[2]))
-					FindShortestPath(m_currentWaypointIndex, m_prevWptIndex[2]);
+					FindPath(m_currentWaypointIndex, m_prevWptIndex[2]);
 
 				return false;
 			}
@@ -1460,8 +1460,7 @@ void Bot::FindPath(int srcIndex, int destIndex, edict_t* enemy)
 
 	if (g_gameVersion & Game::HalfLife)
 	{
-		thread core(&Bot::FindShortestPath, this, srcIndex, destIndex);
-		core.detach();
+		FindShortestPath(srcIndex, destIndex);
 		return;
 	}
 
@@ -1595,6 +1594,8 @@ void Bot::FindPath(int srcIndex, int destIndex, edict_t* enemy)
 	srcWaypoint->f = srcWaypoint->g;
 	srcWaypoint->state = State::Open;
 
+	const int index = GetIndex();
+
 	PriorityQueue openList;
 	openList.Insert(srcIndex, srcWaypoint->f);
 	while (!openList.Empty())
@@ -1635,7 +1636,7 @@ void Bot::FindPath(int srcIndex, int destIndex, edict_t* enemy)
 			m_currentWaypointIndex = m_navNodeStart->index;
 
 			const Path* pointer = g_waypoint->GetPath(m_currentWaypointIndex);
-			if (pointer->radius > 8 && ((pev->origin + pev->velocity * m_frameInterval) - pointer->origin).GetLengthSquared2D() <= SquaredI(pointer->radius))
+			if (pointer->radius > 8 && ((pev->origin + pev->velocity * m_frameInterval) - pointer->origin).GetLengthSquared2D() < SquaredI(pointer->radius))
 				m_waypointOrigin = pev->origin + pev->velocity * (m_frameInterval + m_frameInterval);
 			else
 				m_waypointOrigin = pointer->origin;
@@ -1684,7 +1685,7 @@ void Bot::FindPath(int srcIndex, int destIndex, edict_t* enemy)
 					const Vector origin = g_waypoint->GetPath(self)->origin;
 					if (::IsInViewCone(origin, enemy) && IsVisible(origin, enemy))
 					{
-						if ((GetEntityOrigin(enemy) - origin).GetLengthSquared() - (pev->origin - origin).GetLengthSquared() <= 0.0f)
+						if ((GetEntityOrigin(enemy) - origin).GetLengthSquared() - (pev->origin - origin).GetLengthSquared() < 0.0f)
 							continue;
 					}
 				}
@@ -1692,7 +1693,7 @@ void Bot::FindPath(int srcIndex, int destIndex, edict_t* enemy)
 
 			// calculate the F value as F = G + H
 			const float g = currWaypoint->g + gcalc(currentIndex, self, m_team, pev->gravity, m_isZombieBot);
-			const float h = hcalc(self, destIndex) * useSeed ? RandomSeed(GetIndex(), self, m_personality) : 0.1f;
+			const float h = hcalc(self, destIndex) * useSeed ? RandomSeed(index, self, m_personality) : 1.0f;
 			const float f = g + h;
 
 			const auto childWaypoint = &waypoints[self];
@@ -1722,13 +1723,8 @@ void Bot::FindPath(int srcIndex, int destIndex, edict_t* enemy)
 	{
 		const int index = PossiblePath.GetRandomElement();
 		m_chosenGoalIndex = index;
-		thread core(&Bot::FindShortestPath, this, srcIndex, index);
-		core.detach();
-		return;
+		FindShortestPath(srcIndex, destIndex);
 	}
-	
-	thread core(&Bot::FindShortestPath, this, srcIndex, destIndex);
-	core.detach();
 }
 
 void Bot::FindShortestPath(int srcIndex, int destIndex)
@@ -1848,7 +1844,7 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 			m_currentWaypointIndex = m_navNodeStart->index;
 
 			const Path* pointer = g_waypoint->GetPath(m_currentWaypointIndex);
-			if (pointer->radius > 8 && ((pev->origin + pev->velocity * m_frameInterval) - pointer->origin).GetLengthSquared2D() <= SquaredI(pointer->radius))
+			if (pointer->radius > 8 && ((pev->origin + pev->velocity * m_frameInterval) - pointer->origin).GetLengthSquared2D() < SquaredI(pointer->radius))
 				m_waypointOrigin = pev->origin + pev->velocity * (m_frameInterval + m_frameInterval);
 			else
 				m_waypointOrigin = pointer->origin;
@@ -1883,21 +1879,6 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 				openList.Insert(self, childWaypoint->f);
 			}
 		}
-	}
-
-	Array <int> PossiblePath;
-	for (int i = 0; i < g_numWaypoints; i++)
-	{
-		if (waypoints[i].state == State::Closed)
-			PossiblePath.Push(i);
-	}
-
-	if (!PossiblePath.IsEmpty())
-	{
-		const int index = PossiblePath.GetRandomElement();
-		m_chosenGoalIndex = index;
-		FindShortestPath(srcIndex, index);
-		return;
 	}
 }
 
