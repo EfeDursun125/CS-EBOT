@@ -1,12 +1,35 @@
+//
+// Copyright (c) 2003-2009, by Yet Another POD-Bot Development Team.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the "Software"),
+// to deal in the Software without restriction, including without limitation
+// the rights to use, copy, modify, merge, publish, distribute, sublicense,
+// and/or sell copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+//
+// $Id$
+//
+
 #ifndef PLATFORM_INCLUDED
 #define PLATFORM_INCLUDED
-#endif
 
 // detects the build platform
-#ifdef _WIN32
-#define PLATFORM_WIN32
-#else
+#if defined (__linux__) || defined (__debian__) || defined (__linux) || (__x86_64__) || defined (__amd64__)
 #define PLATFORM_LINUX
+#elif defined (_WIN32)
+#define PLATFORM_WIN32
 #endif
 
 // detects the compiler
@@ -48,6 +71,10 @@
 #pragma comment (linker, "/SECTION:.data,RW")
 #endif
 
+typedef int (*EntityAPI_t) (DLL_FUNCTIONS*, int);
+typedef int (*NewEntityAPI_t) (NEW_DLL_FUNCTIONS*, int*);
+typedef int (*BlendAPI_t) (int, void**, void*, float(*)[3][4], float(*)[128][3][4]);
+typedef void(__stdcall* FuncPointers_t) (enginefuncs_t*, globalvars_t*);
 typedef void (*EntityPtr_t) (entvars_t*);
 
 #elif defined (PLATFORM_LINUX)
@@ -58,17 +85,20 @@ typedef void (*EntityPtr_t) (entvars_t*);
 #include <sys/stat.h>
 
 #define DLL_ENTRYPOINT __attribute__((destructor))  void _fini (void)
-#define DLL_DETACHING true
+#define DLL_DETACHING TRUE
 #define DLL_RETENTRY return
 #define DLL_GIVEFNPTRSTODLL extern "C" void __attribute__((visibility("default")))
 
+typedef int (*EntityAPI_t) (DLL_FUNCTIONS*, int);
+typedef int (*NewEntityAPI_t) (NEW_DLL_FUNCTIONS*, int*);
+typedef int (*BlendAPI_t) (int, void**, void*, float(*)[3][4], float(*)[128][3][4]);
+typedef void (*FuncPointers_t) (enginefuncs_t*, globalvars_t*);
 typedef void (*EntityPtr_t) (entvars_t*);
 
 #else
 #error "Platform unrecognized."
 #endif
 
-// library wrapper
 #ifdef PLATFORM_WIN32
 #include "urlmon.h"
 #pragma comment(lib, "urlmon.lib")
@@ -113,10 +143,6 @@ public:
 
 #else
 
-#ifdef CURL_AVAILABLE
-#include <curl/curl.h>
-#endif
-
 class Library
 {
 private:
@@ -154,4 +180,5 @@ public:
         return m_ptr != nullptr;
     }
 };
+#endif
 #endif
