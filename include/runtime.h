@@ -1,25 +1,3 @@
-﻿//
-//  Copyright (C) 2009-2010 Dmitry Zhukov. All rights reserved.
-//
-//  This software is provided 'as-is', without any express or implied
-//  warranty.  In no event will the authors be held liable for any damages
-//  arising from the use of this software.
-//
-//  Permission is granted to anyone to use this software for any purpose,
-//  including commercial applications, and to alter it and redistribute it
-//  freely, subject to the following restrictions:
-//
-//  1. The origin of this software must not be misrepresented; you must not
-//     claim that you wrote the original software. If you use this software
-//     in a product, an acknowledgment in the product documentation would be
-//     appreciated but is not required.
-//  2. Altered source versions must be plainly marked as such, and must not be
-//     misrepresented as being the original software.
-//  3. This notice may not be removed or altered from any source distribution.
-//
-// $Id$
-//
-
 #ifndef __RUNTIME_INCLUDED__
 #define __RUNTIME_INCLUDED__
 
@@ -31,7 +9,6 @@
 #include <float.h>
 #include <time.h>
 #include <stdarg.h>
-#include <emmintrin.h>
 
 #pragma warning (disable : 4996) // get rid of this
 
@@ -197,9 +174,9 @@ namespace Math
     // Constant: MATH_PI
     // Mathematical PI value.
     //
-    const float MATH_PI = 3.14159265358979323846f;
-    const float MATH_D2R = 0.017453292519943295f;
-    const float MATH_R2D = 57.295779513082320876f;
+    const float MATH_PI = 3.14159265358f;
+    const float MATH_D2R = MATH_PI * 0.00555555555f;
+    const float MATH_R2D = 180.0f / MATH_PI;
 
     //
     // Function: FltZero
@@ -297,7 +274,7 @@ namespace Math
     //
     inline float AngleMod(float angle)
     {
-        return 360.0f / 65536.0f * (static_cast <int> (angle * (65536.0f / 360.0f)) & 65535);
+        return 360.0f / 65536.0f * (static_cast<int>(angle * (65536.0f / 360.0f)) & 65535);
     }
 
     //
@@ -313,10 +290,7 @@ namespace Math
     //
     inline float AngleNormalize(float angle)
     {
-        angle = angle - 360.0f * croundf(angle / 360.0f);
-        while (angle > 180.0f) angle -= 360.0f;
-        while (angle < -180.0f) angle += 360.0f;
-        return angle;
+        return 360.0f / 65536.0f * (static_cast<int>((angle + 180.0f) * (65536.0f / 360.0f)) & 65535) - 180.0f;
     }
 
     //
@@ -331,22 +305,8 @@ namespace Math
     //
     void inline SineCosine(float radians, float& sine, float& cosine)
     {
-#if defined (PLATFORM_WIN32)
-        __asm
-        {
-            fld uint32_t ptr[radians]
-            fsincos
-
-            mov edx, uint32_t ptr[cosine]
-            mov eax, uint32_t ptr[sine]
-
-            fstp uint32_t ptr[edx]
-            fstp uint32_t ptr[eax]
-        }
-#else
         sine = sinf(radians);
         cosine = cosf(radians);
-#endif
     }
 }
 
@@ -1052,10 +1012,13 @@ public:
     // Returns:
     //  True if operation succeeded, false otherwise.
     //
-    bool GetAt(int index, T& object)
+    bool GetAt(const int index, T& object)
     {
         if (index >= m_itemCount)
+        {
+            object = T();
             return false;
+        }
 
         object = m_elements[index];
         return true;
@@ -1073,7 +1036,7 @@ public:
     // Returns:
     //  True if operation succeeded, false otherwise.
     //
-    bool InsertAt(int index, T object, bool enlarge = true)
+    bool InsertAt(const int index, T object, const bool enlarge = true)
     {
         return InsertAt(index, &object, 1, enlarge);
     }
@@ -1091,17 +1054,12 @@ public:
     // Returns:
     //  True if operation succeeded, false otherwise.
     //
-    bool InsertAt(int index, T* objects, int count = 1, bool enlarge = true)
+    bool InsertAt(const int index, T* objects, const int count = 1, const bool enlarge = true)
     {
         if (objects == nullptr || count < 1)
             return false;
 
-        int newSize = 0;
-
-        if (m_itemCount > index)
-            newSize = m_itemCount + count;
-        else
-            newSize = index + count;
+        const int newSize = (m_itemCount > index) ? m_itemCount + count : index + count;
 
         if (newSize >= m_itemSize)
         {
@@ -1112,22 +1070,28 @@ public:
         if (index >= m_itemCount)
         {
             for (int i = 0; i < count; i++)
-                m_elements[i + index] = objects[i];
-
-            m_itemCount = newSize;
+            {
+                if (&m_elements[i + index] != nullptr)
+                    m_elements[i + index] = objects[i];
+            }
         }
         else
         {
-            int i = 0;
+            for (int i = m_itemCount - 1; i >= index; i--)
+            {
+                if (&m_elements[i + count] != nullptr)
+                    m_elements[i + count] = m_elements[i];
+            }
 
-            for (i = m_itemCount; i > index; i--)
-                m_elements[i + count - 1] = m_elements[i - 1];
-
-            for (i = 0; i < count; i++)
-                m_elements[i + index] = objects[i];
-
-            m_itemCount += count;
+            for (int i = 0; i < count; i++)
+            {
+                if (&m_elements[i + index] != nullptr) 
+                    m_elements[i + index] = objects[i];
+            }
         }
+
+        m_itemCount = newSize;
+
         return true;
     }
 
@@ -1315,8 +1279,8 @@ public:
     //
     T PopNoReturn(void)
     {
-        T element = m_elements[m_itemCount - 1];
-        RemoveAt(m_itemCount - 1);
+        if (m_itemCount > 0)
+            RemoveAt(m_itemCount - 1);
     }
 
     T& Last(void)
@@ -1932,6 +1896,9 @@ private:
     //
     bool IsTrimChar(char input)
     {
+        if (input == 0)
+            return false;
+
         return input == ' ' || input == '\t' || input == '\n';
     }
 
@@ -2002,7 +1969,10 @@ public:
     //
     const char* GetBuffer(void)
     {
-        if (m_bufferPtr == nullptr || *m_bufferPtr == 0x0)
+        if (m_bufferPtr == nullptr)
+            return "";
+
+        if (*m_bufferPtr == 0)
             return "";
 
         return &m_bufferPtr[0];
@@ -2017,7 +1987,10 @@ public:
     //
     const char* GetBuffer(void) const
     {
-        if (m_bufferPtr == nullptr || *m_bufferPtr == 0x0)
+        if (m_bufferPtr == nullptr)
+            return "";
+        
+        if (*m_bufferPtr == 0)
             return "";
 
         return &m_bufferPtr[0];
@@ -2032,7 +2005,7 @@ public:
     //
     float ToFloat(void)
     {
-        return static_cast <float> (catof(m_bufferPtr));
+        return catof(m_bufferPtr);
     }
 
     //
@@ -2118,7 +2091,6 @@ public:
     {
         UpdateBufferSize(m_stringLength + cstrlen(bufferPtr) + 1);
         cstrcat(m_bufferPtr, bufferPtr);
-
         m_stringLength = cstrlen(m_bufferPtr);
     }
 
@@ -2148,7 +2120,6 @@ public:
     {
         const char* bufferPtr = inputString.GetBuffer();
         UpdateBufferSize(m_stringLength + cstrlen(bufferPtr));
-
         cstrcat(m_bufferPtr, bufferPtr);
         m_stringLength = cstrlen(m_bufferPtr);
     }
@@ -2293,7 +2264,7 @@ public:
 
     operator char* (void)
     {
-        return const_cast <char*> (GetBuffer());
+        return const_cast<char*>(GetBuffer());
     }
 
     operator int(void)
@@ -2303,7 +2274,7 @@ public:
 
     operator long(void)
     {
-        return static_cast <long> (ToInt());
+        return static_cast<long>(ToInt());
     }
 
     operator float(void)
@@ -2313,7 +2284,7 @@ public:
 
     operator double(void)
     {
-        return static_cast <double> (ToFloat());
+        return static_cast<double>(ToFloat());
     }
 
     friend String operator + (const String& s1, const String& s2)
@@ -2350,7 +2321,7 @@ public:
 
     friend String operator + (const char* str, const String& holder)
     {
-        String result(const_cast <char*> (str));
+        String result(const_cast<char*>(str));
         result += holder;
 
         return result;
@@ -2519,7 +2490,7 @@ public:
     }
 
     //
-    // Function: ctoupper
+    // Function: ToUpper
     //  Gets the string in upper case.
     //
     // Returns:
@@ -2536,7 +2507,7 @@ public:
     }
 
     //
-    // Function: ctoupper
+    // Function: ToUpper
     //  Gets the string in upper case.
     //
     // Returns:
@@ -2804,7 +2775,7 @@ public:
         char* str = m_bufferPtr;
         char* last = nullptr;
 
-        while (*str != 0)
+        while (str != nullptr && *str != 0)
         {
             if (IsTrimChar(*str))
             {
@@ -2838,15 +2809,16 @@ public:
 
         if (str != m_bufferPtr)
         {
-            int first = int(str - GetBuffer());
+            const int first = static_cast<int>(str - GetBuffer());
             char* buffer = GetBuffer(GetLength());
 
             str = buffer + first;
-            int length = GetLength() - first;
+            const int length = GetLength() - first;
 
             cmemmove(buffer, str, (length + 1) * sizeof(char));
             ReleaseBuffer(length);
         }
+
         return *this;
     }
 
@@ -2874,7 +2846,7 @@ public:
         const char* str = m_bufferPtr;
         const char* last = nullptr;
 
-        while (*str != 0)
+        while (str != nullptr && *str != 0)
         {
             if (*str == ch)
             {
@@ -2889,7 +2861,7 @@ public:
 
         if (last != nullptr)
         {
-            int i = last - m_bufferPtr;
+            const int i = last - m_bufferPtr;
             Delete(i, m_stringLength - i);
         }
     }
@@ -2950,7 +2922,7 @@ public:
         if (string.m_stringLength == 0)
             return m_stringLength;
 
-        int numInsertChars = string.m_stringLength;
+        const int numInsertChars = string.m_stringLength;
         InsertSpace(index, numInsertChars);
 
         for (int i = 0; i < numInsertChars; i++)
@@ -2991,6 +2963,7 @@ public:
             position++;
             num++;
         }
+
         return num;
     }
 
@@ -3056,6 +3029,7 @@ public:
             MoveItems(index, index + count);
             m_stringLength -= count;
         }
+
         return m_stringLength;
     }
 
@@ -3109,6 +3083,7 @@ public:
             hash = (hash << 5) + hash + (*ptr);
             ptr++;
         }
+
         return hash;
     }
 
@@ -3175,352 +3150,317 @@ public:
 //
 class File
 {
-    //
-    // Group: Private members.
-    //
-private:
-
-    //
-    // Variable: m_handle
-    // Pointer to C file stream.
-    //
+protected:
     FILE* m_handle;
-
-    // Variable: m_size
-    // Number of bytes in file.
-    //
-    int m_size;
+    int m_fileSize;
 
     //
-    // Group: (Con/De)structors.
+    // Group: (Con/De)structors
     //
 public:
+
     //
     // Function: File
+    //  Default file class, constructor.
     //
-    // Default file class constructor.
-    //
-    inline File(void) : m_handle(nullptr), m_size(0)
+    File(void)
     {
+        m_handle = nullptr;
+        m_fileSize = 0;
     }
 
     //
     // Function: File
+    //  Default file class, constructor, with file opening.
     //
-    // Default file class, constructor, with file opening.
-    //
-    // Parameters:
-    //   filePath - String containing file name.
-    //   mode - String containing open mode for file.
-    //
-    inline File(const String& filePath, const String& mode = "rt") : m_handle(nullptr), m_size(0)
+    File(String fileName, String mode = "rt")
     {
-        Open(filePath, mode);
+        Open(fileName, mode);
     }
 
     //
     // Function: ~File
+    //  Default file class, destructor.
     //
-    // Default file class, destructor.
-    //
-    inline ~File(void)
+    ~File(void)
     {
-        if (IsValid())
-            fclose(m_handle);
+        Close();
     }
 
     //
-    // Group: Functions.
-    //
-public:
-    //
     // Function: Open
-    //
-    // Opens file and gets it's size.
+    //  Opens file and gets it's size.
     //
     // Parameters:
-    //	  filePath - String containing file name.
-    //	  mode - String containing open mode for file.
+    //  fileName - String containing file name.
+    //  mode - String containing open mode for file.
     //
     // Returns:
-    //   True if operation succeeded, false otherwise.
+    //  True if operation succeeded, false otherwise.
     //
-    inline bool Open(const String& filePath, const String& mode = "rt")
+    bool Open(const String& fileName, const String& mode)
     {
-        m_handle = fopen(filePath, mode);
-
-        if (!IsValid())
+        if ((m_handle = fopen(fileName.GetBuffer(), mode.GetBuffer())) == nullptr)
             return false;
 
-        fseek(m_handle, 0l, SEEK_END);
-        m_size = ftell(m_handle); // get the filesize.
-        fseek(m_handle, 0l, SEEK_SET);
+        fseek(m_handle, 0L, SEEK_END);
+        m_fileSize = ftell(m_handle);
+        fseek(m_handle, 0L, SEEK_SET);
 
         return true;
     }
 
     //
     // Function: Close
+    //  Closes file, and destroys STDIO file object.
     //
-    // Closes file, and destroys STDIO file object.
-    //
-    inline void Close(void)
+    void Close(void)
     {
-        if (IsValid())
+        if (m_handle != nullptr)
         {
             fclose(m_handle);
             m_handle = nullptr;
         }
 
-        m_size = 0;
+        m_fileSize = 0;
     }
 
     //
-    // Function: IsEndOfFile
-    //
-    // Checks whether we reached end of file.
+    // Function: Eof
+    //  Checks whether we reached end of file.
     //
     // Returns:
-    //   True if reached, false otherwise.
+    //  True if reached, false otherwise.
     //
-    inline bool IsEndOfFile(void) const
+    bool Eof(void)
     {
-        return feof(m_handle) != 0;
+        Assert(m_handle != nullptr);
+        return feof(m_handle) ? true : false;
     }
 
     //
     // Function: Flush
-    //
-    // Flushes file stream.
+    //  Flushes file stream.
     //
     // Returns:
-    //   True if operation succeeded, false otherwise.
+    //  True if operation succeeded, false otherwise.
     //
-    inline bool Flush(void) const
+    bool Flush(void)
     {
-        return fflush(m_handle) == 0;
+        Assert(m_handle != nullptr);
+        return fflush(m_handle) ? false : true;
     }
 
     //
     // Function: GetCharacter
-    //
-    // Pops one character from the file stream.
+    //  Pops one character from the file stream.
     //
     // Returns:
-    //   Popped from stream character.
+    //  Popped from stream character
     //
-    inline uint8_t GetCharacter(void) const
+    int GetCharacter(void)
     {
-        return  static_cast <uint8_t> (fgetc(m_handle));
+        Assert(m_handle != nullptr);
+        return fgetc(m_handle);
     }
 
     //
     // Function: GetBuffer
-    //
-    // Gets the line from file stream, and stores it inside string class.
+    //  Gets the single line, from the non-binary stream.
     //
     // Parameters:
-    //	  buffer - String buffer, that should receive line.
-    //	  count - Maximum size of buffer.
+    //  buffer - Pointer to buffer, that should receive string.
+    //  count - Max. size of buffer.
     //
     // Returns:
-    //   True if operation succeeded, false otherwise.
+    //  Pointer to string containing popped line.
     //
-    inline bool GetBuffer(String& buffer, int count = 256) const
+    char* GetBuffer(char* buffer, const int count)
     {
-        char* tempBuffer = new char[static_cast <uint32_t> (count)];
-        buffer.SetEmpty();
-
-        if (tempBuffer == nullptr)
-            return false;
-
-        if (fgets(tempBuffer, count, m_handle) != nullptr)
-        {
-            buffer = tempBuffer;
-            delete[] tempBuffer;
-
-            return true;
-        }
-
-        delete[] tempBuffer;
-
-        return false;
+        Assert(m_handle != nullptr);
+        return fgets(buffer, count, m_handle);
     }
 
     //
     // Function: GetBuffer
-    //
-    // Gets the line from file stream, and stores it inside string class.
+    //  Gets the line from file stream, and stores it inside string class.
     //
     // Parameters:
-    //	  buffer - String buffer, that should receive line.
-    //	  count - Maximum size of buffer.
+    //  buffer - String buffer, that should receive line.
+    //  count - Max. size of buffer.
     //
     // Returns:
-    //   True if operation succeeded, false otherwise.
+    //  True if operation succeeded, false otherwise.
     //
-    inline bool GetBuffer(char* buffer, int count = 256) const
+    bool GetBuffer(String& buffer, const int count)
     {
-        return fgets(buffer, count, m_handle) != nullptr;
+        Assert(m_handle != nullptr);
+        return !String(fgets(buffer, count, m_handle)).IsEmpty();
     }
 
     //
     // Function: Print
-    //
-    // Puts formatted buffer, into stream.
+    //  Puts formatted buffer, into stream.
     //
     // Parameters:
-    //	  format - String to write.
+    //  format - 
     //
     // Returns:
-    //   Number of bytes, that was written.
+    //  Number of bytes, that was written.
     //
-    inline int Print(const char* format, ...) const
+    int Print(const char* format, ...)
     {
-        va_list ap;
+        Assert(m_handle != nullptr);
 
+        va_list ap;
         va_start(ap, format);
-        int written = vfprintf(m_handle, format, ap);
+        const int written = vfprintf(m_handle, format, ap);
         va_end(ap);
+
+        if (written < 0)
+            return 0;
 
         return written;
     }
 
     //
-    // Function: Print
-    //
-    // Puts formatted buffer, into stream.
-    //
-    // Parameters:
-    //	  format - String to write.
-    //
-    // Returns
-    //   Number of bytes, that was written.
-    //
-    inline int Print(const String& message) const
-    {
-        return fprintf(m_handle, message);
-    }
-
-    //
     // Function: PutCharacter
-    //
-    // Puts character into file stream.
+    //  Puts character into file stream.
     //
     // Parameters:
-    //	  character - Character that should be put into stream.
+    //  ch - Character that should be put into stream.
     //
     // Returns:
-    //   Character that was putted into the stream.
+    //  Character that was putted into the stream.
     //
-    inline bool PutCharacter(uint8_t character) const
+    char PutCharacter(char ch)
     {
-        return fputc(static_cast <int> (character), m_handle) != EOF;
+        Assert(m_handle != nullptr);
+        return static_cast<char>(fputc(ch, m_handle));
     }
 
     //
     // Function: PutString
-    //
-    // Puts buffer into the file stream.
+    //  Puts buffer into the file stream.
     //
     // Parameters:
-    //	  string - Buffer that should be put, into stream.
+    //  buffer - Buffer that should be put, into stream.
     //
     // Returns:
-    //   True if operation succeeded, false otherwise.
+    //  True, if operation succeeded, false otherwise.
     //
-    inline bool PutString(const String& string) const
+    bool PutString(String buffer)
     {
-        return fputs(string, m_handle) != EOF;
+        Assert(m_handle != nullptr);
+
+        if (fputs(buffer.GetBuffer(), m_handle) < 0)
+            return false;
+
+        return true;
     }
 
     //
     // Function: Read
-    //
-    // Reads buffer from file stream in binary format.
+    //  Reads buffer from file stream in binary format.
     //
     // Parameters:
-    //	  buffer - Holder for read buffer.
-    //	  size - Size of the buffer to read.
-    //	  count - Number of buffer chunks to read.
+    //  buffer - Holder for read buffer.
+    //  size - Size of the buffer to read.
+    //  count - Number of buffer chunks to read.
     //
     // Returns:
-    //   Number of bytes red from file.
+    //  Number of bytes red from file.
     //
-    inline bool Read(void* buffer, uint32_t size, uint32_t count = 1) const
+    int Read(void* buffer, const int size, const int count = 1)
     {
-        return fread(buffer, size, count, m_handle) == count;
+        Assert(m_handle != nullptr);
+        return fread(buffer, size, count, m_handle);
     }
 
     //
     // Function: Write
-    //
-    // Writes binary buffer into file stream.
+    //  Writes binary buffer into file stream.
     //
     // Parameters:
-    //	  buffer - Buffer holder, that should be written into file stream.
-    //	  size - Size of the buffer that should be written.
-    //	  count - Number of buffer chunks to write.
+    //  buffer - Buffer holder, that should be written into file stream.
+    //  size - Size of the buffer that should be written.
+    //  count - Number of buffer chunks to write.
     //
     // Returns:
-    //   Numbers of bytes written to file.
+    //  Numbers of bytes written to file.
     //
-    inline bool Write(void* buffer, uint32_t size, uint32_t count = 1) const
+    int Write(void* buffer, const int size, const int count = 1)
     {
-        return fwrite(buffer, size, count, m_handle) == count;
+        Assert(m_handle != nullptr);
+        return fwrite(buffer, size, count, m_handle);
     }
 
     //
     // Function: Seek
-    //
-    // Seeks file stream with specified parameters.
+    //  Seeks file stream with specified parameters.
     //
     // Parameters:
-    //	  offset - Offset where cursor should be set.
-    //	  origin - Type of offset set.
+    //  offset - Offset where cursor should be set.
+    //  origin - Type of offset set.
     //
     // Returns:
-    //   True if operation success, false otherwise.
+    //  True if operation success, false otherwise.
     //
-    inline bool Seek(long offset, int origin) const
+    bool Seek(const long offset, const int origin)
     {
-        return fseek(m_handle, offset, origin) == 0;
+        Assert(m_handle != nullptr);
+
+        if (fseek(m_handle, offset, origin) != 0)
+            return false;
+
+        return true;
     }
 
     //
     // Function: Rewind
+    //  Rewinds the file stream.
     //
-    // Rewinds the file stream.
-    //
-    inline void Rewind(void) const
+    void Rewind(void)
     {
+        Assert(m_handle != nullptr);
         rewind(m_handle);
     }
 
     //
     // Function: GetSize
-    //
-    // Gets the file size of opened file stream.
+    //  Gets the file size of opened file stream.
     //
     // Returns:
-    //   Number of bytes in file.
+    //  Number of bytes in file.
     //
-    inline int GetSize(void) const
+    int GetSize(void)
     {
-        return m_size;
+        return m_fileSize;
     }
 
     //
     // Function: IsValid
-    //
-    // Checks whether file stream is valid.
+    //  Checks whether file stream is valid.
     //
     // Returns:
-    //   True if file stream valid, false otherwise.
+    //  True if file stream valid, false otherwise.
     //
-    inline bool IsValid(void) const
+    bool IsValid(void)
     {
         return m_handle != nullptr;
+    }
+
+public:
+    static inline bool Accessible(const String& filename)
+    {
+        File fp;
+        if (fp.Open(filename, "rb"))
+        {
+            fp.Close();
+            return true;
+        }
+
+        return false;
     }
 };
 
@@ -3642,12 +3582,9 @@ private:
     {
         static char timeFormatStr[32];
         cmemset(timeFormatStr, 0, sizeof(char) * 32);
-
         time_t tick = time(&tick);
-        tm* time = localtime(&tick);
-
+        const tm* time = localtime(&tick);
         sprintf(timeFormatStr, "%02i:%02i:%02i", time->tm_hour, time->tm_min, time->tm_sec);
-
         return &timeFormatStr[0];
     }
 

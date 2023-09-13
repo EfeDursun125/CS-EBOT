@@ -1,5 +1,5 @@
 static int g_seed;
-inline int frand()
+int frand(void)
 {
 	g_seed = (214013 * g_seed + 2531011);
 	return (g_seed >> 16) & 0x7FFF;
