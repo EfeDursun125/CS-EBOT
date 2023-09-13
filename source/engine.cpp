@@ -1,27 +1,3 @@
-//
-// Copyright (c) 2003-2009, by Yet Another POD-Bot Development Team.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the "Software"),
-// to deal in the Software without restriction, including without limitation
-// the rights to use, copy, modify, merge, publish, distribute, sublicense,
-// and/or sell copies of the Software, and to permit persons to whom the
-// Software is furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-// $Id: engine.cpp 35 2009-06-24 16:43:26Z jeefo $
-//
-
 #include <core.h>
 
 ConVar::ConVar(const char* name, const char* initval, VarType type)
@@ -33,8 +9,8 @@ void Engine::RegisterVariable(const char* variable, const char* value, VarType v
 {
     VarPair newVariable;
 
-    newVariable.reg.name = const_cast <char*> (variable);
-    newVariable.reg.string = const_cast <char*> (value);
+    newVariable.reg.name = const_cast<char*>(variable);
+    newVariable.reg.string = const_cast<char*>(value);
 
     int engineFlags = FCVAR_EXTDLL;
 
@@ -57,7 +33,6 @@ void Engine::PushRegisteredConVarsToEngine(void)
     for (int i = 0; i < m_regCount; i++)
     {
         VarPair* ptr = &m_regVars[i];
-
         if (ptr == nullptr)
             break;
 
@@ -123,41 +98,66 @@ void Engine::BuildGlobalVectors(const Vector& on)
 
 bool Engine::IsFootstepsOn(void)
 {
+    if (m_gameVars[GVAR_FOOTSTEPS] == nullptr)
+        return true;
+
     return m_gameVars[GVAR_FOOTSTEPS]->value > 0;
 }
 
 float Engine::GetC4TimerTime(void)
 {
+    if (m_gameVars[GVAR_C4TIMER] == nullptr)
+        return 35.0f;
+
     return m_gameVars[GVAR_C4TIMER]->value;
 }
 
 float Engine::GetBuyTime(void)
 {
+    if (m_gameVars[GVAR_BUYTIME] == nullptr)
+        return 15.0f;
+
     return m_gameVars[GVAR_BUYTIME]->value;
 }
 
 float Engine::GetRoundTime(void)
 {
+    // we have no idea
+    if (m_gameVars[GVAR_ROUNDTIME] == nullptr)
+        return CRandomFloat(120.0f, 300.0f);
+
     return m_gameVars[GVAR_ROUNDTIME]->value;
 }
 
 float Engine::GetFreezeTime(void)
 {
+    if (m_gameVars[GVAR_FREEZETIME] == nullptr)
+        return 1.0f;
+
     return m_gameVars[GVAR_FREEZETIME]->value;
 }
 
 int Engine::GetGravity(void)
 {
-    return static_cast <int> (m_gameVars[GVAR_GRAVITY]->value);
+    if (m_gameVars[GVAR_GRAVITY] == nullptr)
+        return 800;
+
+    return static_cast<int>(m_gameVars[GVAR_GRAVITY]->value);
 }
 
 int Engine::GetDeveloperLevel(void)
 {
-    return static_cast <int> (m_gameVars[GVAR_DEVELOPER]->value);
+    if (m_gameVars[GVAR_DEVELOPER] == nullptr)
+        return 0;
+
+    return static_cast<int>(m_gameVars[GVAR_DEVELOPER]->value);
 }
 
 bool Engine::IsFriendlyFireOn(void)
 {
+    if (m_gameVars[GVAR_FRIENDLYFIRE] == nullptr)
+        return false;
+
     return m_gameVars[GVAR_FRIENDLYFIRE]->value > 0;
 }
 
@@ -185,36 +185,6 @@ float Engine::GetTime(void)
     return g_pGlobals->time;
 }
 
-void Engine::PrintAllClients(PrintType printType, const char* format, ...)
-{
-    char buffer[1024];
-    va_list ap;
-
-    va_start(ap, format);
-    vsprintf(buffer, format, ap);
-    va_end(ap);
-
-    if (printType == PRINT_CONSOLE)
-    {
-        for (int i = 0; i < GetMaxClients(); i++)
-        {
-            const Client& client = GetClientByIndex(i);
-
-            if (client.IsPlayer())
-                client.Print(PRINT_CONSOLE, buffer);
-        }
-    }
-    else
-    {
-        cstrcat(buffer, "\n");
-
-        g_engfuncs.pfnMessageBegin(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG), nullptr, nullptr);
-        g_engfuncs.pfnWriteByte(printType == PRINT_CENTER ? 4 : 3);
-        g_engfuncs.pfnWriteString(buffer);
-        g_engfuncs.pfnMessageEnd();
-    }
-}
-
 #pragma warning (disable : 4172)
 const Entity& Engine::GetEntityByIndex(int index)
 {
@@ -237,55 +207,35 @@ void Engine::MaintainClients(void)
         if (FNullEnt(client.ent))
             continue;
 
-        m_clients[client.index].Maintain(g_engfuncs.pfnPEntityOfEntIndex(client.index));
+        m_clients[client.index].Maintain(client.ent);
     }
 }
 
-void Engine::DrawLine(const Client& client, const Vector& start, const Vector& end, const Color& color, int width, int noise, int speed, int life, int lineType)
+void Engine::DrawLine(edict_t* client, const Vector& start, const Vector& end, const Color& color, const int width, const int noise, const int speed, const int life, const int lineType)
 {
-    if (!g_sendMessage)
+    if (!g_messageEnded || !IsValidPlayer(client) || IsValidBot(client))
         return;
 
-    if (!client.IsValid())
-        return;
-
-    g_engfuncs.pfnMessageBegin(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, client);
-    g_engfuncs.pfnWriteByte(TE_BEAMPOINTS);
-
-    g_engfuncs.pfnWriteCoord(start.x);
-    g_engfuncs.pfnWriteCoord(start.y);
-    g_engfuncs.pfnWriteCoord(start.z);
-
-    g_engfuncs.pfnWriteCoord(end.x);
-    g_engfuncs.pfnWriteCoord(end.y);
-    g_engfuncs.pfnWriteCoord(end.z);
-
-    switch (lineType)
-    {
-    case LINE_SIMPLE:
-        g_engfuncs.pfnWriteShort(g_modelIndexLaser);
-        break;
-
-    case LINE_ARROW:
-        g_engfuncs.pfnWriteShort(g_modelIndexArrow);
-        break;
-    }
-
-    g_engfuncs.pfnWriteByte(0);
-    g_engfuncs.pfnWriteByte(10);
-
-    g_engfuncs.pfnWriteByte(life);
-    g_engfuncs.pfnWriteByte(width);
-    g_engfuncs.pfnWriteByte(noise);
-
-    g_engfuncs.pfnWriteByte(color.red);
-    g_engfuncs.pfnWriteByte(color.green);
-    g_engfuncs.pfnWriteByte(color.blue);
-
-    g_engfuncs.pfnWriteByte(color.alpha); // alpha as brightness here
-    g_engfuncs.pfnWriteByte(speed);
-
-    g_engfuncs.pfnMessageEnd();
+    MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, g_hostEntity);
+    WRITE_BYTE(TE_BEAMPOINTS);
+    WRITE_COORD(start.x);
+    WRITE_COORD(start.y);
+    WRITE_COORD(start.z);
+    WRITE_COORD(end.x);
+    WRITE_COORD(end.y);
+    WRITE_COORD(end.z);
+    WRITE_SHORT(lineType == LINE_ARROW ? g_modelIndexArrow : g_modelIndexLaser);
+    WRITE_BYTE(0);
+    WRITE_BYTE(10);
+    WRITE_BYTE(life);
+    WRITE_BYTE(width);
+    WRITE_BYTE(noise);
+    WRITE_BYTE(color.red);
+    WRITE_BYTE(color.green);
+    WRITE_BYTE(color.blue);
+    WRITE_BYTE(color.alpha);
+    WRITE_BYTE(speed);
+    MESSAGE_END();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -296,7 +246,6 @@ void Engine::DrawLine(const Client& client, const Vector& start, const Vector& e
 float Client::GetShootingConeDeviation(const Vector& pos) const
 {
     engine->BuildGlobalVectors(GetViewAngles());
-
     return g_pGlobals->v_forward | (pos - GetHeadOrigin()).Normalize();
 }
 
@@ -309,7 +258,6 @@ bool Client::IsInViewCone(const Vector& pos) const
 bool Client::IsVisible(const Vector& pos) const
 {
     Tracer trace(GetHeadOrigin(), pos, NO_BOTH, m_ent);
-
     return !(trace.Fire() != 1.0);
 }
 
@@ -333,7 +281,6 @@ void Client::Maintain(const Entity& ent)
     if (ent.IsPlayer())
     {
         m_ent = ent;
-
         m_safeOrigin = ent.GetOrigin();
         m_flags |= ent.IsAlive() ? CLIENT_VALID | CLIENT_ALIVE : CLIENT_VALID;
     }

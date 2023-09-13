@@ -1,28 +1,4 @@
-﻿//
-// Copyright (c) 2003-2009, by Yet Another POD-Bot Development Team.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the "Software"),
-// to deal in the Software without restriction, including without limitation
-// the rights to use, copy, modify, merge, publish, distribute, sublicense,
-// and/or sell copies of the Software, and to permit persons to whom the
-// Software is furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-// $Id:$
-//
-
-#include <core.h>
+﻿#include <core.h>
 
 //
 // TODO:
@@ -32,6 +8,7 @@
 
 ConVar ebot_ignore_enemies("ebot_ignore_enemies", "0");
 ConVar ebot_zp_delay_custom("ebot_zp_delay_custom", "0.0");
+ConVar ebot_auto_gamemode("ebot_auto_gamemode", "1");
 
 void TraceLine(const Vector& start, const Vector& end, bool ignoreMonsters, bool ignoreGlass, edict_t* ignoreEntity, TraceResult* ptr)
 {
@@ -78,39 +55,34 @@ void TraceHull(const Vector& start, const Vector& end, bool ignoreMonsters, int 
 
 uint16 FixedUnsigned16(float value, float scale)
 {
-	int output = (static_cast <int> (value * scale));
+	int output = (static_cast<int>(value * scale));
 
 	if (output < 0)
 		output = 0;
-
-	if (output > 0xffff)
+	else if (output > 0xffff)
 		output = 0xffff;
 
-	return static_cast <uint16> (output);
+	return static_cast<uint16>(output);
 }
 
 short FixedSigned16(float value, float scale)
 {
-	int output = (static_cast <int> (value * scale));
+	int output = (static_cast<int>(value * scale));
 
 	if (output > 32767)
 		output = 32767;
-
-	if (output < -32768)
+	else if (output < -32768)
 		output = -32768;
 
-	return static_cast <short> (output);
+	return static_cast<short>(output);
 }
 
-bool IsAlive(edict_t* ent)
+bool IsAlive(const edict_t* ent)
 {
-	if (FNullEnt(ent))
-		return false; // reliability check
-
 	return (ent->v.deadflag == DEAD_NO) && (ent->v.health > 0) && (ent->v.movetype != MOVETYPE_NOCLIP);
 }
 
-float GetShootingConeDeviation(edict_t* ent, Vector* position)
+float GetShootingConeDeviation(edict_t* ent, const Vector* position)
 {
 	if (FNullEnt(ent))
 		return 0.0f;
@@ -122,14 +94,29 @@ float GetShootingConeDeviation(edict_t* ent, Vector* position)
 	return g_pGlobals->v_forward | dir;
 }
 
-bool IsInViewCone(Vector origin, edict_t* ent)
+float DotProduct(const Vector& a, const Vector& b)
+{
+	return (a.x * b.x + a.y * b.y + a.z * b.z);
+}
+
+float DotProduct2D(const Vector& a, const Vector& b)
+{
+	return (a.x * b.x + a.y * b.y);
+}
+
+Vector CrossProduct(const Vector& a, const Vector& b)
+{
+	return Vector(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
+}
+
+bool IsInViewCone(const Vector& origin, edict_t* ent)
 {
 	if (FNullEnt(ent))
 		return true;
 
 	MakeVectors(ent->v.v_angle);
 
-	if (((origin - (GetEntityOrigin(ent) + ent->v.view_ofs)).Normalize() | g_pGlobals->v_forward) >= cosf(((ent->v.fov > 0 ? ent->v.fov : 90.0f) * 0.5f) * (Math::MATH_PI * 0.00555555555f)))
+	if (((origin - (GetEntityOrigin(ent) + ent->v.view_ofs)).Normalize() | g_pGlobals->v_forward) >= cosf(((ent->v.fov > 0 ? ent->v.fov : 90.0f) * 0.5f) * 0.0174532925f))
 		return true;
 
 	return false;
@@ -137,7 +124,10 @@ bool IsInViewCone(Vector origin, edict_t* ent)
 
 bool IsVisible(const Vector& origin, edict_t* ent)
 {
-	TraceResult tr;
+	if (FNullEnt(ent))
+		return false;
+
+	TraceResult tr{};
 	TraceLine(GetEntityOrigin(ent), origin, true, true, ent, &tr);
 
 	if (tr.flFraction != 1.0f)
@@ -147,10 +137,10 @@ bool IsVisible(const Vector& origin, edict_t* ent)
 }
 
 // return walkable position on ground
-Vector GetWalkablePosition(const Vector& origin, edict_t* ent, bool returnNullVec)
+Vector GetWalkablePosition(const Vector& origin, edict_t* ent, bool returnNullVec, float height)
 {
-	TraceResult tr;
-	TraceLine(origin, Vector(origin.x, origin.y, -999999.0f), true, false, ent, &tr);
+	TraceResult tr{};
+	TraceLine(origin, Vector(origin.x, origin.y, -height), true, false, ent, &tr);
 
 	if (tr.flFraction != 1.0f)
 		return tr.vecEndPos; // walkable ground
@@ -159,45 +149,6 @@ Vector GetWalkablePosition(const Vector& origin, edict_t* ent, bool returnNullVe
 		return nullvec; // return nullvector for check if we can't hit the ground
 	else
 		return origin; // return original origin, we cant hit to ground
-}
-
-// same with GetWalkablePosition but gets nearest walkable position
-Vector GetNearestWalkablePosition(const Vector& origin, edict_t* ent, bool returnNullVec)
-{
-	TraceResult tr;
-	TraceLine(origin, Vector(origin.x, origin.y, -999999.0f), true, false, ent, &tr);
-
-	Vector BestOrigin = origin;
-
-	Vector FirstOrigin;
-	Vector SecondOrigin;
-
-	if (tr.flFraction != 1.0f)
-		FirstOrigin = tr.vecEndPos; // walkable ground?
-	else
-		FirstOrigin = nullvec;
-
-	if (g_numWaypoints > 0)
-		SecondOrigin = g_waypoint->GetPath(g_waypoint->FindNearest(origin))->origin; // get nearest waypoint for walk
-	else
-		SecondOrigin = nullvec;
-
-	if (FirstOrigin == nullvec)
-		BestOrigin = SecondOrigin;
-	else if (SecondOrigin == nullvec)
-		BestOrigin = FirstOrigin;
-	else
-	{
-		if ((origin - FirstOrigin).GetLengthSquared() < (origin - SecondOrigin).GetLengthSquared())
-			BestOrigin = FirstOrigin;
-		else
-			BestOrigin = SecondOrigin;
-	}
-
-	if (!returnNullVec && BestOrigin == nullvec)
-		BestOrigin = origin;
-
-	return BestOrigin;
 }
 
 // this expanded function returns the vector origin of a bounded entity, assuming that any
@@ -214,13 +165,20 @@ Vector GetEntityOrigin(edict_t* ent)
 	return entityOrigin;
 }
 
-// Get Entity Top/Bottom Origin
+Vector GetBoxOrigin(edict_t* ent)
+{
+	if (FNullEnt(ent))
+		return nullvec;
+
+	return ent->v.absmin + (ent->v.size * 0.5);
+}
+
 Vector GetTopOrigin(edict_t* ent)
 {
 	if (FNullEnt(ent))
 		return nullvec;
 
-	Vector origin = GetEntityOrigin(ent);
+	const Vector origin = GetEntityOrigin(ent);
 	Vector topOrigin = origin + ent->v.maxs;
 	if (topOrigin.z < origin.z)
 		topOrigin = origin + ent->v.mins;
@@ -235,7 +193,7 @@ Vector GetBottomOrigin(edict_t* ent)
 	if (FNullEnt(ent))
 		return nullvec;
 
-	Vector origin = GetEntityOrigin(ent);
+	const Vector origin = GetEntityOrigin(ent);
 	Vector bottomOrigin = origin + ent->v.mins;
 	if (bottomOrigin.z > origin.z)
 		bottomOrigin = origin + ent->v.maxs;
@@ -245,7 +203,6 @@ Vector GetBottomOrigin(edict_t* ent)
 	return bottomOrigin;
 }
 
-// Get Player Head Origin 
 Vector GetPlayerHeadOrigin(edict_t* ent)
 {
 	if (FNullEnt(ent))
@@ -255,7 +212,7 @@ Vector GetPlayerHeadOrigin(edict_t* ent)
 
 	if (!(ent->v.flags & FL_DUCKING))
 	{
-		Vector origin = GetEntityOrigin(ent);
+		const Vector origin = GetEntityOrigin(ent);
 		float hbDistance = headOrigin.z - origin.z;
 		hbDistance *= 0.4f;
 		headOrigin.z -= hbDistance;
@@ -268,10 +225,10 @@ Vector GetPlayerHeadOrigin(edict_t* ent)
 
 void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 {
-	if (!IsValidPlayer(ent))
+	if (!g_messageEnded || !IsValidPlayer(ent) || IsValidBot(ent))
 		return;
 
-	int clientIndex = ENTINDEX(ent) - 1;
+	const int clientIndex = ENTINDEX(ent) - 1;
 
 	if (menu != nullptr)
 	{
@@ -326,83 +283,6 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 	CLIENT_COMMAND(ent, "speak \"player/geiger1\"\n"); // Stops others from hearing menu sounds..
 }
 
-// this function draw spraypaint depending on the tracing results
-void DecalTrace(entvars_t* pev, TraceResult* trace, int logotypeIndex)
-{
-	if (FNullEnt(pev))
-		return;
-
-	static Array <String> logotypes;
-
-	if (logotypes.IsEmpty())
-		logotypes = String("{biohaz;{graf004;{graf005;{lambda06;{target;{hand1").Split(";");
-
-	int entityIndex = -1, message = TE_DECAL;
-	int decalIndex = (*g_engfuncs.pfnDecalIndex) (logotypes[logotypeIndex]);
-
-	if (decalIndex < 0)
-		decalIndex = (*g_engfuncs.pfnDecalIndex) ("{lambda06");
-
-	if (trace->flFraction == 1.0f)
-		return;
-
-	if (!FNullEnt(trace->pHit))
-	{
-		if (trace->pHit->v.solid == SOLID_BSP || trace->pHit->v.movetype == MOVETYPE_PUSHSTEP)
-			entityIndex = ENTINDEX(trace->pHit);
-		else
-			return;
-	}
-	else
-		entityIndex = 0;
-
-	if (entityIndex != 0)
-	{
-		if (decalIndex > 255)
-		{
-			message = TE_DECALHIGH;
-			decalIndex -= 256;
-		}
-	}
-	else
-	{
-		message = TE_WORLDDECAL;
-
-		if (decalIndex > 255)
-		{
-			message = TE_WORLDDECALHIGH;
-			decalIndex -= 256;
-		}
-	}
-
-	if (logotypes[logotypeIndex].Contains("{"))
-	{
-		MESSAGE_BEGIN(MSG_BROADCAST, SVC_TEMPENTITY);
-		WRITE_BYTE(TE_PLAYERDECAL);
-		WRITE_BYTE(ENTINDEX(ENT(pev)));
-		WRITE_COORD(trace->vecEndPos.x);
-		WRITE_COORD(trace->vecEndPos.y);
-		WRITE_COORD(trace->vecEndPos.z);
-		WRITE_SHORT(static_cast <short> (ENTINDEX(trace->pHit)));
-		WRITE_BYTE(decalIndex);
-		MESSAGE_END();
-	}
-	else
-	{
-		MESSAGE_BEGIN(MSG_BROADCAST, SVC_TEMPENTITY);
-		WRITE_BYTE(message);
-		WRITE_COORD(trace->vecEndPos.x);
-		WRITE_COORD(trace->vecEndPos.y);
-		WRITE_COORD(trace->vecEndPos.z);
-		WRITE_BYTE(decalIndex);
-
-		if (entityIndex)
-			WRITE_SHORT(entityIndex);
-
-		MESSAGE_END();
-	}
-}
-
 // this function free's all allocated memory
 void FreeLibraryMemory(void)
 {
@@ -410,13 +290,13 @@ void FreeLibraryMemory(void)
 	g_waypoint->Initialize(); // frees waypoint data
 }
 
-bool SetEntityAction(int index, int team, int action)
+bool SetEntityAction(const int index, const int team, const int action)
 {
-	int i;
 	if (index == -1)
 	{
-		for (i = 0; i < entityNum; i++)
+		for (int i = 0; i < entityNum; i++)
 			SetEntityActionData(i);
+
 		return 1;
 	}
 
@@ -427,7 +307,7 @@ bool SetEntityAction(int index, int team, int action)
 	if (IsValidPlayer(entity))
 		return -1;
 
-	for (i = 0; i < entityNum; i++)
+	for (int i = 0; i < entityNum; i++)
 	{
 		if (g_entityId[i] == index)
 		{
@@ -446,7 +326,7 @@ bool SetEntityAction(int index, int team, int action)
 	if (action == -1)
 		return -1;
 
-	for (i = 0; i < entityNum; i++)
+	for (int i = 0; i < entityNum; i++)
 	{
 		if (g_entityId[i] == -1)
 		{
@@ -458,7 +338,7 @@ bool SetEntityAction(int index, int team, int action)
 	return -1;
 }
 
-void SetEntityActionData(int i, int index, int team, int action)
+void SetEntityActionData(const int i, const int index, const int team, const int action)
 {
 	g_entityId[i] = index;
 	g_entityTeam[i] = team;
@@ -475,6 +355,9 @@ void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
 	// as real players. It is an improved version of botman's FakeClientCommand, in which you
 	// supply directly the whole string as if you were typing it in the bot's "console". It
 	// is supposed to work exactly like the pfnClientCommand (server-sided client command).
+
+	if (g_isFakeCommand)
+		return;
 
 	if (!IsValidBot(fakeClient))
 		return;
@@ -561,10 +444,10 @@ const char* GetField(const char* string, int fieldId, bool endLine)
 	// reset the string
 	cmemset(field, 0, sizeof(field));
 
-	int length, i, index = 0, fieldCount = 0, start, stop;
+	int i, index = 0, fieldCount = 0, start, stop;
 
 	field[0] = 0; // reset field
-	length = cstrlen(string); // get length of string
+	const size_t length = cstrlen(string); // get length of string
 
 	// while we have not reached end of line
 	while (index < length && fieldCount <= fieldId)
@@ -619,8 +502,10 @@ const char* GetModName(void)
 {
 	static char modName[256];
 
-	GET_GAME_DIR(modName); // ask the engine for the MOD directory path
-	int length = cstrlen(modName); // get the length of the returned string
+	// ask the engine for the MOD directory path
+	// get the length of the returned string
+	GET_GAME_DIR(modName);
+	int length = cstrlen(modName);
 
 	// format the returned string to get the last directory name
 	int stop = length - 1;
@@ -650,16 +535,16 @@ void CreatePath(char* path)
 	{
 		if (*ofs == '/')
 		{
-			// create the directory
 			*ofs = 0;
 #ifdef PLATFORM_WIN32
 			mkdir(path);
 #else
 			mkdir(path, 0777);
 #endif
-			* ofs = '/';
+			*ofs = '/';
 		}
 	}
+
 #ifdef PLATFORM_WIN32
 	mkdir(path);
 #else
@@ -671,85 +556,80 @@ void CreatePath(char* path)
 void RoundInit(void)
 {
 	g_roundEnded = false;
-	g_audioTime = 0.0f;
 
-	for (const auto& client : g_clients)
+	for (const auto& bot : g_botManager->m_bots)
 	{
-		if (g_botManager->GetBot(client.index) != nullptr)
-			g_botManager->GetBot(client.index)->NewRound();
+		if (bot == nullptr)
+			continue;
 
-		g_radioSelect[client.index] = 0;
+		bot->NewRound();
+		g_radioSelect[bot->GetIndex() - 1] = 0;
 	}
 
 	g_bombSayString = false;
 	g_timeBombPlanted = 0.0f;
-	g_timeNextBombUpdate = 0.0f;
-
-	g_leaderChoosen[TEAM_COUNTER] = false;
-	g_leaderChoosen[TEAM_TERRORIST] = false;
 
 	g_lastRadioTime[0] = 0.0f;
 	g_lastRadioTime[1] = 0.0f;
-	g_botsCanPause = false;
 
-	g_waypoint->ClearGoalScore();
 	g_waypoint->SetBombPosition(true);
 
-	if (g_gameVersion != HALFLIFE)
+	if (!(g_gameVersion & Game::HalfLife))
 	{
-		AutoLoadGameMode();
+		if (ebot_auto_gamemode.GetBool())
+			AutoLoadGameMode();
 
-		if (GetGameMode() == MODE_BASE)
+		if (GetGameMode() == GameMode::Original)
 		{
 			// check team economics
-			g_botManager->CheckTeamEconomics(TEAM_TERRORIST);
-			g_botManager->CheckTeamEconomics(TEAM_COUNTER);
+			g_botManager->CheckTeamEconomics(Team::Terrorist);
+			g_botManager->CheckTeamEconomics(Team::Counter);
 		}
 
 		// calculate the round mid/end in world time
-		g_timeRoundStart = engine->GetTime() + engine->GetFreezeTime() + g_pGlobals->frametime;
+		g_timeRoundStart = AddTime(engine->GetFreezeTime() + g_pGlobals->frametime);
 		g_timeRoundMid = g_timeRoundStart + engine->GetRoundTime() * 30.0f;
 		g_timeRoundEnd = g_timeRoundStart + engine->GetRoundTime() * 60.0f;
+
+		g_botManager->SelectLeaderEachTeam(Team::Counter);
+		g_botManager->SelectLeaderEachTeam(Team::Counter);
 	}
 	else
 	{
 		g_timeRoundStart = engine->GetTime();
 		g_timeRoundMid = g_timeRoundStart + 999999.0f;
 		g_timeRoundEnd = g_timeRoundStart + 999999.0f;
-
-		SetGameMode(MODE_DM);
-		g_mapType |= MAP_DE;
+		SetGameMode(GameMode::Deathmatch);
 	}
 }
 
 void AutoLoadGameMode(void)
 {
-	if (!g_isMetamod)
-		return;
+	const char* getModeName = GetModName();
 
 	static int checkShowTextTime = 0;
 	checkShowTextTime++;
 
 	// CS:BTE Support 
-	char* Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/bte_player.ini", GetModName());
-	if (TryFileOpen(Plugin_INI) || TryFileOpen(FormatBuffer("%s/addons/amxmodx/configs/bte_config/bte_blockresource.txt", GetModName())))
+	char* Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/bte_player.ini", getModeName);
+	if (TryFileOpen(Plugin_INI) || TryFileOpen(FormatBuffer("%s/addons/amxmodx/configs/bte_config/bte_blockresource.txt", getModeName)))
 	{
 		const int Const_GameModes = 13;
-		int bteGameModAi[Const_GameModes] =
+		GameMode bteGameModAi[Const_GameModes] =
 		{
-			MODE_BASE,		//1
-			MODE_TDM,		//2
-			MODE_DM,		//3
-			MODE_NOTEAM,	//4
-			MODE_TDM,		//5
-			MODE_ZP,		//6
-			MODE_ZP,		//7
-			MODE_ZP,		//8
-			MODE_ZP,		//9
-			MODE_ZH,		//10
-			MODE_ZP,		//11
-			MODE_NOTEAM,	//12
-			MODE_ZP			//13
+			GameMode::Original,		//1
+			GameMode::TeamDeathmatch,		//2
+			GameMode::Deathmatch,		//3
+			GameMode::NoTeam,	//4
+			GameMode::TeamDeathmatch,		//5
+			GameMode::ZombiePlague,		//6
+			GameMode::ZombiePlague,		//7
+			GameMode::ZombiePlague,		//8
+			GameMode::ZombiePlague,		//9
+			GameMode::ZombieHell,		//10
+			GameMode::ZombiePlague,		//11
+			GameMode::NoTeam,	//12
+			GameMode::ZombiePlague			//13
 		};
 
 		char* bteGameINI[Const_GameModes] =
@@ -771,10 +651,10 @@ void AutoLoadGameMode(void)
 
 		for (int i = 0; i < Const_GameModes; i++)
 		{
-			if (TryFileOpen(FormatBuffer("%s/addons/amxmodx/configs/%s.ini", GetModName(), bteGameINI[i])))
+			if (TryFileOpen(FormatBuffer("%s/addons/amxmodx/configs/%s.ini", getModeName, bteGameINI[i])))
 			{
-				if (bteGameModAi[i] == 2 && i != 5)
-					g_DelayTimer = engine->GetTime() + 20.0f + CVAR_GET_FLOAT("mp_freezetime");
+				if (bteGameModAi[i] == GameMode(2) && i != 5)
+					g_DelayTimer = AddTime(20.0f + CVAR_GET_FLOAT("mp_freezetime"));
 
 				if (checkShowTextTime < 3 || GetGameMode() != bteGameModAi[i])
 					ServerPrint("*** E-BOT Auto Game Mode Setting: CS:BTE [%s] [%d] ***", bteGameINI[i], bteGameModAi[i]);
@@ -782,13 +662,10 @@ void AutoLoadGameMode(void)
 				if (i == 3 || i == 9)
 				{
 					ServerPrint("***** E-BOT not support the mode now :( *****");
-
-					SetGameMode(MODE_TDM);
+					SetGameMode(GameMode::TeamDeathmatch);
 				}
 				else
 					SetGameMode(bteGameModAi[i]);
-
-				g_gameVersion = CSVER_CZERO;
 
 				// Only ZM3 need restart the round
 				if (checkShowTextTime < 3 && i == 7)
@@ -797,45 +674,60 @@ void AutoLoadGameMode(void)
 				break;
 			}
 		}
+
+		return;
 	}
 
 	if (ebot_zp_delay_custom.GetFloat() > 0.0f)
 	{
-		SetGameMode(MODE_ZP);
-		g_DelayTimer = engine->GetTime() + ebot_zp_delay_custom.GetFloat() + 2.2f;
-
-		// zombie escape
-		if (g_mapType & MAP_ZE)
-		{
-			extern ConVar ebot_escape;
-			ebot_escape.SetInt(1);
-			ServerPrint("*** E-BOT Detected Zombie Escape Map: ebot_zombie_escape_mode is set to 1 ***");
-		}
+		SetGameMode(GameMode::ZombiePlague);
+		g_DelayTimer = AddTime(ebot_zp_delay_custom.GetFloat() + 2.22f);
+		g_mapType |= MAP_DE;
+		return;
 	}
 	else
 	{
-		auto zpCvar = g_engfuncs.pfnCVarGetPointer("zp_delay");
-		if (!zpCvar)
-			zpCvar = g_engfuncs.pfnCVarGetPointer("zp_gamemode_delay");
-
-		if (zpCvar != nullptr)
+		// Zombie
+		char* zpGameVersion[] =
 		{
-			const float delayTime = zpCvar->value + 2.2f;
-			if (delayTime > 0.0f)
+			"plugins-zplague",  // ZP 4.3
+			"plugins-zp50_ammopacks", // ZP 5.0
+			"plugins-zp50_money", // ZP 5.0
+			"plugins-ze", // ZE
+			"plugins-zp", // ZP
+			"plugins-zescape", // ZE
+			"plugins-escape", // ZE
+			"plugins-plague" // ZP
+		};
+
+		for (int i = 0; i < 8; i++)
+		{
+			Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/%s.ini", getModeName, zpGameVersion[i]);
+			if (TryFileOpen(Plugin_INI))
 			{
-				if (checkShowTextTime < 3 || GetGameMode() != MODE_ZP)
-					ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Mode (Plague/Escape) ***");
+				float delayTime = CVAR_GET_FLOAT("zp_delay") + 2.2f;
 
-				// zombie escape
-				if (g_mapType & MAP_ZE)
+				if (i == 1 || i == 2)
+					delayTime = CVAR_GET_FLOAT("zp_gamemode_delay") + 0.2f;
+
+				if (delayTime > 0.0f)
 				{
-					extern ConVar ebot_escape;
-					ebot_escape.SetInt(1);
-					ServerPrint("*** E-BOT Detected Zombie Escape Map: ebot_zombie_escape_mode is set to 1 ***");
-				}
+					if (checkShowTextTime < 3 || GetGameMode() != GameMode::ZombiePlague)
+						ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Mode (Plague/Escape) ***");
 
-				SetGameMode(MODE_ZP);
-				g_DelayTimer = engine->GetTime() + delayTime;
+					// zombie escape
+					if (g_mapType & MAP_ZE)
+					{
+						extern ConVar ebot_escape;
+						ebot_escape.SetInt(1);
+						ServerPrint("*** E-BOT Detected Zombie Escape Map: ebot_zombie_escape_mode is set to 1 ***");
+					}
+
+					SetGameMode(GameMode::ZombiePlague);
+					g_DelayTimer = AddTime(delayTime);
+					g_mapType |= MAP_DE;
+					return;
+				}
 			}
 		}
 	}
@@ -849,54 +741,60 @@ void AutoLoadGameMode(void)
 
 	for (int i = 0; i < 2; i++)
 	{
-		Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/%s.ini", GetModName(), bbVersion[i]);
+		Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/%s.ini", getModeName, bbVersion[i]);
 		if (TryFileOpen(Plugin_INI))
 		{
-			float delayTime = CVAR_GET_FLOAT("bb_buildtime") + CVAR_GET_FLOAT("bb_preptime") + 2.2f;
-
+			const float delayTime = CVAR_GET_FLOAT("bb_buildtime") + CVAR_GET_FLOAT("bb_preptime") + 2.2f;
 			if (delayTime > 0)
 			{
-				if (checkShowTextTime < 3 || GetGameMode() != MODE_ZP)
+				if (checkShowTextTime < 3 || GetGameMode() != GameMode::ZombiePlague)
 					ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Mode (Base Builder) ***");
 
-				SetGameMode(MODE_ZP);
+				SetGameMode(GameMode::ZombiePlague);
 
-				g_DelayTimer = engine->GetTime() + delayTime;
+				g_DelayTimer = AddTime(delayTime);
+				g_mapType |= MAP_DE;
+				return;
 			}
 		}
 	}
 
 	// DM:KD
-	Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/plugins-dmkd.ini", GetModName());
+	Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/plugins-dmkd.ini", getModeName);
 	if (TryFileOpen(Plugin_INI))
 	{
 		if (CVAR_GET_FLOAT("DMKD_DMMODE") == 1)
 		{
-			if (checkShowTextTime < 3 || GetGameMode() != MODE_DM)
+			if (checkShowTextTime < 3 || GetGameMode() != GameMode::Deathmatch)
 				ServerPrint("*** E-BOT Auto Game Mode Setting: DM:KD-DM ***");
 
-			SetGameMode(MODE_DM);
+			SetGameMode(GameMode::Deathmatch);
 		}
 		else
 		{
-			if (checkShowTextTime < 3 || GetGameMode() != MODE_TDM)
+			if (checkShowTextTime < 3 || GetGameMode() != GameMode::TeamDeathmatch)
 				ServerPrint("*** E-BOT Auto Game Mode Setting: DM:KD-TDM ***");
 
-			SetGameMode(MODE_TDM);
+			SetGameMode(GameMode::TeamDeathmatch);
 		}
+
+		g_mapType |= MAP_DE;
+		return;
 	}
 
 	// Zombie Hell
-	Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/zombiehell.cfg", GetModName());
+	Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/zombiehell.cfg", getModeName);
 	if (TryFileOpen(Plugin_INI) && CVAR_GET_FLOAT("zh_zombie_maxslots") > 0)
 	{
-		if (checkShowTextTime < 3 || GetGameMode() != MODE_ZH)
+		if (checkShowTextTime < 3 || GetGameMode() != GameMode::ZombieHell)
 			ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Hell ***");
 
-		SetGameMode(MODE_ZH);
+		SetGameMode(GameMode::ZombieHell);
 
 		extern ConVar ebot_quota;
-		ebot_quota.SetInt(static_cast <int> (CVAR_GET_FLOAT("zh_zombie_maxslots")));
+		ebot_quota.SetInt(static_cast<int>(CVAR_GET_FLOAT("zh_zombie_maxslots")));
+		g_mapType |= MAP_DE;
+		return;
 	}
 
 	// Biohazard
@@ -909,90 +807,66 @@ void AutoLoadGameMode(void)
 
 	for (int i = 0; i < 3; i++)
 	{
-		Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/%s.ini", GetModName(), biohazard[i]);
+		Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/%s.ini", getModeName, biohazard[i]);
 		if (TryFileOpen(Plugin_INI))
 		{
-			float delayTime = CVAR_GET_FLOAT("bh_starttime") + 0.5f;
-
+			const float delayTime = CVAR_GET_FLOAT("bh_starttime") + 0.5f;
 			if (delayTime > 0)
 			{
-				if (checkShowTextTime < 3 || GetGameMode() != MODE_ZP)
+				if (checkShowTextTime < 3 || GetGameMode() != GameMode::ZombiePlague)
 					ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Mode (Biohazard) ***");
 
-				SetGameMode(MODE_ZP);
+				SetGameMode(GameMode::ZombiePlague);
 
-				g_DelayTimer = engine->GetTime() + delayTime;
+				g_DelayTimer = AddTime(delayTime);
+				g_mapType |= MAP_DE;
+				return;
 			}
 		}
 	}
 
-	static auto dmActive = g_engfuncs.pfnCVarGetPointer("csdm_active");
-	static auto freeForAll = g_engfuncs.pfnCVarGetPointer("mp_freeforall");
-
-	if (dmActive && freeForAll)
+	auto dmActive = g_engfuncs.pfnCVarGetPointer("csdm_active");
+	if (dmActive != nullptr && dmActive->value > 0.0f)
 	{
-		if (dmActive->value > 0.0f)
+		auto freeForAll = g_engfuncs.pfnCVarGetPointer("mp_freeforall");
+		if (freeForAll != nullptr && freeForAll->value > 0.0f)
 		{
-			if (freeForAll->value > 0.0f)
-			{
-				if (checkShowTextTime < 3 || GetGameMode() != MODE_DM)
-					ServerPrint("*** E-BOT Auto Game Mode Setting: CSDM-DM ***");
+			if (checkShowTextTime < 3 || GetGameMode() != GameMode::Deathmatch)
+				ServerPrint("*** E-BOT Auto Game Mode Setting: CSDM-DM ***");
 
-				SetGameMode(MODE_DM);
-			}
+			SetGameMode(GameMode::Deathmatch);
+			g_mapType |= MAP_DE;
+			return;
 		}
 	}
 
 	if (checkShowTextTime < 3)
 	{
-		if (GetGameMode() == MODE_BASE)
+		if (GetGameMode() == GameMode::Original)
 			ServerPrint("*** E-BOT Auto Game Mode Setting: Base Mode ***");
 		else
 			ServerPrint("*** E-BOT Auto Game Mode Setting: N/A ***");
 	}
-
-	if (GetGameMode() != MODE_BASE)
-		g_mapType = MAP_DE;
-}
-// returns if weapon can pierce through a wall
-bool IsWeaponShootingThroughWall(int id)
-{
-	if (g_gameVersion == HALFLIFE)
-		return false;
-
-	int i = 0;
-	while (g_weaponSelect[i].id)
-	{
-		if (g_weaponSelect[i].id == id)
-		{
-			if (g_weaponSelect[i].shootsThru)
-				return true;
-
-			return false;
-		}
-
-		i++;
-	}
-
-	return false;
 }
 
-void SetGameMode(int gamemode)
+void SetGameMode(GameMode gamemode)
 {
-	ebot_gamemod.SetInt(gamemode);
+	ebot_gamemod.SetInt(static_cast<int>(gamemode));
 }
 
 bool IsZombieMode(void)
 {
-	return (ebot_gamemod.GetInt() == MODE_ZP || ebot_gamemod.GetInt() == MODE_ZH);
+	const auto gamemode = GetGameMode();
+	return (gamemode == GameMode::ZombiePlague || gamemode == GameMode::ZombieHell);
 }
 
 bool IsDeathmatchMode(void)
 {
-	return (ebot_gamemod.GetInt() == MODE_DM || ebot_gamemod.GetInt() == MODE_TDM);
+	const auto gamemode = GetGameMode();
+	return (gamemode == GameMode::Deathmatch || gamemode == GameMode::TeamDeathmatch);
 }
 
-bool IsValidWaypoint(int index)
+bool IsValidWaypoint(const int index)
 {
 	if (index < 0 || index >= g_numWaypoints)
 		return false;
@@ -1000,9 +874,9 @@ bool IsValidWaypoint(int index)
 	return true;
 }
 
-int GetGameMode(void)
+GameMode GetGameMode(void)
 {
-	return ebot_gamemod.GetInt();
+	return static_cast<GameMode>(ebot_gamemod.GetInt());
 }
 
 bool IsBreakable(edict_t* ent)
@@ -1024,12 +898,11 @@ bool IsBreakable(edict_t* ent)
 int GetTeam(edict_t* ent)
 {
 	if (FNullEnt(ent))
-		return TEAM_COUNT;
+		return Team::Count;
 
-	int player_team = TEAM_COUNT;
+	int player_team = Team::Count;
 	if (!IsValidPlayer(ent))
 	{
-		player_team = 0;
 		for (int i = 0; i < entityNum; i++)
 		{
 			if (g_entityId[i] == -1)
@@ -1045,170 +918,26 @@ int GetTeam(edict_t* ent)
 		return player_team;
 	}
 
-	int client = ENTINDEX(ent);
 	if (ebot_ignore_enemies.GetBool())
-		player_team = TEAM_COUNTER;
-	else if (GetGameMode() == MODE_ZP)
+		player_team = Team::Counter;
+	else if (GetGameMode() == GameMode::ZombiePlague)
 	{
 		if (g_DelayTimer >= engine->GetTime())
-			player_team = TEAM_COUNTER;
+			player_team = Team::Counter;
 		else if (g_roundEnded)
-			player_team = TEAM_TERRORIST;
+			player_team = Team::Terrorist;
 		else
 			player_team = *((int*)ent->pvPrivateData + OFFSET_TEAM) - 1;
 	}
-	else if (GetGameMode() == MODE_DM)
+	else if (GetGameMode() == GameMode::Deathmatch || GetGameMode() == GameMode::NoTeam)
+	{
+		const int client = ENTINDEX(ent);
 		player_team = client * client;
-	else if (GetGameMode() == MODE_NOTEAM)
-		player_team = 2;
+	}
 	else
 		player_team = *((int*)ent->pvPrivateData + OFFSET_TEAM) - 1;
 
-	g_clients[client].team = player_team;
-
 	return player_team;
-}
-
-int SetEntityWaypoint(edict_t* ent, int mode)
-{
-	Vector origin = GetEntityOrigin(ent);
-	if (origin == nullvec)
-		return -1;
-
-	bool isPlayer = IsValidPlayer(ent);
-	int i = -1;
-
-	if (isPlayer)
-		i = ENTINDEX(ent) - 1;
-	else
-	{
-		for (int j = 0; j < entityNum; j++)
-		{
-			if (g_entityId[j] == -1 || ent != INDEXENT(g_entityId[j]))
-				continue;
-
-			i = j;
-			break;
-		}
-	}
-
-	if (i == -1)
-		return -1;
-
-	bool needCheckNewWaypoint = false;
-	float traceCheckTime = isPlayer ? g_clients[i].getWPTime : g_entityGetWpTime[i];
-	if ((isPlayer && g_clients[i].wpIndex == -1) || (!isPlayer && g_entityWpIndex[i] == -1))
-		needCheckNewWaypoint = true;
-	else if ((!isPlayer && g_entityGetWpTime[i] == engine->GetTime()) ||
-		(isPlayer && g_clients[i].getWPTime == engine->GetTime() &&
-			mode > 0 && g_clients[i].wpIndex2 == -1))
-		needCheckNewWaypoint = false;
-	else if (mode != -1)
-		needCheckNewWaypoint = true;
-	else
-	{
-		Vector getWpOrigin = nullvec;
-		int wpIndex = -1;
-		if (isPlayer)
-		{
-			getWpOrigin = g_clients[i].getWpOrigin;
-			wpIndex = g_clients[i].wpIndex;
-		}
-		else
-		{
-			getWpOrigin = g_entityGetWpOrigin[i];
-			wpIndex = g_entityWpIndex[i];
-		}
-
-		if (getWpOrigin != nullvec && wpIndex >= 0 && wpIndex < g_numWaypoints)
-		{
-			float distance = (getWpOrigin - origin).GetLengthSquared();
-			if (distance >= SquaredF(300.0f))
-				needCheckNewWaypoint = true;
-			else if (distance >= SquaredF(32.0f))
-			{
-				Vector wpOrigin = g_waypoint->GetPath(wpIndex)->origin;
-				distance = (wpOrigin - origin).GetLengthSquared();
-
-				if (distance > SquaredF(g_waypoint->GetPath(wpIndex)->radius + 32.0f))
-					needCheckNewWaypoint = true;
-				else
-				{
-					if (traceCheckTime + 5.0f <= engine->GetTime() || (traceCheckTime + 2.5f <= engine->GetTime() && !g_waypoint->Reachable(ent, wpIndex)))
-						needCheckNewWaypoint = true;
-				}
-			}
-		}
-		else
-			needCheckNewWaypoint = true;
-	}
-
-	if (!needCheckNewWaypoint)
-	{
-		if (isPlayer)
-		{
-			g_clients[i].getWPTime = engine->GetTime();
-			return g_clients[i].wpIndex;
-		}
-
-		g_entityGetWpTime[i] = engine->GetTime();
-		return g_entityWpIndex[i];
-	}
-
-	int wpIndex = -1;
-	int wpIndex2 = -1;
-
-	if (mode == -1 || g_botManager->GetBot(ent) == nullptr)
-		wpIndex = g_waypoint->FindNearest(origin, 999999.0f, -1, ent);
-	else
-		wpIndex = g_waypoint->FindNearest(origin, 999999.0f, -1, ent, &wpIndex2, mode);
-
-	if (!isPlayer)
-	{
-		g_entityWpIndex[i] = wpIndex;
-		g_entityGetWpOrigin[i] = origin;
-		g_entityGetWpTime[i] = engine->GetTime();
-	}
-	else
-	{
-		g_clients[i].wpIndex = wpIndex;
-		g_clients[i].wpIndex2 = wpIndex2;
-		g_clients[i].getWpOrigin = origin;
-		g_clients[i].getWPTime = engine->GetTime();
-	}
-
-	return wpIndex;
-}
-
-int GetEntityWaypoint(edict_t* ent)
-{
-	if (FNullEnt(ent))
-		return -1;
-
-	if (!IsValidPlayer(ent))
-	{
-		for (int i = 0; i < entityNum; i++)
-		{
-			if (g_entityId[i] == -1)
-				continue;
-
-			if (ent != INDEXENT(g_entityId[i]))
-				continue;
-
-			if (g_entityWpIndex[i] >= 0 && g_entityWpIndex[i] < g_numWaypoints)
-				return g_entityWpIndex[i];
-
-			return SetEntityWaypoint(ent);
-		}
-
-		return g_waypoint->FindNearest(GetEntityOrigin(ent), 999999.0f, -1, ent);
-	}
-
-	int client = ENTINDEX(ent) - 1;
-	if (g_clients[client].getWPTime < engine->GetTime() + 1.5f || (g_clients[client].wpIndex == -1 && g_clients[client].wpIndex2 == -1))
-		SetEntityWaypoint(ent);
-
-	return g_clients[client].wpIndex;
 }
 
 bool IsZombieEntity(edict_t* ent)
@@ -1217,7 +946,7 @@ bool IsZombieEntity(edict_t* ent)
 		return false;
 
 	if (IsZombieMode()) // Zombie Mode
-		return GetTeam(ent) == TEAM_TERRORIST;
+		return GetTeam(ent) == Team::Terrorist;
 
 	return false;
 }
@@ -1227,7 +956,7 @@ bool IsValidPlayer(edict_t* ent)
 	if (FNullEnt(ent))
 		return false;
 
-	if ((ent->v.flags & (FL_CLIENT | FL_FAKECLIENT)) || (cstrcmp(STRING(ent->v.classname), "player") == 0))
+	if (ent->v.flags & (FL_CLIENT | FL_FAKECLIENT))
 		return true;
 
 	return false;
@@ -1241,9 +970,52 @@ bool IsValidBot(edict_t* ent)
 	return false;
 }
 
-bool IsValidBot(int index)
+bool IsValidBot(const int index)
 {
 	if (g_botManager->GetIndex(index) != -1)
+		return true;
+
+	return false;
+}
+
+bool IsEntityWalkable(edict_t* ent)
+{
+	if (FNullEnt(ent))
+		return false;
+
+	if (FClassnameIs(ent, "func_door") || FClassnameIs(ent, "func_door_rotating"))
+		return true;
+	else if (FClassnameIs(ent, "func_breakable") && ent->v.takedamage == DAMAGE_YES)
+		return true;
+
+	return false;
+}
+
+bool IsWalkableTraceLineClear(const Vector from, const Vector to)
+{
+	TraceResult result;
+	edict_t* pEntIgnore = nullptr;
+	Vector useFrom = from;
+
+	while (true)
+	{
+		TraceLine(useFrom, to, true, pEntIgnore, &result);
+
+		// if we hit a walkable entity, try again
+		if (result.flFraction != 1.0f && IsEntityWalkable(result.pHit))
+		{
+			pEntIgnore = result.pHit;
+
+			// start from just beyond where we hit to avoid infinite loops
+			Vector dir = to - from;
+			dir.NormalizeInPlace();
+			useFrom = result.vecEndPos + 5.0f * dir;
+		}
+		else
+			break;
+	}
+
+	if (result.flFraction == 1.0f)
 		return true;
 
 	return false;
@@ -1269,11 +1041,11 @@ bool TryFileOpen(char* fileName)
 	return false;
 }
 
-void HudMessage(edict_t* ent, bool toCenter, const Color& rgb, char* format, ...)
+void HudMessage(edict_t* ent, const bool toCenter, const Color& rgb, char* format, ...)
 {
-	if (!g_sendMessage || !IsValidPlayer(ent) || IsValidBot(ent))
+	if (!g_messageEnded || !IsValidPlayer(ent) || IsValidBot(ent))
 		return;
-
+	
 	va_list ap;
 	char buffer[1024];
 
@@ -1281,15 +1053,15 @@ void HudMessage(edict_t* ent, bool toCenter, const Color& rgb, char* format, ...
 	vsprintf(buffer, format, ap);
 	va_end(ap);
 
-	MESSAGE_BEGIN(MSG_ONE, SVC_TEMPENTITY, nullptr, ent);
+	MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, ent);
 	WRITE_BYTE(TE_TEXTMESSAGE);
 	WRITE_BYTE(1);
 	WRITE_SHORT(FixedSigned16(-1, 1 << 13));
 	WRITE_SHORT(FixedSigned16(toCenter ? -1.0f : 0.0f, 1 << 13));
 	WRITE_BYTE(2);
-	WRITE_BYTE(static_cast <int> (rgb.red));
-	WRITE_BYTE(static_cast <int> (rgb.green));
-	WRITE_BYTE(static_cast <int> (rgb.blue));
+	WRITE_BYTE(static_cast<int>(rgb.red));
+	WRITE_BYTE(static_cast<int>(rgb.green));
+	WRITE_BYTE(static_cast<int>(rgb.blue));
 	WRITE_BYTE(0);
 	WRITE_BYTE(CRandomInt(230, 255));
 	WRITE_BYTE(CRandomInt(230, 255));
@@ -1299,7 +1071,7 @@ void HudMessage(edict_t* ent, bool toCenter, const Color& rgb, char* format, ...
 	WRITE_SHORT(FixedUnsigned16(2, 1 << 8));
 	WRITE_SHORT(FixedUnsigned16(6, 1 << 8));
 	WRITE_SHORT(FixedUnsigned16(0.1f, 1 << 8));
-	WRITE_STRING(const_cast <const char*> (&buffer[0]));
+	WRITE_STRING(const_cast<const char*>(&buffer[0]));
 	MESSAGE_END();
 }
 
@@ -1342,7 +1114,7 @@ void CenterPrint(const char* format, ...)
 		return;
 	}
 
-	if (!g_sendMessage)
+	if (!g_messageEnded)
 		return;
 
 	MESSAGE_BEGIN(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG));
@@ -1351,7 +1123,7 @@ void CenterPrint(const char* format, ...)
 	MESSAGE_END();
 }
 
-void ChartPrint(const char* format, ...)
+void ChatPrint(const char* format, ...)
 {
 	va_list ap;
 	char string[2048];
@@ -1366,7 +1138,7 @@ void ChartPrint(const char* format, ...)
 		return;
 	}
 
-	if (!g_sendMessage)
+	if (!g_messageEnded)
 		return;
 
 	cstrcat(string, "\n");
@@ -1379,7 +1151,7 @@ void ChartPrint(const char* format, ...)
 
 void ClientPrint(edict_t* ent, int dest, const char* format, ...)
 {
-	if (!IsValidPlayer(ent))
+	if (!IsValidPlayer(ent) || IsValidBot(ent))
 		return;
 
 	va_list ap;
@@ -1402,19 +1174,18 @@ void ClientPrint(edict_t* ent, int dest, const char* format, ...)
 	cstrcat(string, "\n");
 
 	if (dest & 0x3ff)
-		(*g_engfuncs.pfnClientPrintf) (ent, static_cast <PRINT_TYPE> (dest &= ~0x3ff), FormatBuffer("[E-BOT] %s", string));
+		(*g_engfuncs.pfnClientPrintf) (ent, static_cast<PRINT_TYPE>(dest &= ~0x3ff), FormatBuffer("[E-BOT] %s", string));
 	else
-		(*g_engfuncs.pfnClientPrintf) (ent, static_cast <PRINT_TYPE> (dest), string);
-
+		(*g_engfuncs.pfnClientPrintf) (ent, static_cast<PRINT_TYPE>(dest), string);
 }
 
 // this function returns true if server is running under linux, and false otherwise returns windows
 bool IsLinux(void)
 {
-#ifndef PLATFORM_WIN32
-	return true;
-#else
+#ifdef PLATFORM_WIN32
 	return false;
+#else
+	return true;
 #endif
 }
 
@@ -1436,7 +1207,7 @@ const char* GetEntityName(edict_t* entity)
 {
 	static char entityName[256];
 	if (FNullEnt(entity))
-		cstrcpy(entityName, "NULL");
+		cstrcpy(entityName, "nullptr");
 	else if (IsValidPlayer(entity))
 		cstrcpy(entityName, (char*)STRING(entity->v.netname));
 	else
@@ -1449,7 +1220,6 @@ const char* GetMapName(void)
 {
 	static char mapName[256];
 	cstrcpy(mapName, STRING(g_pGlobals->mapname));
-
 	return &mapName[0]; // and return a pointer to it
 }
 
@@ -1462,7 +1232,7 @@ bool OpenConfig(const char* fileName, char* errorIfNotExists, File* outFile)
 
 	if (!outFile->IsValid())
 	{
-		AddLogEntry(LOG_ERROR, errorIfNotExists);
+		AddLogEntry(Log::Error, errorIfNotExists);
 		return false;
 	}
 
@@ -1482,7 +1252,8 @@ void RegisterCommand(char* command, void funcPtr(void))
 {
 	if (IsNullString(command) || funcPtr == nullptr)
 		return; // reliability check
-	REG_SVR_COMMAND(command, funcPtr); // ask the engine to this new command
+
+	REG_SVR_COMMAND(command, funcPtr); // ask the engine to register this new command
 }
 
 void CheckWelcomeMessage(void)
@@ -1490,15 +1261,15 @@ void CheckWelcomeMessage(void)
 	static float receiveTime = -1.0f;
 
 	if (receiveTime == -1.0f && IsAlive(g_hostEntity))
-		receiveTime = engine->GetTime() + 10.0f;
+		receiveTime = AddTime(12.5f);
 
 	if (receiveTime > 0.0f && receiveTime < engine->GetTime())
 	{
-		int buildVersion[4] = { PRODUCT_VERSION_DWORD };
-		int bV16[4] = { buildVersion[0], buildVersion[1], buildVersion[2], buildVersion[3] };
+		const int buildVersion[4] = { PRODUCT_VERSION_DWORD };
+		const int bV16[4] = { buildVersion[0], buildVersion[1], buildVersion[2], buildVersion[3] };
 
-		ChartPrint("----- [%s %s] by %s -----", PRODUCT_NAME, PRODUCT_VERSION, PRODUCT_AUTHOR);
-		ChartPrint("***** Build: (%u.%u.%u.%u) *****", bV16[0], bV16[1], bV16[2], bV16[3]);
+		ChatPrint("----- [%s %s] by %s -----", PRODUCT_NAME, PRODUCT_VERSION, PRODUCT_AUTHOR);
+		ChatPrint("***** Build: (%u.%u.%u.%u) *****", bV16[0], bV16[1], bV16[2], bV16[3]);
 
 		receiveTime = 0.0f;
 	}
@@ -1506,45 +1277,19 @@ void CheckWelcomeMessage(void)
 
 void DetectCSVersion(void)
 {
-	uint8_t* detection = nullptr;
 	const char* const infoBuffer = "Game Registered: %s (0x%d)";
+	if (g_engfuncs.pfnCVarGetPointer("host_ver") != nullptr)
+		g_gameVersion |= Game::Xash;
 
 	// switch version returned by dll loader
-	switch (g_gameVersion)
-	{
-		// counter-strike 1.x, WON ofcourse
-	case CSVER_VERYOLD:
-		ServerPrint(infoBuffer, "CS 1.x (WON)", sizeof(Bot));
-		break;
-
-		// counter-strike 1.6 or higher (plus detects for non-steam versions of 1.5)
-	case CSVER_CSTRIKE:
-		detection = (*g_engfuncs.pfnLoadFileForMe) ("events/galil.sc", nullptr);
-
-		if (detection != nullptr)
-		{
-			ServerPrint(infoBuffer, "CS 1.6 (Steam)", sizeof(Bot));
-			g_gameVersion = CSVER_CSTRIKE; // just to be sure
-		}
-		else if (detection == nullptr)
-		{
-			ServerPrint(infoBuffer, "CS 1.5 (WON)", sizeof(Bot));
-			g_gameVersion = CSVER_VERYOLD; // reset it to WON
-		}
-
-		// if we have loaded the file free it
-		if (detection != nullptr)
-			(*g_engfuncs.pfnFreeFile) (detection);
-		break;
-
-		// counter-strike cz
-	case CSVER_CZERO:
-		ServerPrint(infoBuffer, "CS CZ (Steam)", sizeof(Bot));
-		break;
-	case HALFLIFE:
+	if (g_gameVersion & Game::Xash)
+		ServerPrint(infoBuffer, "Xash Engine", sizeof(Bot));
+	else if (g_gameVersion & Game::CZero)
+		ServerPrint(infoBuffer, "CS: CZ (Steam)", sizeof(Bot));
+	else if (g_gameVersion & Game::HalfLife)
 		ServerPrint(infoBuffer, "Half-Life", sizeof(Bot));
-		break;
-	}
+	else
+		ServerPrint(infoBuffer, "CS 1.6 (Steam)", sizeof(Bot));
 
 	engine->GetGameConVarsPointers(); // !!! TODO !!!
 }
@@ -1559,7 +1304,7 @@ void PlaySound(edict_t* ent, const char* name)
 }
 
 // this function logs a message to the message log file root directory.
-void AddLogEntry(int logLevel, const char* format, ...)
+void AddLogEntry(Log logLevel, const char* format, ...)
 {
 	va_list ap;
 	char buffer[512] = { 0, }, levelString[32] = { 0, }, logLine[1024] = { 0, };
@@ -1570,20 +1315,25 @@ void AddLogEntry(int logLevel, const char* format, ...)
 
 	switch (logLevel)
 	{
-	case LOG_DEFAULT:
+	case Log::Default:
 		cstrcpy(levelString, "Log: ");
 		break;
 
-	case LOG_WARNING:
+	case Log::Warning:
 		cstrcpy(levelString, "Warning: ");
 		break;
 
-	case LOG_ERROR:
+	case Log::Error:
 		cstrcpy(levelString, "Error: ");
 		break;
 
-	case LOG_FATAL:
+	case Log::Fatal:
 		cstrcpy(levelString, "Critical: ");
+		break;
+
+	case Log::Memory:
+		cstrcpy(levelString, "Memory Error: ");
+		ServerPrint("unexpected memory error");
 		break;
 	}
 
@@ -1599,7 +1349,7 @@ void MOD_AddLogEntry(int mod, char* format)
 	if (mod == -1)
 	{
 		sprintf(modName, "E-BOT");
-		int buildVersion[4] = { PRODUCT_VERSION_DWORD };
+		const int buildVersion[4] = {PRODUCT_VERSION_DWORD};
 		for (int i = 0; i < 4; i++)
 			mod_bV16[i] = (uint16)buildVersion[i];
 	}
@@ -1646,25 +1396,27 @@ void MOD_AddLogEntry(int mod, char* format)
 // be filled with bot pointer, else with edict pointer(!).
 bool FindNearestPlayer(void** pvHolder, edict_t* to, float searchDistance, bool sameTeam, bool needBot, bool isAlive, bool needDrawn)
 {
-	edict_t* ent = nullptr, * survive = nullptr; // pointer to temporaly & survive entity
+	edict_t* survive = nullptr; // pointer to temporaly & survive entity
 	float nearestPlayer = FLT_MAX; // nearest player
 
 	const Vector toOrigin = GetEntityOrigin(to);
 
-	while (!FNullEnt(ent = FIND_ENTITY_IN_SPHERE(ent, toOrigin, searchDistance)))
+	for (const auto& client : g_clients)
 	{
-		if (FNullEnt(ent) || !IsValidPlayer(ent) || to == ent)
-			continue; // skip invalid players
+		if (FNullEnt(client.ent))
+			continue;
 
-		if ((sameTeam && GetTeam(ent) != GetTeam(to)) || (isAlive && !IsAlive(ent)) || (needBot && !IsValidBot(ent)) || (needDrawn && (ent->v.effects & EF_NODRAW)))
+		if (client.ent == to)
+			continue;
+
+		if ((sameTeam && client.team != GetTeam(to)) || (isAlive && !IsAlive(client.ent)) || (needBot && !IsValidBot(client.index)) || (needDrawn && (client.ent->v.effects & EF_NODRAW)))
 			continue; // filter players with parameters
 
-		float distance = (GetEntityOrigin(ent) - toOrigin).GetLengthSquared();
-
+		const float distance = (client.ent->v.origin - toOrigin).GetLengthSquared();
 		if (distance < nearestPlayer)
 		{
 			nearestPlayer = distance;
-			survive = ent;
+			survive = client.ent;
 		}
 	}
 
@@ -1673,106 +1425,15 @@ bool FindNearestPlayer(void** pvHolder, edict_t* to, float searchDistance, bool 
 
 	// fill the holder
 	if (needBot)
-		*pvHolder = reinterpret_cast <void*> (g_botManager->GetBot(survive));
+		*pvHolder = reinterpret_cast<void*>(g_botManager->GetBot(survive));
 	else
-		*pvHolder = reinterpret_cast <void*> (survive);
+		*pvHolder = reinterpret_cast<void*>(survive);
 
 	return true;
 }
 
-// this function called by the sound hooking code (in emit_sound) enters the played sound into
-// the array associated with the entity
-void SoundAttachToThreat(edict_t* ent, const char* sample, float volume)
-{
-	if (FNullEnt(ent) || IsNullString(sample))
-		return; // reliability check
-
-	Vector origin = GetEntityOrigin(ent);
-	int index = ENTINDEX(ent) - 1;
-
-	if (index < 0 || index >= engine->GetMaxClients())
-	{
-		float nearestDistance = FLT_MAX;
-
-		// loop through all players
-		for (const auto& client : g_clients)
-		{
-			if (client.index < 0)
-				continue;
-
-			if (FNullEnt(client.ent))
-				continue;
-
-			if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE))
-				continue;
-
-			const float distance = (client.origin - origin).GetLengthSquared();
-
-			// now find nearest player
-			if (distance < nearestDistance)
-			{
-				index = client.index;
-				nearestDistance = distance;
-			}
-		}
-	}
-
-	if (index < 0 || index >= engine->GetMaxClients())
-		return;
-
-	if (cstrncmp("player/bhit_flesh", sample, 17) == 0 || cstrncmp("player/headshot", sample, 15) == 0)
-	{
-		// hit/fall sound?
-		g_clients[index].hearingDistance = 768.0f * volume;
-		g_clients[index].timeSoundLasting = engine->GetTime() + 0.5f;
-		g_clients[index].soundPosition = origin;
-	}
-	else if (cstrncmp("items/gunpickup", sample, 15) == 0)
-	{
-		// weapon pickup?
-		g_clients[index].hearingDistance = 768.0f * volume;
-		g_clients[index].timeSoundLasting = engine->GetTime() + 0.5f;
-		g_clients[index].soundPosition = origin;
-	}
-	else if (cstrncmp("weapons/zoom", sample, 12) == 0)
-	{
-		// sniper zooming?
-		g_clients[index].hearingDistance = 512.0f * volume;
-		g_clients[index].timeSoundLasting = engine->GetTime() + 0.1f;
-		g_clients[index].soundPosition = origin;
-	}
-	else if (cstrncmp("items/9mmclip", sample, 13) == 0)
-	{
-		// ammo pickup?
-		g_clients[index].hearingDistance = 512.0f * volume;
-		g_clients[index].timeSoundLasting = engine->GetTime() + 0.1f;
-		g_clients[index].soundPosition = origin;
-	}
-	else if (cstrncmp("hostage/hos", sample, 11) == 0)
-	{
-		// CT used hostage?
-		g_clients[index].hearingDistance = 1024.0f * volume;
-		g_clients[index].timeSoundLasting = engine->GetTime() + 5.0f;
-		g_clients[index].soundPosition = origin;
-	}
-	else if (cstrncmp("debris/bustmetal", sample, 16) == 0 || cstrncmp("debris/bustglass", sample, 16) == 0)
-	{
-		// broke something?
-		g_clients[index].hearingDistance = 1024.0f * volume;
-		g_clients[index].timeSoundLasting = engine->GetTime() + 2.0f;
-		g_clients[index].soundPosition = origin;
-	}
-	else if (cstrncmp("doors/doormove", sample, 14) == 0)
-	{
-		// someone opened a door
-		g_clients[index].hearingDistance = 1024.0f * volume;
-		g_clients[index].timeSoundLasting = engine->GetTime() + 3.0f;
-		g_clients[index].soundPosition = origin;
-	}
-}
-
 // this function returning weapon id from the weapon alias and vice versa.
-int GetWeaponReturn(bool needString, const char* weaponAlias, int weaponID)
+int GetWeaponReturn(const bool needString, const char* weaponAlias, const int weaponID)
 {
 	// structure definition for weapon tab
 	struct WeaponTab_t
@@ -1784,518 +1445,59 @@ int GetWeaponReturn(bool needString, const char* weaponAlias, int weaponID)
 	// weapon enumeration
 	WeaponTab_t weaponTab[] =
 	{
-	   {WEAPON_USP, "usp"}, // HK USP .45 Tactical
-	   {WEAPON_GLOCK18, "glock"}, // Glock18 Select Fire
-	   {WEAPON_DEAGLE, "deagle"}, // Desert Eagle .50AE
-	   {WEAPON_P228, "p228"}, // SIG P228
-	   {WEAPON_ELITE, "elite"}, // Dual Beretta 96G Elite
-	   {WEAPON_FN57, "fn57"}, // FN Five-Seven
-	   {WEAPON_M3, "m3"}, // Benelli M3 Super90
-	   {WEAPON_XM1014, "xm1014"}, // Benelli XM1014
-	   {WEAPON_MP5, "mp5"}, // HK MP5-Navy
-	   {WEAPON_TMP, "tmp"}, // Steyr Tactical Machine Pistol
-	   {WEAPON_P90, "p90"}, // FN P90
-	   {WEAPON_MAC10, "mac10"}, // Ingram MAC-10
-	   {WEAPON_UMP45, "ump45"}, // HK UMP45
-	   {WEAPON_AK47, "ak47"}, // Automat Kalashnikov AK-47
-	   {WEAPON_GALIL, "galil"}, // IMI Galil
-	   {WEAPON_FAMAS, "famas"}, // GIAT FAMAS
-	   {WEAPON_SG552, "sg552"}, // Sig SG-552 Commando
-	   {WEAPON_M4A1, "m4a1"}, // Colt M4A1 Carbine
-	   {WEAPON_AUG, "aug"}, // Steyr Aug
-	   {WEAPON_SCOUT, "scout"}, // Steyr Scout
-	   {WEAPON_AWP, "awp"}, // AI Arctic Warfare/Magnum
-	   {WEAPON_G3SG1, "g3sg1"}, // HK G3/SG-1 Sniper Rifle
-	   {WEAPON_SG550, "sg550"}, // Sig SG-550 Sniper
-	   {WEAPON_M249, "m249"}, // FN M249 Para
-	   {WEAPON_FBGRENADE, "flash"}, // Concussion Grenade
-	   {WEAPON_HEGRENADE, "hegren"}, // High-Explosive Grenade
-	   {WEAPON_SMGRENADE, "sgren"}, // Smoke Grenade
-	   {WEAPON_KEVLAR, "vest"}, // Kevlar Vest
-	   {WEAPON_KEVHELM, "vesthelm"}, // Kevlar Vest and Helmet
-	   {WEAPON_DEFUSER, "defuser"}, // Defuser Kit
-	   {WEAPON_SHIELDGUN, "shield"}, // Tactical Shield
+	   {Weapon::Usp, "usp"}, // HK USP .45 Tactical
+	   {Weapon::Glock18, "glock"}, // Glock18 Select Fire
+	   {Weapon::Deagle, "deagle"}, // Desert Eagle .50AE
+	   {Weapon::P228, "p228"}, // SIG P228
+	   {Weapon::Elite, "elite"}, // Dual Beretta 96G Elite
+	   {Weapon::FiveSeven, "fn57"}, // FN Five-Seven
+	   {Weapon::M3, "m3"}, // Benelli M3 Super90
+	   {Weapon::Xm1014, "xm1014"}, // Benelli XM1014
+	   {Weapon::Mp5, "mp5"}, // HK MP5-Navy
+	   {Weapon::Tmp, "tmp"}, // Steyr Tactical Machine Pistol
+	   {Weapon::P90, "p90"}, // FN P90
+	   {Weapon::Mac10, "mac10"}, // Ingram MAC-10
+	   {Weapon::Ump45, "ump45"}, // HK UMP45
+	   {Weapon::Ak47, "ak47"}, // Automat Kalashnikov AK-47
+	   {Weapon::Galil, "galil"}, // IMI Galil
+	   {Weapon::Famas, "famas"}, // GIAT FAMAS
+	   {Weapon::Sg552, "sg552"}, // Sig SG-552 Commando
+	   {Weapon::M4A1, "m4a1"}, // Colt M4A1 Carbine
+	   {Weapon::Aug, "aug"}, // Steyr Aug
+	   {Weapon::Scout, "scout"}, // Steyr Scout
+	   {Weapon::Awp, "awp"}, // AI Arctic Warfare/Magnum
+	   {Weapon::G3SG1, "g3sg1"}, // HK G3/SG-1 Sniper Rifle
+	   {Weapon::Sg550, "sg550"}, // Sig SG-550 Sniper
+	   {Weapon::M249, "m249"}, // FN M249 Para
+	   {Weapon::FbGrenade, "flash"}, // Concussion Grenade
+	   {Weapon::HeGrenade, "hegren"}, // High-Explosive Grenade
+	   {Weapon::SmGrenade, "sgren"}, // Smoke Grenade
+	   {Weapon::Kevlar, "vest"}, // Kevlar Vest
+	   {Weapon::KevlarHelmet, "vesthelm"}, // Kevlar Vest and Helmet
+	   {Weapon::Defuser, "defuser"}, // Defuser Kit
+	   {Weapon::Shield, "shield"}, // Tactical Shield
 	};
 
 	// if we need to return the string, find by weapon id
 	if (needString && weaponID != -1)
 	{
-		for (int i = 0; i < ARRAYSIZE_HLSDK(weaponTab); i++)
+		const auto size = ARRAYSIZE_HLSDK(weaponTab);
+		for (int i = 0; i < size; i++)
 		{
 			if (weaponTab[i].weaponID == weaponID) // is weapon id found?
 				return MAKE_STRING(weaponTab[i].alias);
 		}
+
 		return MAKE_STRING("(none)"); // return none
 	}
 
 	// else search weapon by name and return weapon id
-	for (int i = 0; i < ARRAYSIZE_HLSDK(weaponTab); i++)
+	const auto size = ARRAYSIZE_HLSDK(weaponTab);
+	for (int i = 0; i < size; i++)
 	{
 		if (cstrncmp(weaponTab[i].alias, weaponAlias, cstrlen(weaponTab[i].alias)) == 0)
 			return weaponTab[i].weaponID;
 	}
 
 	return -1; // no weapon was found return -1
-}
-
-// return priority of player (0 = max pri)
-unsigned int GetPlayerPriority(edict_t* player)
-{
-	const unsigned int lowestPriority = 0xFFFFFFFF;
-
-	if (FNullEnt(player))
-		return lowestPriority;
-
-	// human players have highest priority
-	auto bot = g_botManager->GetBot(player);
-	if (bot != nullptr)
-	{
-		// bots doing something important for the current scenario have high priority
-		if (GetGameMode() == MODE_BASE)
-		{
-			if (bot->m_isBomber)
-				return 2;
-
-			if (bot->m_isVIP)
-				return 2;
-
-			if (bot->HasHostage())
-				return 2;
-		}
-
-		// everyone else is ranked by their unique ID (which cannot be zero)
-		return bot->m_index + 3;
-	}
-
-	return 1;
-}
-
-inline float NormalizeAnglePositive(float angle)
-{
-	while (angle < 0.0f)
-		angle += 360.0f;
-
-	while (angle >= 360.0f)
-		angle -= 360.0f;
-
-	return angle;
-}
-
-ChatterMessage GetEqualChatter(int message)
-{
-	ChatterMessage mine = ChatterMessage::Nothing;
-
-	if (message == Radio_Affirmative)
-		mine = ChatterMessage::Yes;
-	else if (message == Radio_Negative)
-		mine = ChatterMessage::No;
-	else if (message == Radio_EnemySpotted)
-		mine = ChatterMessage::SeeksEnemy;
-	else if (message == Radio_NeedBackup)
-		mine = ChatterMessage::SeeksEnemy;
-	else if (message == Radio_TakingFire)
-		mine = ChatterMessage::SeeksEnemy;
-	else if (message == Radio_CoverMe)
-		mine = ChatterMessage::CoverMe;
-	else if (message == Radio_SectorClear)
-		mine = ChatterMessage::Clear;
-
-	return mine;
-}
-
-void GetVoiceAndDur(ChatterMessage message, char** voice, float* dur)
-{
-	if (message == ChatterMessage::Yes)
-	{
-		int rV = CRandomInt(1, 12);
-		if (rV == 1)
-		{
-			*voice = "affirmative";
-			*dur = 0.0f;
-		}
-		else if (rV == 2)
-		{
-			*voice = "alright";
-			*dur = 0.0f;
-		}
-		else if (rV == 3)
-		{
-			*voice = "alright_lets_do_this";
-			*dur = 1.0f;
-		}
-		else if (rV == 4)
-		{
-			*voice = "alright2";
-			*dur = 0.0f;
-		}
-		else if (rV == 5)
-		{
-			*voice = "ok";
-			*dur = 0.0f;
-		}
-		else if (rV == 6)
-		{
-			*voice = "ok_sir_lets_go";
-			*dur = 1.0f;
-		}
-		else if (rV == 7)
-		{
-			*voice = "ok_cmdr_lets_go";
-			*dur = 1.0f;
-		}
-		else if (rV == 8)
-		{
-			*voice = "ok2";
-			*dur = 0.0f;
-		}
-		else if (rV == 9)
-		{
-			*voice = "roger";
-			*dur = 0.0f;
-		}
-		else if (rV == 10)
-		{
-			*voice = "roger_that";
-			*dur = 0.0f;
-		}
-		else if (rV == 11)
-		{
-			*voice = "yea_ok";
-			*dur = 0.0f;
-		}
-		else
-		{
-			*voice = "you_heard_the_man_lets_go";
-			*dur = 1.0f;
-		}
-	}
-	else if (message == ChatterMessage::No)
-	{
-		int rV = CRandomInt(1, 13);
-		if (rV == 1)
-		{
-			*voice = "ahh_negative";
-			*dur = 1.0f;
-		}
-		else if (rV == 2)
-		{
-			*voice = "negative";
-			*dur = 0.0f;
-		}
-		else if (rV == 3)
-		{
-			*voice = "negative2";
-			*dur = 1.0f;
-		}
-		else if (rV == 4)
-		{
-			*voice = "no";
-			*dur = 0.0f;
-		}
-		else if (rV == 5)
-		{
-			*voice = "ok";
-			*dur = 0.0f;
-		}
-		else if (rV == 6)
-		{
-			*voice = "no_sir";
-			*dur = 0.0f;
-		}
-		else if (rV == 7)
-		{
-			*voice = "no_thanks";
-			*dur = 0.0f;
-		}
-		else if (rV == 8)
-		{
-			*voice = "no2";
-			*dur = 0.0f;
-		}
-		else if (rV == 9)
-		{
-			*voice = "naa";
-			*dur = 0.0f;
-		}
-		else if (rV == 10)
-		{
-			*voice = "nnno_sir";
-			*dur = 0.1f;
-		}
-		else if (rV == 11)
-		{
-			*voice = "hes_broken";
-			*dur = 0.1f;
-		}
-		else if (rV == 12)
-		{
-			*voice = "i_dont_think_so";
-			*dur = 0.0f;
-		}
-		else
-		{
-			*voice = "noo";
-			*dur = 0.0f;
-		}
-	}
-	else if (message == ChatterMessage::SeeksEnemy)
-	{
-		int rV = CRandomInt(1, 15);
-		if (rV == 1)
-		{
-			*voice = "help";
-			*dur = 0.0f;
-		}
-		else if (rV == 2)
-		{
-			*voice = "need_help";
-			*dur = 0.0f;
-		}
-		else if (rV == 3)
-		{
-			*voice = "need_help2";
-			*dur = 0.0f;
-		}
-		else if (rV == 4)
-		{
-			*voice = "taking_fire_need_assistance2";
-			*dur = 1.0f;
-		}
-		else if (rV == 5)
-		{
-			*voice = "engaging_enemies";
-			*dur = 0.8f;
-		}
-		else if (rV == 6)
-		{
-			*voice = "attacking";
-			*dur = 0.0f;
-		}
-		else if (rV == 7)
-		{
-			*voice = "attacking_enemies";
-			*dur = 1.0f;
-		}
-		else if (rV == 8)
-		{
-			*voice = "a_bunch_of_them";
-			*dur = 0.0f;
-		}
-		else if (rV == 9)
-		{
-			*voice = "im_pinned_down";
-			*dur = 0.25f;
-		}
-		else if (rV == 10)
-		{
-			*voice = "im_in_trouble";
-			*dur = 1.0f;
-		}
-		else if (rV == 11)
-		{
-			*voice = "in_combat";
-			*dur = 0.0f;
-		}
-		else if (rV == 12)
-		{
-			*voice = "in_combat2";
-			*dur = 0.0f;
-		}
-		else if (rV == 13)
-		{
-			*voice = "target_acquired";
-			*dur = 0.0f;
-		}
-		else if (rV == 14)
-		{
-			*voice = "target_spotted";
-			*dur = 0.0f;
-		}
-		else
-		{
-			*voice = "i_see_our_target";
-			*dur = 1.0f;
-		}
-	}
-	else if (message == ChatterMessage::Clear)
-	{
-		int rV = CRandomInt(1, 17);
-		if (rV == 1)
-		{
-			*voice = "clear";
-			*dur = 0.0f;
-		}
-		else if (rV == 2)
-		{
-			*voice = "clear2";
-			*dur = 0.0f;
-		}
-		else if (rV == 3)
-		{
-			*voice = "clear3";
-			*dur = 0.0f;
-		}
-		else if (rV == 4)
-		{
-			*voice = "clear4";
-			*dur = 1.0f;
-		}
-		else if (rV == 5)
-		{
-			*voice = "where_are_you_hiding";
-			*dur = 2.0f;
-		}
-		else if (rV == 6)
-		{
-			*voice = "where_could_they_be";
-			*dur = 0.0f;
-			
-			for (const auto& otherBot : g_botManager->m_bots)
-			{
-				if (otherBot != nullptr)
-					otherBot->m_radioOrder = Radio_ReportTeam;
-			}
-		}
-		else if (rV == 7)
-		{
-			*voice = "where_is_it";
-			*dur = 0.4f;
-
-			for (const auto& otherBot : g_botManager->m_bots)
-			{
-				if (otherBot != nullptr)
-					otherBot->m_radioOrder = Radio_ReportTeam;
-			}
-		}
-		else if (rV == 8)
-		{
-			*voice = "area_clear";
-			*dur = 0.0f;
-		}
-		else if (rV == 9)
-		{
-			*voice = "area_secure";
-			*dur = 0.0f;
-		}
-		else if (rV == 10)
-		{
-			*voice = "anyone_see_anything";
-			*dur = 1.0f;
-			
-			for (const auto& otherBot : g_botManager->m_bots)
-			{
-				if (otherBot != nullptr)
-					otherBot->m_radioOrder = Radio_ReportTeam;
-			}
-		}
-		else if (rV == 11)
-		{
-			*voice = "all_clear_here";
-			*dur = 1.0f;
-		}
-		else if (rV == 12)
-		{
-			*voice = "all_quiet";
-			*dur = 1.0f;
-		}
-		else if (rV == 13)
-		{
-			*voice = "nothing";
-			*dur = 0.7f;
-		}
-		else if (rV == 14)
-		{
-			*voice = "nothing_happening_over_here";
-			*dur = 1.0f;
-		}
-		else if (rV == 15)
-		{
-			*voice = "nothing_here";
-			*dur = 0.0f;
-		}
-		else if (rV == 16)
-		{
-			*voice = "nothing_moving_over_here";
-			*dur = 1.0f;
-		}
-		else
-		{
-			*voice = "anyone_see_them";
-			*dur = 0.0f;
-
-			for (const auto& otherBot : g_botManager->m_bots)
-			{
-				if (otherBot != nullptr)
-					otherBot->m_radioOrder = Radio_ReportTeam;
-			}
-		}
-	}
-	else if (message == ChatterMessage::CoverMe)
-	{
-		int rV = CRandomInt(1, 2);
-		if (rV == 1)
-		{
-			*voice = "cover_me";
-			*dur = 0.0f;
-		}
-		else
-		{
-			*voice = "cover_me2";
-			*dur = 0.0f;
-		}
-	}
-	else if (message == ChatterMessage::Happy)
-	{
-		int rV = CRandomInt(1, 10);
-		if (rV == 1)
-		{
-			*voice = "yea_baby";
-			*dur = 0.0f;
-		}
-		else if (rV == 2)
-		{
-			*voice = "whos_the_man";
-			*dur = 0.0f;
-		}
-		else if (rV == 3)
-		{
-			*voice = "who_wants_some_more";
-			*dur = 1.0f;
-		}
-		else if (rV == 4)
-		{
-			*voice = "yikes";
-			*dur = 0.0f;
-		}
-		else if (rV == 5)
-		{
-			*voice = "yesss";
-			*dur = 1.0f;
-		}
-		else if (rV == 6)
-		{
-			*voice = "yesss2";
-			*dur = 0.0f;
-		}
-		else if (rV == 7)
-		{
-			*voice = "whoo";
-			*dur = 0.0f;
-		}
-		else if (rV == 8)
-		{
-			*voice = "i_am_dangerous";
-			*dur = 1.0f;
-		}
-		else if (rV == 9)
-		{
-			*voice = "i_am_on_fire";
-			*dur = 1.0f;
-		}
-		else
-		{
-			*voice = "whoo2";
-			*dur = 0.5f;
-		}
-	}
 }

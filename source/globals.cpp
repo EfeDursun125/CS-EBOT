@@ -1,35 +1,10 @@
-//
-// Copyright (c) 2003-2009, by Yet Another POD-Bot Development Team.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the "Software"),
-// to deal in the Software without restriction, including without limitation
-// the rights to use, copy, modify, merge, publish, distribute, sublicense,
-// and/or sell copies of the Software, and to permit persons to whom the
-// Software is furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-// $Id:$
-//
-
 #include <core.h>
 
-float m_randomJoinTime = 0.0f; // for simulating server
 
-bool g_isMetamod = false;
+
 bool g_roundEnded = true;
-bool g_botsCanPause = false;
 bool g_bombPlanted = false;
+bool g_bombDefusing = false;
 bool g_bombSayString = false;
 bool g_editNoclip = false;
 bool g_isFakeCommand = false;
@@ -37,41 +12,31 @@ bool g_waypointOn = false;
 bool g_waypointsChanged = true;
 bool g_autoWaypoint = false;
 bool g_bLearnJumpWaypoint = false;
-bool g_leaderChoosen[2] = { false, false };
 bool g_analyzewaypoints = false;
 bool g_analyzeputrequirescrouch = false;
 bool g_expanded[Const_MaxWaypoints];
-bool g_sendMessage = false;
-bool g_isXash = false;
-
-bool g_sgdWaypoint = false;
-bool g_sautoWaypoint = false;
-int m_sautoRadius = 32;
+bool g_hasDoors = false;
+bool g_messageEnded = false;
 
 float g_lastChatTime = 0.0f;
 float g_timeRoundStart = 0.0f;
 float g_timeRoundEnd = 0.0f;
 float g_timeRoundMid = 0.0f;
-float g_timeNextBombUpdate = 0.0f;
 float g_timeBombPlanted = 0.0f;
 float g_lastRadioTime[2] = { 0.0f, 0.0f };
-float g_audioTime = 0.0f;
 float g_autoPathDistance = 250.0f;
 float g_fakePingUpdate = 0.0f;
-
+float g_randomJoinTime = 0.0f;
 float g_DelayTimer = 0.0f;
 
-int humansNumber;
-int botsNumber;
-
+int g_lastMessageID;
 int g_lastRadio[2];
 int g_storeAddbotVars[4];
 int g_radioSelect[32];
 int g_fakeArgc = 0;
-int g_gameVersion = CSVER_CSTRIKE;
+int g_gameVersion = Game::CStrike;
 int g_numWaypoints = 0;
 int g_mapType = 0;
-unsigned short g_killHistory = 0;
 
 int g_modelIndexLaser = 0;
 int g_modelIndexArrow = 0;
@@ -87,7 +52,7 @@ Vector g_entityGetWpOrigin[entityNum];
 float g_entityGetWpTime[entityNum];
 //******
 
-Array <Array <String> > g_chatFactory;
+Array <Array <String>> g_chatFactory;
 Array <NameItem> g_botNames;
 Array <KwChat> g_replyFactory;
 
@@ -97,46 +62,15 @@ meta_globals_t* gpMetaGlobals = nullptr;
 gamedll_funcs_t* gpGamedllFuncs = nullptr;
 mutil_funcs_t* gpMetaUtilFuncs = nullptr;
 
-DLL_FUNCTIONS g_functionTable;
-EntityAPI_t g_entityAPI = nullptr;
-NewEntityAPI_t g_getNewEntityAPI = nullptr;
-BlendAPI_t g_serverBlendingAPI = nullptr;
-FuncPointers_t g_funcPointers = nullptr;
-
 enginefuncs_t g_engfuncs;
-Clients g_clients[32];
 WeaponProperty g_weaponDefs[Const_MaxWeapons + 1];
+
+// max players is 32
+Clients g_clients[32];
 
 edict_t* g_worldEdict = nullptr;
 edict_t* g_hostEntity = nullptr;
 globalvars_t* g_pGlobals = nullptr;
-
-// default tables for personality weapon preferences, overridden by weapons.cfg
-int g_normalWeaponPrefs[Const_NumWeapons] =
-{ 0, 2, 1, 4, 5, 6, 3, 12, 10, 24, 25, 13, 11, 8, 7, 22, 23, 18, 21, 17, 19, 15, 17, 9, 14, 16 };
-
-int g_rusherWeaponPrefs[Const_NumWeapons] =
-{ 0, 2, 1, 4, 5, 6, 3, 24, 19, 22, 23, 20, 21, 10, 12, 13, 7, 8, 11, 9, 18, 17, 19, 15, 16, 14 };
-
-int g_carefulWeaponPrefs[Const_NumWeapons] =
-{ 0, 2, 1, 4, 5, 6, 3, 7, 8, 12, 10, 13, 11, 9, 24, 18, 14, 17, 16, 15, 19, 20, 21, 22, 23, 25 };
-
-SkillDef g_skillTab[6] =
-{
-   {0.8f, 1.0, 45.0, 65.0, 2.0, 3.0, 40.0f, 40.0f, 50.0f,   0,   0,   0, 50},
-   {0.6f, 0.8f, 40.0f, 60.0f, 3.0, 4.0, 30.0f, 30.0f, 42.0,  10,   0,   0, 40},
-   {0.4f, 0.6f, 35.0, 55.0, 4.0, 6.0, 20.0f, 20.0f, 32.0,  30,   0,  50, 35},
-   {0.2f, 0.3f, 30.0f, 50.0f, 6.0, 8.0, 10.0f, 10.0f, 18.0,   0,  30,  80, 30},
-   {0.1f, 0.2f, 25.0, 40.0f, 8.0, 10.0f, 5.0,  5.0, 10.0f,  80,  50, 100, 23},
-   {0.0f, 0.1f, 20.0f, 30.0f, 9.0, 12.0, 0.0f,  5.0,  0.0f, 100, 100, 100, 20}
-};
-
-int* g_weaponPrefs[] =
-{
-   g_normalWeaponPrefs,
-   g_rusherWeaponPrefs,
-   g_carefulWeaponPrefs
-};
 
 extern "C" int GetEntityAPI2(DLL_FUNCTIONS * functionTable, int* interfaceVersion);
 
@@ -167,113 +101,90 @@ plugin_info_t Plugin_info =
    PT_NEVER, // when unloadable
 };
 
-// table with all available actions for the bots (filtered in & out in Bot::SetConditions) some of them have subactions included
-Task g_taskFilters[] =
-{
-   {nullptr, nullptr, TASK_NORMAL, 0, -1, 0.0f, true},
-   {nullptr, nullptr, TASK_PAUSE, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_MOVETOPOSITION, 0, -1, 0.0f, true},
-   {nullptr, nullptr, TASK_FOLLOWUSER, 0, -1,0.0f, true},
-   {nullptr, nullptr, TASK_PICKUPITEM, 0, -1, 0.0f, true},
-   {nullptr, nullptr, TASK_CAMP, 0, -1, 0.0f, true},
-   {nullptr, nullptr, TASK_PLANTBOMB, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_DEFUSEBOMB, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_FIGHTENEMY, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_HUNTENEMY, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_SEEKCOVER, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_THROWHEGRENADE, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_THROWFBGRENADE, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_THROWSMGRENADE, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_THROWFLARE, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_DOUBLEJUMP, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_ESCAPEFROMBOMB, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_DESTROYBREAKABLE, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_HIDE, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_BLINDED, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_SPRAYLOGO, 0, -1, 0.0f, false},
-   {nullptr, nullptr, TASK_MOVETOTARGET, 0, -1, 0.0f, true},
-   {nullptr, nullptr, TASK_GOINGFORCAMP, 0, -1, 0.0f, true}
-};
-
 WeaponSelect g_weaponSelect[Const_NumWeapons + 1] =
 {
-	{WEAPON_KNIFE,		"weapon_knife",     "knife.mdl",     0,    0, -1, -1,  0,  0,  0,  0,  false, true},
-	{WEAPON_USP,			"weapon_usp",       "usp.mdl",       500,  1, -1, -1,  1,  1,  2,  2,  false, false},
-	{WEAPON_GLOCK18,		"weapon_glock18",   "glock18.mdl",   400,  1, -1, -1,  1,  2,  1,  1,  false, false},
-	{WEAPON_DEAGLE,		"weapon_deagle",	"deagle.mdl",	 650,  1,  0,  0,  1,  3,  4,  4,  true,  false},
-	{WEAPON_P228,		"weapon_p228",      "p228.mdl",      600,  1,  2,  2,  1,  4,  3,  3,  false, false},
-	{WEAPON_ELITE,		"weapon_elite",     "elite.mdl",     1000, 1,  2,  2,  1,  5,  5,  5,  false, false},
-	{WEAPON_FN57,		"weapon_fiveseven", "fiveseven.mdl", 750,  1,  1,  1,  1,  6,  5,  5,  false, false},
-	{WEAPON_M3,			"weapon_m3",        "m3.mdl",        1700, 1,  2, -1,  2,  1,  1,  1,  false, false},
-	{WEAPON_XM1014,		"weapon_xm1014",    "xm1014.mdl",    3000, 1,  2, -1,  2,  2,  2,  2,  false, false},
-	{WEAPON_MP5,			"weapon_mp5navy",   "mp5.mdl",       1500, 1,  2,  1,  3,  1,  2,  2,  false, true},
-	{WEAPON_TMP,			"weapon_tmp",       "tmp.mdl",       1250, 1,  1,  1,  3,  2,  1,  1,  false, true},
-	{WEAPON_P90,			"weapon_p90",       "p90.mdl",       2350, 1,  2,  1,  3,  3,  4,  4,  false, true},
-	{WEAPON_MAC10,		"weapon_mac10",     "mac10.mdl",     1400, 1,  0,  0,  3,  4,  1,  1,  false, true},
-	{WEAPON_UMP45,		"weapon_ump45",     "ump45.mdl",     1700, 1,  2,  2,  3,  5,  3,  3,  false, true},
-	{WEAPON_AK47,		"weapon_ak47",      "ak47.mdl",      2500, 1,  0,  0,  4,  1,  2,  2,  true,  true},
-	{WEAPON_SG552,		"weapon_sg552",     "sg552.mdl",     3500, 1,  0, -1,  4,  2,  4,  4,  true,  true},
-	{WEAPON_M4A1,		"weapon_m4a1",      "m4a1.mdl",      3100, 1,  1,  1,  4,  3,  3,  3,  true,  true},
-	{WEAPON_GALIL,		"weapon_galil",     "galil.mdl",     2000, 1,  0,  0,  4,  -1, 1,  1,  true,  true},
-	{WEAPON_FAMAS,		"weapon_famas",     "famas.mdl",     2250, 1,  1,  1,  4,  -1, 1,  1,  true,  true},
-	{WEAPON_AUG,			"weapon_aug",       "aug.mdl",       3500, 1,  1,  1,  4,  4,  4,  4,  true,  true},
-	{WEAPON_SCOUT,		"weapon_scout",		"scout.mdl",	 2750, 1,  2,  0,  4,  5,  3,  2,  false, false},
-	{WEAPON_AWP,			"weapon_awp",       "awp.mdl",       4750, 1,  2,  0,  4,  6,  5,  6,  true,  false},
-	{WEAPON_G3SG1,		"weapon_g3sg1",     "g3sg1.mdl",     5000, 1,  0,  2,  4,  7,  6,  6,  true,  false},
-	{WEAPON_SG550,		"weapon_sg550",     "sg550.mdl",     4200, 1,  1,  1,  4,  8,  5,  5,  true,  false},
-	{WEAPON_M249,		"weapon_m249",      "m249.mdl",      5750, 1,  2,  1,  5,  1,  1,  1,  true,  true},
-	{WEAPON_SHIELDGUN,	"weapon_shield",    "shield.mdl",    2200, 0,  1,  1,  8,  -1, 8,  8,  false, false},
-	{0,					"",                 "",              0,    0,  0,  0,  0,   0, 0,  0,  false, false}
+	{Weapon::Knife,		"weapon_knife",     "knife.mdl",     0,    0,  0,  0,  0,  0,  false, true},
+	{Weapon::Usp,			"weapon_usp",       "usp.mdl",       500,  1,  1,  1,  2,  2,  false, false},
+	{Weapon::Glock18,		"weapon_glock18",   "glock18.mdl",   400,  1,  1,  2,  1,  1,  false, false},
+	{Weapon::Deagle,		"weapon_deagle",	"deagle.mdl",	 650,  1,  1,  3,  4,  4,  true,  false},
+	{Weapon::P228,		"weapon_p228",      "p228.mdl",      600,  1,  1,  4,  3,  3,  false, false},
+	{Weapon::Elite,		"weapon_elite",     "elite.mdl",     1000, 1,  1,  5,  5,  5,  false, false},
+	{Weapon::FiveSeven,		"weapon_fiveseven", "fiveseven.mdl", 750,  1,  1,  6,  5,  5,  false, false},
+	{Weapon::M3,			"weapon_m3",        "m3.mdl",        1700, 1,  2,  1,  1,  1,  false, false},
+	{Weapon::Xm1014,		"weapon_xm1014",    "xm1014.mdl",    3000, 1,  2,  2,  2,  2,  false, false},
+	{Weapon::Mp5,			"weapon_mp5navy",   "mp5.mdl",       1500, 1,  3,  1,  2,  2,  false, true},
+	{Weapon::Tmp,			"weapon_tmp",       "tmp.mdl",       1250, 1,  3,  2,  1,  1,  false, true},
+	{Weapon::P90,			"weapon_p90",       "p90.mdl",       2350, 1,  3,  3,  4,  4,  false, true},
+	{Weapon::Mac10,		"weapon_mac10",     "mac10.mdl",     1400, 1,  3,  4,  1,  1,  false, true},
+	{Weapon::Ump45,		"weapon_ump45",     "ump45.mdl",     1700, 1,  3,  5,  3,  3,  false, true},
+	{Weapon::Ak47,		"weapon_ak47",      "ak47.mdl",      2500, 1,  4,  1,  2,  2,  true,  true},
+	{Weapon::Sg552,		"weapon_sg552",     "sg552.mdl",     3500, 1,  4,  2,  4,  4,  true,  true},
+	{Weapon::M4A1,		"weapon_m4a1",      "m4a1.mdl",      3100, 1,  4,  3,  3,  3,  true,  true},
+	{Weapon::Galil,		"weapon_galil",     "galil.mdl",     2000, 1,  4,  -1, 1,  1,  true,  true},
+	{Weapon::Famas,		"weapon_famas",     "famas.mdl",     2250, 1,  4,  -1, 1,  1,  true,  true},
+	{Weapon::Aug,			"weapon_aug",       "aug.mdl",       3500, 1,  4,  4,  4,  4,  true,  true},
+	{Weapon::Scout,		"weapon_scout",		"scout.mdl",	 2750, 1,  4,  5,  3,  2,  false, false},
+	{Weapon::Awp,			"weapon_awp",       "awp.mdl",       4750, 1,  4,  6,  5,  6,  true,  false},
+	{Weapon::G3SG1,		"weapon_g3sg1",     "g3sg1.mdl",     5000, 1,  4,  7,  6,  6,  true,  false},
+	{Weapon::Sg550,		"weapon_sg550",     "sg550.mdl",     4200, 1,  4,  8,  5,  5,  true,  false},
+	{Weapon::M249,		"weapon_m249",      "m249.mdl",      5750, 1,  5,  1,  1,  1,  true,  true},
+	{Weapon::Shield,	"weapon_shield",    "shield.mdl",    2200, 0,  8,  -1, 8,  8,  false, false},
+	{0,					"",                 "",              0,    0,   0,   0, 0,  0,  false, false}
 };
 
 WeaponSelect g_weaponSelectHL[Const_NumWeaponsHL + 1] =
 {
-	{WEAPON_CROWBAR, "weapon_crowbar", "crowbar.mdl", 0, 0, -1, -1, 0, 0, 0, 0, false, true},
-	{WEAPON_GLOCK, "weapon_9mmhandgun", "9mmhandgun.mdl", 2222, 1, -1, -1, 1, 1, 2, 2, false, false},
-	{WEAPON_PYTHON, "weapon_357", "357.mdl", 3333, 1, -1, -1, 1, 2, 1, 1, false, false},
-	{WEAPON_MP5_HL, "weapon_9mmAR",	"9mmar.mdl", 4444, 1, 0, 0, 1, 3, 4, 4, false, false},
-	{WEAPON_CROSSBOW, "weapon_crossbow", "crossbow.mdl", 5555, 1, 2, 2, 1, 5, 5, 5, false, false},
-	{WEAPON_SHOTGUN, "weapon_shotgun", "shotgun.mdl", 5555, 1, 1, 1, 1, 6, 5, 5, false, false},
-	{WEAPON_RPG, "weapon_rpg", "rpg.mdl", 8888, 1, 2, -1, 2, 1, 1, 1, false, false},
-	{WEAPON_GAUSS, "weapon_gauss", "gauss.mdl", 6666, 1, 2, -1, 2, 2, 2, 2, false, false},
-	{WEAPON_EGON, "weapon_egon", "egon.mdl", 7777, 1, 2, 1, 3, 1, 2, 2, false, true},
-	{WEAPON_HORNETGUN, "weapon_hornetgun", "hgun.mdl", 3333, 1, 1, 1, 3, 2, 1, 1, false, true},
-	{WEAPON_HANDGRENADE, "weapon_handgrenade", "grenade.mdl", 1111, 1, 2, 1, 3, 3, 4, 4, false, false},
-	{WEAPON_SNARK, "weapon_snark", "squeak.mdl", 9999, 1, 0, 0, 4, 1, 2, 2, false, true},
-	{0,	"", "", 0, 0, 0, 0, 0, 0, 0, 0, false, false}
+	{WeaponHL::Crowbar, "weapon_crowbar", "crowbar.mdl", 0, 0, 0, 0, 0, 0, false, true},
+	{WeaponHL::Glock, "weapon_9mmhandgun", "9mmhandgun.mdl", 2222, 1, 1, 1, 2, 2, false, false},
+	{WeaponHL::Python, "weapon_357", "357.mdl", 3333, 1, 1, 2, 1, 1, false, false},
+	{WeaponHL::Mp5_HL, "weapon_9mmAR",	"9mmar.mdl", 4444, 1, 1, 3, 4, 4, false, false},
+	{WeaponHL::Crossbow, "weapon_crossbow", "crossbow.mdl", 5555, 1, 1, 5, 5, 5, false, false},
+	{WeaponHL::Shotgun, "weapon_shotgun", "shotgun.mdl", 5555, 1, 1, 6, 5, 5, false, false},
+	{WeaponHL::Rpg, "weapon_rpg", "rpg.mdl", 8888, 1, 2, 1, 1, 1, false, false},
+	{WeaponHL::Gauss, "weapon_gauss", "gauss.mdl", 6666, 1, 2, 2, 2, 2, false, false},
+	{WeaponHL::Egon, "weapon_egon", "egon.mdl", 7777, 1, 3, 1, 2, 2, false, true},
+	{WeaponHL::HornetGun, "weapon_hornetgun", "hgun.mdl", 3333, 1, 3, 2, 1, 1, false, true},
+	{WeaponHL::HandGrenade, "weapon_handgrenade", "grenade.mdl", 1111, 1, 3, 3, 4, 4, false, false},
+	{WeaponHL::Snark, "weapon_snark", "squeak.mdl", 9999, 1, 4, 1, 2, 2, false, true},
+	{0,	"", "", 0, 0, 0, 0, 0, 0, false, false}
 };
 
 // weapon firing delay based on skill (min and max delay for each weapon)
 FireDelay g_fireDelay[Const_NumWeapons + 1] =
 {
-   {WEAPON_KNIFE,    255, 256, 0.10f, {0.0f, 0.2f, 0.3f, 0.4f, 0.6f, 0.8f}, {0.1f, 0.3f, 0.5f, 0.7f, 1.0f, 1.2f}, 0.0f, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}},
-   {WEAPON_USP,      3,   853, 0.15f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
-   {WEAPON_GLOCK18,  5,   853, 0.15f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
-   {WEAPON_DEAGLE,   2,   640, 0.20f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
-   {WEAPON_P228,     4,   853, 0.14f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
-   {WEAPON_ELITE,    3,   640, 0.20f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
-   {WEAPON_FN57,     4,   731, 0.14f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
-   {WEAPON_M3,       8,   365, 0.86f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
-   {WEAPON_XM1014,   7,   512, 0.15f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
-   {WEAPON_MP5,      4,   731, 0.10f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
-   {WEAPON_TMP,      3,   731, 0.05f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
-   {WEAPON_P90,      4,   731, 0.10f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
-   {WEAPON_MAC10,    3,   731, 0.06f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
-   {WEAPON_UMP45,    4,   731, 0.15f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
-   {WEAPON_AK47,     2,   512, 0.09f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
-   {WEAPON_SG552,    3,   512, 0.11f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
-   {WEAPON_M4A1,     3,   512, 0.08f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
-   {WEAPON_GALIL,    4,   512, 0.09f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
-   {WEAPON_FAMAS,    4,   512, 0.10f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
-   {WEAPON_AUG,      3,   512, 0.11f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
-   {WEAPON_SCOUT,    10,  256, 0.18f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
-   {WEAPON_AWP,      10,  170, 0.22f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
-   {WEAPON_G3SG1,    4,   256, 0.25f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
-   {WEAPON_SG550,    4,   256, 0.25f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
-   {WEAPON_M249,     3,   640, 0.10f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
-   {WEAPON_SHIELDGUN,0,   256, 0.00f, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, 0.0f, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}},
+   {Weapon::Knife,    255, 256, 0.10f, {0.0f, 0.2f, 0.3f, 0.4f, 0.6f, 0.8f}, {0.1f, 0.3f, 0.5f, 0.7f, 1.0f, 1.2f}, 0.0f, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}},
+   {Weapon::Usp,      3,   853, 0.15f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
+   {Weapon::Glock18,  5,   853, 0.15f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
+   {Weapon::Deagle,   2,   640, 0.20f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
+   {Weapon::P228,     4,   853, 0.14f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
+   {Weapon::Elite,    3,   640, 0.20f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
+   {Weapon::FiveSeven,     4,   731, 0.14f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
+   {Weapon::M3,       8,   365, 0.86f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
+   {Weapon::Xm1014,   7,   512, 0.15f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
+   {Weapon::Mp5,      4,   731, 0.10f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
+   {Weapon::Tmp,      3,   731, 0.05f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
+   {Weapon::P90,      4,   731, 0.10f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
+   {Weapon::Mac10,    3,   731, 0.06f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
+   {Weapon::Ump45,    4,   731, 0.15f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
+   {Weapon::Ak47,     2,   512, 0.09f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
+   {Weapon::Sg552,    3,   512, 0.11f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
+   {Weapon::M4A1,     3,   512, 0.08f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
+   {Weapon::Galil,    4,   512, 0.09f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
+   {Weapon::Famas,    4,   512, 0.10f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
+   {Weapon::Aug,      3,   512, 0.11f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
+   {Weapon::Scout,    10,  256, 0.18f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
+   {Weapon::Awp,      10,  170, 0.22f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
+   {Weapon::G3SG1,    4,   256, 0.25f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
+   {Weapon::Sg550,    4,   256, 0.25f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
+   {Weapon::M249,     3,   640, 0.10f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
+   {Weapon::Shield,0,   256, 0.00f, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, 0.0f, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}},
    {0,               0,   256, 0.00f, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, 0.0f, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}}
 };
+
+bool IsCStrike(void)
+{
+	return (g_gameVersion & Game::CStrike);
+}
 
 // bot menus
 MenuText g_menus[28] =

@@ -10,16 +10,6 @@
 #include <immintrin.h>
 #include <rng.h>
 
-#ifndef PLATFORM_WIN32
-#include <limits.h>
-#ifndef UINT64_MAX
-#define UINT64_MAX (__UINT64_MAX__)
-#endif
-#ifndef SIZE_MAX
-#define SIZE_MAX (~(size_t)0)
-#endif
-#endif
-
 int CRandomInt(const int min, const int max)
 {
 	return frand() % (max - min + 1) + min;

@@ -49,7 +49,7 @@ void BotCallbacks::OnClientConnect(const Client& client, const String& name, con
 
 void BotCallbacks::OnClientDisconnect(const Client& client)
 {
-	//   logger->Warning ("Client disconnected: %s", client.GetName ());
+
 }
 
 void BotCallbacks::OnClientEntersServer(const Entity& client)
