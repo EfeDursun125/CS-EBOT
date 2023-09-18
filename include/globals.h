@@ -28,6 +28,7 @@ extern float g_randomJoinTime;
 extern float g_DelayTimer;
 
 extern int g_lastMessageID;
+extern int g_numBytesWritten;
 extern int g_mapType;
 extern int g_numWaypoints;
 extern int g_gameVersion;
@@ -42,11 +43,8 @@ const int entityNum = 256;
 extern int g_entityId[entityNum];
 extern int g_entityTeam[entityNum];
 extern int g_entityAction[entityNum];
-extern int g_entityWpIndex[entityNum];
-extern Vector g_entityGetWpOrigin[entityNum];
-extern float g_entityGetWpTime[entityNum];
 
-extern Array <Array <String> > g_chatFactory;
+extern Array <Array <String>> g_chatFactory;
 extern Array <NameItem> g_botNames;
 extern Array <KwChat> g_replyFactory;
 
@@ -60,7 +58,6 @@ extern MenuText g_menus[28];
 
 extern edict_t* g_hostEntity;
 extern edict_t* g_worldEdict;
-extern Library* g_gameLib;
 
 extern bool IsCStrike(void);
 

@@ -45,3 +45,4 @@ extern char* cstrncpy(char* dest, const char* src, const size_t count);
 extern char* cstrcat(char* dest, const char* src);
 extern int catoi(const char* str);
 extern float catof(const char* str);
+extern int frand(void);

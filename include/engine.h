@@ -2042,8 +2042,8 @@ extern globalvars_t* g_pGlobals;
 extern DLL_GLOBAL const Vector g_vecZero;
 
 // Use this instead of ALLOC_STRING on constant strings
-#define STRING(offset)       (const char *)(g_pGlobals->pStringBase + (int)offset)
-#define MAKE_STRING(str)   ((int)str - (int)STRING(0))
+#define STRING(offset) (const char *)(g_pGlobals->pStringBase + (int)offset)
+#define MAKE_STRING(str) ((int)str - (int)STRING(0))
 
 inline edict_t* FIND_ENTITY_BY_CLASSNAME(edict_t* entStart, const char* pszName)
 {
@@ -2138,46 +2138,46 @@ inline edict_t* INDEXENT(const int iEdictNum)
 // Testing the three types of "entity" for nullity
 inline bool FNullEnt(EOFFSET eoffset)
 {
-    return eoffset == 0;
+    return !eoffset;
 }
 inline bool FNullEnt(entvars_t* pev)
 {
-    return pev == nullptr || FNullEnt(OFFSET(pev));
+    return !pev || FNullEnt(OFFSET(pev));
 }
 inline int FNullEnt(const edict_t* pent)
 {
     return !pent || !(*g_engfuncs.pfnEntOffsetOfPEntity) (pent);
 }
 
-// Testing strings for nullity
-#define iStringNull 0
-inline bool FStringNull(int iString)
+inline bool FStringNull(const int iString)
 {
-    return iString == iStringNull;
+    return !iString;
 }
 
 #define cchMapNameMost 32
 
 // Dot products for view cone checking
-#define VIEW_FIELD_FULL         (float)-1.0f     // +-180 degrees
-#define VIEW_FIELD_WIDE         (float)-0.7     // +-135 degrees 0.1 // +-85 degrees, used for full FOV checks
-#define VIEW_FIELD_NARROW       (float)0.7      // +-45 degrees, more narrow check used to set up ranged attacks
-#define VIEW_FIELD_ULTRA_NARROW (float)0.9      // +-25 degrees, more narrow check used to set up ranged attacks
+#define VIEW_FIELD_FULL -1.0f // +-180 degrees
+#define VIEW_FIELD_WIDE -0.7f // +-135 degrees 0.1 // +-85 degrees, used for full FOV checks
+#define VIEW_FIELD_NARROW 0.7f // +-45 degrees, more narrow check used to set up ranged attacks
+#define VIEW_FIELD_ULTRA_NARROW 0.9f // +-25 degrees, more narrow check used to set up ranged attacks
 
 extern inline bool IsNullString(const char*);
 
 // Misc useful
 inline bool FStrEq(const char* sz1, const char* sz2)
 {
-    if (sz1 == nullptr || sz2 == nullptr)
+    if (!sz1 || !sz2)
         return 0; // safety check
 
     return cstrcmp(sz1, sz2) == 0;
 }
+
 inline bool FClassnameIs(edict_t* pent, const char* szClassname)
 {
     return FStrEq(STRING(VARS(pent)->classname), szClassname);
 }
+
 inline bool FClassnameIs(entvars_t* pev, const char* szClassname)
 {
     return FStrEq(STRING(pev->classname), szClassname);
@@ -2541,7 +2541,7 @@ public:
 
     inline bool IsValid(void) const
     {
-        if (m_ent == nullptr || g_engfuncs.pfnEntOffsetOfPEntity(m_ent) == 0 || m_ent->free || m_ent->v.flags & FL_KILLME)
+        if (!m_ent || g_engfuncs.pfnEntOffsetOfPEntity(m_ent) == 0 || m_ent->free || m_ent->v.flags & FL_KILLME)
             return false;
 
         return true;

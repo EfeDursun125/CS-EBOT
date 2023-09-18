@@ -22,10 +22,7 @@
 #endif
 
 #include <stdio.h>
-#include <memory.h>
 #include <clib.h>
-
-using namespace std;
 
 #include <engine.h>
 
@@ -38,6 +35,8 @@ using namespace Math;
 #include <limits.h>
 #include <float.h>
 #include <time.h>
+
+using namespace std;
 
 #include <runtime.h>
 
@@ -381,7 +380,7 @@ const int WeaponBits_SecondaryNODEFAULT = ((1 << Weapon::P228) | (1 << Weapon::E
 struct PathNode
 {
 	int index;
-	PathNode* next;
+	shared_ptr<PathNode> next;
 };
 
 // links keywords and replies together
@@ -574,8 +573,8 @@ private:
 	float m_timeDoorOpen; // time to next door open check
 	float m_lastChatTime; // time bot last chatted
 
-	PathNode* m_navNode; // pointer to current node from path
-	PathNode* m_navNodeStart; // pointer to start of path finding nodes
+	shared_ptr<PathNode> m_navNode; // pointer to current node from path
+	shared_ptr<PathNode> m_navNodeStart; // pointer to start of path finding nodes
 	uint8_t m_visibility; // visibility flags
 
 	int m_currentWaypointIndex; // current waypoint index
@@ -878,7 +877,7 @@ public:
 
 	bool IsEnemyViewable(edict_t* player);
 	bool AllowPickupItem(void);
-	bool NextPath(PathNode* node);
+	bool NextPath(shared_ptr<PathNode> node);
 
 	void CheckStuck(const float maxSpeed);
 	void ResetStuck(void);
@@ -1021,7 +1020,7 @@ protected:
 	int CreateBot(String name, int skill, int personality, const int team, const int member);
 
 public:
-	Bot* m_bots[32]; // all available bots
+	shared_ptr<Bot> m_bots[32]; // all available bots
 
 	Array <String> m_savedBotNames; // storing the bot names
 	Array <String> m_avatars; // storing the steam ids
@@ -1075,7 +1074,7 @@ public:
 class NetworkMsg : public Singleton <NetworkMsg>
 {
 private:
-	Bot* m_bot;
+	shared_ptr<Bot> m_bot;
 	int m_state;
 	int m_message;
 	int m_registerdMessages[NETMSG_NUM];
@@ -1085,11 +1084,11 @@ public:
 	~NetworkMsg(void) { };
 
 	void Execute(void* p);
-	void Reset(void) { m_message = NETMSG_UNDEFINED; m_state = 0; m_bot = nullptr; };
+	void Reset(void) { m_message = NETMSG_UNDEFINED; m_state = 0; m_bot.reset(); };
 	void HandleMessageIfRequired(const int messageType, const int requiredType);
 
 	void SetMessage(const int message) { m_message = message; }
-	void SetBot(Bot* bot) { m_bot = bot; }
+	void SetBot(Bot* bot) { m_bot = shared_ptr<Bot>(bot); }
 
 	int GetId(const int messageType) { return m_registerdMessages[messageType]; }
 	void SetId(const int messageType, const int messsageIdentifier) { m_registerdMessages[messageType] = messsageIdentifier; }
@@ -1101,8 +1100,7 @@ class Waypoint : public Singleton <Waypoint>
 	friend class Bot;
 
 private:
-	Path* m_paths[Const_MaxWaypoints];
-	bool m_badMapName;
+	shared_ptr <Path> m_paths[Const_MaxWaypoints];
 
 	bool m_isOnLadder;
 	bool m_waypointPaths;
@@ -1110,8 +1108,6 @@ private:
 	bool m_learnJumpWaypoint;
 	float m_timeJumpStarted;
 
-	float m_timeGetProTarGet;
-	float m_timeCampWaypoint;
 	bool m_ladderPoint;
 	bool m_fallPoint;
 	int m_lastFallWaypoint;
@@ -1294,7 +1290,7 @@ extern void TraceHull(const Vector& start, const Vector& end, bool ignoreMonster
 
 inline bool IsNullString(const char* input)
 {
-	if (input == nullptr)
+	if (!input)
 		return true;
 
 	return *input == '\0';

@@ -72,86 +72,8 @@ typedef void (*EntityPtr_t) (entvars_t*);
 #ifdef PLATFORM_WIN32
 #include "urlmon.h"
 #pragma comment(lib, "urlmon.lib")
-
-class Library
-{
-private:
-    HMODULE m_ptr;
-
-public:
-
-    Library(const char* fileName)
-    {
-        if (fileName == nullptr)
-            return;
-
-        m_ptr = LoadLibraryA(fileName);
-    }
-
-    ~Library(void)
-    {
-        if (!IsLoaded())
-            return;
-
-        FreeLibrary(m_ptr);
-    }
-
-public:
-    void* GetFunctionAddr(const char* functionName)
-    {
-        if (!IsLoaded())
-            return nullptr;
-
-        return GetProcAddress(m_ptr, functionName);
-    }
-
-    inline bool IsLoaded(void) const
-    {
-        return m_ptr != nullptr;
-    }
-};
-
 #else
-
 #ifdef CURL_AVAILABLE
 #include <curl/curl.h>
 #endif
-
-class Library
-{
-private:
-    void* m_ptr;
-
-public:
-
-    Library(const char* fileName)
-    {
-        if (fileName == nullptr)
-            return;
-
-        m_ptr = dlopen(fileName, RTLD_NOW);
-    }
-
-    ~Library(void)
-    {
-        if (!IsLoaded())
-            return;
-
-        dlclose(m_ptr);
-    }
-
-public:
-    void* GetFunctionAddr(const char* functionName)
-    {
-        if (!IsLoaded())
-            return nullptr;
-
-        return dlsym(m_ptr, functionName);
-    }
-
-    inline bool IsLoaded(void) const
-    {
-        return m_ptr != nullptr;
-    }
-};
 #endif
