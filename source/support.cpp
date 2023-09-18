@@ -343,9 +343,6 @@ void SetEntityActionData(const int i, const int index, const int team, const int
 	g_entityId[i] = index;
 	g_entityTeam[i] = team;
 	g_entityAction[i] = action;
-	g_entityWpIndex[i] = -1;
-	g_entityGetWpOrigin[i] = nullvec;
-	g_entityGetWpTime[i] = 0.0f;
 }
 
 void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
@@ -559,7 +556,7 @@ void RoundInit(void)
 
 	for (const auto& bot : g_botManager->m_bots)
 	{
-		if (bot == nullptr)
+		if (!bot)
 			continue;
 
 		bot->NewRound();
@@ -1008,7 +1005,7 @@ bool IsWalkableTraceLineClear(const Vector from, const Vector to)
 
 			// start from just beyond where we hit to avoid infinite loops
 			Vector dir = to - from;
-			dir.NormalizeInPlace();
+			dir.Normalize();
 			useFrom = result.vecEndPos + 5.0f * dir;
 		}
 		else
@@ -1250,7 +1247,7 @@ const char* GetWaypointDir(void)
 // pointed to by "function" in order to handle it.
 void RegisterCommand(char* command, void funcPtr(void))
 {
-	if (IsNullString(command) || funcPtr == nullptr)
+	if (IsNullString(command) || !funcPtr)
 		return; // reliability check
 
 	REG_SVR_COMMAND(command, funcPtr); // ask the engine to register this new command

@@ -33,7 +33,7 @@ void Engine::PushRegisteredConVarsToEngine(void)
     for (int i = 0; i < m_regCount; i++)
     {
         VarPair* ptr = &m_regVars[i];
-        if (ptr == nullptr)
+        if (!ptr)
             break;
 
         g_engfuncs.pfnCVarRegister(&ptr->reg);
@@ -53,7 +53,7 @@ void Engine::GetGameConVarsPointers(void)
     m_gameVars[GVAR_DEVELOPER] = g_engfuncs.pfnCVarGetPointer("developer");
 
     // if buytime is null, just set it to round time
-    if (m_gameVars[GVAR_BUYTIME] == nullptr)
+    if (!m_gameVars[GVAR_BUYTIME])
         m_gameVars[GVAR_BUYTIME] = m_gameVars[3];
 }
 
@@ -98,7 +98,7 @@ void Engine::BuildGlobalVectors(const Vector& on)
 
 bool Engine::IsFootstepsOn(void)
 {
-    if (m_gameVars[GVAR_FOOTSTEPS] == nullptr)
+    if (!m_gameVars[GVAR_FOOTSTEPS])
         return true;
 
     return m_gameVars[GVAR_FOOTSTEPS]->value > 0;
@@ -106,7 +106,7 @@ bool Engine::IsFootstepsOn(void)
 
 float Engine::GetC4TimerTime(void)
 {
-    if (m_gameVars[GVAR_C4TIMER] == nullptr)
+    if (!m_gameVars[GVAR_C4TIMER])
         return 35.0f;
 
     return m_gameVars[GVAR_C4TIMER]->value;
@@ -114,7 +114,7 @@ float Engine::GetC4TimerTime(void)
 
 float Engine::GetBuyTime(void)
 {
-    if (m_gameVars[GVAR_BUYTIME] == nullptr)
+    if (!m_gameVars[GVAR_BUYTIME])
         return 15.0f;
 
     return m_gameVars[GVAR_BUYTIME]->value;
@@ -123,7 +123,7 @@ float Engine::GetBuyTime(void)
 float Engine::GetRoundTime(void)
 {
     // we have no idea
-    if (m_gameVars[GVAR_ROUNDTIME] == nullptr)
+    if (!m_gameVars[GVAR_ROUNDTIME])
         return CRandomFloat(120.0f, 300.0f);
 
     return m_gameVars[GVAR_ROUNDTIME]->value;
@@ -131,7 +131,7 @@ float Engine::GetRoundTime(void)
 
 float Engine::GetFreezeTime(void)
 {
-    if (m_gameVars[GVAR_FREEZETIME] == nullptr)
+    if (!m_gameVars[GVAR_FREEZETIME])
         return 1.0f;
 
     return m_gameVars[GVAR_FREEZETIME]->value;
@@ -139,7 +139,7 @@ float Engine::GetFreezeTime(void)
 
 int Engine::GetGravity(void)
 {
-    if (m_gameVars[GVAR_GRAVITY] == nullptr)
+    if (!m_gameVars[GVAR_GRAVITY])
         return 800;
 
     return static_cast<int>(m_gameVars[GVAR_GRAVITY]->value);
@@ -147,7 +147,7 @@ int Engine::GetGravity(void)
 
 int Engine::GetDeveloperLevel(void)
 {
-    if (m_gameVars[GVAR_DEVELOPER] == nullptr)
+    if (!m_gameVars[GVAR_DEVELOPER])
         return 0;
 
     return static_cast<int>(m_gameVars[GVAR_DEVELOPER]->value);
@@ -155,7 +155,7 @@ int Engine::GetDeveloperLevel(void)
 
 bool Engine::IsFriendlyFireOn(void)
 {
-    if (m_gameVars[GVAR_FRIENDLYFIRE] == nullptr)
+    if (!m_gameVars[GVAR_FRIENDLYFIRE])
         return false;
 
     return m_gameVars[GVAR_FRIENDLYFIRE]->value > 0;

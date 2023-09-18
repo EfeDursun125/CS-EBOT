@@ -35,7 +35,7 @@ void Bot::PushMessageQueue(const int message)
 		// notify other bots of the spoken text otherwise, bots won't respond to other bots (network messages aren't sent from bots)
 		for (const auto& bot : g_botManager->m_bots)
 		{
-			if (bot != nullptr && bot != this)
+			if (bot != nullptr && bot.get() != this)
 			{
 				if (m_isAlive == bot->m_isAlive)
 				{
@@ -662,7 +662,7 @@ void Bot::FindItem(void)
 		{
 			for (const auto& bot : g_botManager->m_bots)
 			{
-				if (bot != nullptr && bot != this && bot->m_isAlive && bot->m_pickupItem == pickupItem && bot->m_team == m_team)
+				if (bot != nullptr && bot.get() != this && bot->m_isAlive && bot->m_pickupItem == pickupItem && bot->m_team == m_team)
 				{
 					m_pickupItem = nullptr;
 					m_pickupType = PickupType::None;
@@ -825,7 +825,7 @@ void Bot::CheckMessageQueue(void)
 
 					for (const auto& bot : g_botManager->m_bots)
 					{
-						if (bot != nullptr && bot != this && bot->m_team == m_team)
+						if (bot != nullptr && bot.get() != this && bot->m_team == m_team)
 						{
 							bot->m_radioOrder = m_radioSelect;
 							bot->m_radioEntity = GetEntity();
@@ -953,10 +953,14 @@ void Bot::PerformWeaponPurchase(void)
 				if (HasShield())
 					break;
 
-				if (cstrlen((char*)m_favoritePrimary.GetAt(i)) < 1)
+				if (cstrlen(m_favoritePrimary.GetAt(i)) < 1)
 					continue;
 
-				if (IsRestricted(GetWeaponID((char*)m_favoritePrimary.GetAt(i))))
+				const int id = cmin(GetWeaponID(m_favoritePrimary.GetAt(i)), 32);
+				if (IsRestricted(id))
+					continue;
+
+				if (pev->weapons & (1 << id))
 					continue;
 
 				FakeClientCommand(GetEntity(), "%s", (char*)m_favoritePrimary.GetAt(i));
@@ -986,10 +990,14 @@ void Bot::PerformWeaponPurchase(void)
 					break;
 				}
 
-				if (cstrlen((char*)m_favoriteSecondary.GetAt(i)) < 1)
+				if (cstrlen(m_favoriteSecondary.GetAt(i)) < 1)
 					continue;
 
-				if (IsRestricted(GetWeaponID((char*)m_favoriteSecondary.GetAt(i))))
+				const int id = cmin(GetWeaponID(m_favoriteSecondary.GetAt(i)), 32);
+				if (IsRestricted(id))
+					continue;
+
+				if (pev->weapons & (1 << id))
 					continue;
 
 				FakeClientCommand(GetEntity(), "%s", (char*)m_favoriteSecondary.GetAt(i));
@@ -1071,10 +1079,10 @@ void Bot::PerformWeaponPurchase(void)
 		{
 			for (int i = 0; i < m_favoriteStuff.GetElementNumber(); i++)
 			{
-				if (cstrlen((char*)m_favoriteStuff.GetAt(i)) < 1)
+				if (cstrlen(m_favoriteStuff.GetAt(i)) < 1)
 					continue;
 
-				if (IsRestricted(GetWeaponID((char*)m_favoriteStuff.GetAt(i))))
+				if (IsRestricted(GetWeaponID(m_favoriteStuff.GetAt(i))))
 					continue;
 
 				FakeClientCommand(GetEntity(), "%s", (char*)m_favoriteStuff.GetAt(i));
@@ -1674,7 +1682,7 @@ void Bot::BaseUpdate(void)
 {
 	// run playermovement
 	const float time = engine->GetTime();
-	const byte adjustedMSec = static_cast<byte>(cminf(250.0f, (time - m_msecInterval) * 1000.0f));
+	const uint8_t adjustedMSec = static_cast<uint8_t>(cminf(250.0f, (time - m_msecInterval) * 1000.0f));
 	m_msecInterval = time;
 	PLAYER_RUN_MOVE(pev->pContainingEntity, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, static_cast<unsigned short>(pev->button), pev->impulse, adjustedMSec);
 
@@ -1743,7 +1751,7 @@ void Bot::BaseUpdate(void)
 
 						// clear the used line buffer every now and then
 						if (m_sayTextBuffer.lastUsedSentences.GetElementNumber() > CRandomInt(4, 6))
-							m_sayTextBuffer.lastUsedSentences.RemoveAll();
+							m_sayTextBuffer.lastUsedSentences.Destroy();
 					}
 				}
 
@@ -1851,7 +1859,7 @@ void Bot::CheckSlowThink(void)
 		}
 	}
 
-	if (pev->pContainingEntity == nullptr)
+	if (!pev->pContainingEntity)
 	{
 		pev->pContainingEntity = GetEntity();
 		return;
@@ -2092,7 +2100,7 @@ void Bot::LookAtAround(void)
 	
 	if (m_navNode != nullptr && m_navNode->next != nullptr)
 	{
-		const PathNode* third = m_navNode->next->next;
+		const PathNode* third = m_navNode->next->next.get();
 		if (third != nullptr)
 			m_lookAt = g_waypoint->GetPath(third->index)->origin + pev->view_ofs;
 	}
@@ -2364,7 +2372,7 @@ void Bot::DebugModeMsg(void)
 			sprintf(gamemodName, "UNKNOWN MODE");
 		}
 
-		PathNode* navid = &m_navNode[0];
+		PathNode* navid = &m_navNode.get()[0];
 		int navIndex[2] = { 0, 0 };
 
 		while (navid != nullptr)
@@ -2377,7 +2385,7 @@ void Bot::DebugModeMsg(void)
 				break;
 			}
 
-			navid = navid->next;
+			navid = navid->next.get();
 		}
 
 		const int client = GetIndex() - 1;
@@ -2438,16 +2446,13 @@ void Bot::DebugModeMsg(void)
 	if (m_destOrigin != nullvec)
 		engine->DrawLine(g_hostEntity, pev->origin, m_destOrigin, Color(0, 0, 255, 255), 10, 0, 5, 1, LINE_SIMPLE);
 
-	if (m_stuckArea != nullvec && m_stuckWarn > 0)
-		engine->DrawLine(g_hostEntity, pev->origin, m_stuckArea, Color(255, 0, 0, 255), 10, 0, 5, 1, LINE_SIMPLE);
-
 	// now draw line from source to destination
-	PathNode* node = &m_navNode[0];
+	PathNode* node = &m_navNode.get()[0];
 	while (node != nullptr)
 	{
 		Path* path = g_waypoint->GetPath(node->index);
 		const Vector src = path->origin;
-		node = node->next;
+		node = node->next.get();
 
 		if (node != nullptr)
 		{
@@ -2546,11 +2551,11 @@ void Bot::TakeBlinded(const Vector fade, const int alpha)
 // command, very useful, when i don't have money to buy anything... )
 void Bot::DiscardWeaponForUser(edict_t* user, const bool discardC4)
 {
-	if (FNullEnt(user))
+	if (!m_buyingFinished && FNullEnt(user))
 		return;
 
 	const Vector userOrigin = GetEntityOrigin(user);
-	if (IsAlive(user) && m_moneyAmount >= 2000 && HasPrimaryWeapon() && (userOrigin - pev->origin).GetLengthSquared() <= SquaredF(240.0f))
+	if (IsAlive(user) && m_moneyAmount >= 2000 && HasPrimaryWeapon() && (userOrigin - pev->origin).GetLengthSquared() < SquaredF(240.0f))
 	{
 		m_lookAt = userOrigin;
 
@@ -2603,7 +2608,7 @@ Vector Bot::CheckToss(const Vector& start, const Vector& stop)
 	Vector end = stop - pev->velocity;
 	end.z -= 15.0f;
 
-	if (fabsf(end.z - start.z) > 500.0f)
+	if (cabsf(end.z - start.z) > 500.0f)
 		return nullvec;
 
 	Vector midPoint = start + (end - start) * 0.5f;
@@ -2951,7 +2956,7 @@ bool Bot::IsBombDefusing(const Vector bombOrigin)
 		if (client.team == m_team)
 		{
 			// if close enough, mark as progressing
-			if (bombDistance <= distanceToBomb && ((client.ent->v.button | client.ent->v.oldbuttons) & IN_USE))
+			if (bombDistance < distanceToBomb && ((client.ent->v.button | client.ent->v.oldbuttons) & IN_USE))
 			{
 				defusingInProgress = true;
 				break;
@@ -2967,73 +2972,73 @@ bool Bot::IsBombDefusing(const Vector bombOrigin)
 int Bot::GetWeaponID(const char* weapon)
 {
 	int id = Weapon::KevlarHelmet;
-	if (cstrcmp(weapon, "p228"))
+	if (cstrncmp(weapon, "p228", 4))
 		id = Weapon::P228;
-	else if (cstrcmp(weapon, "shield"))
+	else if (cstrncmp(weapon, "shield", 6))
 		id = Weapon::Shield;
-	else if (cstrcmp(weapon, "scout"))
+	else if (cstrncmp(weapon, "scout", 5))
 		id = Weapon::Scout;
-	else if (cstrcmp(weapon, "hegren"))
+	else if (cstrncmp(weapon, "hegren", 6))
 		id = Weapon::HeGrenade;
-	else if (cstrcmp(weapon, "xm1014"))
+	else if (cstrncmp(weapon, "xm1014", 6))
 		id = Weapon::Xm1014;
-	else if (cstrcmp(weapon, "mac10"))
+	else if (cstrncmp(weapon, "mac10", 5))
 		id = Weapon::Mac10;
-	else if (cstrcmp(weapon, "aug"))
+	else if (cstrncmp(weapon, "aug", 3))
 		id = Weapon::Aug;
-	else if (cstrcmp(weapon, "sgren"))
+	else if (cstrncmp(weapon, "sgren", 5))
 		id = Weapon::SmGrenade;
-	else if (cstrcmp(weapon, "elites"))
+	else if (cstrncmp(weapon, "elites", 6))
 		id = Weapon::Elite;
-	else if (cstrcmp(weapon, "fiveseven"))
+	else if (cstrncmp(weapon, "fiveseven", 9))
 		id = Weapon::FiveSeven;
-	else if (cstrcmp(weapon, "ump45"))
+	else if (cstrncmp(weapon, "ump45", 5))
 		id = Weapon::Ump45;
-	else if (cstrcmp(weapon, "sg550"))
+	else if (cstrncmp(weapon, "sg550", 5))
 		id = Weapon::Sg550;
-	else if (cstrcmp(weapon, "galil"))
+	else if (cstrncmp(weapon, "galil", 5))
 		id = Weapon::Galil;
-	else if (cstrcmp(weapon, "famas"))
+	else if (cstrncmp(weapon, "famas", 5))
 		id = Weapon::Famas;
-	else if (cstrcmp(weapon, "usp"))
+	else if (cstrncmp(weapon, "usp", 3))
 		id = Weapon::Usp;
-	else if (cstrcmp(weapon, "glock18"))
+	else if (cstrncmp(weapon, "glock18", 7))
 		id = Weapon::Glock18;
-	else if (cstrcmp(weapon, "glock"))
+	else if (cstrncmp(weapon, "glock", 5))
 		id = Weapon::Glock18;
-	else if (cstrcmp(weapon, "awp"))
+	else if (cstrncmp(weapon, "awp", 3))
 		id = Weapon::Awp;
-	else if (cstrcmp(weapon, "mp5"))
+	else if (cstrncmp(weapon, "mp5", 3))
 		id = Weapon::Mp5;
-	else if (cstrcmp(weapon, "m249"))
+	else if (cstrncmp(weapon, "m249", 4))
 		id = Weapon::M249;
-	else if (cstrcmp(weapon, "m3"))
+	else if (cstrncmp(weapon, "m3", 2))
 		id = Weapon::M3;
-	else if (cstrcmp(weapon, "m4a1"))
+	else if (cstrncmp(weapon, "m4a1", 4))
 		id = Weapon::M4A1;
-	else if (cstrcmp(weapon, "tmp"))
+	else if (cstrncmp(weapon, "tmp", 3))
 		id = Weapon::Tmp;
-	else if (cstrcmp(weapon, "g3sg1"))
+	else if (cstrncmp(weapon, "g3sg1", 5))
 		id = Weapon::G3SG1;
-	else if (cstrcmp(weapon, "flash"))
+	else if (cstrncmp(weapon, "flash", 5))
 		id = Weapon::FbGrenade;
-	else if (cstrcmp(weapon, "flashbang"))
+	else if (cstrncmp(weapon, "flashbang", 9))
 		id = Weapon::FbGrenade;
-	else if (cstrcmp(weapon, "deagle"))
+	else if (cstrncmp(weapon, "deagle", 6))
 		id = Weapon::Deagle;
-	else if (cstrcmp(weapon, "sg552"))
+	else if (cstrncmp(weapon, "sg552", 5))
 		id = Weapon::Sg552;
-	else if (cstrcmp(weapon, "ak47"))
+	else if (cstrncmp(weapon, "ak47", 4))
 		id = Weapon::Ak47;
-	else if (cstrcmp(weapon, "p90"))
+	else if (cstrncmp(weapon, "p90", 3))
 		id = Weapon::P90;
-	else if (cstrcmp(weapon, "vesthelmet"))
+	else if (cstrncmp(weapon, "vesthelmet", 10))
 		id = Weapon::KevlarHelmet;
-	else if (cstrcmp(weapon, "vesthelm"))
+	else if (cstrncmp(weapon, "vesthelm", 8))
 		id = Weapon::KevlarHelmet;
-	else if (cstrcmp(weapon, "vest"))
+	else if (cstrncmp(weapon, "vest", 4))
 		id = Weapon::Kevlar;
-	else if (cstrcmp(weapon, "defuser"))
+	else if (cstrncmp(weapon, "defuser", 7))
 		id = Weapon::Defuser;
 
 	return id;

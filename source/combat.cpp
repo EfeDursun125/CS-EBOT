@@ -39,8 +39,6 @@ int Bot::GetNearbyEnemiesNearPosition(const Vector origin, const float radius)
 void Bot::FindFriendsAndEnemiens(void)
 {
 	edict_t* me = GetEntity();
-	if (me == nullptr)
-		return;
 
 	m_enemyDistance = FLT_MAX;
 	m_friendDistance = FLT_MAX;

@@ -391,8 +391,6 @@ void Bot::ChatSay(const bool teamSay, const char* text, ...)
         return;
 
     edict_t* me = GetEntity();
-    if (me == nullptr)
-        return;
 
     // humanize chat
     if (m_lastChatEnt == me)

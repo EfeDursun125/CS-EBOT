@@ -1,4 +1,4 @@
-#include <core.h>
+﻿#include <core.h>
 #include <vector>
 
 ConVar ebot_zombies_as_path_cost("ebot_zombie_count_as_path_cost", "1");
@@ -219,7 +219,7 @@ bool Bot::GoalIsValid(void)
 	if (m_chosenGoalIndex == m_currentWaypointIndex)
 		return false;
 
-	if (m_navNode == nullptr)
+	if (!m_navNode)
 		return false;
 
 	return true;
@@ -308,7 +308,7 @@ void Bot::DoWaypointNav(void)
 	}
 
 	const Path* currentWaypoint = g_waypoint->GetPath(m_currentWaypointIndex);
-	if (currentWaypoint == nullptr)
+	if (!currentWaypoint)
 		return;
 
 	m_destOrigin = m_waypointOrigin;
@@ -351,14 +351,7 @@ void Bot::DoWaypointNav(void)
 		}
 	};
 
-	if (m_currentTravelFlags & PATHFLAG_JUMP && m_stuckWarn > 0)
-	{
-		if (cabsf(pev->origin.z - m_destOrigin.z) > 54.0f)
-			DeleteSearchNodes();
-		else if (m_stuckWarn > 3 && m_isSlowThink && CRandomInt(1, 3) == 1)
-			autoJump();
-	}
-	else if (currentWaypoint->flags & WAYPOINT_LADDER || IsOnLadder())
+	if (currentWaypoint->flags & WAYPOINT_LADDER || IsOnLadder())
 	{
 		if (IsValidWaypoint(m_prevWptIndex[0]) && g_waypoint->GetPath(m_prevWptIndex[0])->flags & WAYPOINT_LADDER)
 		{
@@ -523,7 +516,6 @@ void Bot::DoWaypointNav(void)
 					if (m_isSlowThink)
 					{
 						SetProcess(Process::Pause, "waiting for door open", false, time + 1.25f);
-						DeleteSearchNodes();
 						return;
 					}
 
@@ -609,9 +601,6 @@ void Bot::DoWaypointNav(void)
 bool Bot::UpdateLiftHandling(void)
 {
 	edict_t* me = GetEntity();
-	if (me == nullptr)
-		return false;
-
 	const float time = engine->GetTime();
 	bool liftClosedDoorExists = false;
 
@@ -705,7 +694,7 @@ bool Bot::UpdateLiftHandling(void)
 			// if some bot is following a bot going into lift - he should take the same lift to go
 			for (const auto &bot : g_botManager->m_bots)
 			{
-				if (bot == nullptr || !bot->m_isAlive || bot->m_team != m_team)
+				if (!bot || !bot->m_isAlive || bot->m_team != m_team)
 					continue;
 
 				if (bot->pev->groundentity == m_liftEntity && bot->IsOnFloor())
@@ -739,7 +728,7 @@ bool Bot::UpdateLiftHandling(void)
 
 		for (const auto &bot : g_botManager->m_bots)
 		{
-			if (bot == nullptr || !bot->m_isAlive || bot->m_team != m_team || bot->m_liftEntity != m_liftEntity)
+			if (!bot || !bot->m_isAlive || bot->m_team != m_team || bot->m_liftEntity != m_liftEntity)
 				continue;
 
 			if (bot->pev->groundentity == m_liftEntity || !bot->IsOnFloor())
@@ -1512,7 +1501,7 @@ void Bot::FindPath(int srcIndex, int destIndex, edict_t* enemy)
 	else
 		gcalc = GF_CostNormal;
 
-	if (gcalc == nullptr)
+	if (!gcalc)
 		return;
 
 	if (m_2dH)
@@ -1558,7 +1547,7 @@ void Bot::FindPath(int srcIndex, int destIndex, edict_t* enemy)
 		}
 	}
 
-	if (hcalc == nullptr)
+	if (!hcalc)
 		return;
 
 	int stuckIndex = -1;
@@ -1612,8 +1601,8 @@ void Bot::FindPath(int srcIndex, int destIndex, edict_t* enemy)
 
 			do
 			{
-				PathNode* path = new PathNode;
-				if (path == nullptr)
+				shared_ptr<PathNode> path = make_shared<PathNode>();
+				if (!path)
 				{
 					m_navNode = nullptr;
 					AddLogEntry(Log::Memory, "unexpected memory error");
@@ -1791,7 +1780,7 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 		}
 	}
 
-	if (hcalc == nullptr)
+	if (!hcalc)
 		return;
 
 	// put start node into open list
@@ -1820,8 +1809,8 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 
 			do
 			{
-				PathNode* path = new PathNode;
-				if (path == nullptr)
+				shared_ptr<PathNode> path = make_shared<PathNode>();
+				if (!path)
 				{
 					m_navNode = nullptr;
 					AddLogEntry(Log::Memory, "unexpected memory error");
@@ -1879,16 +1868,16 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 
 void Bot::DeleteSearchNodes(void)
 {
-	PathNode* deletingNode = nullptr;
-	PathNode* node = m_navNodeStart;
-	
+	std::shared_ptr<PathNode> deletingNode = nullptr;
+	std::shared_ptr<PathNode> node = m_navNodeStart;
+
 	while (node != nullptr)
 	{
 		deletingNode = node->next;
-		delete node;
+		node.reset();
 		node = deletingNode;
 	}
-	
+
 	m_navNodeStart = nullptr;
 	m_navNode = nullptr;
 	m_jumpFinished = false;
@@ -1933,7 +1922,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 				// tell my enemies to destroy it, so i will fall
 				for (const auto& enemy : g_botManager->m_bots)
 				{
-					if (enemy == nullptr)
+					if (!enemy)
 						continue;
 
 					if (m_team == enemy->m_team)
@@ -1963,7 +1952,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 			{
 				for (const auto& bot : g_botManager->m_bots)
 				{
-					if (bot == nullptr)
+					if (!bot)
 						continue;
 
 					if (m_team != bot->m_team)
@@ -2330,7 +2319,7 @@ void Bot::CheckStuck(const float maxSpeed)
 	}
 }
 
-bool Bot::NextPath(PathNode* node)
+bool Bot::NextPath(shared_ptr<PathNode> node)
 {
 	if (node != nullptr && node->next != nullptr)
 	{
@@ -2339,10 +2328,7 @@ bool Bot::NextPath(PathNode* node)
 			const auto index = g_waypoint->GetPath(node->index)->index[C];
 			if (IsValidWaypoint(index) && index != node->next->index && g_waypoint->IsConnected(index, node->next->index) && !IsWaypointOccupied(index))
 			{
-				const auto ent = GetEntity();
-				if (ent == nullptr)
-					return false;
-				else if (g_waypoint->Reachable(ent, index) && !IsDeadlyDrop(g_waypoint->GetPath(index)->origin))
+				if (g_waypoint->Reachable(GetEntity(), index) && !IsDeadlyDrop(g_waypoint->GetPath(index)->origin))
 				{
 					ChangeWptIndex(index);
 					SetWaypointOrigin();
@@ -2365,7 +2351,7 @@ bool Bot::NextPath(PathNode* node)
 						}
 						else if (m_nearestFriend->v.speed > (m_nearestFriend->v.maxspeed * 0.25))
 						{
-							const int index = g_waypoint->FindNearest(m_nearestFriend->v.origin + m_nearestFriend->v.velocity, 99999999.0f, -1, ent);
+							const int index = g_waypoint->FindNearest(m_nearestFriend->v.origin + m_nearestFriend->v.velocity, 99999999.0f, -1, GetEntity());
 							if (IsValidWaypoint(index))
 							{
 								ChangeWptIndex(index);
@@ -2396,7 +2382,7 @@ void Bot::SetWaypointOrigin(void)
 		MakeVectors(Vector(pev->angles.x, AngleNormalize(pev->angles.y + CRandomFloat(-90.0f, 90.0f)), 0.0f));
 		int sPoint = -1;
 
-		if (&m_navNode[0] != nullptr && m_navNode->next != nullptr)
+		if (&m_navNode.get()[0] != nullptr && m_navNode->next != nullptr)
 		{
 			Vector waypointOrigin[5];
 			for (int i = 0; i < 5; i++)

@@ -1,5 +1,5 @@
 ﻿#include <core.h>
-#include <thread>
+//#include <thread>
 
 #ifdef PLATFORM_LINUX
 #include <cstdlib>
@@ -28,11 +28,10 @@ void Waypoint::Initialize(void)
     {
         for (int i = 0; i < g_numWaypoints; i++)
         {
-            if (m_paths[i] == nullptr)
+            if (!m_paths[i])
                 continue;
 
-            delete m_paths[i];
-            m_paths[i] = nullptr;
+            m_paths[i].reset();
         }
     }
 
@@ -355,7 +354,7 @@ void Waypoint::AddPath(const int addIndex, const int pathIndex, const int type)
     if (!IsValidWaypoint(addIndex) || !IsValidWaypoint(pathIndex) || addIndex == pathIndex)
         return;
 
-    Path* path = m_paths[addIndex];
+    shared_ptr<Path> path = m_paths[addIndex];
 
     // don't allow paths get connected twice
     for (int i = 0; i < Const_MaxPathIndex; i++)
@@ -425,6 +424,9 @@ void Waypoint::FindFarestThread(const Vector origin, const float maxDistance, in
     float squaredDistance = SquaredF(maxDistance);
     for (int i = 0; i < g_numWaypoints; i++)
     {
+        if (!m_paths[i])
+            continue;
+
         const float distance = (m_paths[i]->origin - origin).GetLengthSquared();
         if (distance > squaredDistance)
         {
@@ -437,8 +439,23 @@ void Waypoint::FindFarestThread(const Vector origin, const float maxDistance, in
 int Waypoint::FindFarest(const Vector origin, const float maxDistance)
 {
     int index = -1;
-    thread core(&Waypoint::FindFarestThread, this, origin, maxDistance, ref(index));
-    core.join();
+    //thread core(&Waypoint::FindFarestThread, this, origin, maxDistance, ref(index));
+    //core.join();
+
+    float squaredDistance = SquaredF(maxDistance);
+    for (int i = 0; i < g_numWaypoints; i++)
+    {
+        if (!m_paths[i])
+            continue;
+
+        const float distance = (m_paths[i]->origin - origin).GetLengthSquared();
+        if (distance > squaredDistance)
+        {
+            index = i;
+            squaredDistance = distance;
+        }
+    }
+
     return index;
 }
 
@@ -448,6 +465,9 @@ void Waypoint::FindNearestInCircleThread(const Vector origin, const float maxDis
     float maxDist = SquaredF(maxDistance);
     for (int i = 0; i < g_numWaypoints; i++)
     {
+        if (!m_paths[i])
+            continue;
+
         const float distance = (m_paths[i]->origin - origin).GetLengthSquared();
         if (distance < maxDist)
         {
@@ -460,8 +480,23 @@ void Waypoint::FindNearestInCircleThread(const Vector origin, const float maxDis
 int Waypoint::FindNearestInCircle(const Vector origin, const float maxDistance)
 {
     int index = -1;
-    thread core(&Waypoint::FindNearestInCircleThread, this, origin, maxDistance, ref(index));
-    core.join();
+    //thread core(&Waypoint::FindNearestInCircleThread, this, origin, maxDistance, ref(index));
+    //core.join();
+
+    float maxDist = SquaredF(maxDistance);
+    for (int i = 0; i < g_numWaypoints; i++)
+    {
+        if (!m_paths[i])
+            continue;
+
+        const float distance = (m_paths[i]->origin - origin).GetLengthSquared();
+        if (distance < maxDist)
+        {
+            index = i;
+            maxDist = distance;
+        }
+    }
+
     return index;
 }
 
@@ -567,8 +602,8 @@ int Waypoint::FindNearest(Vector origin, float minDistance, int flags, edict_t* 
             if (!IsValidWaypoint(wpIndex[i]))
                 continue;
 
-            const Path* path = m_paths[wpIndex[i]];
-            if (path == nullptr)
+            const Path* path = m_paths[wpIndex[i]].get();
+            if (!path)
                 continue;
 
             // use the path variable in the condition     
@@ -606,11 +641,10 @@ void Waypoint::FindInRadius(const Vector origin, const float radius, int* holdTa
 
     for (int i = 0; i < g_numWaypoints; i++)
     {
-        const Path* path = m_paths[i];
-        if (path == nullptr)
+        if (!m_paths[i])
             continue;
 
-        if ((path->origin - origin).GetLengthSquared() < squared)
+        if ((m_paths[i]->origin - origin).GetLengthSquared() < squared)
         {
             *holdTab++ = i;
             *count += 1;
@@ -628,11 +662,10 @@ void Waypoint::FindInRadius(Array <int>& queueID, const float radius, const Vect
     const float squared = SquaredF(radius);
     for (int i = 0; i < g_numWaypoints; i++)
     {
-        const Path* path = m_paths[i];
-        if (path == nullptr)
+        if (!m_paths[i])
             continue;
 
-        if ((path->origin - origin).GetLengthSquared() < squared)
+        if ((m_paths[i]->origin - origin).GetLengthSquared() < squared)
             queueID.Push(i);
     }
 }
@@ -642,7 +675,7 @@ void Waypoint::Add(const int flags, const Vector waypointOrigin)
     int index = -1, i;
 
     Vector forward = nullvec;
-    Path* path = nullptr;
+    shared_ptr<Path> path = make_shared<Path>();
 
     bool placeNew = true;
     Vector newOrigin = waypointOrigin;
@@ -695,8 +728,8 @@ void Waypoint::Add(const int flags, const Vector waypointOrigin)
 
         index = g_numWaypoints;
 
-        m_paths[index] = new Path;
-        if (m_paths[index] == nullptr)
+        m_paths[index] = make_shared<Path>();
+        if (!m_paths[index])
         {
             AddLogEntry(Log::Memory, "unexpected memory error");
             return;
@@ -934,7 +967,7 @@ void Waypoint::Delete(void)
     if (!IsValidWaypoint(index))
         return;
 
-    Path* path = nullptr;
+    shared_ptr <Path> path = make_shared<Path>();
     InternalAssert(m_paths[index] != nullptr);
     int i, j;
 
@@ -964,8 +997,7 @@ void Waypoint::Delete(void)
     }
 
     // free deleted node
-    delete m_paths[index];
-    m_paths[index] = nullptr;
+    m_paths[index].reset();
 
     // Rotate Path Array down
     for (i = index; i < g_numWaypoints - 1; i++)
@@ -990,7 +1022,7 @@ void Waypoint::DeleteByIndex(int index)
     if (!IsValidWaypoint(index))
         return;
 
-    Path* path = nullptr;
+    shared_ptr<Path> path = make_shared<Path>();
     InternalAssert(m_paths[index] != nullptr);
 
     int i, j;
@@ -1021,8 +1053,7 @@ void Waypoint::DeleteByIndex(int index)
     }
 
     // free deleted node
-    delete m_paths[index];
-    m_paths[index] = nullptr;
+    m_paths[index].reset();
 
     // Rotate Path Array down
     for (i = index; i < g_numWaypoints - 1; i++)
@@ -1110,15 +1141,15 @@ int Waypoint::GetFacingIndex(void)
 
     for (int i = 0; i < g_numWaypoints; i++)
     {
-        auto path = m_paths[i];
-        if (path == nullptr)
+        const Path* path = m_paths[i].get();
+        if (!path)
             continue;
 
         // skip nearest waypoint to editor, since this used mostly for adding / removing paths
         if (nearestNode == i)
             continue;
 
-        Vector to = path->origin - g_hostEntity->v.origin;
+        const Vector to = path->origin - g_hostEntity->v.origin;
         Vector angles = (to.ToAngles() - g_hostEntity->v.v_angle);
         angles.ClampAngles();
 
@@ -1329,7 +1360,7 @@ void Waypoint::CacheWaypoint(void)
 // calculate "wayzones" for the nearest waypoint to pentedict (meaning a dynamic distance area to vary waypoint origin)
 void Waypoint::CalculateWayzone(int index)
 {
-    Path* path = m_paths[index];
+    shared_ptr<Path> path = m_paths[index];
     Vector start, direction;
 
     TraceResult tr{};
@@ -1446,15 +1477,15 @@ Vector Waypoint::GetBottomOrigin(const Path* waypoint)
 
 void Waypoint::InitTypes()
 {
-    m_terrorPoints.RemoveAll();
-    m_ctPoints.RemoveAll();
-    m_goalPoints.RemoveAll();
-    m_campPoints.RemoveAll();
-    m_rescuePoints.RemoveAll();
-    m_sniperPoints.RemoveAll();
-    m_zmHmPoints.RemoveAll();
-    m_hmMeshPoints.RemoveAll();
-    m_otherPoints.RemoveAll();
+    m_terrorPoints.Destroy();
+    m_ctPoints.Destroy();
+    m_goalPoints.Destroy();
+    m_campPoints.Destroy();
+    m_rescuePoints.Destroy();
+    m_sniperPoints.Destroy();
+    m_zmHmPoints.Destroy();
+    m_hmMeshPoints.Destroy();
+    m_otherPoints.Destroy();
 
     for (int i = 0; i < g_numWaypoints; i++)
     {
@@ -1508,7 +1539,7 @@ bool Waypoint::Download(void)
         {
             ServerPrint("UrlMon loaded successfully\n");
 
-            if (SUCCEEDED(pURLDownloadToFile(nullptr, FormatBuffer("%s/%s.ewp", ebot_download_waypoints_from.GetString(), GetMapName()), (char*)CheckSubfolderFile(false), 0, nullptr)))
+            if (SUCCEEDED(pURLDownloadToFile(nullptr, FormatBuffer("%s/%s.ewp", ebot_download_waypoints_from.GetString(), GetMapName()), CheckSubfolderFile(false), 0, nullptr)))
             {
                 ServerPrint("Download successful\n");
                 FreeLibrary(hUrlMon);
@@ -1622,104 +1653,82 @@ bool Waypoint::Download(void)
 
 bool Waypoint::Load(int mode)
 {
-    m_badMapName = false;
-
     File fp(CheckSubfolderFile(), "rb");
     if (fp.IsValid())
     {
         WaypointHeader header;
         fp.Read(&header, sizeof(header));
 
-        if (cstricmp(header.mapName, GetMapName()) && mode == 0)
+        Initialize();
+
+        if (header.fileVersion >= FV_WAYPOINT)
         {
-            m_badMapName = true;
+            g_numWaypoints = header.pointNumber;
 
-            sprintf(m_infoBuffer, "%s.ewp - hacked/broken waypoint file, fileName doesn't match waypoint header information (mapname: '%s', header: '%s')", GetMapName(), GetMapName(), header.mapName);
-            AddLogEntry(Log::Error, m_infoBuffer);
+            for (int i = 0; i < g_numWaypoints; i++)
+            {
+                m_paths[i] = make_shared<Path>();
 
-            fp.Close();
-            return false;
+                if (!m_paths[i])
+                {
+                    AddLogEntry(Log::Memory, "unexpected memory error");
+                    return false;
+                }
+
+                fp.Read(m_paths[i].get(), sizeof(Path));
+            }
         }
         else
         {
-            Initialize();
+            g_numWaypoints = header.pointNumber;
 
-            if (header.fileVersion >= FV_WAYPOINT)
+            for (int i = 0; i < g_numWaypoints; i++)
             {
-                g_numWaypoints = header.pointNumber;
-
-                for (int i = 0; i < g_numWaypoints; i++)
+                shared_ptr<PathOLD> path = make_shared<PathOLD>();
+                if (!path)
                 {
-                    m_paths[i] = new Path;
-
-                    if (m_paths[i] == nullptr)
-                    {
-                        AddLogEntry(Log::Memory, "unexpected memory error");
-                        return false;
-                    }
-
-                    fp.Read(m_paths[i], sizeof(Path));
-                }
-            }
-            else
-            {
-                g_numWaypoints = header.pointNumber;
-                PathOLD* paths[g_numWaypoints];
-
-                for (int i = 0; i < g_numWaypoints; i++)
-                {
-                    paths[i] = new PathOLD;
-                    if (paths[i] == nullptr)
-                    {
-                        AddLogEntry(Log::Memory, "unexpected memory error");
-                        return false;
-                    }
-
-                    fp.Read(paths[i], sizeof(PathOLD));
-
-                    m_paths[i] = new Path;
-                    if (m_paths[i] == nullptr)
-                    {
-                        AddLogEntry(Log::Memory, "unexpected memory error");
-                        return false;
-                    }
-
-                    m_paths[i]->origin = paths[i]->origin;
-                    m_paths[i]->radius = paths[i]->radius;
-                    m_paths[i]->flags = paths[i]->flags;
-                    m_paths[i]->mesh = static_cast<int16>(paths[i]->campStartX);
-                    m_paths[i]->gravity = paths[i]->campStartY;
-
-                    for (int C = 0; C < 8; C++)
-                    {
-                        m_paths[i]->index[C] = paths[i]->index[C];
-                        m_paths[i]->connectionFlags[C] = paths[i]->connectionFlags[C];
-                    }
+                    AddLogEntry(Log::Memory, "unexpected memory error");
+                    return false;
                 }
 
-                for (int i = 0; i < g_numWaypoints; i++)
-                    delete paths[i];
+                fp.Read(path.get(), sizeof(PathOLD));
 
-                //Save(); add me in final release, don't break people's waypoints...
+                m_paths[i] = make_shared<Path>();
+                if (!m_paths[i])
+                {
+                    AddLogEntry(Log::Memory, "unexpected memory error");
+                    return false;
+                }
+
+                m_paths[i]->origin = path->origin;
+                m_paths[i]->radius = path->radius;
+                m_paths[i]->flags = path->flags;
+                m_paths[i]->mesh = static_cast<int16>(path->campStartX);
+                m_paths[i]->gravity = path->campStartY;
+
+                for (int C = 0; C < 8; C++)
+                {
+                    m_paths[i]->index[C] = path->index[C];
+                    m_paths[i]->connectionFlags[C] = path->connectionFlags[C];
+                }
             }
 
-            m_waypointPaths = true;
+            Save();
         }
 
-        if (cstrncmp(header.author, "EfeDursun125", 12) == 0 || cstrncmp(header.author, "Mysticpawn", 10) == 0 || cstrncmp(header.author, "Ark | Mysticpawn", 16) == 0)
+        m_waypointPaths = true;
+
+        if (cstrncmp(header.author, "EfeDursun125", 12) == 0)
             sprintf(m_infoBuffer, "Using Official Waypoint File By: %s", header.author);
         else
             sprintf(m_infoBuffer, "Using Waypoint File By: %s", header.author);
 
         fp.Close();
     }
-    else if (ebot_download_waypoints.GetBool())
+    else if (ebot_download_waypoints.GetBool() && Download())
     {
-        if (Download())
-        {
-            Load();
-            sprintf(m_infoBuffer, "%s.ewp is downloaded from the internet", GetMapName());
-        }
+        Load();
+        sprintf(m_infoBuffer, "%s.ewp is downloaded from the internet", GetMapName());
     }
     else
     {
@@ -1804,7 +1813,7 @@ void Waypoint::Save(void)
 
         // save the waypoint paths...
         for (int i = 0; i < g_numWaypoints; i++)
-            fp.Write(m_paths[i], sizeof(Path));
+            fp.Write(m_paths[i].get(), sizeof(Path));
 
         fp.Close();
     }
@@ -1828,11 +1837,9 @@ void Waypoint::SaveOLD(void)
         sprintf(waypointAuthor, "E-Bot Waypoint Analyzer");
 
     cstrcpy(header.author, waypointAuthor);
-
-    const char* path = CheckSubfolderFileOLD();
-
+    
     // remember the original waypoint author
-    File rf(path, "rb");
+    File rf(CheckSubfolderFileOLD(), "rb");
     if (rf.IsValid())
     {
         rf.Read(&header, sizeof(header));
@@ -1846,7 +1853,7 @@ void Waypoint::SaveOLD(void)
     header.fileVersion = 7;
     header.pointNumber = cmin(g_numWaypoints, 1024);
 
-    File fp(path, "wb");
+    File fp(CheckSubfolderFileOLD(), "wb");
 
     // file was opened
     if (fp.IsValid())
@@ -1854,16 +1861,15 @@ void Waypoint::SaveOLD(void)
         // write the waypoint header to the file...
         fp.Write(&header, sizeof(header), 1);
 
-        PathOLD* paths[header.pointNumber];
+        shared_ptr <PathOLD> paths[header.pointNumber];
 
         for (int i = 0; i < header.pointNumber; i++)
         {
-            paths[i] = new PathOLD;
-
-            if (paths[i] == nullptr)
+            paths[i] = make_shared<PathOLD>();
+            if (!paths[i])
             {
                 AddLogEntry(Log::Memory, "unexpected memory error");
-                break;
+                continue;
             }
 
             paths[i]->pathNumber = i;
@@ -1925,10 +1931,7 @@ void Waypoint::SaveOLD(void)
 
         // save the waypoint paths...
         for (int i = 0; i < header.pointNumber; i++)
-            fp.Write(paths[i], sizeof(PathOLD));
-
-        for (int i = 0; i < header.pointNumber; i++)
-            delete paths[i];
+            fp.Write(paths[i].get(), sizeof(PathOLD));
 
         fp.Close();
     }
@@ -2184,7 +2187,7 @@ char* Waypoint::GetWaypointInfo(const int id)
     Path* path = GetPath(id);
 
     // if this path is nullptr, return
-    if (path == nullptr)
+    if (!path)
         return "\0";
 
     bool jumpPoint = false;
@@ -2479,7 +2482,7 @@ void Waypoint::ShowWaypointMsg(void)
     }
 
     // create path pointer for faster access
-    Path* path = m_paths[nearestIndex];
+    shared_ptr<Path> path = m_paths[nearestIndex];
 
     // draw a paths, camplines and danger directions for nearest waypoint
     if (nearestDistance < SquaredF(2048) && m_pathDisplayTime < engine->GetTime())
@@ -2549,7 +2552,7 @@ void Waypoint::ShowWaypointMsg(void)
         {
             length = sprintf(tempMessage, "\n\n\n\n\n\n\n    Waypoint Information:\n\n"
                 "      Waypoint %d of %d, Radius: %d\n"
-                "      Flags: %s\n\n      %s %d\n", nearestIndex, g_numWaypoints, path->radius, GetWaypointInfo(nearestIndex), "Human Camp Mesh ID:", static_cast<int> (path->mesh));
+                "      Flags: %s\n\n      %s %d\n", nearestIndex, g_numWaypoints, path->radius, GetWaypointInfo(nearestIndex), "Human Camp Mesh ID:", static_cast<int>(path->mesh));
         }
         else
         {
@@ -2567,7 +2570,7 @@ void Waypoint::ShowWaypointMsg(void)
         }
 
         // check if we need to show the facing point index, only if no menu to show
-        if (m_facingAtIndex != -1 && g_clients[ENTINDEX(g_hostEntity) - 1].menu == nullptr)
+        if (m_facingAtIndex != -1 && !g_clients[ENTINDEX(g_hostEntity) - 1].menu)
         {
             length += sprintf(&tempMessage[length], "\n    Facing Waypoint Information:\n\n"
                 "      Waypoint %d of %d, Radius: %d\n"
@@ -2891,9 +2894,9 @@ Path* Waypoint::GetPath(const int id)
 {
     // to avoid crash
     if (!IsValidWaypoint(id))
-        return m_paths[CRandomInt(0, g_numWaypoints - 1)];
+        return m_paths[CRandomInt(0, g_numWaypoints - 1)].get();
 
-    return m_paths[id];
+    return m_paths[id].get();
 }
 
 // this function stores the bomb position as a vector
@@ -2955,13 +2958,13 @@ Waypoint::Waypoint(void)
     m_pathDisplayTime = 0.0f;
     m_arrowDisplayTime = 0.0f;
 
-    m_terrorPoints.RemoveAll();
-    m_ctPoints.RemoveAll();
-    m_goalPoints.RemoveAll();
-    m_campPoints.RemoveAll();
-    m_rescuePoints.RemoveAll();
-    m_sniperPoints.RemoveAll();
-    m_otherPoints.RemoveAll();
+    m_terrorPoints.Destroy();
+    m_ctPoints.Destroy();
+    m_goalPoints.Destroy();
+    m_campPoints.Destroy();
+    m_rescuePoints.Destroy();
+    m_sniperPoints.Destroy();
+    m_otherPoints.Destroy();
 }
 
 Waypoint::~Waypoint(void)

@@ -30,6 +30,7 @@ float g_randomJoinTime = 0.0f;
 float g_DelayTimer = 0.0f;
 
 int g_lastMessageID;
+int g_numBytesWritten;
 int g_lastRadio[2];
 int g_storeAddbotVars[4];
 int g_radioSelect[32];
@@ -46,17 +47,11 @@ char g_fakeArgv[256];
 int g_entityId[entityNum];
 int g_entityTeam[entityNum];
 int g_entityAction[entityNum];
-
-int g_entityWpIndex[entityNum];
-Vector g_entityGetWpOrigin[entityNum];
-float g_entityGetWpTime[entityNum];
 //******
 
 Array <Array <String>> g_chatFactory;
 Array <NameItem> g_botNames;
 Array <KwChat> g_replyFactory;
-
-Library* g_gameLib = nullptr;
 
 meta_globals_t* gpMetaGlobals = nullptr;
 gamedll_funcs_t* gpGamedllFuncs = nullptr;

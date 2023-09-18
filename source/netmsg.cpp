@@ -4,7 +4,7 @@ NetworkMsg::NetworkMsg(void)
 {
     m_message = NETMSG_UNDEFINED;
     m_state = 0;
-    m_bot = nullptr;
+    m_bot.reset();
 
     for (int i = 0; i < NETMSG_NUM; i++)
         m_registerdMessages[i] = NETMSG_UNDEFINED;
