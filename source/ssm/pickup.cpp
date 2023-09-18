@@ -7,7 +7,7 @@ void Bot::PickupStart(void)
 
 void Bot::PickupUpdate(void)
 {
-	if (!PickupReq())
+	if (!m_buyingFinished && !PickupReq())
 	{
 		m_pickupItem = nullptr;
 		m_pickupType = PickupType::None;
@@ -76,15 +76,9 @@ void Bot::PickupUpdate(void)
 				if (weaponID > 0)
 				{
 					SelectWeaponbyNumber(weaponID);
-
-					edict_t* me = GetEntity();
-					if (me == nullptr)
-						return;
-
-					FakeClientCommand(me, "drop");
-
+					FakeClientCommand(GetEntity(), "drop");
 					if (HasShield()) // If we have the shield...
-						FakeClientCommand(me, "drop"); // discard both shield and pistol
+						FakeClientCommand(GetEntity(), "drop"); // discard both shield and pistol
 				}
 
 				EquipInBuyzone(0);

@@ -156,7 +156,7 @@ void Bot::CampUpdate(void)
 						const int myCampPoint = MeshWaypoints.GetRandomElement();
 						m_chosenGoalIndex = myCampPoint;
 						m_myMeshWaypoint = myCampPoint;
-						MeshWaypoints.RemoveAll();
+						MeshWaypoints.Destroy();
 
 						float max = 12.0f;
 						if (m_hasEnemiesNear)
