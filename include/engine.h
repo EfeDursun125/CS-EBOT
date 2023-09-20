@@ -2304,9 +2304,6 @@ inline void STOP_SOUND(edict_t* entity, int channel, const char* sample)
 #define mkdir _mkdir
 #endif
 
-// macro to handle memory allocation fails
-#define InternalAssert(expr) if(!(expr)) { AddLogEntry (Log::Error, "Assertion Fail! (Expression: %s, File: %s, Line: %d)", #expr, __FILE__, __LINE__); }
-
 #define GET_INFOKEYBUFFER   (*g_engfuncs.pfnGetInfoKeyBuffer)
 #define INFOKEY_VALUE      (*g_engfuncs.pfnInfoKeyValue)
 #define SET_CLIENT_KEYVALUE   (*g_engfuncs.pfnSetClientKeyValue)

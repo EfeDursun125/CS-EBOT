@@ -26,6 +26,7 @@ extern float g_lastRadioTime[2];
 extern float g_fakePingUpdate;
 extern float g_randomJoinTime;
 extern float g_DelayTimer;
+extern float g_pathTimer;
 
 extern int g_lastMessageID;
 extern int g_numBytesWritten;

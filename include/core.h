@@ -377,10 +377,84 @@ const int WeaponBits_Secondary = ((1 << Weapon::P228) | (1 << Weapon::Elite) | (
 const int WeaponBits_SecondaryNODEFAULT = ((1 << Weapon::P228) | (1 << Weapon::Elite) | (1 << Weapon::Deagle) | (1 << Weapon::FiveSeven));
 
 // this structure links waypoints returned from pathfinder
-struct PathNode
+class PathNode
 {
-	int index;
-	shared_ptr<PathNode> next;
+private:
+	size_t m_cursor = 0;
+	size_t m_length = 0;
+	unique_ptr <int[]> m_path;
+
+public:
+	explicit PathNode(void) = default;
+	~PathNode(void) = default;
+
+public:
+	int& Next(void)
+	{
+		return At(1);
+	}
+
+	int& First(void)
+	{
+		return At(0);
+	}
+
+	int& Last(void)
+	{
+		return At(Length() - 1);
+	}
+
+	int& At(const size_t index)
+	{
+		return m_path[m_cursor + index];
+	}
+
+	void Shift(void)
+	{
+		++m_cursor;
+	}
+
+	void Reverse(void)
+	{
+		size_t i;
+		for (i = 0; i < m_length / 2; ++i)
+			swap(m_path[i], m_path[m_length - 1 - i]);
+	}
+
+	size_t Length(void) const
+	{
+		if (m_cursor >= m_length)
+			return 0;
+
+		return m_length - m_cursor;
+	}
+
+	bool HasNext(void) const
+	{
+		return Length() > m_cursor;
+	}
+
+	bool IsEmpty() const
+	{
+		return !Length();
+	}
+
+	void Add(const int node)
+	{
+		m_path[m_length++] = node;
+	}
+
+	void Clear(void)
+	{
+		m_cursor = 0;
+		m_length = 0;
+		m_path[0] = 0;
+	}
+
+	void Init(size_t length)
+	{
+		m_path = make_unique<int[]>(length);
+	}
 };
 
 // links keywords and replies together
@@ -573,8 +647,7 @@ private:
 	float m_timeDoorOpen; // time to next door open check
 	float m_lastChatTime; // time bot last chatted
 
-	shared_ptr<PathNode> m_navNode; // pointer to current node from path
-	shared_ptr<PathNode> m_navNodeStart; // pointer to start of path finding nodes
+	PathNode m_navNode; // pointer to current node from path
 	uint8_t m_visibility; // visibility flags
 
 	int m_currentWaypointIndex; // current waypoint index
@@ -661,7 +734,6 @@ private:
 
 	int GetMessageQueue(void);
 	bool GoalIsValid(void);
-	bool HasNextPath(void);
 	float InFieldOfView(const Vector& dest);
 
 	bool IsBombDefusing(const Vector bombOrigin);
@@ -877,7 +949,6 @@ public:
 
 	bool IsEnemyViewable(edict_t* player);
 	bool AllowPickupItem(void);
-	bool NextPath(shared_ptr<PathNode> node);
 
 	void CheckStuck(const float maxSpeed);
 	void ResetStuck(void);
@@ -1020,7 +1091,7 @@ protected:
 	int CreateBot(String name, int skill, int personality, const int team, const int member);
 
 public:
-	shared_ptr<Bot> m_bots[32]; // all available bots
+	Bot* m_bots[32]; // all available bots
 
 	Array <String> m_savedBotNames; // storing the bot names
 	Array <String> m_avatars; // storing the steam ids
@@ -1074,7 +1145,7 @@ public:
 class NetworkMsg : public Singleton <NetworkMsg>
 {
 private:
-	shared_ptr<Bot> m_bot;
+	Bot* m_bot;
 	int m_state;
 	int m_message;
 	int m_registerdMessages[NETMSG_NUM];
@@ -1084,11 +1155,11 @@ public:
 	~NetworkMsg(void) { };
 
 	void Execute(void* p);
-	void Reset(void) { m_message = NETMSG_UNDEFINED; m_state = 0; m_bot.reset(); };
+	void Reset(void) { m_message = NETMSG_UNDEFINED; m_state = 0; m_bot = nullptr; };
 	void HandleMessageIfRequired(const int messageType, const int requiredType);
 
 	void SetMessage(const int message) { m_message = message; }
-	void SetBot(Bot* bot) { m_bot = shared_ptr<Bot>(bot); }
+	void SetBot(Bot* bot) { m_bot = bot; }
 
 	int GetId(const int messageType) { return m_registerdMessages[messageType]; }
 	void SetId(const int messageType, const int messsageIdentifier) { m_registerdMessages[messageType] = messsageIdentifier; }
@@ -1100,7 +1171,7 @@ class Waypoint : public Singleton <Waypoint>
 	friend class Bot;
 
 private:
-	shared_ptr <Path> m_paths[Const_MaxWaypoints];
+	Path* m_paths[Const_MaxWaypoints];
 
 	bool m_isOnLadder;
 	bool m_waypointPaths;
@@ -1181,7 +1252,7 @@ public:
 	Vector GetBottomOrigin(const Path* waypoint);
 
 	bool Download(void);
-	bool Load(const int mode = 0);
+	bool Load(void);
 	void Save(void);
 	void SaveOLD(void);
 

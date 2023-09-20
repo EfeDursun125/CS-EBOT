@@ -775,7 +775,7 @@ public:
     {
         if (newSize == 0)
         {
-            Destroy();
+            m_elements.clear();
             return true;
         }
 
@@ -791,20 +791,19 @@ public:
 
     bool SetAt(const int index, const T object, const bool enlarge = true)
     {
-        if (index < 0 || index >= GetElementNumber())
+        if (index < 0 || index >= m_elements.size())
         {
             if (!enlarge || !SetSize(index + 1))
                 return false;
         }
 
         m_elements[index] = object;
-
         return true;
     }
 
     T& GetAt(const int index)
     {
-        if (index < 0 || index >= GetElementNumber())
+        if (index < 0 || index >= m_elements.size())
             return m_elements[0];
 
         return m_elements[index];
@@ -812,7 +811,7 @@ public:
 
     bool GetAt(const int index, T& object)
     {
-        if (index < 0 || index >= GetElementNumber())
+        if (index < 0 || index >= m_elements.size())
             return false;
 
         object = m_elements[index];
@@ -821,11 +820,10 @@ public:
 
     bool RemoveAt(const int index, const int count = 1)
     {
-        if (index < 0 || index >= GetElementNumber() || count < 1)
+        if (index < 0 || index >= m_elements.size() || count < 1)
             return false;
 
         m_elements.erase(m_elements.begin() + index, m_elements.begin() + index + count);
-
         return true;
     }
 
@@ -846,10 +844,10 @@ public:
 
     void FreeSpace(const bool destroyIfEmpty = true)
     {
-        if (IsEmpty())
+        if (m_elements.empty())
         {
             if (destroyIfEmpty)
-                Destroy();
+                m_elements.clear();
 
             return;
         }
@@ -859,7 +857,7 @@ public:
 
     T Pop(void)
     {
-        if (IsEmpty())
+        if (m_elements.empty())
             return m_elements[0];
 
         const T element = m_elements.back();
@@ -870,7 +868,7 @@ public:
 
     void PopNoReturn(void)
     {
-        if (IsEmpty())
+        if (m_elements.empty())
             return;
 
         m_elements.pop_back();
@@ -878,7 +876,7 @@ public:
 
     T& Last(void)
     {
-        if (IsEmpty())
+        if (m_elements.empty())
             return m_elements[0];
 
         return m_elements.back();
@@ -886,16 +884,16 @@ public:
 
     T& GetRandomElement(void)
     {
-        if (IsEmpty())
+        if (m_elements.empty())
             return m_elements[0];
 
-        const int randomIndex = frand() % GetElementNumber();
+        const int randomIndex = frand() % m_elements.size();
         return m_elements[randomIndex];
     }
 
     bool GetLast(T& item)
     {
-        if (IsEmpty())
+        if (m_elements.empty())
             return false;
 
         item = m_elements.back();
@@ -913,7 +911,7 @@ public:
 
     T& operator [] (const int index)
     {
-        if (index < 0 || index >= GetElementNumber())
+        if (index < 0 || index >= m_elements.size())
             return m_elements[0];
 
         return m_elements[index];
@@ -947,7 +945,7 @@ public:
 
     bool IsExists(const K& keyName) const
     {
-        MapIterator it = Find(keyName);
+        const MapIterator it = Find(keyName);
         return it != m_mapTable.end();
     }
 
@@ -969,7 +967,7 @@ public:
 
     K& GetKey(const int index)
     {
-        MapIterator it = GetIterator(index);
+        const MapIterator it = GetIterator(index);
         if (it != m_mapTable.end())
             return it->first;
 
@@ -978,7 +976,7 @@ public:
 
     const K& GetKey(const int index) const
     {
-        MapIterator it = GetIterator(index);
+        const MapIterator it = GetIterator(index);
         if (it != m_mapTable.end())
             return it->first;
 
@@ -987,7 +985,7 @@ public:
 
     V& GetValue(const int index)
     {
-        MapIterator it = GetIterator(index);
+        const MapIterator it = GetIterator(index);
         if (it != m_mapTable.end())
             return it->second;
 
@@ -996,7 +994,7 @@ public:
 
     const V& GetValue(const int index) const
     {
-        MapIterator it = GetIterator(index);
+        const MapIterator it = GetIterator(index);
         if (it != m_mapTable.end())
             return it->second;
 
@@ -1010,7 +1008,7 @@ public:
 
     bool Find(const K& keyName, V& element) const
     {
-        MapIterator it = Find(keyName);
+        const MapIterator it = Find(keyName);
         if (it != m_mapTable.end())
         {
             element = it->second;
@@ -1022,7 +1020,7 @@ public:
 
     bool Remove(const K& keyName)
     {
-        MapIterator it = Find(keyName);
+        const MapIterator it = Find(keyName);
         if (it != m_mapTable.end())
         {
             m_mapTable.erase(it);
@@ -1039,7 +1037,7 @@ public:
 
     V& operator[](const K& keyName)
     {
-        MapIterator it = Find(keyName);
+        const MapIterator it = Find(keyName);
         if (it != m_mapTable.end())
             return it->second;
 
@@ -1056,7 +1054,7 @@ private:
     {
         if (index >= 0 && index < m_mapTable.size())
         {
-            MapIterator it = m_mapTable.begin();
+            const MapIterator it = m_mapTable.begin();
             std::advance(it, index);
             return it;
         }
@@ -1068,11 +1066,10 @@ private:
     MapEntries m_mapTable;
 };
 
-
 class String
 {
 private:
-    std::shared_ptr<char[]> m_bufferPtr;
+    std::unique_ptr<char[]> m_bufferPtr;
     int m_allocatedSize;
     int m_stringLength;
 
@@ -1094,15 +1091,16 @@ private:
             return;
 
         m_allocatedSize = size + 16;
-        std::shared_ptr<char[]> tempBuffer(new char[size + 1], std::default_delete<char[]>());
+        std::unique_ptr<char[]> tempBuffer(new char[size + 1]);
 
         if (m_bufferPtr != nullptr)
         {
             cstrcpy(tempBuffer.get(), m_bufferPtr.get());
             tempBuffer[m_stringLength] = 0;
+            m_bufferPtr.reset();
         }
 
-        m_bufferPtr = tempBuffer;
+        m_bufferPtr = std::move(tempBuffer);
         m_allocatedSize = size;
     }
 
@@ -1245,7 +1243,7 @@ public:
     //
     const char* GetBuffer(void)
     {
-        if (m_bufferPtr == nullptr || *m_bufferPtr.get() == 0x0)
+        if (!m_bufferPtr || *m_bufferPtr.get() == 0x0)
             return "";
 
         return &m_bufferPtr[0];
@@ -1260,7 +1258,7 @@ public:
     //
     const char* GetBuffer(void) const
     {
-        if (m_bufferPtr == nullptr || *m_bufferPtr.get() == 0x0)
+        if (!m_bufferPtr || *m_bufferPtr.get() == 0x0)
             return "";
 
         return &m_bufferPtr[0];
@@ -1497,6 +1495,8 @@ public:
             m_bufferPtr[0] = 0;
             m_stringLength = 0;
         }
+
+        m_bufferPtr.reset();
     }
 
     //
@@ -1508,7 +1508,7 @@ public:
     //
     bool IsEmpty(void) const
     {
-        if (m_bufferPtr == nullptr || m_stringLength == 0)
+        if (!m_bufferPtr || m_stringLength == 0)
             return true;
 
         return false;
@@ -1523,7 +1523,7 @@ public:
     //
     int GetLength(void)
     {
-        if (m_bufferPtr == nullptr)
+        if (!m_bufferPtr)
             return 0;
 
         return m_stringLength;
@@ -1669,7 +1669,7 @@ public:
         return *this;
     }
 
-    char operator [] (int index)
+    char operator [] (const int index)
     {
         if (index > m_stringLength)
             return -1;
@@ -1688,7 +1688,7 @@ public:
     // Returns:
     //  Tokenized string.
     //
-    String Mid(int startIndex, int count = -1)
+    String Mid(const int startIndex, int count = -1)
     {
         String result;
 
@@ -1703,7 +1703,7 @@ public:
         if (count <= 0)
             return result;
 
-        std::shared_ptr<char[]> holder(new char[count + 1], std::default_delete<char[]>());
+        std::unique_ptr<char[]> holder(new char[count + 1], std::default_delete<char[]>());
 
         for (int i = 0; i < count; i++)
             holder[i] = m_bufferPtr[startIndex + i];
@@ -1724,7 +1724,7 @@ public:
     // Returns:
     //  Tokenized string.
     //
-    String Mid(int startIndex)
+    String Mid(const int startIndex)
     {
         return Mid(startIndex, m_stringLength - startIndex);
     }
@@ -1739,7 +1739,7 @@ public:
     // Returns:
     //  Tokenized string.
     //
-    String Left(int count)
+    String Left(const int count)
     {
         return Mid(0, count);
     }
@@ -1773,7 +1773,8 @@ public:
     {
         String result;
 
-        for (int i = 0; i < GetLength(); i++)
+        const int length = GetLength();
+        for (int i = 0; i < length; i++)
             result += ctoupper(m_bufferPtr[i]);
 
         return result;
@@ -1790,7 +1791,8 @@ public:
     {
         String result;
 
-        for (int i = 0; i < GetLength(); i++)
+        const int length = GetLength();
+        for (int i = 0; i < length; i++)
             result += ctolower(m_bufferPtr[i]);
 
         return result;
@@ -1817,8 +1819,7 @@ public:
             }
             else
             {
-                char ch = *source;
-
+                const char ch = *source;
                 *source-- = *dest;
                 *dest++ = ch;
             }
@@ -1896,7 +1897,7 @@ public:
     //
     int Collate(const String& string) const
     {
-        return strcoll(m_bufferPtr.get(), string.m_bufferPtr.get());
+        return cstrcoll(m_bufferPtr.get(), string.m_bufferPtr.get());
     }
 
     //
@@ -1925,7 +1926,7 @@ public:
     // Returns:
     //  Index of character.
     //
-    int Find(char input, int startIndex) const
+    int Find(char input, const int startIndex) const
     {
         char* str = m_bufferPtr.get() + startIndex;
 
@@ -2085,11 +2086,11 @@ public:
 
         if (str != m_bufferPtr.get())
         {
-            int first = int(str - GetBuffer());
+            const int first = int(str - GetBuffer());
             char* buffer = GetBuffer(GetLength());
 
             str = buffer + first;
-            int length = GetLength() - first;
+            const int length = GetLength() - first;
 
             cmemmove(buffer, str, (length + 1) * sizeof(char));
             ReleaseBuffer(length);
@@ -2137,7 +2138,7 @@ public:
 
         if (last != nullptr)
         {
-            int i = last - m_bufferPtr.get();
+            const int i = last - m_bufferPtr.get();
             Delete(i, m_stringLength - i);
         }
     }
@@ -2385,8 +2386,8 @@ public:
 
         do
         {
-            index += strspn(&m_bufferPtr[index], separator);
-            tokenLength = strcspn(&m_bufferPtr[index], separator);
+            index += cstrspn(&m_bufferPtr[index], separator);
+            tokenLength = cstrcspn(&m_bufferPtr[index], separator);
 
             if (tokenLength > 0)
                 holder.Push(Mid(index, tokenLength));
@@ -2564,7 +2565,7 @@ public:
     //
     inline uint8_t GetCharacter(void) const
     {
-        return  static_cast <uint8_t> (fgetc(m_handle));
+        return static_cast<uint8_t>(fgetc(m_handle));
     }
 
     //
@@ -2579,14 +2580,13 @@ public:
     // Returns:
     //   True if operation succeeded, false otherwise.
     //
-    inline bool GetBuffer(String& buffer, int count = 256) const
+    inline bool GetBuffer(String& buffer, const int count = 256) const
     {
-        std::shared_ptr<char> tempBuffer(new char[count], std::default_delete<char[]>());
-
-        if (tempBuffer == nullptr)
-            return false;
-
+        std::unique_ptr<char[]> tempBuffer(new char[count]);
         buffer.SetEmpty();
+
+        if (!tempBuffer)
+            return false;
 
         if (fgets(tempBuffer.get(), count, m_handle) != nullptr)
         {
@@ -2630,7 +2630,7 @@ public:
         va_list ap;
 
         va_start(ap, format);
-        int written = vfprintf(m_handle, format, ap);
+        const int written = vfprintf(m_handle, format, ap);
         va_end(ap);
 
         return written;
@@ -2665,7 +2665,7 @@ public:
     //
     inline bool PutCharacter(uint8_t character) const
     {
-        return fputc(static_cast <int> (character), m_handle) != EOF;
+        return fputc(static_cast<int>(character), m_handle) != EOF;
     }
 
     //
