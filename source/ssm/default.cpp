@@ -122,7 +122,7 @@ void Bot::DefaultUpdate(void)
 			else if (SetProcess(Process::Attack, "i found a target", false, AddTime(999999.0f)))
 				return;
 		}
-		else if (m_isBomber && m_waypointFlags & WAYPOINT_GOAL && !m_navNode)
+		else if (m_isBomber && m_waypointFlags & WAYPOINT_GOAL && m_navNode.IsEmpty())
 		{
 			if (SetProcess(Process::Plant, "trying to plant the bomb.", false, AddTime(12.0f)))
 				return;

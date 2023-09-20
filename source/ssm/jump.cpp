@@ -20,7 +20,7 @@ void Bot::JumpUpdate(void)
 		return;
 	}
 
-	if (m_stuckWarn > 1 && m_navNode != nullptr)
+	if (m_stuckWarn > 1 && !m_navNode.IsEmpty())
 		DoWaypointNav();
 
 	const Vector directionOld = (m_destOrigin + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval);
