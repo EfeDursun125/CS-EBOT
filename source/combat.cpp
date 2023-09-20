@@ -1074,8 +1074,6 @@ int Bot::CheckMaxClip(const int weaponId, int* weaponIndex)
 		}
 	}
 
-	InternalAssert(weaponIndex);
-
 	switch (*weaponIndex)
 	{
 	case Weapon::M249:

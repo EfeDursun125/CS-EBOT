@@ -28,6 +28,7 @@ float g_autoPathDistance = 250.0f;
 float g_fakePingUpdate = 0.0f;
 float g_randomJoinTime = 0.0f;
 float g_DelayTimer = 0.0f;
+float g_pathTimer = 0.0f;
 
 int g_lastMessageID;
 int g_numBytesWritten;

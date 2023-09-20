@@ -10,6 +10,16 @@
 #include <immintrin.h>
 #include <rng.h>
 
+#ifndef PLATFORM_WIN32
+#include <limits.h>
+#ifndef UINT64_MAX
+#define UINT64_MAX (__UINT64_MAX__)
+#endif
+#ifndef SIZE_MAX
+#define SIZE_MAX (~(size_t)0)
+#endif
+#endif
+
 int CRandomInt(const int min, const int max)
 {
 	return frand() % (max - min + 1) + min;
@@ -186,12 +196,14 @@ size_t cstrlen(const char* str)
 	return length;
 }
 
+// this fixes bot spectator bug in linux builds
+// glibc's strcmp is not working like windows's strcmp, so it retuns incorrect value that causing bot always be in spectating team...
 int cstrcmp(const char* str1, const char* str2)
 {
-	if (str1 == nullptr)
+	if (!str1)
 		return -1;
 
-	if (str2 == nullptr)
+	if (!str2)
 		return -1;
 
 	int t1, t2;
@@ -220,10 +232,10 @@ int cstrcmp(const char* str1, const char* str2)
 
 int cstrncmp(const char* str1, const char* str2, const size_t num)
 {
-	if (str1 == nullptr)
+	if (!str1)
 		return 0;
 
-	if (str2 == nullptr)
+	if (!str2)
 		return 0;
 
 	for (size_t i = 0; i < num; ++i)
@@ -345,6 +357,9 @@ bool cspace(const int str)
 
 void cstrtrim(char* string)
 {
+	if (!string)
+		return;
+
 	char* ptr = string;
 
 	int length = 0, toggleFlag = 0, increment = 0;
@@ -440,6 +455,94 @@ char* cstrcat(char* dest, const char* src)
 
 	*dest = '\0';
 	return dest;
+}
+
+int cstrcoll(const char* str1, const char* str2)
+{
+	if (!str1 || !str2)
+		return 0;
+
+	while (*str1 != '\0' && *str2 != '\0')
+	{
+		if (*str1 < *str2)
+			return -1;
+		else if (*str1 > *str2)
+			return 1;
+
+		str1++;
+		str2++;
+	}
+
+	if (*str1 == '\0' && *str2 != '\0')
+		return -1;
+	else if (*str1 != '\0' && *str2 == '\0')
+		return 1;
+
+	return 0;
+}
+
+size_t cstrspn(const char* str, const char* charset)
+{
+	if (!str || !charset)
+		return 0;
+
+	size_t count = 0;
+	while (*str != '\0')
+	{
+		const char* charset_ptr = charset;
+		bool found = false;
+
+		while (*charset_ptr != '\0')
+		{
+			if (*charset_ptr == *str)
+			{
+				found = true;
+				break;
+			}
+
+			charset_ptr++;
+		}
+
+		if (!found)
+			break;
+
+		count++;
+		str++;
+	}
+
+	return count;
+}
+
+size_t cstrcspn(const char* str, const char* charset)
+{
+	if (!str || !charset)
+		return 0;
+
+	size_t count = 0;
+	while (*str != '\0')
+	{
+		const char* charset_ptr = charset;
+		bool found = false;
+
+		while (*charset_ptr != '\0')
+		{
+			if (*charset_ptr == *str)
+			{
+				found = true;
+				break;
+			}
+
+			charset_ptr++;
+		}
+
+		if (found)
+			break;
+
+		count++;
+		str++;
+	}
+
+	return count;
 }
 
 int catoi(const char* str)

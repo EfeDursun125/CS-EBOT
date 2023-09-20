@@ -39,7 +39,10 @@ BotControl::~BotControl(void)
 	for (int i = 0; i < 32; i++)
 	{
 		if (m_bots[i])
-			m_bots[i].reset();
+		{
+			delete m_bots[i];
+			m_bots[i] = nullptr;
+		}
 	}
 }
 
@@ -163,10 +166,7 @@ int BotControl::CreateBot(String name, int skill, int personality, const int tea
 	}
 
 	const int index = ENTINDEX(bot) - 1;
-	InternalAssert(index >= 0 && index <= 32); // check index
-	InternalAssert(!m_bots[index]); // check bot slot
-
-	m_bots[index] = make_shared<Bot>(bot, skill, personality, team, member);
+	m_bots[index] = new Bot(bot, skill, personality, team, member);
 	if (!m_bots[index])
 	{
 		AddLogEntry(Log::Memory, "unexpected memory error");
@@ -385,7 +385,7 @@ Bot* BotControl::GetBot(const int index)
 		return nullptr;
 
 	if (m_bots[index] != nullptr)
-		return m_bots[index].get();
+		return m_bots[index];
 
 	return nullptr; // no bot
 }
@@ -408,7 +408,7 @@ Bot* BotControl::FindOneValidAliveBot(void)
 	}
 
 	if (!foundBots.IsEmpty())
-		return m_bots[foundBots.GetRandomElement()].get();
+		return m_bots[foundBots.GetRandomElement()];
 
 	return nullptr;
 }
@@ -949,7 +949,8 @@ void BotControl::Free(void)
 				m_savedBotNames.Push(STRING(m_bots[i]->GetEntity()->v.netname));
 
 			m_bots[i]->m_stayTime = -1.0f;
-			m_bots[i].reset();
+			delete m_bots[i];
+			m_bots[i] = nullptr;
 		}
 	}
 }
@@ -958,7 +959,8 @@ void BotControl::Free(void)
 void BotControl::Free(const int index)
 {
 	m_bots[index]->m_stayTime = -1.0f;
-	m_bots[index].reset();
+	delete m_bots[index];
+	m_bots[index] = nullptr;
 }
 
 // this function controls the bot entity
@@ -1065,6 +1067,9 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 	// just to be sure
 	m_actMessageIndex = 0;
 	m_pushMessageIndex = 0;
+
+	// init path
+	m_navNode.Init(g_numWaypoints / 2);
 
 	// assign team and class
 	m_wantedTeam = team;

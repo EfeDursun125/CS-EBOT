@@ -1158,8 +1158,6 @@ void ClientDisconnect(edict_t* ent)
 
 	const int clientIndex = ENTINDEX(ent) - 1;
 
-	InternalAssert(clientIndex >= 0 && clientIndex < 32);
-
 	// check if its a bot
 	auto bot = g_botManager->GetBot(clientIndex);
 	if (bot != nullptr && bot->GetEntity() == ent)
@@ -2334,6 +2332,7 @@ void ServerActivate(edict_t* pentEdictList, int edictCount, int clientMax)
 
 	secondTimer = 0.0f;
 	updateTimer = 0.0f;
+	g_pathTimer = 0.0f;
 
 	g_gameVersion &= ~Game::Xash;
 	if (g_engfuncs.pfnCVarGetPointer("host_ver") != nullptr)

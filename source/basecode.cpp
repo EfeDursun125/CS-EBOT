@@ -35,7 +35,7 @@ void Bot::PushMessageQueue(const int message)
 		// notify other bots of the spoken text otherwise, bots won't respond to other bots (network messages aren't sent from bots)
 		for (const auto& bot : g_botManager->m_bots)
 		{
-			if (bot != nullptr && bot.get() != this)
+			if (bot != nullptr && bot != this)
 			{
 				if (m_isAlive == bot->m_isAlive)
 				{
@@ -662,7 +662,7 @@ void Bot::FindItem(void)
 		{
 			for (const auto& bot : g_botManager->m_bots)
 			{
-				if (bot != nullptr && bot.get() != this && bot->m_isAlive && bot->m_pickupItem == pickupItem && bot->m_team == m_team)
+				if (bot != nullptr && bot != this && bot->m_isAlive && bot->m_pickupItem == pickupItem && bot->m_team == m_team)
 				{
 					m_pickupItem = nullptr;
 					m_pickupType = PickupType::None;
@@ -825,7 +825,7 @@ void Bot::CheckMessageQueue(void)
 
 					for (const auto& bot : g_botManager->m_bots)
 					{
-						if (bot != nullptr && bot.get() != this && bot->m_team == m_team)
+						if (bot != nullptr && bot != this && bot->m_team == m_team)
 						{
 							bot->m_radioOrder = m_radioSelect;
 							bot->m_radioEntity = GetEntity();
@@ -1336,7 +1336,7 @@ bool Bot::IsEnemyReachable(void)
 		const float enemyDistance = (pev->origin - m_enemyOrigin).GetLengthSquared();
 		if (pev->flags & FL_DUCKING)
 		{
-			if (enemyDistance < SquaredF(54.0f) || !HasNextPath())
+			if (enemyDistance < SquaredF(54.0f) || !m_navNode.HasNext())
 				m_isEnemyReachable = true;
 
 			pev->speed = pev->maxspeed;
@@ -1347,7 +1347,7 @@ bool Bot::IsEnemyReachable(void)
 		}
 
 		// end of the path, before repathing check the distance if we can reach to enemy
-		if (!HasNextPath())
+		if (!m_navNode.HasNext())
 		{
 			m_isEnemyReachable = enemyDistance < SquaredF(512.0f);
 			if (m_isEnemyReachable)
@@ -2098,11 +2098,11 @@ void Bot::LookAtAround(void)
 		}
 	}
 	
-	if (m_navNode != nullptr && m_navNode->next != nullptr)
+	if (m_navNode.HasNext())
 	{
-		const PathNode* third = m_navNode->next->next.get();
-		if (third != nullptr)
-			m_lookAt = g_waypoint->GetPath(third->index)->origin + pev->view_ofs;
+		const Path* next = g_waypoint->GetPath(m_navNode.Next());
+		if (next)
+			m_lookAt = next->origin + pev->view_ofs;
 	}
 
 	if (m_isZombieBot || m_searchTime > time)
@@ -2372,22 +2372,6 @@ void Bot::DebugModeMsg(void)
 			sprintf(gamemodName, "UNKNOWN MODE");
 		}
 
-		PathNode* navid = &m_navNode.get()[0];
-		int navIndex[2] = { 0, 0 };
-
-		while (navid != nullptr)
-		{
-			if (navIndex[0] == 0)
-				navIndex[0] = navid->index;
-			else
-			{
-				navIndex[1] = navid->index;
-				break;
-			}
-
-			navid = navid->next.get();
-		}
-
 		const int client = GetIndex() - 1;
 
 		char outputBuffer[512];
@@ -2409,7 +2393,7 @@ void Bot::DebugModeMsg(void)
 			enemyName, friendName,
 
 			m_currentWaypointIndex, goal, m_prevGoalIndex,
-			navIndex[0], navIndex[1],
+			m_navNode.IsEmpty() ? -1 : m_navNode.First(), (!m_navNode.IsEmpty() && m_navNode.HasNext()) ? m_navNode.Next() : -1,
 			//g_clients[client].wpIndex, g_clients[client].wpIndex2,
 			m_moveSpeed, m_strafeSpeed,
 			m_stuckWarn, m_isStuck ? "Yes" : "No");
@@ -2443,46 +2427,8 @@ void Bot::DebugModeMsg(void)
 	if (m_hasEnemiesNear && m_enemyOrigin != nullvec)
 		engine->DrawLine(g_hostEntity, EyePosition(), m_enemyOrigin, Color(255, 0, 0, 255), 10, 0, 5, 1, LINE_SIMPLE);
 
-	if (m_destOrigin != nullvec)
-		engine->DrawLine(g_hostEntity, pev->origin, m_destOrigin, Color(0, 0, 255, 255), 10, 0, 5, 1, LINE_SIMPLE);
-
-	// now draw line from source to destination
-	PathNode* node = &m_navNode.get()[0];
-	while (node != nullptr)
-	{
-		Path* path = g_waypoint->GetPath(node->index);
-		const Vector src = path->origin;
-		node = node->next.get();
-
-		if (node != nullptr)
-		{
-			bool jumpPoint = false;
-			bool boostPoint = false;
-			for (int j = 0; j < Const_MaxPathIndex; j++)
-			{
-				if (path->index[j] == node->index)
-				{
-					if (path->connectionFlags[j] & PATHFLAG_JUMP)
-					{
-						jumpPoint = true;
-						break;
-					}
-					else if (path->connectionFlags[j] & PATHFLAG_DOUBLE)
-					{
-						boostPoint = true;
-						break;
-					}
-				}
-			}
-
-			if (jumpPoint)
-				engine->DrawLine(g_hostEntity, src, g_waypoint->GetPath(node->index)->origin, Color(255, 0, 0, 255), 15, 0, 8, 1, LINE_SIMPLE);
-			else if (boostPoint)
-				engine->DrawLine(g_hostEntity, src, g_waypoint->GetPath(node->index)->origin, Color(0, 0, 255, 255), 15, 0, 8, 1, LINE_SIMPLE);
-			else
-				engine->DrawLine(g_hostEntity, src, g_waypoint->GetPath(node->index)->origin, Color(255, 100, 55, 255), 15, 0, 8, 1, LINE_SIMPLE);
-		}
-	}
+	for (size_t i = 0; i < m_navNode.Length() && i + 1 < m_navNode.Length(); ++i)
+		engine->DrawLine(g_hostEntity, g_waypoint->GetPath(m_navNode.At(i))->origin, g_waypoint->GetPath(m_navNode.At(i + 1))->origin, Color(255, 100, 55, 255), 15, 0, 8, 1, LINE_SIMPLE);
 
 	if (IsValidWaypoint(m_currentWaypointIndex))
 	{

@@ -219,8 +219,11 @@ bool Bot::GoalIsValid(void)
 	if (m_chosenGoalIndex == m_currentWaypointIndex)
 		return false;
 
-	if (!m_navNode)
+	if (m_navNode.IsEmpty())
 		return false;
+
+	if (m_navNode.Last() == m_chosenGoalIndex)
+		return true;
 
 	return true;
 }
@@ -258,11 +261,12 @@ void Bot::FollowPath(const int targetIndex)
 {
 	m_strafeSpeed = 0.0f;
 
-	if (m_navNode != nullptr)
+	if (!m_navNode.IsEmpty())
 	{
 		DoWaypointNav();
 
-		const Vector directionOld = (m_destOrigin + pev->velocity * -g_pGlobals->frametime) - (pev->origin + pev->velocity * m_frameInterval);
+		const float inter = (m_frameInterval + g_pGlobals->frametime) * 0.5f;
+		const Vector directionOld = (m_destOrigin + pev->velocity * -inter) - (pev->origin + pev->velocity * inter);
 		m_moveAngles = directionOld.ToAngles();
 		m_moveAngles.ClampAngles();
 		m_moveAngles.x = -m_moveAngles.x; // invert for engine
@@ -565,13 +569,11 @@ void Bot::DoWaypointNav(void)
 	if (distance < SquaredF(desiredDistance))
 	{
 		m_currentTravelFlags = 0;
+		m_navNode.Shift();
 
-		if (m_navNode != nullptr)
-			m_navNode = m_navNode->next;
-
-		if (m_navNode != nullptr)
+		if (!m_navNode.IsEmpty())
 		{
-			const int destIndex = m_navNode->index;
+			const int destIndex = m_navNode.First();
 
 			ChangeWptIndex(destIndex);
 			SetWaypointOrigin();
@@ -632,7 +634,7 @@ bool Bot::UpdateLiftHandling(void)
 
 	const auto path = g_waypoint->GetPath(m_currentWaypointIndex);
 
-	if (m_navNode != nullptr)
+	if (!m_navNode.IsEmpty())
 	{
 		// trace line down
 		TraceLine(path->origin, m_waypointOrigin + Vector(0.0f, 0.0f, -50.0f), true, true, me, &tr);
@@ -658,9 +660,9 @@ bool Bot::UpdateLiftHandling(void)
 		}
 		else
 		{
-			if ((m_liftState == LiftState::None || m_liftState == LiftState::WaitingFor) && HasNextPath())
+			if ((m_liftState == LiftState::None || m_liftState == LiftState::WaitingFor) && m_navNode.HasNext())
 			{
-				const int nextWaypoint = m_navNode->next->index;
+				const int nextWaypoint = m_navNode.Next();
 				if (IsValidWaypoint(nextWaypoint))
 				{
 					const Path* pointer = g_waypoint->GetPath(nextWaypoint);
@@ -1439,7 +1441,7 @@ char* Bot::GetHeuristicName(void)
 // this function finds a path from srcIndex to destIndex
 void Bot::FindPath(int srcIndex, int destIndex, edict_t* enemy)
 {
-	if (srcIndex == destIndex)
+	if (g_pathTimer > engine->GetTime() && !m_navNode.IsEmpty())
 		return;
 
 	if (g_gameVersion & Game::HalfLife)
@@ -1448,23 +1450,28 @@ void Bot::FindPath(int srcIndex, int destIndex, edict_t* enemy)
 		return;
 	}
 
-	if (m_isBomber && HasNextPath())
+	if (m_isBomber && m_navNode.HasNext())
 		return;
 
 	// if we're stuck, find nearest waypoint
 	if (!IsValidWaypoint(srcIndex))
 	{
 		const int index = FindWaypoint();
-		if (IsValidWaypoint(index))
-			srcIndex = index;
+		if (!IsValidWaypoint(index))
+			return;
+
+		srcIndex = index;
 	}
 
 	if (!IsValidWaypoint(destIndex))
 		destIndex = g_waypoint->m_otherPoints.GetRandomElement();
 
-	// again...
 	if (srcIndex == destIndex)
+	{
+		DeleteSearchNodes();
+		m_navNode.Add(destIndex);
 		return;
+	}
 
 	AStar_t waypoints[Const_MaxWaypoints];
 	for (int i = 0; i < g_numWaypoints; i++)
@@ -1556,17 +1563,20 @@ void Bot::FindPath(int srcIndex, int destIndex, edict_t* enemy)
 		stuckIndex = g_waypoint->FindNearestInCircle(m_stuckArea, 256.0f);
 		if (srcIndex == stuckIndex)
 		{
-			auto pointer = g_waypoint->GetPath(srcIndex);
-			for (int i = 0; i < Const_MaxPathIndex; i++)
+			const Path* pointer = g_waypoint->GetPath(srcIndex);
+			if (pointer)
 			{
-				const int next = pointer->index[i];
-				if (next == -1)
-					continue;
-
-				if (!IsWaypointOccupied(next))
+				for (int i = 0; i < Const_MaxPathIndex; i++)
 				{
-					srcIndex = next;
-					break;
+					const int next = pointer->index[i];
+					if (next == -1)
+						continue;
+
+					if (!IsWaypointOccupied(next))
+					{
+						srcIndex = next;
+						break;
+					}
 				}
 			}
 		}
@@ -1579,6 +1589,7 @@ void Bot::FindPath(int srcIndex, int destIndex, edict_t* enemy)
 	srcWaypoint->state = State::Open;
 
 	const int index = GetIndex();
+	const size_t limit = (g_numWaypoints / 2) - 2;
 
 	PriorityQueue openList;
 	openList.Insert(srcIndex, srcWaypoint->f);
@@ -1588,7 +1599,7 @@ void Bot::FindPath(int srcIndex, int destIndex, edict_t* enemy)
 		int currentIndex = openList.Remove();
 
 		// is the current node the goal node?
-		if (currentIndex == destIndex)
+		if (currentIndex == destIndex || openList.Size() > limit)
 		{
 			// delete path for new one
 			DeleteSearchNodes();
@@ -1596,37 +1607,29 @@ void Bot::FindPath(int srcIndex, int destIndex, edict_t* enemy)
 			// set the chosen goal value
 			m_chosenGoalIndex = destIndex;
 
-			// build the complete path
-			m_navNode = nullptr;
-
 			do
 			{
-				shared_ptr<PathNode> path = make_shared<PathNode>();
-				if (!path)
-				{
-					m_navNode = nullptr;
-					AddLogEntry(Log::Memory, "unexpected memory error");
-					break;
-				}
-
-				path->index = currentIndex;
-				path->next = m_navNode;
-
-				m_navNode = path;
+				m_navNode.Add(currentIndex);
 				currentIndex = waypoints[currentIndex].parent;
 			} while (IsValidWaypoint(currentIndex));
 
-			m_navNodeStart = m_navNode;
-			m_currentWaypointIndex = m_navNodeStart->index;
+			m_navNode.Reverse();
+
+			m_currentWaypointIndex = m_navNode.First();
 
 			const Path* pointer = g_waypoint->GetPath(m_currentWaypointIndex);
-			if (pointer->radius > 8 && ((pev->origin + pev->velocity * m_frameInterval) - pointer->origin).GetLengthSquared2D() < SquaredI(pointer->radius))
-				m_waypointOrigin = pev->origin + pev->velocity * (m_frameInterval + m_frameInterval);
-			else
-				m_waypointOrigin = pointer->origin;
+			if (pointer)
+			{
+				if (pointer->radius > 8 && ((pev->origin + pev->velocity * m_frameInterval) - pointer->origin).GetLengthSquared2D() < SquaredI(pointer->radius))
+					m_waypointOrigin = pev->origin + pev->velocity * (m_frameInterval + m_frameInterval);
+				else
+					m_waypointOrigin = pointer->origin;
+			}
 
 			m_destOrigin = m_waypointOrigin;
 			m_jumpFinished = false;
+			g_pathTimer = engine->GetTime() + 0.25f;
+
 			return;
 		}
 
@@ -1708,7 +1711,10 @@ void Bot::FindPath(int srcIndex, int destIndex, edict_t* enemy)
 		const int index = PossiblePath.GetRandomElement();
 		m_chosenGoalIndex = index;
 		FindShortestPath(srcIndex, destIndex);
+		return;
 	}
+
+	FindShortestPath(srcIndex, destIndex);
 }
 
 void Bot::FindShortestPath(int srcIndex, int destIndex)
@@ -1725,7 +1731,11 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 		destIndex = g_waypoint->m_otherPoints.GetRandomElement();
 
 	if (srcIndex == destIndex)
+	{
+		DeleteSearchNodes();
+		m_navNode.Add(destIndex);
 		return;
+	}
 
 	AStar_t waypoints[Const_MaxWaypoints];
 	for (int i = 0; i < g_numWaypoints; i++)
@@ -1788,6 +1798,8 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 	srcWaypoint->f = 1.0f;
 	srcWaypoint->state = State::Open;
 
+	const size_t limit = (g_numWaypoints / 2) - 2;
+
 	PriorityQueue openList;
 	openList.Insert(srcIndex, srcWaypoint->f);
 	while (!openList.Empty())
@@ -1796,7 +1808,7 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 		int currentIndex = openList.Remove();
 
 		// is the current node the goal node?
-		if (currentIndex == destIndex)
+		if (currentIndex == destIndex || openList.Size() > limit)
 		{
 			// delete path for new one
 			DeleteSearchNodes();
@@ -1804,37 +1816,28 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 			// set the chosen goal
 			m_chosenGoalIndex = destIndex;
 
-			// build the complete path
-			m_navNode = nullptr;
-
 			do
 			{
-				shared_ptr<PathNode> path = make_shared<PathNode>();
-				if (!path)
-				{
-					m_navNode = nullptr;
-					AddLogEntry(Log::Memory, "unexpected memory error");
-					break;
-				}
-
-				path->index = currentIndex;
-				path->next = m_navNode;
-
-				m_navNode = path;
+				m_navNode.Add(currentIndex);
 				currentIndex = waypoints[currentIndex].parent;
 			} while (IsValidWaypoint(currentIndex));
 
-			m_navNodeStart = m_navNode;
-			m_currentWaypointIndex = m_navNodeStart->index;
+			m_navNode.Reverse();
+			m_currentWaypointIndex = m_navNode.First();
 
 			const Path* pointer = g_waypoint->GetPath(m_currentWaypointIndex);
-			if (pointer->radius > 8 && ((pev->origin + pev->velocity * m_frameInterval) - pointer->origin).GetLengthSquared2D() < SquaredI(pointer->radius))
-				m_waypointOrigin = pev->origin + pev->velocity * (m_frameInterval + m_frameInterval);
-			else
-				m_waypointOrigin = pointer->origin;
+			if (pointer)
+			{
+				if (pointer->radius > 8 && ((pev->origin + pev->velocity * m_frameInterval) - pointer->origin).GetLengthSquared2D() < SquaredI(pointer->radius))
+					m_waypointOrigin = pev->origin + pev->velocity * (m_frameInterval + m_frameInterval);
+				else
+					m_waypointOrigin = pointer->origin;
+			}
 
 			m_destOrigin = m_waypointOrigin;
 			m_jumpFinished = false;
+			g_pathTimer = engine->GetTime() + 0.25f;
+
 			return;
 		}
 
@@ -1868,19 +1871,7 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 
 void Bot::DeleteSearchNodes(void)
 {
-	std::shared_ptr<PathNode> deletingNode = nullptr;
-	std::shared_ptr<PathNode> node = m_navNodeStart;
-
-	while (node != nullptr)
-	{
-		deletingNode = node->next;
-		node.reset();
-		node = deletingNode;
-	}
-
-	m_navNodeStart = nullptr;
-	m_navNode = nullptr;
-	m_jumpFinished = false;
+	m_navNode.Clear();
 }
 
 void Bot::CheckTouchEntity(edict_t* entity)
@@ -2115,8 +2106,48 @@ void Bot::CheckStuck(const float maxSpeed)
 		const Vector friendOrigin = m_friendOrigin + m_nearestFriend->v.velocity * m_frameInterval;
 		if ((myOrigin - friendOrigin).GetLengthSquared() < SquaredF((m_nearestFriend->v.maxspeed + pev->maxspeed) * 0.17f))
 		{
-			if (!m_isSlowThink && !IsOnLadder() && m_navNode != nullptr && IsWaypointOccupied(m_navNode->index))
-				NextPath(m_navNode);
+			if (!m_isSlowThink && !IsOnLadder() && m_navNode.HasNext() && IsWaypointOccupied(m_navNode.First()))
+			{
+				for (int C = 0; C < Const_MaxPathIndex; C++)
+				{
+					const int index = g_waypoint->GetPath(m_navNode.First())->index[C];
+					if (IsValidWaypoint(index) && index != m_navNode.Next() && g_waypoint->IsConnected(index, m_navNode.Next()) && !IsWaypointOccupied(index))
+					{
+						if (g_waypoint->Reachable(GetEntity(), index) && !IsDeadlyDrop(g_waypoint->GetPath(index)->origin))
+						{
+							ChangeWptIndex(index);
+							SetWaypointOrigin();
+						}
+						else if (GetCurrentState() == Process::Default && m_hasFriendsNear && !FNullEnt(m_nearestFriend))
+						{
+							const Vector origin = g_waypoint->GetPath(m_currentWaypointIndex)->origin;
+							if ((pev->origin - origin).GetLengthSquared() > (m_nearestFriend->v.origin - origin).GetLengthSquared())
+							{
+								Bot* bot = g_botManager->GetBot(m_nearestFriend);
+								if (bot != nullptr)
+								{
+									if (bot->GetCurrentState() == Process::Default && !bot->m_navNode.IsEmpty())
+									{
+										ChangeWptIndex(bot->m_navNode.First());
+										SetWaypointOrigin();
+									}
+								}
+								else if (m_nearestFriend->v.speed > (m_nearestFriend->v.maxspeed * 0.25))
+								{
+									const int index = g_waypoint->FindNearest(m_nearestFriend->v.origin + m_nearestFriend->v.velocity, 99999999.0f, -1, GetEntity());
+									if (IsValidWaypoint(index))
+									{
+										ChangeWptIndex(index);
+										SetWaypointOrigin();
+									}
+								}
+								else
+									SetProcess(Process::Pause, "waiting for my friend", true, AddTime(cminf((g_waypoint->GetPath(m_navNode.First())->origin - pev->origin).GetLength() / pev->maxspeed, 6.0f)));
+							}
+						}
+					}
+				}
+			}
 
 			// use our movement angles, try to predict where we should be next frame
 			Vector right, forward;
@@ -2319,57 +2350,6 @@ void Bot::CheckStuck(const float maxSpeed)
 	}
 }
 
-bool Bot::NextPath(shared_ptr<PathNode> node)
-{
-	if (node != nullptr && node->next != nullptr)
-	{
-		for (int C = 0; C < Const_MaxPathIndex; C++)
-		{
-			const auto index = g_waypoint->GetPath(node->index)->index[C];
-			if (IsValidWaypoint(index) && index != node->next->index && g_waypoint->IsConnected(index, node->next->index) && !IsWaypointOccupied(index))
-			{
-				if (g_waypoint->Reachable(GetEntity(), index) && !IsDeadlyDrop(g_waypoint->GetPath(index)->origin))
-				{
-					ChangeWptIndex(index);
-					SetWaypointOrigin();
-					return true;
-				}
-				else if (GetCurrentState() == Process::Default && m_hasFriendsNear && !FNullEnt(m_nearestFriend))
-				{
-					const Vector origin = g_waypoint->GetPath(m_currentWaypointIndex)->origin;
-					if ((pev->origin - origin).GetLengthSquared() > (m_nearestFriend->v.origin - origin).GetLengthSquared())
-					{
-						Bot* bot = g_botManager->GetBot(m_nearestFriend);
-						if (bot != nullptr)
-						{
-							if (bot->GetCurrentState() == Process::Default && bot->m_navNode != nullptr)
-							{
-								ChangeWptIndex(bot->m_navNode->index);
-								SetWaypointOrigin();
-								return true;
-							}
-						}
-						else if (m_nearestFriend->v.speed > (m_nearestFriend->v.maxspeed * 0.25))
-						{
-							const int index = g_waypoint->FindNearest(m_nearestFriend->v.origin + m_nearestFriend->v.velocity, 99999999.0f, -1, GetEntity());
-							if (IsValidWaypoint(index))
-							{
-								ChangeWptIndex(index);
-								SetWaypointOrigin();
-								return true;
-							}
-						}
-
-						SetProcess(Process::Pause, "waiting for my friend", true, AddTime(cminf((g_waypoint->GetPath(node->index)->origin - pev->origin).GetLength() / pev->maxspeed, 6.0f)));
-					}
-				}
-			}
-		}
-	}
-
-	return false;
-}
-
 void Bot::SetWaypointOrigin(void)
 {
 	const Path* pointer = g_waypoint->GetPath(m_currentWaypointIndex);
@@ -2382,7 +2362,7 @@ void Bot::SetWaypointOrigin(void)
 		MakeVectors(Vector(pev->angles.x, AngleNormalize(pev->angles.y + CRandomFloat(-90.0f, 90.0f)), 0.0f));
 		int sPoint = -1;
 
-		if (&m_navNode.get()[0] != nullptr && m_navNode->next != nullptr)
+		if (m_navNode.HasNext())
 		{
 			Vector waypointOrigin[5];
 			for (int i = 0; i < 5; i++)
@@ -2484,11 +2464,6 @@ int Bot::FindDefendWaypoint(const Vector& origin)
 		return BestIndex;
 
 	return g_waypoint->m_campPoints.GetRandomElement();
-}
-
-bool Bot::HasNextPath(void)
-{
-	return (m_navNode != nullptr && m_navNode->next != nullptr);
 }
 
 // checks if bot is blocked in his movement direction (excluding doors)
