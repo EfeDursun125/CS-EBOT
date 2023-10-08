@@ -7,8 +7,11 @@
 //
 
 #include <core.h>
-#include <immintrin.h>
 #include <rng.h>
+
+#define USE_SSE2
+#include <sse_mathfun.h>
+#include <sse_mathfun_extension.h>
 
 #ifndef PLATFORM_WIN32
 #include <limits.h>
@@ -20,39 +23,34 @@
 #endif
 #endif
 
-int CRandomInt(const int min, const int max)
+int crandomint(const int min, const int max)
 {
 	return frand() % (max - min + 1) + min;
 }
 
-float CRandomFloat(const float min, const float max)
+float crandomfloat(const float min, const float max)
 {
 	return next() * (max - min) / UINT64_MAX + min;
 }
 
-bool ChanceOf(const int number)
+bool chanceof(const int number)
 {
-	return CRandomInt(1, 100) <= number;
+	return crandomint(1, 100) <= number;
 }
 
-float SquaredF(const float value)
+float squaredf(const float value)
 {
 	return value * value;
 }
 
-float SquaredI(const int value)
+float squaredi(const int value)
 {
 	return static_cast<float>(value * value);
 }
 
-int Squared(const int value)
+int squared(const int value)
 {
 	return value * value;
-}
-
-float AddTime(const float time)
-{
-	return g_pGlobals->time + time;
 }
 
 float cclampf(const float a, const float b, const float c)
@@ -119,6 +117,36 @@ float crsqrtf(const float value)
 	return _mm_cvtss_f32(_mm_rsqrt_ss(_mm_load_ss(&value)));
 }
 
+float ccosf(const float value)
+{
+	return _mm_cvtss_f32(cos_ps(_mm_load_ss(&value)));
+}
+
+float csinf(const float value)
+{
+	return _mm_cvtss_f32(sin_ps(_mm_load_ss(&value)));
+}
+
+void csincosf(const float radians, float& sine, float& cosine)
+{
+	__m128 sse_s, sse_c;
+	__m128* s = &sse_s;
+	__m128* c = &sse_c;
+	sincos_ps(_mm_load_ss(&radians), s, c);
+	sine = _mm_cvtss_f32(*s);
+	cosine = _mm_cvtss_f32(*c);
+}
+
+float catan2f(const float x, const float y)
+{
+	return _mm_cvtss_f32(atan2_ps(_mm_load_ss(&x), _mm_load_ss(&y)));
+}
+
+float ctanf(const float value)
+{
+	return _mm_cvtss_f32(tan_ps(_mm_load_ss(&value)));
+}
+
 // http://wurstcaptures.untergrund.net/assembler_tricks.html
 float cpowf(const float a, const float b)
 {
@@ -160,9 +188,33 @@ float cceilf(const float value)
 	return result;
 }
 
+double cceil(const double value)
+{
+	const int intValue = static_cast<int>(value);
+	double result = static_cast<double>(intValue);
+
+	if (value > 0.0)
+	{
+		if (result < value)
+			result += 1.0;
+	}
+	else if (value < 0.0)
+	{
+		if (result > value)
+			result -= 1.0;
+	}
+
+	return result;
+}
+
 float cfloorf(const float value)
 {
 	return static_cast<float>(static_cast<int>(value));
+}
+
+double cfloor(const double value)
+{
+	return static_cast<double>(static_cast<int>(value));
 }
 
 float croundf(const float value)
@@ -184,9 +236,28 @@ float croundf(const float value)
 	return result;
 }
 
+double cround(const double value)
+{
+	const int intValue = static_cast<int>(value);
+	double result = static_cast<double>(intValue);
+
+	if (value < 0.0)
+	{
+		if (result - 0.5 > value)
+			result -= 1.0;
+	}
+	else
+	{
+		if (result + 0.5 < value)
+			result += 1.0;
+	}
+
+	return result;
+}
+
 size_t cstrlen(const char* str)
 {
-	if (!str)
+	if (str == nullptr)
 		return 0;
 
 	size_t length = 0;
@@ -200,10 +271,10 @@ size_t cstrlen(const char* str)
 // glibc's strcmp is not working like windows's strcmp, so it retuns incorrect value that causing bot always be in spectating team...
 int cstrcmp(const char* str1, const char* str2)
 {
-	if (!str1)
+	if (str1 == nullptr)
 		return -1;
 
-	if (!str2)
+	if (str2 == nullptr)
 		return -1;
 
 	int t1, t2;
@@ -232,13 +303,14 @@ int cstrcmp(const char* str1, const char* str2)
 
 int cstrncmp(const char* str1, const char* str2, const size_t num)
 {
-	if (!str1)
+	if (str1 == nullptr)
 		return 0;
 
-	if (!str2)
+	if (str2 == nullptr)
 		return 0;
 
-	for (size_t i = 0; i < num; ++i)
+	size_t i;
+	for (i = 0; i < num; ++i)
 	{
 		if (str1[i] != str2[i])
 			return (str1[i] < str2[i]) ? -1 : 1;
@@ -265,7 +337,9 @@ void cmemcpy(void* dest, const void* src, const size_t size)
 {
 	char* dest2 = static_cast<char*>(dest);
 	const char* src2 = static_cast<const char*>(src);
-	for (size_t i = 0; i < size; ++i)
+
+	size_t i;
+	for (i = 0; i < size; ++i)
 		dest2[i] = src2[i];
 }
 
@@ -273,7 +347,9 @@ void cmemset(void* dest, const int value, const size_t count)
 {
 	unsigned char* ptr = static_cast<unsigned char*>(dest);
 	const unsigned char byteValue = static_cast<unsigned char>(value);
-	for (size_t i = 0; i < count; ++i)
+
+	size_t i;
+	for (i = 0; i < count; ++i)
 	{
 		*ptr = byteValue;
 		ptr++;
@@ -430,8 +506,8 @@ char* cstrncpy(char* dest, const char* src, const size_t count)
 {
 	char* destPtr = dest;
 	const char* srcPtr = src;
-	size_t i = 0;
 
+	size_t i = 0;
 	for (; i < count && *srcPtr != '\0'; i++, destPtr++, srcPtr++)
 		*destPtr = *srcPtr;
 
@@ -459,7 +535,7 @@ char* cstrcat(char* dest, const char* src)
 
 int cstrcoll(const char* str1, const char* str2)
 {
-	if (!str1 || !str2)
+	if (str1 == nullptr || str2 == nullptr)
 		return 0;
 
 	while (*str1 != '\0' && *str2 != '\0')
@@ -483,7 +559,7 @@ int cstrcoll(const char* str1, const char* str2)
 
 size_t cstrspn(const char* str, const char* charset)
 {
-	if (!str || !charset)
+	if (str == nullptr || charset == nullptr)
 		return 0;
 
 	size_t count = 0;
@@ -515,7 +591,7 @@ size_t cstrspn(const char* str, const char* charset)
 
 size_t cstrcspn(const char* str, const char* charset)
 {
-	if (!str || !charset)
+	if (str == nullptr || charset == nullptr)
 		return 0;
 
 	size_t count = 0;
@@ -547,6 +623,9 @@ size_t cstrcspn(const char* str, const char* charset)
 
 int catoi(const char* str)
 {
+	if (str == nullptr)
+		return -1;
+
 	int result = 0;
 	int sign = 1;
 	int i = 0;
@@ -572,6 +651,9 @@ int catoi(const char* str)
 
 float catof(const char* str)
 {
+	if (str == nullptr)
+		return -1.0f;
+
 	float result = 0.0f;
 	float sign = 1.0f;
 	int i = 0;

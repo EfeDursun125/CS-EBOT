@@ -1,3 +1,27 @@
+//
+// Copyright (c) 2003-2009, by Yet Another POD-Bot Development Team.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the "Software"),
+// to deal in the Software without restriction, including without limitation
+// the rights to use, copy, modify, merge, publish, distribute, sublicense,
+// and/or sell copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+//
+// $Id:$
+//
+
 #include <core.h>
 
 ConVar ebot_escape("ebot_zombie_escape_mode", "0");
@@ -134,7 +158,8 @@ void Bot::FindEnemyEntities(void)
 	m_numEntitiesLeft = 0;
 	m_hasEntitiesNear = false;
 
-	for (int i = engine->GetMaxClients() + 1; i < entityNum; i++)
+	int i;
+	for (i = 0; i < entityNum; i++)
 	{
 		if (g_entityId[i] == -1 || g_entityAction[i] != 1 || m_team == g_entityTeam[i])
 			continue;
@@ -148,7 +173,7 @@ void Bot::FindEnemyEntities(void)
 		// simple check
 		TraceResult tr{};
 		const Vector origin = GetEntityOrigin(entity);
-		TraceLine(pev->origin, origin, true, true, GetEntity(), &tr);
+		TraceLine(pev->origin, origin, true, true, pev->pContainingEntity, &tr);
 		if (tr.flFraction != 1.0f)
 			continue;
 
@@ -181,7 +206,6 @@ Vector Bot::GetEnemyPosition(void)
 
 	// get enemy position initially
 	Vector targetOrigin = m_nearestEnemy->v.origin;
-
 	const float distance = (targetOrigin - pev->origin).GetLengthSquared();
 
 	// now take in account different parts of enemy body
@@ -190,7 +214,7 @@ Vector Bot::GetEnemyPosition(void)
 		if (!IsZombieMode() && m_currentWeapon == Weapon::Awp)
 			return targetOrigin;
 		// now check is our skill match to aim at head, else aim at enemy body
-		else if (IsZombieMode() || ChanceOf(m_skill) || UsesPistol())
+		else if (IsZombieMode() || chanceof(m_skill) || UsesPistol())
 			targetOrigin += m_nearestEnemy->v.view_ofs + Vector(0.0f, 0.0f, GetZOffset(distance));
 		else
 			targetOrigin += Vector(0.0f, 0.0f, GetZOffset(distance));
@@ -205,55 +229,38 @@ Vector Bot::GetEnemyPosition(void)
 	return targetOrigin;
 }
 
-float Bot::GetZOffset(float distance)
+float Bot::GetZOffset(const float distance)
 {
-	if (m_difficulty < 1)
-		return -4.0f;
+	bool sniper = UsesSniper();
+	bool pistol = UsesPistol();
+	bool rifle = UsesRifle();
 
-	const bool sniper = UsesSniper();
-	const bool pistol = UsesPistol();
-	const bool rifle = UsesRifle();
+	bool zoomableRifle = UsesZoomableRifle();
+	bool submachine = UsesSubmachineGun();
+	bool shotgun = (m_currentWeapon == Weapon::Xm1014 || m_currentWeapon == Weapon::M3);
+	bool m249 = m_currentWeapon == Weapon::M249;
 
-	const bool zoomableRifle = UsesZoomableRifle();
-	const bool submachine = UsesSubmachineGun();
-	const bool shotgun = (m_currentWeapon == Weapon::Xm1014 || m_currentWeapon == Weapon::M3);
-	const bool m249 = m_currentWeapon == Weapon::M249;
+	float result = -2.0f;
 
-	const float BurstDistance = SquaredF(300.0f);
-	const float DoubleBurstDistance = BurstDistance * 4.0f;
-
-	float result = 4.0f;
-
-	if (distance > DoubleBurstDistance)
+	if (distance > squaredf(512.0f))
 	{
-		if (sniper) result = 2.5f;
-		else if (zoomableRifle) result = 4.5f;
-		else if (pistol) result = 6.5f;
-		else if (submachine) result = 5.5f;
-		else if (rifle) result = 5.5f;
-		else if (m249) result = 2.5f;
-		else if (shotgun) result = 10.5f;
-	}
-	else if (distance > BurstDistance)
-	{
-		if (sniper) result = 3.5f;
-		else if (zoomableRifle) result = 3.5f;
-		else if (pistol) result = 6.5f;
-		else if (submachine) result = 3.5f;
-		else if (rifle) result = 1.6f;
-		else if (m249) result = -1.0f;
-		else if (shotgun) result = 10.0f;
+		if (sniper)
+			result = 0.18f;
+		else if (zoomableRifle)
+			result = 1.5f;
+		else if (pistol)
+			result = 2.5f;
+		else if (submachine)
+			result = 1.5f;
+		else if (rifle)
+			result = 1.0f;
+		else if (m249)
+			result = -5.5f;
+		else if (shotgun)
+			result = -4.5f;
 	}
 	else
-	{
-		if (sniper) result = 4.5f;
-		else if (zoomableRifle) result = 5.0f;
-		else if (pistol) result = 4.5f;
-		else if (submachine) result = 4.5f;
-		else if (rifle) result = 4.5f;
-		else if (m249) result = 6.0f;
-		else if (shotgun) result = 5.0f;
-	}
+		return -9.0f;
 
 	return result;
 }
@@ -277,7 +284,8 @@ bool Bot::IsFriendInLineOfFire(const float distance)
 				return true;
 
 			const int entityIndex = ENTINDEX(tr.pHit);
-			for (int i = 0; i < entityNum; i++)
+			int i;
+			for (i = 0; i < entityNum; i++)
 			{
 				if (g_entityId[i] == -1 || g_entityAction[i] != 1)
 					continue;
@@ -317,11 +325,11 @@ bool Bot::DoFirePause(const float distance)
 	const float angle = (cabsf(pev->punchangle.y) + cabsf(pev->punchangle.x)) * (Math::MATH_PI * 0.00277777777f);
 
 	// check if we need to compensate recoil
-	if (tanf(angle) * (distance + (distance * 0.25f)) > 100.0f)
+	if (ctanf(angle) * (distance + (distance * 0.25f)) > 100.0f)
 	{
 		const float time = engine->GetTime();
 		if (m_firePause < (time - 0.4f))
-			m_firePause = time + CRandomFloat(0.4f, (0.4f + 1.2f * ((100 - m_skill)) * 0.01f));
+			m_firePause = time + crandomfloat(0.4f, (0.4f + 1.2f * ((100 - m_skill)) * 0.01f));
 
 		return true;
 	}
@@ -336,7 +344,7 @@ bool Bot::DoFirePause(const float distance)
 
 		if (pev->speed >= pev->maxspeed && !IsZombieMode())
 		{
-			m_firePause = AddTime(0.1f);
+			m_firePause = engine->GetTime() + 0.1f;
 			return true;
 		}
 	}
@@ -371,7 +379,7 @@ void Bot::FireWeapon(void)
 
 	if (ebot_knifemode.GetBool())
 		goto WeaponSelectEnd;
-	else if (!FNullEnt(enemy) && ChanceOf(m_skill) && !IsZombieEntity(enemy) && distance < SquaredF(128.0f) && (enemy->v.health < 30 || pev->health > enemy->v.health) && !IsOnLadder() && m_enemiesNearCount < 2)
+	else if (!FNullEnt(enemy) && chanceof(m_skill) && !IsZombieEntity(enemy) && distance < squaredf(128.0f) && (enemy->v.health < 30 || pev->health > enemy->v.health) && !IsOnLadder() && m_enemiesNearCount < 2)
 		goto WeaponSelectEnd;
 
 	// loop through all the weapons until terminator is found...
@@ -389,7 +397,7 @@ void Bot::FireWeapon(void)
 			// is enough ammo available to fire AND check is better to use pistol in our current situation...
 			if (g_gameVersion & Game::HalfLife)
 			{
-				if (selectIndex == WeaponHL::Snark || selectIndex == WeaponHL::Gauss ||selectIndex == WeaponHL::Egon || (selectIndex == WeaponHL::HandGrenade && distance > SquaredF(384.0f) && distance < SquaredF(768.0f)) || (selectIndex == WeaponHL::Rpg && distance > SquaredF(320.0f)) || (selectIndex == WeaponHL::Crossbow && distance > SquaredF(320.0f)))
+				if (selectIndex == WeaponHL::Snark || selectIndex == WeaponHL::Gauss ||selectIndex == WeaponHL::Egon || (selectIndex == WeaponHL::HandGrenade && distance > squaredf(384.0f) && distance < squaredf(768.0f)) || (selectIndex == WeaponHL::Rpg && distance > squaredf(320.0f)) || (selectIndex == WeaponHL::Crossbow && distance > squaredf(320.0f)))
 					chosenWeaponIndex = selectIndex;
 				else if (selectIndex != WeaponHL::HandGrenade && selectIndex != WeaponHL::Rpg  && selectIndex != WeaponHL::Crossbow && (m_ammoInClip[id] > 0) && !IsWeaponBadInDistance(selectIndex, distance))
 					chosenWeaponIndex = selectIndex;
@@ -487,7 +495,7 @@ WeaponSelectEnd:
 
 		if (HasShield() && m_shieldCheckTime < time && GetCurrentState() != Process::Camp) // better shield gun usage
 		{
-			if ((distance > SquaredF(768.0f)) && !IsShieldDrawn())
+			if ((distance > squaredf(768.0f)) && !IsShieldDrawn())
 				pev->button |= IN_ATTACK2; // draw the shield
 			else if (IsShieldDrawn() || (IsValidPlayer(enemy) && enemy->v.button & IN_RELOAD))
 				pev->button |= IN_ATTACK2; // draw out the shield
@@ -498,30 +506,30 @@ WeaponSelectEnd:
 
 	if (UsesSniper() && m_zoomCheckTime < time) // is the bot holding a sniper rifle?
 	{
-		if (distance > SquaredF(1500.0f) && pev->fov >= 40.0f) // should the bot switch to the long-range zoom?
+		if (distance > squaredf(1500.0f) && pev->fov >= 40.0f) // should the bot switch to the long-range zoom?
 			pev->button |= IN_ATTACK2;
 
-		else if (distance > SquaredF(150.0f) && pev->fov >= 90.0f) // else should the bot switch to the close-range zoom ?
+		else if (distance > squaredf(150.0f) && pev->fov >= 90.0f) // else should the bot switch to the close-range zoom ?
 			pev->button |= IN_ATTACK2;
 
-		else if (distance < SquaredF(150.0f) && pev->fov < 90.0f) // else should the bot restore the normal view ?
+		else if (distance < squaredf(150.0f) && pev->fov < 90.0f) // else should the bot restore the normal view ?
 			pev->button |= IN_ATTACK2;
 
 		m_zoomCheckTime = time;
 	}
 	else if (UsesZoomableRifle() && m_zoomCheckTime < time && m_skill < 90) // else is the bot holding a zoomable rifle?
 	{
-		if (distance > SquaredF(800.0f) && pev->fov >= 90.0f) // should the bot switch to zoomed mode?
+		if (distance > squaredf(800.0f) && pev->fov >= 90.0f) // should the bot switch to zoomed mode?
 			pev->button |= IN_ATTACK2;
 
-		else if (distance < SquaredF(800.0f) && pev->fov < 90.0f) // else should the bot restore the normal view?
+		else if (distance < squaredf(800.0f) && pev->fov < 90.0f) // else should the bot restore the normal view?
 			pev->button |= IN_ATTACK2;
 
 		m_zoomCheckTime = time;
 	}
 
 	// need to care for burst fire?
-	if (g_gameVersion & Game::HalfLife || distance < SquaredF(512.0f))
+	if (g_gameVersion & Game::HalfLife || distance < squaredf(512.0f))
 	{
 		if (selectId == melee)
 			KnifeAttack();
@@ -574,8 +582,8 @@ bool Bot::KnifeAttack(const float attackDistance)
 		distance = m_entityDistance;
 	}
 
-	float kad1 = SquaredF(pev->speed * 0.26);
-	const float kad2 = SquaredF(64.0f);
+	float kad1 = squaredf(pev->speed * 0.26);
+	const float kad2 = squaredf(64.0f);
 
 	if (attackDistance != 0.0f)
 		kad1 = attackDistance;
@@ -592,7 +600,7 @@ bool Bot::KnifeAttack(const float attackDistance)
 	{
 		const float distanceSkipZ = (pev->origin - origin).GetLengthSquared2D();
 
-		if (pev->origin.z > origin.z && distanceSkipZ < SquaredF(64.0f))
+		if (pev->origin.z > origin.z && distanceSkipZ < squaredf(64.0f))
 		{
 			pev->button |= IN_DUCK;
 			pev->button &= ~IN_JUMP;
@@ -601,7 +609,7 @@ bool Bot::KnifeAttack(const float attackDistance)
 		{
 			pev->button &= ~IN_DUCK;
 
-			if (pev->origin.z + 150.0f < origin.z && distanceSkipZ < SquaredF(300.0f))
+			if (pev->origin.z + 150.0f < origin.z && distanceSkipZ < squaredf(300.0f))
 				pev->button |= IN_JUMP;
 		}
 
@@ -618,7 +626,7 @@ bool Bot::KnifeAttack(const float attackDistance)
 				pev->button |= IN_ATTACK;
 			else if (kaMode == 2)
 				pev->button |= IN_ATTACK2;
-			else if (CRandomInt(1, 10) < 3 || HasShield())
+			else if (crandomint(1, 10) < 3 || HasShield())
 				pev->button |= IN_ATTACK;
 			else
 				pev->button |= IN_ATTACK2;
@@ -641,7 +649,7 @@ bool Bot::IsWeaponBadInDistance(const int weaponIndex, const float distance)
 			return false;
 
 		// shotgun is too inaccurate at long distances, so weapon is bad
-		if (weaponID == WeaponHL::Shotgun && distance > SquaredF(768.0f))
+		if (weaponID == WeaponHL::Shotgun && distance > squaredf(768.0f))
 			return true;
 	}
 	else
@@ -651,12 +659,12 @@ bool Bot::IsWeaponBadInDistance(const int weaponIndex, const float distance)
 			return false;
 
 		// shotguns is too inaccurate at long distances, so weapon is bad
-		if ((weaponID == Weapon::M3 || weaponID == Weapon::Xm1014) && distance > SquaredF(768.0f))
+		if ((weaponID == Weapon::M3 || weaponID == Weapon::Xm1014) && distance > squaredf(768.0f))
 			return true;
 
 		if (!IsZombieMode())
 		{
-			if ((weaponID == Weapon::Scout || weaponID == Weapon::Awp || weaponID == Weapon::G3SG1 || weaponID == Weapon::Sg550) && distance <= SquaredF(512.0f))
+			if ((weaponID == Weapon::Scout || weaponID == Weapon::Awp || weaponID == Weapon::G3SG1 || weaponID == Weapon::Sg550) && distance <= squaredf(512.0f))
 				return true;
 		}
 	}

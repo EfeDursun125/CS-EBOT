@@ -1,3 +1,27 @@
+//
+// Copyright (c) 2003-2009, by Yet Another POD-Bot Development Team.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the "Software"),
+// to deal in the Software without restriction, including without limitation
+// the rights to use, copy, modify, merge, publish, distribute, sublicense,
+// and/or sell copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+//
+// $Id: engine.cpp 35 2009-06-24 16:43:26Z jeefo $
+//
+
 #include <core.h>
 
 ConVar::ConVar(const char* name, const char* initval, VarType type)
@@ -124,7 +148,7 @@ float Engine::GetRoundTime(void)
 {
     // we have no idea
     if (!m_gameVars[GVAR_ROUNDTIME])
-        return CRandomFloat(120.0f, 300.0f);
+        return crandomfloat(120.0f, 300.0f);
 
     return m_gameVars[GVAR_ROUNDTIME]->value;
 }
@@ -252,7 +276,7 @@ float Client::GetShootingConeDeviation(const Vector& pos) const
 bool Client::IsInViewCone(const Vector& pos) const
 {
     engine->BuildGlobalVectors(GetViewAngles());
-    return ((pos - GetHeadOrigin()).Normalize() | g_pGlobals->v_forward) >= cosf(Math::DegreeToRadian((GetFOV() > 0.0f ? GetFOV() : 90.0f) * 0.5f));
+    return ((pos - GetHeadOrigin()).Normalize() | g_pGlobals->v_forward) >= ccosf(Math::DegreeToRadian((GetFOV() > 0.0f ? GetFOV() : 90.0f) * 0.5f));
 }
 
 bool Client::IsVisible(const Vector& pos) const

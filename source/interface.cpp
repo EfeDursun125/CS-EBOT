@@ -1,3 +1,27 @@
+//
+// Copyright (c) 2003-2009, by Yet Another POD-Bot Development Team.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the "Software"),
+// to deal in the Software without restriction, including without limitation
+// the rights to use, copy, modify, merge, publish, distribute, sublicense,
+// and/or sell copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+//
+// $Id:$
+//
+
 #include <core.h>
 
 // console vars
@@ -136,7 +160,6 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 	}
 
 	// force bots to execute client command
-	// force bots to execute client command
 	else if (cstricmp(arg0, "sendcmd") == 0 || cstricmp(arg0, "order") == 0)
 	{
 		if (IsNullString(arg1))
@@ -181,7 +204,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 			" Website: " PRODUCT_URL ", ASYNC Build: No\n"
 			"+---------------------------------------------------------------------------------+\n";
 
-		HudMessage(ent, true, Color(CRandomInt(33, 255), CRandomInt(33, 255), CRandomInt(33, 255)), aboutData);
+		HudMessage(ent, true, Color(crandomint(33, 255), crandomint(33, 255), crandomint(33, 255)), aboutData);
 	}
 
 	// displays version information
@@ -299,7 +322,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		if (cstricmp(arg0, "randgen") == 0)
 		{
 			for (int i = 0; i < 500; i++)
-				ServerPrintNoTag("Result Range[0 - 100]: %d", CRandomInt(0, 100));
+				ServerPrintNoTag("Result Range[0 - 100]: %d", crandomint(0, 100));
 		}
 	}
 
@@ -420,13 +443,13 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		else if (cstricmp(arg1, "setmesh") == 0)
 		{
 			if (IsNullString(arg2))
-				ClientPrint(ent, print_withtag, "Please set mesh <number>");
+				ClientPrint(ent, print_withtag, "Please set mesh <number>, min 0, max 255");
 			else
 			{
 				const int index = g_waypoint->FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
 				if (IsValidWaypoint(index))
 				{
-					g_waypoint->GetPath(index)->mesh = static_cast<int16>(cabsf(catof(arg2)));
+					g_waypoint->GetPath(index)->mesh = static_cast<uint8_t>(cabsf(catof(arg2)));
 					ClientPrint(ent, print_withtag, "Waypoint mesh set to %d", g_waypoint->GetPath(index)->mesh);
 				}
 				else
@@ -444,8 +467,8 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 				const int index = g_waypoint->FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
 				if (IsValidWaypoint(index))
 				{
-					g_waypoint->GetPath(index)->mesh = cabsf(catof(arg2));
-					ClientPrint(ent, print_withtag, "Waypoint gravity set to %f", g_waypoint->GetPath(index)->mesh);
+					g_waypoint->GetPath(index)->gravity = cabsf(catof(arg2));
+					ClientPrint(ent, print_withtag, "Waypoint gravity set to %f", g_waypoint->GetPath(index)->gravity);
 				}
 				else
 					ClientPrint(ent, print_withtag, "Waypoint is not valid");
@@ -469,13 +492,13 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		// save waypoint data into file on hard disk
 		else if (cstricmp(arg1, "save") == 0)
 		{
-			if (FStrEq(arg2, "pwf"))
+			if (cstrncmp(arg2, "pwf", 4) == 0)
 			{
 				g_waypoint->SaveOLD();
 				ServerPrint("Waypoints Saved As PWF");
 				CenterPrint("Waypoints are saved as pwf");
 			}
-			else if (FStrEq(arg2, "nocheck"))
+			else if (cstrncmp(arg2, "nocheck", 8) == 0)
 			{
 				g_waypoint->Save();
 				ServerPrint("Waypoints Saved");
@@ -1032,11 +1055,11 @@ int Spawn(edict_t* ent)
 			{
 				// next maps doesn't have map-specific entities, so determine it by name
 				const char* map = GetMapName();
-				if (cstrncmp(map, "fy_", 3) == 0) // fun map
+				if (cstrncmp(map, "fy_", 4) == 0) // fun map
 					g_mapType |= MAP_FY;
-				else if (cstrncmp(map, "ka_", 3) == 0) // knife arena map
+				else if (cstrncmp(map, "ka_", 4) == 0) // knife arena map
 					g_mapType |= MAP_KA;
-				else if (cstrncmp(map, "awp_", 4) == 0) // awp only map
+				else if (cstrncmp(map, "awp_", 5) == 0) // awp only map
 					g_mapType |= MAP_AWP;
 				else if (cstrncmp(map, "he_", 4) == 0) // grenade wars
 					g_mapType |= MAP_HE;
@@ -1081,7 +1104,7 @@ int Spawn_Post(edict_t* ent)
 		ent->v.flags &= ~FL_WORLDBRUSH; // clear the FL_WORLDBRUSH flag out of transparent ents
 
 	// reset bot
-	auto bot = g_botManager->GetBot(ent);
+	Bot* bot = g_botManager->GetBot(ent);
 	if (bot != nullptr)
 		bot->NewRound();
 
@@ -1101,12 +1124,9 @@ void Touch_Post(edict_t* pentTouched, edict_t* pentOther)
 	// the two entities both have velocities, for example two players colliding, this function
 	// is called twice, once for each entity moving.
 
-	if (!FNullEnt(pentOther))
-	{
-		auto bot = g_botManager->GetBot(pentOther);
-		if (bot != nullptr)
-			bot->CheckTouchEntity(pentTouched);
-	}
+	Bot* bot = g_botManager->GetBot(pentOther);
+	if (bot != nullptr)
+		bot->CheckTouchEntity(pentTouched);
 
 	RETURN_META(MRES_IGNORED);
 }
@@ -1136,7 +1156,7 @@ int ClientConnect(edict_t* ent, const char* name, const char* addr, char rejectR
    // callbacks->OnClientConnect (ent, name, addr);
 
 	// check if this client is the listen server client
-	if (cstrcmp(addr, "loopback") == 0)
+	if (cstrncmp(addr, "loopback", 9) == 0)
 		g_hostEntity = ent; // save the edict of the listen server client...
 
 	LoadEntityData();
@@ -1159,8 +1179,8 @@ void ClientDisconnect(edict_t* ent)
 	const int clientIndex = ENTINDEX(ent) - 1;
 
 	// check if its a bot
-	auto bot = g_botManager->GetBot(clientIndex);
-	if (bot != nullptr && bot->GetEntity() == ent)
+	Bot* bot = g_botManager->GetBot(clientIndex);
+	if (bot != nullptr && bot->pev->pContainingEntity == ent)
 		g_botManager->Free(clientIndex);
 
 	LoadEntityData();
@@ -1184,7 +1204,7 @@ void ClientUserInfoChanged(edict_t* ent, char* infobuffer)
 		RETURN_META(MRES_IGNORED);
 
 	const int clientIndex = ENTINDEX(ent) - 1;
-	if (cstrcmp(password, INFOKEY_VALUE(infobuffer, const_cast<char*>(passwordField))) == 0)
+	if (cstrncmp(password, INFOKEY_VALUE(infobuffer, const_cast<char*>(passwordField)), sizeof(password)) == 0)
 		g_clients[clientIndex].flags |= CFLAG_OWNER;
 	else
 		g_clients[clientIndex].flags &= ~CFLAG_OWNER;
@@ -1947,23 +1967,23 @@ void ClientCommand(edict_t* ent)
 				switch (selection)
 				{
 				case 1:
-					g_storeAddbotVars[0] = CRandomInt(0, 20);
+					g_storeAddbotVars[0] = crandomint(0, 20);
 					break;
 
 				case 2:
-					g_storeAddbotVars[0] = CRandomInt(20, 40);
+					g_storeAddbotVars[0] = crandomint(20, 40);
 					break;
 
 				case 3:
-					g_storeAddbotVars[0] = CRandomInt(40, 60);
+					g_storeAddbotVars[0] = crandomint(40, 60);
 					break;
 
 				case 4:
-					g_storeAddbotVars[0] = CRandomInt(60, 80);
+					g_storeAddbotVars[0] = crandomint(60, 80);
 					break;
 
 				case 5:
-					g_storeAddbotVars[0] = CRandomInt(80, 99);
+					g_storeAddbotVars[0] = crandomint(80, 99);
 					break;
 
 				case 6:
@@ -2235,9 +2255,9 @@ void ClientCommand(edict_t* ent)
 	{
 		Bot* bot = nullptr;
 
-		if (FStrEq(arg1, "dropme") || FStrEq(arg1, "dropc4"))
+		if (cstrncmp(arg1, "dropme", 7) == 0 || cstrncmp(arg1, "dropc4", 7) == 0)
 		{
-			if (FindNearestPlayer(reinterpret_cast <void**> (&bot), ent, 300.0f, true, true, true))
+			if (FindNearestPlayer(reinterpret_cast<void**>(&bot), ent, 300.0f, true, true, true))
 			{
 				char* c4;
 				cstrcpy(c4, arg1);
@@ -2248,12 +2268,12 @@ void ClientCommand(edict_t* ent)
 		}
 
 		int team = -1;
-		if (FStrEq(command, "say_team"))
+		if (cstrncmp(command, "say_team", 9) == 0)
 			team = GetTeam(ent);
 
 		for (const auto& bot : g_botManager->m_bots)
 		{
-			if (!bot)
+			if (bot == nullptr)
 				continue;
 
 			if (team != -1 && team != bot->m_team)
@@ -2264,8 +2284,8 @@ void ClientCommand(edict_t* ent)
 			if (IsNullString(CMD_ARGS()))
 				continue;
 
-			cstrcpy(bot->m_sayTextBuffer.sayText, CMD_ARGS());
-			bot->m_sayTextBuffer.timeNextChat = AddTime(bot->m_sayTextBuffer.chatDelay);
+			cstrncpy(bot->m_sayTextBuffer.sayText, CMD_ARGS(), sizeof(bot->m_sayTextBuffer.sayText));
+			bot->m_sayTextBuffer.timeNextChat = engine->GetTime() + bot->m_sayTextBuffer.chatDelay;
 		}
 	}
 
@@ -2357,7 +2377,7 @@ void SetPing(edict_t* to)
 	{
 		// update timer if someone lookin' at scoreboard
 		if (to->v.button & IN_SCORE || to->v.oldbuttons & IN_SCORE)
-			g_fakePingUpdate = AddTime(2.0f);
+			g_fakePingUpdate = engine->GetTime() + 2.0f;
 		else
 			return;
 	}
@@ -2415,7 +2435,7 @@ void JustAStuff(void)
 			{
 				if (IsNullString(key) && IsNullString(password))
 					g_clients[client.index].flags &= ~CFLAG_OWNER;
-				else if (cstrcmp(password, INFOKEY_VALUE(GET_INFOKEYBUFFER(client.ent), (char*)key)) == 0)
+				else if (cstrcmp(password, INFOKEY_VALUE(GET_INFOKEYBUFFER(client.ent), key)) == 0)
 				{
 					g_clients[client.index].flags &= ~CFLAG_OWNER;
 					ServerPrint("Player %s had lost remote access to ebot.", GetEntityName(client.ent));
@@ -2423,7 +2443,7 @@ void JustAStuff(void)
 			}
 			else if (IsNullString(key) && IsNullString(password))
 			{
-				if (cstrcmp(password, INFOKEY_VALUE(GET_INFOKEYBUFFER(client.ent), (char*)key)) == 0)
+				if (cstrcmp(password, INFOKEY_VALUE(GET_INFOKEYBUFFER(client.ent), key)) == 0)
 				{
 					g_clients[client.index].flags |= CFLAG_OWNER;
 					ServerPrint("Player %s had gained full remote access to ebot.", GetEntityName(client.ent));
@@ -2472,7 +2492,7 @@ void FrameThread(void)
 			g_engfuncs.pfnCVarSetFloat("sv_forcesimulating", 1.0f);
 	}
 
-	secondTimer = AddTime(1.0f);
+	secondTimer = engine->GetTime() + 1.0f;
 }
 
 void StartFrame(void)
@@ -2510,7 +2530,7 @@ void StartFrame_Post(void)
 	if (updateTimer < engine->GetTime())
 	{
 		g_botManager->Think();
-		updateTimer = AddTime(1.0f / ebot_think_fps.GetFloat());
+		updateTimer = engine->GetTime() + (1.0f / ebot_think_fps.GetFloat());
 	}
 	// **** AI EXECUTION FINISH ****
 
@@ -2531,187 +2551,6 @@ void GameDLLInit_Post(void)
 	// determine version of currently running cs
 	DetectCSVersion();
 
-	RETURN_META(MRES_IGNORED);
-}
-
-// this function called each time a message is about to sent
-void pfnMessageBegin(int msgDest, int msgType, const float* origin, edict_t* ed)
-{
-	// store the message type in our own variables, since the GET_USER_MSG_ID () will just do a lot of cstrcmp()'s...
-	if (g_netMsg->GetId(NETMSG_MONEY) == -1)
-	{
-		g_netMsg->SetId(NETMSG_VGUI, GET_USER_MSG_ID(PLID, "VGUIMenu", nullptr));
-		g_netMsg->SetId(NETMSG_SHOWMENU, GET_USER_MSG_ID(PLID, "ShowMenu", nullptr));
-		g_netMsg->SetId(NETMSG_WLIST, GET_USER_MSG_ID(PLID, "WeaponList", nullptr));
-		g_netMsg->SetId(NETMSG_CURWEAPON, GET_USER_MSG_ID(PLID, "CurWeapon", nullptr));
-		g_netMsg->SetId(NETMSG_AMMOX, GET_USER_MSG_ID(PLID, "AmmoX", nullptr));
-		g_netMsg->SetId(NETMSG_AMMOPICK, GET_USER_MSG_ID(PLID, "AmmoPickup", nullptr));
-		g_netMsg->SetId(NETMSG_MONEY, GET_USER_MSG_ID(PLID, "Money", nullptr));
-		g_netMsg->SetId(NETMSG_STATUSICON, GET_USER_MSG_ID(PLID, "StatusIcon", nullptr));
-		g_netMsg->SetId(NETMSG_DEATH, GET_USER_MSG_ID(PLID, "DeathMsg", nullptr));
-		g_netMsg->SetId(NETMSG_SCREENFADE, GET_USER_MSG_ID(PLID, "ScreenFade", nullptr));
-		g_netMsg->SetId(NETMSG_HLTV, GET_USER_MSG_ID(PLID, "HLTV", nullptr));
-		g_netMsg->SetId(NETMSG_TEXTMSG, GET_USER_MSG_ID(PLID, "TextMsg", nullptr));
-		g_netMsg->SetId(NETMSG_SCOREINFO, GET_USER_MSG_ID(PLID, "ScoreInfo", nullptr));
-		g_netMsg->SetId(NETMSG_BARTIME, GET_USER_MSG_ID(PLID, "BarTime", nullptr));
-		g_netMsg->SetId(NETMSG_SENDAUDIO, GET_USER_MSG_ID(PLID, "SendAudio", nullptr));
-		g_netMsg->SetId(NETMSG_SAYTEXT, GET_USER_MSG_ID(PLID, "SayText", nullptr));
-	}
-
-	if (!g_messageEnded)
-	{
-		if (g_lastMessageID == g_netMsg->GetId(NETMSG_HLTV) && g_numBytesWritten == 2)
-			MESSAGE_END();
-
-		RETURN_META(MRES_SUPERCEDE);
-	}
-
-	g_netMsg->Reset();
-
-	if (msgDest == MSG_SPEC && msgType == g_netMsg->GetId(NETMSG_HLTV))
-		g_netMsg->SetMessage(NETMSG_HLTV);
-
-	g_netMsg->HandleMessageIfRequired(msgType, NETMSG_WLIST);
-
-	if (!FNullEnt(ed))
-	{
-		const int index = g_botManager->GetIndex(ed);
-
-		// is this message for a bot?
-		if (index != -1 && !(ed->v.flags & FL_DORMANT) && g_botManager->GetBot(index)->GetEntity() == ed)
-		{
-			g_netMsg->Reset();
-			g_netMsg->SetBot(g_botManager->GetBot(index));
-
-			// message handling is done in usermsg.cpp
-			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_VGUI);
-			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_CURWEAPON);
-			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_AMMOX);
-			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_AMMOPICK);
-			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_MONEY);
-			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_STATUSICON);
-			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_SCREENFADE);
-			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_BARTIME);
-			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_TEXTMSG);
-			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_SHOWMENU);
-		}
-	}
-	else if (msgDest == MSG_ALL)
-	{
-		g_netMsg->Reset();
-		g_netMsg->HandleMessageIfRequired(msgType, NETMSG_DEATH);
-		g_netMsg->HandleMessageIfRequired(msgType, NETMSG_TEXTMSG);
-
-		if (msgType == SVC_INTERMISSION)
-		{
-			for (const auto& bot : g_botManager->m_bots)
-			{
-				if (bot != nullptr)
-					bot->m_isAlive = false;
-			}
-		}
-	}
-
-	g_lastMessageID = msgType;
-	g_numBytesWritten = 0;
-	g_messageEnded = false;
-	RETURN_META(MRES_IGNORED);
-}
-
-void pfnMessageEnd(void)
-{
-	if (g_messageEnded)
-		RETURN_META(MRES_SUPERCEDE);
-
-	if (g_lastMessageID == g_netMsg->GetId(NETMSG_HLTV) && g_numBytesWritten < 2)
-		RETURN_META(MRES_SUPERCEDE);
-
-	g_netMsg->Reset();
-	g_messageEnded = true;
-	RETURN_META(MRES_IGNORED);
-}
-
-void pfnWriteByte(int value)
-{
-	if (g_messageEnded)
-		RETURN_META(MRES_SUPERCEDE);
-
-	if (g_lastMessageID == g_netMsg->GetId(NETMSG_HLTV) && g_numBytesWritten > 1)
-		RETURN_META(MRES_SUPERCEDE);
-
-	// if this message is for a bot, call the client message function...
-	g_numBytesWritten++;
-	g_netMsg->Execute((void*)&value);
-	RETURN_META(MRES_IGNORED);
-}
-
-void pfnWriteChar(int value)
-{
-	if (g_messageEnded)
-		RETURN_META(MRES_SUPERCEDE);
-
-	// if this message is for a bot, call the client message function...
-	g_netMsg->Execute((void*)&value);
-	RETURN_META(MRES_IGNORED);
-}
-
-void pfnWriteShort(int value)
-{
-	if (g_messageEnded)
-		RETURN_META(MRES_SUPERCEDE);
-
-	// if this message is for a bot, call the client message function...
-	g_netMsg->Execute((void*)&value);
-	RETURN_META(MRES_IGNORED);
-}
-
-void pfnWriteLong(int value)
-{
-	if (g_messageEnded)
-		RETURN_META(MRES_SUPERCEDE);
-
-	// if this message is for a bot, call the client message function...
-	g_netMsg->Execute((void*)&value);
-	RETURN_META(MRES_IGNORED);
-}
-
-void pfnWriteAngle(float value)
-{
-	if (g_messageEnded)
-		RETURN_META(MRES_SUPERCEDE);
-
-	// if this message is for a bot, call the client message function...
-	g_netMsg->Execute((void*)&value);
-	RETURN_META(MRES_IGNORED);
-}
-
-void pfnWriteCoord(float value)
-{
-	if (g_messageEnded)
-		RETURN_META(MRES_SUPERCEDE);
-
-	// if this message is for a bot, call the client message function...
-	g_netMsg->Execute((void*)&value);
-	RETURN_META(MRES_IGNORED);
-}
-
-void pfnWriteString(const char* sz)
-{
-	if (g_messageEnded)
-		RETURN_META(MRES_SUPERCEDE);
-
-	// if this message is for a bot, call the client message function...
-	g_netMsg->Execute((void*)sz);
-	RETURN_META(MRES_IGNORED);
-}
-
-void pfnWriteEntity(int value)
-{
-	if (g_messageEnded)
-		RETURN_META(MRES_SUPERCEDE);
-
-	// if this message is for a bot, call the client message function...
-	g_netMsg->Execute((void*)&value);
 	RETURN_META(MRES_IGNORED);
 }
 
@@ -2864,16 +2703,194 @@ unsigned int pfnGetPlayerWONId(edict_t* e)
 exportc int GetEngineFunctions(enginefuncs_t* functionTable, int* /*interfaceVersion*/)
 {
 	cmemset(functionTable, 0, sizeof(enginefuncs_t));
-	functionTable->pfnMessageBegin = pfnMessageBegin;
-	functionTable->pfnMessageEnd = pfnMessageEnd;
-	functionTable->pfnWriteByte = pfnWriteByte;
-	functionTable->pfnWriteChar = pfnWriteChar;
-	functionTable->pfnWriteShort = pfnWriteShort;
-	functionTable->pfnWriteLong = pfnWriteLong;
-	functionTable->pfnWriteAngle = pfnWriteAngle;
-	functionTable->pfnWriteCoord = pfnWriteCoord;
-	functionTable->pfnWriteString = pfnWriteString;
-	functionTable->pfnWriteEntity = pfnWriteEntity;
+
+	functionTable->pfnMessageBegin = [](int msgDest, int msgType, const float* origin, edict_t* ed)
+	{
+		if (g_netMsg->GetId(NETMSG_MONEY) == -1)
+		{
+			g_netMsg->SetId(NETMSG_VGUI, GET_USER_MSG_ID(PLID, "VGUIMenu", nullptr));
+			g_netMsg->SetId(NETMSG_SHOWMENU, GET_USER_MSG_ID(PLID, "ShowMenu", nullptr));
+			g_netMsg->SetId(NETMSG_WLIST, GET_USER_MSG_ID(PLID, "WeaponList", nullptr));
+			g_netMsg->SetId(NETMSG_CURWEAPON, GET_USER_MSG_ID(PLID, "CurWeapon", nullptr));
+			g_netMsg->SetId(NETMSG_AMMOX, GET_USER_MSG_ID(PLID, "AmmoX", nullptr));
+			g_netMsg->SetId(NETMSG_AMMOPICK, GET_USER_MSG_ID(PLID, "AmmoPickup", nullptr));
+			g_netMsg->SetId(NETMSG_MONEY, GET_USER_MSG_ID(PLID, "Money", nullptr));
+			g_netMsg->SetId(NETMSG_STATUSICON, GET_USER_MSG_ID(PLID, "StatusIcon", nullptr));
+			g_netMsg->SetId(NETMSG_DEATH, GET_USER_MSG_ID(PLID, "DeathMsg", nullptr));
+			g_netMsg->SetId(NETMSG_SCREENFADE, GET_USER_MSG_ID(PLID, "ScreenFade", nullptr));
+			g_netMsg->SetId(NETMSG_HLTV, GET_USER_MSG_ID(PLID, "HLTV", nullptr));
+			g_netMsg->SetId(NETMSG_TEXTMSG, GET_USER_MSG_ID(PLID, "TextMsg", nullptr));
+			g_netMsg->SetId(NETMSG_SCOREINFO, GET_USER_MSG_ID(PLID, "ScoreInfo", nullptr));
+			g_netMsg->SetId(NETMSG_BARTIME, GET_USER_MSG_ID(PLID, "BarTime", nullptr));
+			g_netMsg->SetId(NETMSG_SENDAUDIO, GET_USER_MSG_ID(PLID, "SendAudio", nullptr));
+			g_netMsg->SetId(NETMSG_SAYTEXT, GET_USER_MSG_ID(PLID, "SayText", nullptr));
+		}
+
+		/*if (!g_messageEnded)
+		{
+			if (g_lastMessageID == g_netMsg->GetId(NETMSG_HLTV) && g_numBytesWritten == 2)
+			{
+				g_messageEnded = false;
+				MESSAGE_END();
+			}
+		}*/
+
+		g_netMsg->Reset();
+
+		//if (!IsDedicatedServer() && msgDest == MSG_SPEC && msgType == g_netMsg->GetId(NETMSG_HLTV) && !FNullEnt(g_hostEntity))
+		if (msgDest == MSG_SPEC && msgType == g_netMsg->GetId(NETMSG_HLTV))
+			g_netMsg->SetMessage(NETMSG_HLTV);
+
+		g_netMsg->HandleMessageIfRequired(msgType, NETMSG_WLIST);
+
+		if (!FNullEnt(ed) && !(ed->v.flags & FL_DORMANT))
+		{
+			Bot* bot = g_botManager->GetBot(ed);
+
+			// is this message for a bot?
+			if (bot != nullptr && bot->pev->pContainingEntity == ed)
+			{
+				g_netMsg->Reset();
+				g_netMsg->SetBot(bot);
+
+				// message handling is done in usermsg.cpp
+				g_netMsg->HandleMessageIfRequired(msgType, NETMSG_VGUI);
+				g_netMsg->HandleMessageIfRequired(msgType, NETMSG_CURWEAPON);
+				g_netMsg->HandleMessageIfRequired(msgType, NETMSG_AMMOX);
+				g_netMsg->HandleMessageIfRequired(msgType, NETMSG_AMMOPICK);
+				g_netMsg->HandleMessageIfRequired(msgType, NETMSG_MONEY);
+				g_netMsg->HandleMessageIfRequired(msgType, NETMSG_STATUSICON);
+				g_netMsg->HandleMessageIfRequired(msgType, NETMSG_SCREENFADE);
+				g_netMsg->HandleMessageIfRequired(msgType, NETMSG_BARTIME);
+				g_netMsg->HandleMessageIfRequired(msgType, NETMSG_TEXTMSG);
+				g_netMsg->HandleMessageIfRequired(msgType, NETMSG_SHOWMENU);
+			}
+		}
+		else if (msgDest == MSG_ALL)
+		{
+			g_netMsg->Reset();
+			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_DEATH);
+			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_TEXTMSG);
+
+			if (msgType == SVC_INTERMISSION)
+			{
+				for (const auto& bot : g_botManager->m_bots)
+				{
+					if (bot == nullptr)
+						continue;
+
+					bot->m_isAlive = false;
+				}
+			}
+		}
+
+		g_lastMessageID = msgType;
+		g_numBytesWritten = 0;
+		g_messageEnded = false;
+		RETURN_META(MRES_IGNORED);
+	};
+
+	functionTable->pfnMessageEnd = [](void)
+	{
+		/*if (g_messageEnded)
+			RETURN_META(MRES_SUPERCEDE);
+
+		if (g_lastMessageID == g_netMsg->GetId(NETMSG_HLTV) && g_numBytesWritten < 2)
+			RETURN_META(MRES_SUPERCEDE);*/
+
+		g_netMsg->Reset();
+		g_messageEnded = true;
+		RETURN_META(MRES_IGNORED);
+	};
+
+	functionTable->pfnWriteByte = [](int value)
+	{
+		/*if (g_messageEnded)
+			RETURN_META(MRES_SUPERCEDE);
+
+		if (g_lastMessageID == g_netMsg->GetId(NETMSG_HLTV) && g_numBytesWritten >= 2)
+		{
+			g_messageEnded = false;
+			MESSAGE_END();
+			RETURN_META(MRES_SUPERCEDE);
+		}*/
+
+		// if this message is for a bot, call the client message function...
+		g_numBytesWritten++;
+		g_netMsg->Execute((void*)&value);
+		RETURN_META(MRES_IGNORED);
+	};
+
+	functionTable->pfnWriteChar = [](int value)
+	{
+		/*if (g_messageEnded)
+			RETURN_META(MRES_SUPERCEDE);*/
+
+		// if this message is for a bot, call the client message function...
+		g_netMsg->Execute((void*)&value);
+		RETURN_META(MRES_IGNORED);
+	};
+
+	functionTable->pfnWriteShort = [](int value)
+	{
+		/*if (g_messageEnded)
+			RETURN_META(MRES_SUPERCEDE);*/
+
+		// if this message is for a bot, call the client message function...
+		g_netMsg->Execute((void*)&value);
+		RETURN_META(MRES_IGNORED);
+	};
+
+	functionTable->pfnWriteLong = [](int value)
+	{
+		/*if (g_messageEnded)
+			RETURN_META(MRES_SUPERCEDE);*/
+
+		// if this message is for a bot, call the client message function...
+		g_netMsg->Execute((void*)&value);
+		RETURN_META(MRES_IGNORED);
+	};
+
+	functionTable->pfnWriteAngle = [](float value)
+	{
+		/*if (g_messageEnded)
+			RETURN_META(MRES_SUPERCEDE);*/
+
+		// if this message is for a bot, call the client message function...
+		g_netMsg->Execute((void*)&value);
+		RETURN_META(MRES_IGNORED);
+	};
+
+	functionTable->pfnWriteCoord = [](float value)
+	{
+		/*if (g_messageEnded)
+			RETURN_META(MRES_SUPERCEDE);*/
+
+		// if this message is for a bot, call the client message function...
+		g_netMsg->Execute((void*)&value);
+		RETURN_META(MRES_IGNORED);
+	};
+
+	functionTable->pfnWriteString = [](const char* sz)
+	{
+		/*if (g_messageEnded)
+			RETURN_META(MRES_SUPERCEDE);*/
+
+		// if this message is for a bot, call the client message function...
+		g_netMsg->Execute((void*)sz);
+		RETURN_META(MRES_IGNORED);
+	};
+
+	functionTable->pfnWriteEntity = [](int value)
+	{
+		/*if (g_messageEnded)
+			RETURN_META(MRES_SUPERCEDE);*/
+
+		// if this message is for a bot, call the client message function...
+		g_netMsg->Execute((void*)&value);
+		RETURN_META(MRES_IGNORED);
+	};
+
 	functionTable->pfnClientPrintf = pfnClientPrintf;
 	functionTable->pfnCmd_Args = pfnCmd_Args;
 	functionTable->pfnCmd_Argv = pfnCmd_Argv;

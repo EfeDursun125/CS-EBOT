@@ -1,4 +1,28 @@
-﻿#include <core.h>
+﻿//
+// Copyright (c) 2003-2009, by Yet Another POD-Bot Development Team.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the "Software"),
+// to deal in the Software without restriction, including without limitation
+// the rights to use, copy, modify, merge, publish, distribute, sublicense,
+// and/or sell copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+//
+// $Id:$
+//
+
+#include <core.h>
 
 ConVar ebot_quota("ebot_quota", "10");
 ConVar ebot_forceteam("ebot_force_team", "any");
@@ -36,13 +60,13 @@ BotControl::BotControl(void)
 // this is a bot manager class destructor, do not use engine->GetMaxClients () here !!
 BotControl::~BotControl(void)
 {
-	for (int i = 0; i < 32; i++)
+	for (auto& bot : m_bots)
 	{
-		if (m_bots[i])
-		{
-			delete m_bots[i];
-			m_bots[i] = nullptr;
-		}
+		if (bot == nullptr)
+			continue;
+
+		delete bot;
+		bot = nullptr;
 	}
 }
 
@@ -76,28 +100,28 @@ int BotControl::CreateBot(String name, int skill, int personality, const int tea
 		if (ebot_difficulty.GetInt() >= 4)
 			skill = 100;
 		else if (ebot_difficulty.GetInt() == 3)
-			skill = CRandomInt(79, 99);
+			skill = crandomint(79, 99);
 		else if (ebot_difficulty.GetInt() == 2)
-			skill = CRandomInt(50, 79);
+			skill = crandomint(50, 79);
 		else if (ebot_difficulty.GetInt() == 1)
-			skill = CRandomInt(30, 50);
+			skill = crandomint(30, 50);
 		else if (ebot_difficulty.GetInt() == 0)
-			skill = CRandomInt(1, 30);
+			skill = crandomint(1, 30);
 		else
 		{
 			const int maxSkill = ebot_maxskill.GetInt();
 			const int minSkill = (ebot_minskill.GetInt() == 0) ? 1 : ebot_minskill.GetInt();
 
 			if (maxSkill <= 100 && minSkill > 0)
-				skill = CRandomInt(minSkill, maxSkill);
+				skill = crandomint(minSkill, maxSkill);
 			else
-				skill = CRandomInt(0, 100);
+				skill = crandomint(0, 100);
 		}
 	}
 
 	if (personality < 0 || personality > 2)
 	{
-		const int randomPrecent = CRandomInt(1, 3);
+		const int randomPrecent = crandomint(1, 3);
 		if (randomPrecent == 1)
 			personality = Personality::Normal;
 		else if (randomPrecent == 2)
@@ -146,7 +170,7 @@ int BotControl::CreateBot(String name, int skill, int personality, const int tea
 			}
 		}
 		else
-			sprintf(outputName, "e-bot %i", CRandomInt(1, 9999)); // just pick ugly random name
+			sprintf(outputName, "e-bot %i", crandomint(1, 9999)); // just pick ugly random name
 	}
 	else
 		sprintf(outputName, "%s", (char*)name);
@@ -177,7 +201,7 @@ int BotControl::CreateBot(String name, int skill, int personality, const int tea
 	ServerPrint("Connecting E-Bot - %s | Skill %d", ebotName, skill);
 
 	// set values
-	m_bots[index]->m_senseChance = CRandomInt(10, 90);
+	m_bots[index]->m_senseChance = crandomint(10, 90);
 	m_bots[index]->m_hasProfile = false;
 
 	m_bots[index]->m_favoritePrimary.Destroy();
@@ -186,6 +210,7 @@ int BotControl::CreateBot(String name, int skill, int personality, const int tea
 
 	if (g_gameVersion & Game::CStrike || g_gameVersion & Game::CZero)
 	{
+		int i;
 		char* folder = FormatBuffer("%s/addons/ebot/profiles", GetModName());
 		CreatePath(folder);
 		const char* filePath = FormatBuffer("%s/%s.ep", folder, ebotName);
@@ -220,19 +245,19 @@ int BotControl::CreateBot(String name, int skill, int personality, const int tea
 				else if (pair[0] == "FavoritePrimary")
 				{
 					Array <String> splitted = pair[1].Split(',');
-					for (int i = 0; i < splitted.GetElementNumber(); i++)
+					for (i = 0; i < splitted.GetElementNumber(); i++)
 						m_bots[index]->m_favoritePrimary.Push(splitted[i].Trim().Trim());
 				}
 				else if (pair[0] == "FavoriteSecondary")
 				{
 					Array <String> splitted = pair[1].Split(',');
-					for (int i = 0; i < splitted.GetElementNumber(); i++)
+					for (i = 0; i < splitted.GetElementNumber(); i++)
 						m_bots[index]->m_favoriteSecondary.Push(splitted[i].Trim().Trim());
 				}
 				else if (pair[0] == "FavoriteStuff")
 				{
 					Array <String> splitted = pair[1].Split(',');
-					for (int i = 0; i < splitted.GetElementNumber(); i++)
+					for (i = 0; i < splitted.GetElementNumber(); i++)
 						m_bots[index]->m_favoriteStuff.Push(splitted[i].Trim().Trim());
 				}
 				else if (ebot_display_avatar.GetBool() && pair[0] == "SteamAvatar")
@@ -247,65 +272,65 @@ int BotControl::CreateBot(String name, int skill, int personality, const int tea
 
 		if (!m_bots[index]->m_hasProfile)
 		{
-			if (CRandomInt(1, 4) == 1)
+			if (crandomint(1, 4) == 1)
 				m_bots[index]->m_favoritePrimary.Push("m249");
 
-			if (CRandomInt(1, 3) == 1)
+			if (crandomint(1, 3) == 1)
 				m_bots[index]->m_favoritePrimary.Push("g3sg1");
 
-			if (CRandomInt(1, 3) == 1)
+			if (crandomint(1, 3) == 1)
 				m_bots[index]->m_favoritePrimary.Push("sg550");
 
-			if (CRandomInt(1, 2) == 1)
+			if (crandomint(1, 2) == 1)
 				m_bots[index]->m_favoritePrimary.Push("awp");
 
-			if (CRandomInt(1, 2) == 1)
+			if (crandomint(1, 2) == 1)
 				m_bots[index]->m_favoritePrimary.Push("sg552");
 
-			if (CRandomInt(1, 2) == 1)
+			if (crandomint(1, 2) == 1)
 				m_bots[index]->m_favoritePrimary.Push("aug");
 
-			if (CRandomInt(1, 2) == 1)
+			if (crandomint(1, 2) == 1)
 				m_bots[index]->m_favoritePrimary.Push("ak47");
 
-			if (CRandomInt(1, 2) == 1)
+			if (crandomint(1, 2) == 1)
 				m_bots[index]->m_favoritePrimary.Push("m4a1");
 
-			if (CRandomInt(1, 2) == 1)
+			if (crandomint(1, 2) == 1)
 				m_bots[index]->m_favoritePrimary.Push("xm1014");
 
-			if (CRandomInt(1, 2) == 1)
+			if (crandomint(1, 2) == 1)
 				m_bots[index]->m_favoritePrimary.Push("scout");
 
-			if (CRandomInt(1, 2) == 1)
+			if (crandomint(1, 2) == 1)
 				m_bots[index]->m_favoritePrimary.Push("famas");
 
-			if (CRandomInt(1, 2) == 1)
+			if (crandomint(1, 2) == 1)
 				m_bots[index]->m_favoritePrimary.Push("galil");
 
-			if (CRandomInt(1, 2) == 1)
+			if (crandomint(1, 2) == 1)
 				m_bots[index]->m_favoritePrimary.Push("m3");
 
-			if (CRandomInt(1, 2) == 1)
+			if (crandomint(1, 2) == 1)
 				m_bots[index]->m_favoritePrimary.Push("ump45");
 
-			if (CRandomInt(1, 2) == 1)
+			if (crandomint(1, 2) == 1)
 				m_bots[index]->m_favoritePrimary.Push("mp5");
 
-			if (CRandomInt(1, 2) == 1)
+			if (crandomint(1, 2) == 1)
 				m_bots[index]->m_favoritePrimary.Push("mac10");
 
-			if (CRandomInt(1, 2) == 1)
+			if (crandomint(1, 2) == 1)
 				m_bots[index]->m_favoritePrimary.Push("tmp");
 
-			if (CRandomInt(1, 3) == 1)
+			if (crandomint(1, 3) == 1)
 				m_bots[index]->m_favoritePrimary.Push("shield");
 
-			if (CRandomInt(1, 3) == 1)
+			if (crandomint(1, 3) == 1)
 				m_bots[index]->m_favoriteSecondary.Push("deagle");
 			else
 			{
-				const int id = CRandomInt(1, 5);
+				const int id = crandomint(1, 5);
 				if (id == 1)
 					m_bots[index]->m_favoriteSecondary.Push("fiveseven");
 				else if (id == 2)
@@ -319,16 +344,15 @@ int BotControl::CreateBot(String name, int skill, int personality, const int tea
 			}
 		}
 
-		int i = 0;
 		if (!m_bots[index]->m_favoritePrimary.IsEmpty())
 		{
-			if (i < m_bots[index]->m_favoritePrimary.GetElementNumber(); i++)
+			for (i = 0; i < m_bots[index]->m_favoritePrimary.GetElementNumber(); i++)
 				m_bots[index]->m_weaponPrefs[i] = m_bots[index]->GetWeaponID(m_bots[index]->m_favoritePrimary.GetAt(i));
 		}
 
 		if (!m_bots[index]->m_favoriteSecondary.IsEmpty())
 		{
-			if (i < m_bots[index]->m_favoriteSecondary.GetElementNumber(); i++)
+			for (i = 0; i < m_bots[index]->m_favoriteSecondary.GetElementNumber(); i++)
 				m_bots[index]->m_weaponPrefs[i] = m_bots[index]->GetWeaponID(m_bots[index]->m_favoriteSecondary.GetAt(i));
 		}
 	}
@@ -427,7 +451,7 @@ void BotControl::DoJoinQuitStuff(void)
 		return;
 
 	// add one more
-	if (CRandomInt(1, GetHumansNum()) <= 2);
+	if (crandomint(1, GetHumansNum()) <= 2);
 		AddRandom();
 
 	AddRandom();
@@ -441,7 +465,7 @@ void BotControl::DoJoinQuitStuff(void)
 	if (min > max)
 		max = min * 1.5f;
 
-	g_randomJoinTime = time + CRandomFloat(min, max);
+	g_randomJoinTime = time + crandomfloat(min, max);
 }
 
 void BotControl::Think(void)
@@ -499,7 +523,7 @@ int BotControl::AddBotAPI(const String& name, const int skill,const  int team)
 		ebot_quota.SetInt(GetBotsNum());
 	}
 
-	m_maintainTime = AddTime(0.24f);
+	m_maintainTime = engine->GetTime() + 0.24f;
 
 	return resultOfCall;
 }
@@ -560,10 +584,11 @@ void BotControl::MaintainBotQuota(void)
 
 void BotControl::InitQuota(void)
 {
-	m_maintainTime = AddTime(2.0f);
+	m_maintainTime = engine->GetTime() + 2.0f;
 	m_creationTab.Destroy();
 
-	for (int i = 0; i < entityNum; i++)
+	int i;
+	for (i = 0; i < entityNum; i++)
 		SetEntityActionData(i);
 }
 
@@ -604,15 +629,15 @@ void BotControl::FillServer(int selection, const int personality, const int skil
 		int randomizedSkill = 0;
 
 		if (skill >= 0 && skill <= 20)
-			randomizedSkill = CRandomInt(0, 20);
+			randomizedSkill = crandomint(0, 20);
 		else if (skill >= 20 && skill <= 40)
-			randomizedSkill = CRandomInt(20, 40);
+			randomizedSkill = crandomint(20, 40);
 		else if (skill >= 40 && skill <= 60)
-			randomizedSkill = CRandomInt(40, 60);
+			randomizedSkill = crandomint(40, 60);
 		else if (skill >= 60 && skill <= 80)
-			randomizedSkill = CRandomInt(60, 80);
+			randomizedSkill = crandomint(60, 80);
 		else if (skill >= 80 && skill <= 99)
-			randomizedSkill = CRandomInt(80, 99);
+			randomizedSkill = crandomint(80, 99);
 		else if (skill == 100)
 			randomizedSkill = skill;
 
@@ -941,23 +966,26 @@ void BotControl::CheckTeamEconomics(const int team)
 // this function free all bots slots (used on server shutdown)
 void BotControl::Free(void)
 {
-	for (int i = 0; i < 32; i++)
+	for (auto& bot : m_bots)
 	{
-		if (m_bots[i] != nullptr)
-		{
-			if (ebot_save_bot_names.GetBool())
-				m_savedBotNames.Push(STRING(m_bots[i]->GetEntity()->v.netname));
+		if (bot == nullptr)
+			continue;
 
-			m_bots[i]->m_stayTime = -1.0f;
-			delete m_bots[i];
-			m_bots[i] = nullptr;
-		}
+		if (ebot_save_bot_names.GetBool())
+			m_savedBotNames.Push(STRING(bot->GetEntity()->v.netname));
+
+		bot->m_stayTime = -1.0f;
+		delete bot;
+		bot = nullptr;
 	}
 }
 
 // this function frees one bot selected by index (used on bot disconnect)
 void BotControl::Free(const int index)
 {
+	if (index < 0 || index >= 32)
+		return;
+
 	m_bots[index]->m_stayTime = -1.0f;
 	delete m_bots[index];
 	m_bots[index] = nullptr;
@@ -966,7 +994,7 @@ void BotControl::Free(const int index)
 // this function controls the bot entity
 Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, const int member)
 {
-	if (!bot)
+	if (bot == nullptr)
 		return;
 
 	char rejectReason[128];
@@ -992,11 +1020,14 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 
 	if (g_gameVersion & Game::HalfLife)
 	{
-		char c_topcolor[4], c_bottomcolor[4];
-		sprintf(c_topcolor, "%d", CRandomInt(1, 254));
-		sprintf(c_bottomcolor, "%d", CRandomInt(1, 254));
+		char c_topcolor[4], c_bottomcolor[4], c_model[32];
+		sprintf(c_topcolor, "%d", crandomint(0, 255));
+		sprintf(c_bottomcolor, "%d", crandomint(0, 255));
+		Array <String> models = String("barney,gina,gman,gordon,helmet,hgrunt,recon,robo,scientist,zombie").Split(",");
+		sprintf(c_model, "%s", models[crandomint(0, models.GetElementNumber() - 1)].GetBuffer());
 		SET_CLIENT_KEYVALUE(clientIndex, buffer, "topcolor", c_topcolor);
 		SET_CLIENT_KEYVALUE(clientIndex, buffer, "bottomcolor", c_bottomcolor);
+		SET_CLIENT_KEYVALUE(clientIndex, buffer, "model", c_model);
 	}
 	else // we hate this, let bot pick weapon by itself... when you buy/pickup weapon it will select the slot but we dont want this.
 	{
@@ -1008,7 +1039,7 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 		SET_CLIENT_KEYVALUE(clientIndex, buffer, "*bot", "1");
 
 	rejectReason[0] = 0; // reset the reject reason template string
-	MDLL_ClientConnect(bot, "E-BOT", FormatBuffer("%d.%d.%d.%d", CRandomInt(1, 255), CRandomInt(1, 255), CRandomInt(1, 255), CRandomInt(1, 255)), rejectReason);
+	MDLL_ClientConnect(bot, "E-BOT", FormatBuffer("%d.%d.%d.%d", crandomint(1, 255), crandomint(1, 255), crandomint(1, 255), crandomint(1, 255)), rejectReason);
 
 	// should be set after client connect
 	if (ebot_display_avatar.GetBool() && !g_botManager->m_avatars.IsEmpty())
@@ -1028,7 +1059,7 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 	// initialize all the variables for this bot...
 	m_notStarted = true;  // hasn't joined game yet
 	m_difficulty = ebot_difficulty.GetInt(); // set difficulty
-	m_basePingLevel = CRandomInt(11, 111);
+	m_basePingLevel = crandomint(11, 111);
 
 	m_startAction = CMENU_IDLE;
 	m_moneyAmount = 0;
@@ -1037,8 +1068,8 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 	m_msecInterval = time;
 
 	// assign how talkative this bot will be
-	m_sayTextBuffer.chatDelay = CRandomFloat(3.8f, 10.0f);
-	m_sayTextBuffer.chatProbability = CRandomInt(1, 100);
+	m_sayTextBuffer.chatDelay = crandomfloat(3.8f, 10.0f);
+	m_sayTextBuffer.chatProbability = crandomint(1, 100);
 
 	m_isAlive = false;
 	m_skill = skill;
@@ -1069,7 +1100,7 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 	m_pushMessageIndex = 0;
 
 	// init path
-	m_navNode.Init(g_numWaypoints / 2);
+	m_navNode.Init(g_numWaypoints + 32);
 
 	// assign team and class
 	m_wantedTeam = team;
@@ -1114,12 +1145,12 @@ void Bot::NewRound(void)
 	if (ebot_always_use_2d.GetBool())
 		m_2dH = true;
 	else
-		m_2dH = static_cast<bool>(CRandomInt(0, 1));
+		m_2dH = static_cast<bool>(crandomint(0, 1));
 
 	if (ebot_heuristic_type.GetInt() > 0 && ebot_heuristic_type.GetInt() < 5)
 		m_heuristic = ebot_heuristic_type.GetInt();
 	else
-		m_heuristic = CRandomInt(1, 4);
+		m_heuristic = crandomint(1, 4);
 
 	if (!g_waypoint->m_zmHmPoints.IsEmpty())
 		m_zhCampPointIndex = g_waypoint->m_zmHmPoints.GetRandomElement();
@@ -1173,7 +1204,7 @@ void Bot::NewRound(void)
 
 	m_voteMap = 0;
 
-	for (auto &hostage : m_hostages)
+	for (auto& hostage : m_hostages)
 		hostage = nullptr;
 
 	m_isReloading = false;
@@ -1191,7 +1222,7 @@ void Bot::NewRound(void)
 	m_sayTextBuffer.entityIndex = -1;
 	m_sayTextBuffer.sayText[0] = 0x0;
 
-	m_nextBuyTime = time + CRandomFloat(0.6f, 1.2f);
+	m_nextBuyTime = time + crandomfloat(0.6f, 1.2f);
 	m_inBombZone = false;
 
 	m_shieldCheckTime = 0.0f;
@@ -1208,8 +1239,8 @@ void Bot::NewRound(void)
 	pev->button = 0;
 
 	// clear its message queue
-	for (int i = 0; i < 32; i++)
-		m_messageQueue[i] = CMENU_IDLE;
+	for (auto& message : m_messageQueue)
+		message = CMENU_IDLE;
 
 	m_actMessageIndex = 0;
 	m_pushMessageIndex = 0;
@@ -1229,7 +1260,7 @@ void Bot::NewRound(void)
 	}
 
 	m_moveSpeed = pev->maxspeed;
-	m_tempstrafeSpeed = CRandomInt(1, 2) == 1 ? pev->maxspeed : -pev->maxspeed;
+	m_tempstrafeSpeed = crandomint(1, 2) == 1 ? pev->maxspeed : -pev->maxspeed;
 
 	if (!IsAlive(GetEntity())) // if bot died, clear all weapon stuff and force buying again
 	{
@@ -1292,9 +1323,9 @@ void Bot::Kick(void)
 // this function handles the selection of teams & class
 void Bot::StartGame(void)
 {
-	if (g_gameVersion & Game::HalfLife)
+	if (g_gameVersion == Game::HalfLife)
 	{
-		if (CRandomInt(1, 3) == 1)
+		if (crandomint(1, 5) == 1)
 			ChatMessage(CHAT_HELLO);
 
 		m_notStarted = false;
@@ -1302,10 +1333,34 @@ void Bot::StartGame(void)
 		return;
 	}
 
+	// check if something has assigned team to us
+	if ((m_team == Team::Terrorist || m_team == Team::Counter) && IsAlive(GetEntity()))
+	{
+		if (crandomint(1, 5) == 1)
+			ChatMessage(CHAT_HELLO);
+
+		m_notStarted = false;
+		m_startAction = CMENU_IDLE;
+		return;
+	}
+	else if (m_team == Team::Unassinged && m_retryJoin > 5)
+		m_startAction = CMENU_TEAM;
+
+	// if bot was unable to join team, and no menus popups, check for stacked team
+	if (m_startAction == CMENU_IDLE)
+	{
+		if (++m_retryJoin > 10)
+		{
+			m_retryJoin = 0;
+			Kick();
+			return;
+		}
+	}
+
 	// handle counter-strike stuff here...
 	if (m_startAction == CMENU_TEAM)
 	{
-		m_startAction = CMENU_IDLE;  // switch back to idle
+		m_startAction = CMENU_IDLE; // switch back to idle
 
 		if (ebot_forceteam.GetString()[0] == 'C' || ebot_forceteam.GetString()[0] == 'c' || ebot_forceteam.GetString()[0] == '2')
 			m_wantedTeam = 2;
@@ -1320,25 +1375,19 @@ void Bot::StartGame(void)
 	}
 	else if (m_startAction == CMENU_CLASS)
 	{
-		m_startAction = CMENU_IDLE;  // switch back to idle
-		m_wantedClass = CRandomInt(1, (g_gameVersion & Game::CZero) ? 5 : 4);
+		m_startAction = CMENU_IDLE; // switch back to idle
+
+		const int maxChoice = g_gameVersion == Game::CZero ? 5 : 4;
+		m_wantedClass = crandomint(1, maxChoice);
 
 		// select the class the bot wishes to use...
-		FakeClientCommand(GetEntity(), "menuselect %d", m_wantedClass);
+		FakeClientCommand(GetEntity(), "menuselect %d", maxChoice);
 
 		// bot has now joined the game (doesn't need to be started)
 		m_notStarted = false;
 
 		// check for greeting other players, since we connected
-		if (CRandomInt(1, 3) == 1)
+		if (crandomint(1, 5) == 1)
 			ChatMessage(CHAT_HELLO);
-	}
-	else if ((m_team == Team::Counter || m_team == Team::Terrorist) && IsAlive(GetEntity())) // something is wrong...
-	{
-		if (CRandomInt(1, 3) == 1)
-			ChatMessage(CHAT_HELLO);
-
-		m_notStarted = false;
-		m_startAction = CMENU_IDLE;
 	}
 }

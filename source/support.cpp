@@ -1,4 +1,28 @@
-﻿#include <core.h>
+﻿//
+// Copyright (c) 2003-2009, by Yet Another POD-Bot Development Team.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the "Software"),
+// to deal in the Software without restriction, including without limitation
+// the rights to use, copy, modify, merge, publish, distribute, sublicense,
+// and/or sell copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+//
+// $Id:$
+//
+
+#include <core.h>
 
 //
 // TODO:
@@ -53,7 +77,7 @@ void TraceHull(const Vector& start, const Vector& end, bool ignoreMonsters, int 
 	(*g_engfuncs.pfnTraceHull) (start, end, ignoreMonsters ? 1 : 0, hullNumber, ignoreEntity, ptr);
 }
 
-uint16 FixedUnsigned16(float value, float scale)
+uint16_t FixedUnsigned16(const float value, const float scale)
 {
 	int output = (static_cast<int>(value * scale));
 
@@ -62,10 +86,10 @@ uint16 FixedUnsigned16(float value, float scale)
 	else if (output > 0xffff)
 		output = 0xffff;
 
-	return static_cast<uint16>(output);
+	return static_cast<uint16_t>(output);
 }
 
-short FixedSigned16(float value, float scale)
+short FixedSigned16(const float value, const float scale)
 {
 	int output = (static_cast<int>(value * scale));
 
@@ -79,6 +103,9 @@ short FixedSigned16(float value, float scale)
 
 bool IsAlive(const edict_t* ent)
 {
+	if (FNullEnt(ent))
+		return false;
+
 	return (ent->v.deadflag == DEAD_NO) && (ent->v.health > 0) && (ent->v.movetype != MOVETYPE_NOCLIP);
 }
 
@@ -116,7 +143,7 @@ bool IsInViewCone(const Vector& origin, edict_t* ent)
 
 	MakeVectors(ent->v.v_angle);
 
-	if (((origin - (GetEntityOrigin(ent) + ent->v.view_ofs)).Normalize() | g_pGlobals->v_forward) >= cosf(((ent->v.fov > 0 ? ent->v.fov : 90.0f) * 0.5f) * 0.0174532925f))
+	if (((origin - (GetEntityOrigin(ent) + ent->v.view_ofs)).Normalize() | g_pGlobals->v_forward) >= ccosf(((ent->v.fov > 0 ? ent->v.fov : 90.0f) * 0.5f) * 0.0174532925f))
 		return true;
 
 	return false;
@@ -239,7 +266,8 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 		tempText = String(text);
 
 		// make menu looks best
-		for (int i = 0; i <= 9; i++)
+		int i;
+		for (i = 0; i <= 9; i++)
 			tempText.Replace(FormatBuffer("%d.", i), FormatBuffer("\\r%d.\\w", i));
 
 		text = tempText;
@@ -251,7 +279,7 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 			WRITE_CHAR(-1);
 			WRITE_BYTE(1);
 
-			for (int i = 0; i <= 63; i++)
+			for (i = 0; i <= 63; i++)
 				WRITE_CHAR(text[i]);
 
 			MESSAGE_END();
@@ -294,7 +322,8 @@ bool SetEntityAction(const int index, const int team, const int action)
 {
 	if (index == -1)
 	{
-		for (int i = 0; i < entityNum; i++)
+		int i;
+		for (i = 0; i < entityNum; i++)
 			SetEntityActionData(i);
 
 		return 1;
@@ -307,7 +336,8 @@ bool SetEntityAction(const int index, const int team, const int action)
 	if (IsValidPlayer(entity))
 		return -1;
 
-	for (int i = 0; i < entityNum; i++)
+	int i;
+	for (i = 0; i < entityNum; i++)
 	{
 		if (g_entityId[i] == index)
 		{
@@ -326,7 +356,7 @@ bool SetEntityAction(const int index, const int team, const int action)
 	if (action == -1)
 		return -1;
 
-	for (int i = 0; i < entityNum; i++)
+	for (i = 0; i < entityNum; i++)
 	{
 		if (g_entityId[i] == -1)
 		{
@@ -354,6 +384,9 @@ void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
 	// is supposed to work exactly like the pfnClientCommand (server-sided client command).
 
 	if (g_isFakeCommand)
+		return;
+
+	if (FNullEnt(fakeClient))
 		return;
 
 	if (!IsValidBot(fakeClient))
@@ -497,7 +530,7 @@ const char* GetField(const char* string, int fieldId, bool endLine)
 
 const char* GetModName(void)
 {
-	static char modName[256];
+	char modName[256];
 
 	// ask the engine for the MOD directory path
 	// get the length of the returned string
@@ -528,7 +561,8 @@ const char* GetModName(void)
 // Create a directory tree
 void CreatePath(char* path)
 {
-	for (char* ofs = path + 1; *ofs; ofs++)
+	char* ofs;
+	for (ofs = path + 1; *ofs; ofs++)
 	{
 		if (*ofs == '/')
 		{
@@ -556,7 +590,7 @@ void RoundInit(void)
 
 	for (const auto& bot : g_botManager->m_bots)
 	{
-		if (!bot)
+		if (bot == nullptr)
 			continue;
 
 		bot->NewRound();
@@ -584,7 +618,7 @@ void RoundInit(void)
 		}
 
 		// calculate the round mid/end in world time
-		g_timeRoundStart = AddTime(engine->GetFreezeTime() + g_pGlobals->frametime);
+		g_timeRoundStart = engine->GetTime() + engine->GetFreezeTime() + g_pGlobals->frametime;
 		g_timeRoundMid = g_timeRoundStart + engine->GetRoundTime() * 30.0f;
 		g_timeRoundEnd = g_timeRoundStart + engine->GetRoundTime() * 60.0f;
 
@@ -651,7 +685,7 @@ void AutoLoadGameMode(void)
 			if (TryFileOpen(FormatBuffer("%s/addons/amxmodx/configs/%s.ini", getModeName, bteGameINI[i])))
 			{
 				if (bteGameModAi[i] == GameMode(2) && i != 5)
-					g_DelayTimer = AddTime(20.0f + CVAR_GET_FLOAT("mp_freezetime"));
+					g_DelayTimer = engine->GetTime() + 20.0f + CVAR_GET_FLOAT("mp_freezetime");
 
 				if (checkShowTextTime < 3 || GetGameMode() != bteGameModAi[i])
 					ServerPrint("*** E-BOT Auto Game Mode Setting: CS:BTE [%s] [%d] ***", bteGameINI[i], bteGameModAi[i]);
@@ -678,7 +712,7 @@ void AutoLoadGameMode(void)
 	if (ebot_zp_delay_custom.GetFloat() > 0.0f)
 	{
 		SetGameMode(GameMode::ZombiePlague);
-		g_DelayTimer = AddTime(ebot_zp_delay_custom.GetFloat() + 2.22f);
+		g_DelayTimer = engine->GetTime() + ebot_zp_delay_custom.GetFloat() + 2.22f;
 		g_mapType |= MAP_DE;
 		return;
 	}
@@ -721,7 +755,7 @@ void AutoLoadGameMode(void)
 					}
 
 					SetGameMode(GameMode::ZombiePlague);
-					g_DelayTimer = AddTime(delayTime);
+					g_DelayTimer = engine->GetTime() + delayTime;
 					g_mapType |= MAP_DE;
 					return;
 				}
@@ -749,7 +783,7 @@ void AutoLoadGameMode(void)
 
 				SetGameMode(GameMode::ZombiePlague);
 
-				g_DelayTimer = AddTime(delayTime);
+				g_DelayTimer = engine->GetTime() + delayTime;
 				g_mapType |= MAP_DE;
 				return;
 			}
@@ -815,7 +849,7 @@ void AutoLoadGameMode(void)
 
 				SetGameMode(GameMode::ZombiePlague);
 
-				g_DelayTimer = AddTime(delayTime);
+				g_DelayTimer = engine->GetTime() + delayTime;
 				g_mapType |= MAP_DE;
 				return;
 			}
@@ -900,7 +934,8 @@ int GetTeam(edict_t* ent)
 	int player_team = Team::Count;
 	if (!IsValidPlayer(ent))
 	{
-		for (int i = 0; i < entityNum; i++)
+		int i;
+		for (i = 0; i < entityNum; i++)
 		{
 			if (g_entityId[i] == -1)
 				continue;
@@ -919,7 +954,7 @@ int GetTeam(edict_t* ent)
 		player_team = Team::Counter;
 	else if (GetGameMode() == GameMode::ZombiePlague)
 	{
-		if (g_DelayTimer >= engine->GetTime())
+		if (g_DelayTimer > engine->GetTime())
 			player_team = Team::Counter;
 		else if (g_roundEnded)
 			player_team = Team::Terrorist;
@@ -1060,9 +1095,9 @@ void HudMessage(edict_t* ent, const bool toCenter, const Color& rgb, char* forma
 	WRITE_BYTE(static_cast<int>(rgb.green));
 	WRITE_BYTE(static_cast<int>(rgb.blue));
 	WRITE_BYTE(0);
-	WRITE_BYTE(CRandomInt(230, 255));
-	WRITE_BYTE(CRandomInt(230, 255));
-	WRITE_BYTE(CRandomInt(230, 255));
+	WRITE_BYTE(crandomint(230, 255));
+	WRITE_BYTE(crandomint(230, 255));
+	WRITE_BYTE(crandomint(230, 255));
 	WRITE_BYTE(200);
 	WRITE_SHORT(FixedUnsigned16(0.0078125, 1 << 8));
 	WRITE_SHORT(FixedUnsigned16(2, 1 << 8));
@@ -1190,7 +1225,7 @@ bool IsLinux(void)
 void ServerCommand(const char* format, ...)
 {
 	va_list ap;
-	static char string[1024];
+	char string[1024];
 
 	// concatenate all the arguments in one string
 	va_start(ap, format);
@@ -1206,17 +1241,18 @@ const char* GetEntityName(edict_t* entity)
 	if (FNullEnt(entity))
 		cstrcpy(entityName, "nullptr");
 	else if (IsValidPlayer(entity))
-		cstrcpy(entityName, (char*)STRING(entity->v.netname));
+		cstrncpy(entityName, STRING(entity->v.netname), sizeof(entityName));
 	else
-		cstrcpy(entityName, (char*)STRING(entity->v.classname));
+		cstrncpy(entityName, STRING(entity->v.classname), sizeof(entityName));
+
 	return &entityName[0];
 }
 
 // this function gets the map name and store it in the map_name global string variable.
 const char* GetMapName(void)
 {
-	static char mapName[256];
-	cstrcpy(mapName, STRING(g_pGlobals->mapname));
+	char mapName[256];
+	cstrncpy(mapName, STRING(g_pGlobals->mapname), sizeof(mapName));
 	return &mapName[0]; // and return a pointer to it
 }
 
@@ -1258,7 +1294,7 @@ void CheckWelcomeMessage(void)
 	static float receiveTime = -1.0f;
 
 	if (receiveTime == -1.0f && IsAlive(g_hostEntity))
-		receiveTime = AddTime(12.5f);
+		receiveTime = engine->GetTime() + 12.5f;
 
 	if (receiveTime > 0.0f && receiveTime < engine->GetTime())
 	{
@@ -1364,10 +1400,10 @@ void MOD_AddLogEntry(int mod, char* format)
 
 	if (!checkLogFP.IsValid())
 	{
-		fp.Print("---------- %s Log \n", modName);
-		fp.Print("---------- %s Version: %u.%u  \n", modName, mod_bV16[0], mod_bV16[1]);
-		fp.Print("---------- %s Build: %u.%u.%u.%u  \n", modName, mod_bV16[0], mod_bV16[1], mod_bV16[2], mod_bV16[3]);
-		fp.Print("----------------------------- \n\n");
+		fp.Printf("---------- %s Log \n", modName);
+		fp.Printf("---------- %s Version: %u.%u  \n", modName, mod_bV16[0], mod_bV16[1]);
+		fp.Printf("---------- %s Build: %u.%u.%u.%u  \n", modName, mod_bV16[0], mod_bV16[1], mod_bV16[2], mod_bV16[3]);
+		fp.Printf("----------------------------- \n\n");
 	}
 
 	checkLogFP.Close();
@@ -1379,12 +1415,12 @@ void MOD_AddLogEntry(int mod, char* format)
 	tm* time = localtime(&tickTime);
 
 	sprintf(logLine, "[%02d:%02d:%02d] %s", time->tm_hour, time->tm_min, time->tm_sec, format);
-	fp.Print("%s\n", logLine);
+	fp.Printf("%s\n", logLine);
 
 	if (mod != -1)
-		fp.Print("E-BOT Build: %d \n", PRODUCT_VERSION);
+		fp.Printf("E-BOT Build: %d \n", PRODUCT_VERSION);
 
-	fp.Print("----------------------------- \n");
+	fp.Printf("----------------------------- \n");
 	fp.Close();
 }
 
@@ -1478,22 +1514,20 @@ int GetWeaponReturn(const bool needString, const char* weaponAlias, const int we
 	// if we need to return the string, find by weapon id
 	if (needString && weaponID != -1)
 	{
-		const auto size = ARRAYSIZE_HLSDK(weaponTab);
-		for (int i = 0; i < size; i++)
+		for (auto pointer : weaponTab)
 		{
-			if (weaponTab[i].weaponID == weaponID) // is weapon id found?
-				return MAKE_STRING(weaponTab[i].alias);
+			if (pointer.weaponID == weaponID) // is weapon id found?
+				return MAKE_STRING(pointer.alias);
 		}
 
 		return MAKE_STRING("(none)"); // return none
 	}
 
 	// else search weapon by name and return weapon id
-	const auto size = ARRAYSIZE_HLSDK(weaponTab);
-	for (int i = 0; i < size; i++)
+	for (auto pointer : weaponTab)
 	{
-		if (cstrncmp(weaponTab[i].alias, weaponAlias, cstrlen(weaponTab[i].alias)) == 0)
-			return weaponTab[i].weaponID;
+		if (cstrncmp(pointer.alias, weaponAlias, cstrlen(pointer.alias)) == 0)
+			return pointer.weaponID;
 	}
 
 	return -1; // no weapon was found return -1
