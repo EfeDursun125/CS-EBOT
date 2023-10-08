@@ -72,6 +72,8 @@
     <ClInclude Include="..\include\glibc.h" />
     <ClInclude Include="..\include\clib.h" />
     <ClInclude Include="..\include\rng.h" />
+    <ClInclude Include="..\include\sse_mathfun.h" />
+    <ClInclude Include="..\include\sse_mathfun_extension.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\include\ebot.rc" />

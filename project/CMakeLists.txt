@@ -27,7 +27,7 @@ set(CMAKE_SHARED_LIBRARY_SUFFIX ".so")
 # Set compiler flags
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32 -Ofast")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w -m32 -msse3 -mssse3 -mfpmath=sse -pthread -Ofast -fvisibility=hidden -fno-exceptions -fno-rtti -Wno-parentheses -pipe -mtune=generic -funroll-loops -fomit-frame-pointer -fno-stack-protector -fvisibility-inlines-hidden -fcf-protection=none")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w -m32 -msse2 -mfpmath=sse -pthread -Ofast -fvisibility=hidden -fno-exceptions -fno-rtti -Wno-parentheses -pipe -mtune=generic -funroll-loops -fomit-frame-pointer -fno-stack-protector -fvisibility-inlines-hidden -fcf-protection=none")
 set(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -m32")
 
 # Set output directory for the library
@@ -45,14 +45,9 @@ file(GLOB_RECURSE EBOT_SRC
 # Create the library
 add_library(${PROJECT_NAME} SHARED ${EBOT_SRC})
 
-# Find threads
-find_package(Threads REQUIRED)
-
 # Link libraries
 target_link_libraries(${PROJECT_NAME}
     ${CMAKE_DL_LIBS}
-    ${CMAKE_THREAD_LIBS_INIT}
-    Threads::Threads
 )
 
 # Set library properties

@@ -140,7 +140,7 @@
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <DelayLoadDLLs>
       </DelayLoadDLLs>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
       <GenerateMapFile>false</GenerateMapFile>
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
@@ -319,6 +319,8 @@
     <ClInclude Include="..\include\resource.h" />
     <ClInclude Include="..\include\runtime.h" />
     <ClInclude Include="..\include\rng.h" />
+    <ClInclude Include="..\include\sse_mathfun.h" />
+    <ClInclude Include="..\include\sse_mathfun_extension.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\include\ebot.rc" />
