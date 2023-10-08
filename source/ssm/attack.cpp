@@ -59,7 +59,7 @@ void Bot::AttackUpdate(void)
 				if (!usesSniper)
 					SelectBestWeapon(true, true);
 
-				const float minRange = SquaredF(384.0f);
+				const float minRange = squaredf(384.0f);
 				const float distance = GetTargetDistance();
 				if (distance > minRange)
 				{
@@ -112,7 +112,7 @@ void Bot::AttackUpdate(void)
 	}
 	else
 	{
-		if (distance < SquaredF(256.0f)) // get back!
+		if (distance < squaredf(256.0f)) // get back!
 		{
 			m_moveSpeed = -pev->maxspeed;
 			return;
@@ -121,9 +121,9 @@ void Bot::AttackUpdate(void)
 
 	if (g_gameVersion & Game::HalfLife)
 	{
-		if (m_currentWeapon == WeaponHL::Mp5_HL && distance > SquaredF(300.0f) && distance < SquaredF(800.0f))
+		if (m_currentWeapon == WeaponHL::Mp5_HL && distance > squaredf(300.0f) && distance < squaredf(800.0f))
 		{
-			if (!(pev->oldbuttons & IN_ATTACK2) && !m_isSlowThink && CRandomInt(1, 3) == 1)
+			if (!(pev->oldbuttons & IN_ATTACK2) && !m_isSlowThink && crandomint(1, 3) == 1)
 				pev->button |= IN_ATTACK2;
 		}
 		else if (m_currentWeapon == WeaponHL::Crowbar && m_personality != Personality::Careful)
@@ -164,20 +164,20 @@ void Bot::AttackUpdate(void)
 	{
 		if (m_lastFightStyleCheck + 0.5f < time)
 		{
-			if (ChanceOf(75))
+			if (chanceof(75))
 			{
-				if (distance < SquaredF(768.0f))
+				if (distance < squaredf(768.0f))
 					m_fightStyle = 0;
-				else if (distance < SquaredF(1024.0f))
+				else if (distance < squaredf(1024.0f))
 				{
-					if (ChanceOf(UsesSubmachineGun() ? 50 : 30))
+					if (chanceof(UsesSubmachineGun() ? 50 : 30))
 						m_fightStyle = 0;
 					else
 						m_fightStyle = 1;
 				}
 				else
 				{
-					if (ChanceOf(UsesSubmachineGun() ? 80 : 93))
+					if (chanceof(UsesSubmachineGun() ? 80 : 93))
 						m_fightStyle = 1;
 					else
 						m_fightStyle = 0;
@@ -191,9 +191,9 @@ void Bot::AttackUpdate(void)
 	{
 		if (m_lastFightStyleCheck + 0.5f < time)
 		{
-			if (ChanceOf(75))
+			if (chanceof(75))
 			{
-				if (ChanceOf(50))
+				if (chanceof(50))
 					m_fightStyle = 0;
 				else
 					m_fightStyle = 1;
@@ -203,7 +203,7 @@ void Bot::AttackUpdate(void)
 		}
 	}
 
-	if (m_fightStyle == 0 || ((pev->button & IN_RELOAD) || m_isReloading) || (UsesPistol() && distance < SquaredF(768.0f)) || m_currentWeapon == melee)
+	if (m_fightStyle == 0 || ((pev->button & IN_RELOAD) || m_isReloading) || (UsesPistol() && distance < squaredf(768.0f)) || m_currentWeapon == melee)
 	{
 		if (m_strafeSetTime < time)
 		{
@@ -218,10 +218,10 @@ void Bot::AttackUpdate(void)
 			else
 				m_combatStrafeDir = 0;
 
-			if (ChanceOf(30))
+			if (chanceof(30))
 				m_combatStrafeDir = (m_combatStrafeDir == 1 ? 0 : 1);
 
-			m_strafeSetTime = time + CRandomFloat(0.5f, 3.0f);
+			m_strafeSetTime = time + crandomfloat(0.5f, 3.0f);
 		}
 
 		if (m_combatStrafeDir == 0)
@@ -231,7 +231,7 @@ void Bot::AttackUpdate(void)
 			else
 			{
 				m_combatStrafeDir = 1;
-				m_strafeSetTime = time + CRandomFloat(0.75, 1.5f);
+				m_strafeSetTime = time + crandomfloat(0.75, 1.5f);
 			}
 		}
 		else
@@ -241,14 +241,14 @@ void Bot::AttackUpdate(void)
 			else
 			{
 				m_combatStrafeDir = 0;
-				m_strafeSetTime = time + CRandomFloat(0.75, 1.5f);
+				m_strafeSetTime = time + crandomfloat(0.75, 1.5f);
 			}
 		}
 
-		if (m_jumpTime + 2.0f < time && !IsOnLadder() && ChanceOf(m_isReloading ? 5 : 2) && !UsesSniper() && pev->velocity.GetLength2D() > float(m_skill + 50))
+		if (m_jumpTime + 2.0f < time && !IsOnLadder() && chanceof(m_isReloading ? 5 : 2) && !UsesSniper() && pev->velocity.GetLength2D() > float(m_skill + 50))
 			pev->button |= IN_JUMP;
 
-		if (m_moveSpeed > 0.0f && distance > SquaredF(512.0f) && m_currentWeapon != melee)
+		if (m_moveSpeed > 0.0f && distance > squaredf(512.0f) && m_currentWeapon != melee)
 			m_moveSpeed = 0.0f;
 
 		if (m_currentWeapon == melee)

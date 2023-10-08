@@ -7,9 +7,9 @@ void Bot::CampStart(void)
 	if (IsZombieMode() && IsValidWaypoint(m_zhCampPointIndex))
 		m_campIndex = m_zhCampPointIndex;
 
-	if (CRandomInt(1, 3) == 1)
+	if (crandomint(1, 3) == 1)
 	{
-		const int random = CRandomInt(1, 3);
+		const int random = crandomint(1, 3);
 		if (random == 1)
 			RadioMessage(Radio::InPosition);
 		else if (random == 2)
@@ -89,7 +89,7 @@ void Bot::CampUpdate(void)
 					m_currentWeapon != Weapon::Sg550)
 					crouch = false;
 
-				if (m_personality == Personality::Normal && m_enemyDistance < SquaredF(512.0f))
+				if (m_personality == Personality::Normal && m_enemyDistance < squaredf(512.0f))
 					crouch = false;
 
 				if (crouch && IsVisible(m_enemyOrigin, GetEntity()))
@@ -120,7 +120,7 @@ void Bot::CampUpdate(void)
 			if (m_isSlowThink)
 			{
 				const float maxRange = zhPath->flags & WAYPOINT_CROUCH ? 125.0f : 200.0f;
-				if (zhPath->mesh != 0 && ((zhPath->origin - pev->origin).GetLengthSquared2D() > SquaredF(maxRange) || (zhPath->origin.z - 54.0f > pev->origin.z)))
+				if (zhPath->mesh != 0 && ((zhPath->origin - pev->origin).GetLengthSquared2D() > squaredf(maxRange) || (zhPath->origin.z - 54.0f > pev->origin.z)))
 				{
 					DeleteSearchNodes();
 					FindWaypoint();
@@ -167,7 +167,7 @@ void Bot::CampUpdate(void)
 								max = 8.0f;
 						}
 
-						m_currentProcessTime = time + CRandomFloat(4.0f, max);
+						m_currentProcessTime = time + crandomfloat(4.0f, max);
 						m_campIndex = m_myMeshWaypoint;
 						FindPath(m_currentWaypointIndex, m_myMeshWaypoint);
 					}

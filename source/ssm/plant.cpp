@@ -26,7 +26,7 @@ void Bot::PlantUpdate(void)
 
 void Bot::PlantEnd(void)
 {
-	const int random = CRandomInt(1, 4);
+	const int random = crandomint(1, 4);
 	switch (random)
 	{
 	case 1:

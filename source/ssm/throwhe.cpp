@@ -47,7 +47,7 @@ void Bot::ThrowHEEnd(void)
 
 bool Bot::ThrowHEReq(void)
 {
-	if (!IsZombieMode() && ((pev->origin + pev->velocity * m_frameInterval) - (m_throw + pev->velocity * -m_frameInterval)).GetLengthSquared() < SquaredF(400.0f))
+	if (!IsZombieMode() && ((pev->origin + pev->velocity * m_frameInterval) - (m_throw + pev->velocity * -m_frameInterval)).GetLengthSquared() < squaredf(400.0f))
 		return false;
 
 	return true;

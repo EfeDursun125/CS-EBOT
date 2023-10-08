@@ -13,7 +13,7 @@ void Bot::EscapeUpdate(void)
 	UpdateLooking();
 
 	if (m_currentWaypointIndex == m_chosenGoalIndex)
-		SetProcess(Process::Pause, "i have escaped from the bomb", true, AddTime(99999999.0f));
+		SetProcess(Process::Pause, "i have escaped from the bomb", true, engine->GetTime() + 99999999.0f);
 	else
 	{
 		if (!m_hasEntitiesNear && m_numEnemiesLeft <= 0)
@@ -34,7 +34,7 @@ void Bot::EscapeUpdate(void)
 				FollowPath(index);
 			}
 			else // WHERE WE MUST GO???
-				m_chosenGoalIndex = CRandomInt(0, g_numWaypoints - 1);
+				m_chosenGoalIndex = crandomint(0, g_numWaypoints - 1);
 		}
 		else
 			FollowPath(m_chosenGoalIndex);

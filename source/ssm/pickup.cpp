@@ -53,7 +53,7 @@ void Bot::PickupUpdate(void)
 
 	case PickupType::Weapon:
 		// near to weapon?
-		if (itemDistance < SquaredF(64.0f))
+		if (itemDistance < squaredf(64.0f))
 		{
 			int i;
 			for (i = 0; i < 7; i++)
@@ -101,7 +101,7 @@ void Bot::PickupUpdate(void)
 
 			if (IsValidWaypoint(m_currentWaypointIndex))
 			{
-				if (itemDistance > SquaredI(g_waypoint->GetPath(m_currentWaypointIndex)->radius))
+				if (itemDistance > squaredi(g_waypoint->GetPath(m_currentWaypointIndex)->radius))
 					FindWaypoint();
 			}
 		}
@@ -114,11 +114,10 @@ void Bot::PickupUpdate(void)
 			m_pickupItem = nullptr;
 			break;
 		}
-		else if (itemDistance < SquaredF(64.0f)) // near to shield?
+		else if (itemDistance < squaredf(64.0f)) // near to shield?
 		{
 			// get current best weapon to check if it's a primary in need to be dropped
 			const int weaponID = GetHighestWeapon();
-
 			if (weaponID > 6)
 			{
 				SelectWeaponbyNumber(weaponID);
@@ -126,7 +125,7 @@ void Bot::PickupUpdate(void)
 
 				if (IsValidWaypoint(m_currentWaypointIndex))
 				{
-					if (itemDistance > SquaredI(g_waypoint->GetPath(m_currentWaypointIndex)->radius))
+					if (itemDistance > squaredi(g_waypoint->GetPath(m_currentWaypointIndex)->radius))
 						FindWaypoint();
 				}
 			}
@@ -134,9 +133,9 @@ void Bot::PickupUpdate(void)
 		break;
 
 	case PickupType::PlantedC4:
-		if (m_team == Team::Counter && itemDistance < SquaredF(64.0f))
+		if (m_team == Team::Counter && itemDistance < squaredf(64.0f))
 		{
-			if (!SetProcess(Process::Defuse, "trying to defusing the bomb", false, AddTime(m_hasDefuser ? 6.0f : 12.0f)))
+			if (!SetProcess(Process::Defuse, "trying to defusing the bomb", false, engine->GetTime() + m_hasDefuser ? 6.0f : 12.0f))
 				FinishCurrentProcess("cannot start to defuse bomb");
 		}
 
@@ -153,7 +152,7 @@ void Bot::PickupUpdate(void)
 
 		LookAt(destination);
 
-		if (itemDistance < SquaredF(64.0f))
+		if (itemDistance < squaredf(64.0f))
 		{
 			if (g_gameVersion & Game::Xash)
 				pev->button |= IN_USE;
@@ -194,7 +193,7 @@ void Bot::PickupUpdate(void)
 		// find angles from bot origin to entity...
 		const float angleToEntity = InFieldOfView(destination - EyePosition());
 
-		if (itemDistance < SquaredF(90.0f)) // near to the button?
+		if (itemDistance < squaredf(90.0f)) // near to the button?
 		{
 			if (angleToEntity < 15) // facing it directly?
 			{

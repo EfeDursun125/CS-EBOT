@@ -21,7 +21,7 @@ void Bot::DefaultUpdate(void)
 			FindFriendsAndEnemiens();
 
 		// nearest enemy never resets to nullptr, so bot always know where are humans
-		if (!FNullEnt(m_nearestEnemy) && GetTeam(m_nearestEnemy) != m_team)
+		if (!FNullEnt(m_nearestEnemy) && GetTeam(m_nearestEnemy) != m_team && IsAlive(m_nearestEnemy))
 		{
 			if (m_hasEnemiesNear && IsEnemyReachable())
 			{
@@ -30,7 +30,7 @@ void Bot::DefaultUpdate(void)
 				MoveTo(m_enemyOrigin);
 				LookAt(m_enemyOrigin);
 
-				if (CRandomInt(1, 3) == 1)
+				if (crandomint(1, 3) == 1)
 					pev->button |= IN_ATTACK2;
 				else
 					pev->button |= IN_ATTACK;
@@ -67,7 +67,7 @@ void Bot::DefaultUpdate(void)
 		if (IsValidWaypoint(m_zhCampPointIndex))
 		{
 			m_campIndex = m_zhCampPointIndex;
-			if (SetProcess(Process::Camp, "i will camp until game ends", true, AddTime(9999999.0f)))
+			if (SetProcess(Process::Camp, "i will camp until game ends", true, engine->GetTime() + 9999999.0f))
 			{
 				DeleteSearchNodes();
 				return;
@@ -82,7 +82,7 @@ void Bot::DefaultUpdate(void)
 		if (m_itemCheckTime < engine->GetTime())
 		{
 			FindItem();
-			m_itemCheckTime = time + (g_gameVersion & Game::HalfLife ? 1.0f : CRandomFloat(1.0f, 2.0f));
+			m_itemCheckTime = time + (g_gameVersion & Game::HalfLife ? 1.0f : crandomfloat(1.0f, 2.0f));
 
 			if (GetEntityOrigin(m_pickupItem) != nullvec && SetProcess(Process::Pickup, "i see good stuff to pick it up", true, time + 20.0f))
 				return;
@@ -119,12 +119,12 @@ void Bot::DefaultUpdate(void)
 				if (((m_hasEnemiesNear && m_enemySeeTime + 2.0f < time) || (m_hasEntitiesNear && m_entitySeeTime + 2.0f < time)) && SetProcess(Process::Attack, "i found a target", false, time + 999999.0f))
 					return;
 			}
-			else if (SetProcess(Process::Attack, "i found a target", false, AddTime(999999.0f)))
+			else if (SetProcess(Process::Attack, "i found a target", false, engine->GetTime() + 999999.0f))
 				return;
 		}
 		else if (m_isBomber && m_waypointFlags & WAYPOINT_GOAL && m_navNode.IsEmpty())
 		{
-			if (SetProcess(Process::Plant, "trying to plant the bomb.", false, AddTime(12.0f)))
+			if (SetProcess(Process::Plant, "trying to plant the bomb.", false, engine->GetTime() + 12.0f))
 				return;
 		}
 
