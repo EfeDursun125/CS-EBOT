@@ -1,7 +1,24 @@
 //
-// E-Bot for Counter-Strike
-// Based on SyPB, fork of YaPB
-// 
+// Copyright (c) 2003-2009, by Yet Another POD-Bot Development Team.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the "Software"),
+// to deal in the Software without restriction, including without limitation
+// the rights to use, copy, modify, merge, publish, distribute, sublicense,
+// and/or sell copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+//
 // There are lots of code from:
 //  PODBot-MM, by KWo.
 //  EPODBot, by THE_STORM.
@@ -10,6 +27,8 @@
 //    and others...
 //
 // Huge thanks to them.
+//
+// $Id:$
 //
 
 #ifndef EBOT_INCLUDED
@@ -108,6 +127,8 @@ enum Team
 {
 	Terrorist = 0,
 	Counter,
+	Spectator,
+	Unassinged,
 	Count
 };
 
@@ -350,7 +371,7 @@ enum class LiftState
 const char FH_WAYPOINT_NEW[] = "EBOTWP";
 const char FH_WAYPOINT[] = "PODWAY!";
 
-const int FV_WAYPOINT = 125;
+const int FV_WAYPOINT = 126;
 
 const int Const_MaxHostages = 8;
 const int Const_MaxPathIndex = 8;
@@ -382,29 +403,29 @@ class PathNode
 private:
 	size_t m_cursor = 0;
 	size_t m_length = 0;
-	unique_ptr <int[]> m_path;
+	unique_ptr <uint32_t[]> m_path;
 
 public:
 	explicit PathNode(void) = default;
 	~PathNode(void) = default;
 
 public:
-	int& Next(void)
+	uint32_t& Next(void)
 	{
 		return At(1);
 	}
 
-	int& First(void)
+	uint32_t& First(void)
 	{
 		return At(0);
 	}
 
-	int& Last(void)
+	uint32_t& Last(void)
 	{
 		return At(Length() - 1);
 	}
 
-	int& At(const size_t index)
+	uint32_t& At(const size_t index)
 	{
 		return m_path[m_cursor + index];
 	}
@@ -417,7 +438,8 @@ public:
 	void Reverse(void)
 	{
 		size_t i;
-		for (i = 0; i < m_length / 2; ++i)
+		const size_t half = m_length * 0.5f;
+		for (i = 0; i < half; ++i)
 			swap(m_path[i], m_path[m_length - 1 - i]);
 	}
 
@@ -434,7 +456,7 @@ public:
 		return Length() > m_cursor;
 	}
 
-	bool IsEmpty() const
+	bool IsEmpty(void) const
 	{
 		return !Length();
 	}
@@ -451,9 +473,9 @@ public:
 		m_path[0] = 0;
 	}
 
-	void Init(size_t length)
+	void Init(const size_t length)
 	{
-		m_path = make_unique<int[]>(length);
+		m_path = make_unique<uint32_t[]>(length);
 	}
 };
 
@@ -601,12 +623,23 @@ struct PathOLD
 	struct Vis_t { uint16 stand, crouch; } vis;
 };
 
-struct Path
+struct PathOLD2
 {
 	Vector origin;
 	int32 flags;
 	int16 radius;
 	int16 mesh;
+	int16 index[Const_MaxPathIndex];
+	uint16 connectionFlags[Const_MaxPathIndex];
+	float gravity;
+};
+
+struct Path
+{
+	Vector origin;
+	uint32 flags;
+	uint8_t radius;
+	uint8_t mesh;
 	int16 index[Const_MaxPathIndex];
 	uint16 connectionFlags[Const_MaxPathIndex];
 	float gravity;
@@ -677,6 +710,8 @@ private:
 
 	float m_msecInterval; // used for leon hartwig's method for msec calculation
 	float m_frameInterval; // bot's frame interval
+	float m_aimInterval;
+	float m_lastAimTime;
 
 	float m_reloadCheckTime; // time to check reloading
 	float m_zoomCheckTime; // time to check zoom again
@@ -764,7 +799,7 @@ private:
 	Vector CheckToss(const Vector& start, const Vector& end);
 	Vector CheckThrow(const Vector& start, const Vector& end);
 	Vector GetEnemyPosition(void);
-	float GetZOffset(float distance);
+	float GetZOffset(const float distance);
 
 	int GetNearbyFriendsNearPosition(const Vector origin, const float radius);
 	int GetNearbyEnemiesNearPosition(const Vector origin, const float radius);
@@ -813,6 +848,7 @@ public:
 	bool m_isBomber; // bot is bomber?
 
 	int m_startAction; // team/class selection state
+	int m_retryJoin;
 	int m_team; // bot's team
 	bool m_isAlive; // has the player been killed or has he just respawned
 	bool m_notStarted; // team/class not chosen yet
@@ -912,9 +948,9 @@ public:
 	int m_campIndex;
 	int m_weaponPrefs[Const_NumWeapons];
 
-	Array <String> m_favoritePrimary;
-	Array <String> m_favoriteSecondary;
-	Array <String> m_favoriteStuff;
+	Array <char*> m_favoritePrimary;
+	Array <char*> m_favoriteSecondary;
+	Array <char*> m_favoriteStuff;
 
 	Bot(edict_t* bot, const int skill, const int personality, const int team, const int member);
 	~Bot(void);
@@ -953,6 +989,7 @@ public:
 	void CheckStuck(const float maxSpeed);
 	void ResetStuck(void);
 	void FindItem(void);
+	bool GetNextBestNode(void);
 	void DoWaypointNav(void);
 
 	int FindWaypoint(void);
@@ -1236,7 +1273,7 @@ public:
 	void Delete(void);
 	void DeleteByIndex(int index);
 	void ToggleFlags(int toggleFlag);
-	void SetRadius(const int16 radius);
+	void SetRadius(const int radius);
 	bool IsConnected(const int pointA, const int pointB);
 	bool IsConnected(const int num);
 	void CreatePath(const int dir);

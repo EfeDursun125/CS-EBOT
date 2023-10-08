@@ -194,16 +194,6 @@ typedef void* HINSTANCE;
 // as little code as possible, and throw an assertion in debug.
 #define NO_DEFAULT default: UNREACHABLE();
 
-#ifdef _WIN32
-// Alloca defined for this platform
-#define  stackalloc( _size ) _alloca( _size )
-#define  stackfree( _p )   0
-#elif __linux__
-// Alloca defined for this platform
-#define  stackalloc( _size ) alloca( _size )
-#define  stackfree( _p )   0
-#endif
-
 #include <math.h>
 #include "runtime.h"
 
@@ -2081,6 +2071,9 @@ typedef int EOFFSET;
    //
 inline edict_t* ENT(const entvars_t* pev)
 {
+    if (pev == nullptr)
+        return nullptr;
+
     return pev->pContainingEntity;
 }
 inline edict_t* ENT(edict_t* pent)
@@ -2089,6 +2082,9 @@ inline edict_t* ENT(edict_t* pent)
 }
 inline edict_t* ENT(EOFFSET eoffset)
 {
+    if (!eoffset)
+        return nullptr;
+
     return (*g_engfuncs.pfnPEntityOfEntOffset) (eoffset);
 }
 
@@ -2114,7 +2110,7 @@ inline entvars_t* VARS(entvars_t* pev)
 
 inline entvars_t* VARS(edict_t* pent)
 {
-    if (!pent)
+    if (pent == nullptr)
         return nullptr;
 
     return &pent->v;
@@ -2127,11 +2123,17 @@ inline entvars_t* VARS(EOFFSET eoffset)
 
 inline int ENTINDEX(edict_t* pentEdict)
 {
+    if (pentEdict == nullptr)
+        return -1;
+
     return (*g_engfuncs.pfnIndexOfEdict) (pentEdict);
 }
 
 inline edict_t* INDEXENT(const int iEdictNum)
 {
+    if (iEdictNum < 0)
+        return nullptr;
+
     return (*g_engfuncs.pfnPEntityOfEntIndex) (iEdictNum);
 }
 
@@ -2140,13 +2142,15 @@ inline bool FNullEnt(EOFFSET eoffset)
 {
     return !eoffset;
 }
+
 inline bool FNullEnt(entvars_t* pev)
 {
-    return !pev || FNullEnt(OFFSET(pev));
+    return pev == nullptr || FNullEnt(OFFSET(pev));
 }
+
 inline int FNullEnt(const edict_t* pent)
 {
-    return !pent || !(*g_engfuncs.pfnEntOffsetOfPEntity) (pent);
+    return pent == nullptr || !(*g_engfuncs.pfnEntOffsetOfPEntity) (pent);
 }
 
 inline bool FStringNull(const int iString)
@@ -2162,25 +2166,14 @@ inline bool FStringNull(const int iString)
 #define VIEW_FIELD_NARROW 0.7f // +-45 degrees, more narrow check used to set up ranged attacks
 #define VIEW_FIELD_ULTRA_NARROW 0.9f // +-25 degrees, more narrow check used to set up ranged attacks
 
-extern inline bool IsNullString(const char*);
-
-// Misc useful
-inline bool FStrEq(const char* sz1, const char* sz2)
-{
-    if (!sz1 || !sz2)
-        return 0; // safety check
-
-    return cstrcmp(sz1, sz2) == 0;
-}
-
 inline bool FClassnameIs(edict_t* pent, const char* szClassname)
 {
-    return FStrEq(STRING(VARS(pent)->classname), szClassname);
+    return cstrcmp(STRING(VARS(pent)->classname), szClassname) == 0;
 }
 
 inline bool FClassnameIs(entvars_t* pev, const char* szClassname)
 {
-    return FStrEq(STRING(pev->classname), szClassname);
+    return cstrcmp(STRING(pev->classname), szClassname) == 0;
 }
 
 typedef enum
@@ -2341,8 +2334,8 @@ inline void SET_LOCALINFO(char* key, char* value)
     SET_SERVER_KEYVALUE(GET_INFOKEYBUFFER(nullptr), key, value);
 }
 
-short FixedSigned16(float value, float scale);
-unsigned short FixedUnsigned16(float value, float scale);
+short FixedSigned16(const float value, const float scale);
+uint16_t FixedUnsigned16(const float value, const float scale);
 
 #include "stdarg.h"
 #include "runtime.h"
@@ -2538,7 +2531,7 @@ public:
 
     inline bool IsValid(void) const
     {
-        if (!m_ent || g_engfuncs.pfnEntOffsetOfPEntity(m_ent) == 0 || m_ent->free || m_ent->v.flags & FL_KILLME)
+        if (m_ent == nullptr || g_engfuncs.pfnEntOffsetOfPEntity(m_ent) == 0 || m_ent->free || m_ent->v.flags & FL_KILLME)
             return false;
 
         return true;
@@ -2569,19 +2562,9 @@ public:
         return SDK_Utils::GetStringFromOffset(m_ent->v.viewmodel);
     }
 
-    inline void SetModel(const String& model) const
-    {
-        g_engfuncs.pfnSetModel(m_ent, model.GetRawData());
-    }
-
     inline String GetName(void) const
     {
         return SDK_Utils::GetStringFromOffset(m_ent->v.netname);
-    }
-
-    inline void SetName(const String& name) const
-    {
-        m_ent->v.netname = SDK_Utils::MakeStringByOffset(name.GetRawData());
     }
 
     inline Vector GetHeadOrigin(void) const

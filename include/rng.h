@@ -1,4 +1,4 @@
-static int g_seed;
+static int g_seed = time(nullptr);
 int frand(void)
 {
 	g_seed = (214013 * g_seed + 2531011);

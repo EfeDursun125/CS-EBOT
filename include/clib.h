@@ -6,13 +6,12 @@
 // And to get same results/performance on every OS
 //
 
-extern int CRandomInt(const int min, const int max);
-extern float CRandomFloat(const float min, const float max);
-extern bool ChanceOf(const int number);
-extern float SquaredF(const float value);
-extern float SquaredI(const int value);
-extern int Squared(const int value);
-extern float AddTime(const float time);
+extern int crandomint(const int min, const int max);
+extern float crandomfloat(const float min, const float max);
+extern bool chanceof(const int number);
+extern float squaredf(const float value);
+extern float squaredi(const int value);
+extern int squared(const int value);
 extern float cclampf(const float a, const float b, const float c);
 extern int cclamp(const int a, const int b, const int c);
 extern float cmaxf(const float a, const float b);
@@ -21,12 +20,20 @@ extern int cmax(const int a, const int b);
 extern int cmin(const int a, const int b);
 extern float csqrtf(const float value);
 extern float crsqrtf(const float value);
+extern float ccosf(const float value);
+extern float csinf(const float value);
+extern void csincosf(const float radians, float& sine, float& cosine);
+extern float catan2f(const float x, const float y);
+extern float ctanf(const float value);
 extern float cpowf(const float a, const float b);
 extern float cabsf(const float value);
 extern int cabs(const int value);
 extern float cceilf(const float value);
+extern double cceil(const double value);
 extern float cfloorf(const float value);
+extern double cfloor(const double value);
 extern float croundf(const float value);
+extern double cround(const double value);
 extern size_t cstrlen(const char* str);
 extern int cstrcmp(const char* str1, const char* str2);
 extern int cstrncmp(const char* str1, const char* str2, const size_t num);

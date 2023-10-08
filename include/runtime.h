@@ -1,4 +1,26 @@
-﻿#ifndef __RUNTIME_INCLUDED__
+﻿//
+//  Copyright (C) 2009-2010 Dmitry Zhukov. All rights reserved.
+//
+//  This software is provided 'as-is', without any express or implied
+//  warranty.  In no event will the authors be held liable for any damages
+//  arising from the use of this software.
+//
+//  Permission is granted to anyone to use this software for any purpose,
+//  including commercial applications, and to alter it and redistribute it
+//  freely, subject to the following restrictions:
+//
+//  1. The origin of this software must not be misrepresented; you must not
+//     claim that you wrote the original software. If you use this software
+//     in a product, an acknowledgment in the product documentation would be
+//     appreciated but is not required.
+//  2. Altered source versions must be plainly marked as such, and must not be
+//     misrepresented as being the original software.
+//  3. This notice may not be removed or altered from any source distribution.
+//
+// $Id$
+//
+
+#ifndef __RUNTIME_INCLUDED__
 #define __RUNTIME_INCLUDED__
 
 #include <stdio.h>
@@ -14,6 +36,7 @@
 #include <cstring>
 #include <memory>
 #include <cstdarg>
+#include <algorithm>
 
 #pragma warning (disable : 4996) // get rid of this
 
@@ -297,22 +320,6 @@ namespace Math
     {
         return 360.0f / 65536.0f * (static_cast<int>((angle + 180.0f) * (65536.0f / 360.0f)) & 65535) - 180.0f;
     }
-
-    //
-    // Function: SineCosine
-    //
-    // Very fast platform-dependent sine and cosine calculation routine.
-    //
-    // Parameters:
-    //	  radians - Input degree (angle).
-    //	  sine - Output for Sine.
-    //	  cosine - Output for Cosine.
-    //
-    void inline SineCosine(float radians, float& sine, float& cosine)
-    {
-        sine = sinf(radians);
-        cosine = cosf(radians);
-    }
 }
 
 //
@@ -548,7 +555,7 @@ public:
     // Gets squared length (magnitude) of 3D vector.
     //
     // Returns:
-    //   Squared length (magnitude) of the 3D vector.
+    //   squared length (magnitude) of the 3D vector.
     //
     // See Also:
     //   <GetLength>
@@ -672,7 +679,7 @@ public:
         if (Math::FltZero(x) && Math::FltZero(y))
             return 0.0f;
 
-        return Math::RadianToDegree(atan2f(z, GetLength2D()));
+        return Math::RadianToDegree(catan2f(z, GetLength2D()));
     }
 
     //
@@ -688,7 +695,7 @@ public:
         if (Math::FltZero(x) && Math::FltZero(y))
             return 0.0f;
 
-        return Math::RadianToDegree(atan2f(y, x));
+        return Math::RadianToDegree(catan2f(y, x));
     }
 
     //
@@ -706,7 +713,7 @@ public:
             return Vector(z > 0.0f ? 90.0f : 270.0f, 0.0, 0.0f);
 
         // else it's another sort of vector compute individually the pitch and yaw corresponding to this vector.
-        return Vector(Math::RadianToDegree(atan2f(z, GetLength2D())), Math::RadianToDegree(atan2f(y, x)), 0.0f);
+        return Vector(Math::RadianToDegree(catan2f(z, GetLength2D())), Math::RadianToDegree(catan2f(y, x)), 0.0f);
     }
 
     //
@@ -726,9 +733,9 @@ public:
     {
         float sinePitch = 0.0f, cosinePitch = 0.0f, sineYaw = 0.0f, cosineYaw = 0.0f, sineRoll = 0.0f, cosineRoll = 0.0f;
 
-        Math::SineCosine(Math::DegreeToRadian(x), sinePitch, cosinePitch); // compute the sine and cosine of the pitch component
-        Math::SineCosine(Math::DegreeToRadian(y), sineYaw, cosineYaw); // compute the sine and cosine of the yaw component
-        Math::SineCosine(Math::DegreeToRadian(z), sineRoll, cosineRoll); // compute the sine and cosine of the roll component
+        csincosf(Math::DegreeToRadian(x), sinePitch, cosinePitch); // compute the sine and cosine of the pitch component
+        csincosf(Math::DegreeToRadian(y), sineYaw, cosineYaw); // compute the sine and cosine of the yaw component
+        csincosf(Math::DegreeToRadian(z), sineRoll, cosineRoll); // compute the sine and cosine of the roll component
 
         if (forward != nullptr)
         {
@@ -753,168 +760,583 @@ public:
     }
 };
 
-template <typename T>
-class Array
+//
+// Class: Array
+//  Universal template array container.
+//
+template <typename T> class Array
 {
 private:
-    std::vector<T> m_elements;
+    T* m_elements;
+    int m_resizeStep;
+    int m_itemSize;
+    int m_itemCount;
 
+    //
+    // Group: (Con/De)structors
+    //
 public:
-    Array(const int resizeStep = 0) {}
 
-    Array(const Array<T>& other) : m_elements(other.m_elements) {}
-
-    ~Array(void) = default;
-
-    void Destroy(void)
+    //
+    // Function: Array
+    //  Default array constructor.
+    //
+    // Parameters:
+    //  resizeStep - Array resize step, when new items added, or old deleted.
+    //
+    Array(const int resizeStep = 0)
     {
-        m_elements.clear();
+        m_elements = nullptr;
+        m_itemSize = 0;
+        m_itemCount = 0;
+        m_resizeStep = resizeStep;
     }
 
+    //
+    // Function: Array
+    //  Array copying constructor.
+    //
+    // Parameters:
+    //  other - Other array that should be assigned to this one.
+    //
+    Array(const Array <T>& other)
+    {
+        m_elements = nullptr;
+        m_itemSize = 0;
+        m_itemCount = 0;
+        m_resizeStep = 0;
+        AssignFrom(other);
+    }
+
+    //
+    // Function: ~Array
+    //  Default array destructor.
+    //
+    virtual ~Array(void)
+    {
+        Destroy();
+    }
+
+    //
+    // Group: Functions
+    //
+public:
+
+    //
+    // Function: Destroy
+    //  Destroys array object, and all elements.
+    //
+    void Destroy(void)
+    {
+        if (m_elements != nullptr)
+        {
+            delete[] m_elements;
+            m_elements = nullptr;
+        }
+
+        m_itemSize = 0;
+        m_itemCount = 0;
+    }
+
+    //
+    // Function: SetSize
+    //  Sets the size of the array.
+    //
+    // Parameters:
+    //  newSize - Size to what array should be resized.
+    //  keepData - Keep exiting data, while resizing array or not.
+    //
+    // Returns:
+    //  True if operation succeeded, false otherwise.
+    //
     bool SetSize(const int newSize, const bool keepData = true)
     {
-        if (newSize == 0)
+        if (!newSize)
         {
-            m_elements.clear();
+            Destroy();
             return true;
         }
 
-        m_elements.resize(newSize);
+        int checkSize = 0;
 
+        if (m_resizeStep != 0)
+            checkSize = m_itemCount + m_resizeStep;
+        else
+        {
+            checkSize = m_itemCount / 8;
+
+            if (checkSize < 4)
+                checkSize = 4;
+
+            if (checkSize > 1024)
+                checkSize = 1024;
+
+            checkSize += m_itemCount;
+        }
+
+        if (newSize > checkSize)
+            checkSize = newSize;
+
+        T* buffer = new T[checkSize];
+
+        if (keepData && m_elements != nullptr)
+        {
+            if (checkSize < m_itemCount)
+                m_itemCount = checkSize;
+
+            int i;
+            for (i = 0; i < m_itemCount; i++)
+                buffer[i] = m_elements[i];
+
+            delete[] m_elements;
+        }
+
+        m_elements = buffer;
+        m_itemSize = checkSize;
         return true;
     }
 
-    int GetElementNumber(void) const
+    //
+    // Function: GetSize
+    //  Gets allocated size of array.
+    //
+    // Returns:
+    //  Number of allocated items.
+    //
+    int GetSize(void) const
     {
-        return m_elements.size();
+        return m_itemSize;
     }
 
+    //
+    // Function: GetElementNumber
+    //  Gets real number currently in array.
+    //
+    // Returns:
+    //  Number of elements.
+    //
+    int GetElementNumber(void) const
+    {
+        return m_itemCount;
+    }
+
+    //
+    // Function: SetEnlargeStep
+    //  Sets step, which used while resizing array data.
+    //
+    // Parameters:
+    //  resizeStep - Step that should be set.
+    //  
+    void SetEnlargeStep(const int resizeStep = 0)
+    {
+        m_resizeStep = resizeStep;
+    }
+
+    //
+    // Function: GetEnlargeStep
+    //  Gets the current enlarge step.
+    //
+    // Returns:
+    //  Current resize step.
+    //
+    int GetEnlargeStep(void)
+    {
+        return m_resizeStep;
+    }
+
+    //
+    // Function: SetAt
+    //  Sets element data, at specified index.
+    //
+    // Parameters:
+    //  index - Index where object should be assigned.
+    //  object - Object that should be assigned.
+    //  enlarge - Checks whether array must be resized in case, allocated size + enlarge step is exceeded.
+    //
+    // Returns:
+    //  True if operation succeeded, false otherwise.
+    //
     bool SetAt(const int index, const T object, const bool enlarge = true)
     {
-        if (index < 0 || index >= m_elements.size())
+        if (index >= m_itemSize)
         {
             if (!enlarge || !SetSize(index + 1))
                 return false;
         }
 
         m_elements[index] = object;
+
+        if (index >= m_itemCount)
+            m_itemCount = index + 1;
+
         return true;
     }
 
+    //
+    // Function: GetAt
+    //  Gets element from specified index
+    //
+    // Parameters:
+    //  index - Element index to retrieve.
+    //
+    // Returns:
+    //  Element object.
+    //
     T& GetAt(const int index)
     {
-        if (index < 0 || index >= m_elements.size())
-            return m_elements[0];
+        if (index < 0 || index >= m_itemCount)
+            return m_elements[crandomint(0, m_itemCount - 1)];
 
         return m_elements[index];
     }
 
+    //
+    // Function: GetAt
+    //  Gets element at specified index, and store it in reference object.
+    //
+    // Parameters:
+    //  index - Element index to retrieve.
+    //  object - Holder for element reference.
+    //
+    // Returns:
+    //  True if operation succeeded, false otherwise.
+    //
     bool GetAt(const int index, T& object)
     {
-        if (index < 0 || index >= m_elements.size())
+        if (index < 0 || index >= m_itemCount)
             return false;
 
         object = m_elements[index];
         return true;
     }
 
-    bool RemoveAt(const int index, const int count = 1)
+    //
+    // Function: InsertAt
+    //  Inserts new element at specified index.
+    //
+    // Parameters:
+    //  index - Index where element should be inserted.
+    //  object - Object that should be inserted.
+    //  enlarge - Checks whether array must be resized in case, allocated size + enlarge step is exceeded.
+    //
+    // Returns:
+    //  True if operation succeeded, false otherwise.
+    //
+    bool InsertAt(const int index, const T object, const bool enlarge = true)
     {
-        if (index < 0 || index >= m_elements.size() || count < 1)
+        return InsertAt(index, &object, 1, enlarge);
+    }
+
+    //
+    // Function: InsertAt
+    //  Inserts number of element at specified index.
+    //
+    // Parameters:
+    //  index - Index where element should be inserted.
+    //  objects - Pointer to object list.
+    //  count - Number of element to insert.
+    //  enlarge - Checks whether array must be resized in case, allocated size + enlarge step is exceeded.
+    //
+    // Returns:
+    //  True if operation succeeded, false otherwise.
+    //
+    bool InsertAt(const int index, const T* objects, const int count = 1, const bool enlarge = true)
+    {
+        if (objects == nullptr || count < 1)
             return false;
 
-        m_elements.erase(m_elements.begin() + index, m_elements.begin() + index + count);
+        int newSize = 0;
+
+        if (m_itemCount > index)
+            newSize = m_itemCount + count;
+        else
+            newSize = index + count;
+
+        if (newSize >= m_itemSize)
+        {
+            if (!enlarge || !SetSize(newSize))
+                return false;
+        }
+
+        if (index >= m_itemCount)
+        {
+            int i;
+            for (i = 0; i < count; i++)
+                m_elements[i + index] = objects[i];
+
+            m_itemCount = newSize;
+        }
+        else
+        {
+            int i;
+            for (i = m_itemCount; i > index; i--)
+                m_elements[i + count - 1] = m_elements[i - 1];
+
+            for (i = 0; i < count; i++)
+                m_elements[i + index] = objects[i];
+
+            m_itemCount += count;
+        }
+
         return true;
     }
 
-    void Push(const T& object)
+    //
+    // Function: InsertAt
+    //  Inserts other array reference into the our array.
+    //
+    // Parameters:
+    //  index - Index where element should be inserted.
+    //  objects - Pointer to object list.
+    //  count - Number of element to insert.
+    //  enlarge - Checks whether array must be resized in case, allocated size + enlarge step is exceeded.
+    //
+    // Returns:
+    //  True if operation succeeded, false otherwise.
+    //
+    bool InsertAt(const int index, const Array <T>& other, const bool enlarge = true)
     {
-        m_elements.push_back(object);
+        if (&other == this)
+            return false;
+
+        return InsertAt(index, other.m_elements, other.m_itemCount, enlarge);
     }
 
+    //
+    // Function: RemoveAt
+    //  Removes elements from specified index.
+    //
+    // Parameters:
+    //  index - Index, where element should be removed.
+    //  count - Number of elements to remove.
+    //
+    // Returns:
+    //  True if operation succeeded, false otherwise.
+    //
+    bool RemoveAt(const int index, const int count = 1)
+    {
+        if (index + count > m_itemCount)
+            return false;
+
+        if (count < 1)
+            return true;
+
+        m_itemCount -= count;
+
+        int i;
+        for (i = index; i < m_itemCount; i++)
+            m_elements[i] = m_elements[i + count];
+
+        return true;
+    }
+
+    //
+    // Function: Push
+    //  Appends element to the end of array.
+    //
+    // Parameters:
+    //  object - Object to append.
+    //  enlarge - Checks whether array must be resized in case, allocated size + enlarge step is exceeded.
+    //
+    // Returns:
+    //  True if operation succeeded, false otherwise.
+    //
+    bool Push(const T object, const bool enlarge = true)
+    {
+        return InsertAt(m_itemCount, &object, 1, enlarge);
+    }
+
+    //
+    // Function: Push
+    //  Appends number of elements to the end of array.
+    //
+    // Parameters:
+    //  objects - Pointer to object list.
+    //  count - Number of element to insert.
+    //  enlarge - Checks whether array must be resized in case, allocated size + enlarge step is exceeded.
+    //
+    // Returns:
+    //  True if operation succeeded, false otherwise.
+    //
+    bool Push(const T* objects, const int count = 1, const bool enlarge = true)
+    {
+        return InsertAt(m_itemCount, objects, count, enlarge);
+    }
+
+    //
+    // Function: Push
+    //  Inserts other array reference into the our array.
+    //
+    // Parameters:
+    //  objects - Pointer to object list.
+    //  count - Number of element to insert.
+    //  enlarge - Checks whether array must be resized in case, allocated size + enlarge step is exceeded.
+    //
+    // Returns:
+    //  True if operation succeeded, false otherwise.
+    //
+    bool Push(const Array <T>& other, const bool enlarge = true)
+    {
+        if (&other == this)
+            return false;
+
+        return InsertAt(m_itemCount, other.m_elements, other.m_itemCount, enlarge);
+    }
+
+    //
+    // Function: GetData
+    //  Gets the pointer to all element in array.
+    //
+    // Returns:
+    //  Pointer to object list.
+    //
     T* GetData(void)
     {
-        return m_elements.data();
+        return m_elements;
     }
 
-    bool IsEmpty(void)
+    //
+    // Function: RemoveAll
+    //  Resets array, and removes all elements out of it.
+    // 
+    void RemoveAll(void)
     {
-        return m_elements.empty();
+        m_itemCount = 0;
+        SetSize(m_itemCount);
     }
 
+    //
+    // Function: IsEmpty
+    //  Checks whether element is empty.
+    //
+    // Returns:
+    //  True if element is empty, false otherwise.
+    //
+    inline bool IsEmpty(void)
+    {
+        return !m_itemCount;
+    }
+
+    //
+    // Function: FreeExtra
+    //  Frees unused space.
+    //
     void FreeSpace(const bool destroyIfEmpty = true)
     {
-        if (m_elements.empty())
+        if (!m_itemCount)
         {
             if (destroyIfEmpty)
-                m_elements.clear();
+                Destroy();
 
             return;
         }
 
-        m_elements.shrink_to_fit();
+        T* buffer = new T[m_itemCount];
+
+        if (m_elements != nullptr)
+        {
+            int i;
+            for (i = 0; i < m_itemCount; i++)
+                buffer[i] = m_elements[i];
+
+            delete[] m_elements;
+        }
+
+        m_elements = buffer;
+        m_itemSize = m_itemCount;
     }
 
+    //
+    // Function: Pop
+    //  Pops element from array.
+    //
+    // Returns:
+    //  Object popped from the end of array.
+    //
     T Pop(void)
     {
-        if (m_elements.empty())
-            return m_elements[0];
-
-        const T element = m_elements.back();
-        m_elements.pop_back();
-
+        const T element = m_elements[m_itemCount - 1];
+        RemoveAt(m_itemCount - 1);
         return element;
     }
 
-    void PopNoReturn(void)
+    //
+    // Function: PopNoReturn
+    //  Pops element from array.
+    //
+    T PopNoReturn(void)
     {
-        if (m_elements.empty())
-            return;
-
-        m_elements.pop_back();
+        RemoveAt(m_itemCount - 1);
     }
 
     T& Last(void)
     {
-        if (m_elements.empty())
-            return m_elements[0];
-
-        return m_elements.back();
+        return m_elements[m_itemCount - 1];
     }
 
-    T& GetRandomElement(void)
+    bool GetLast(const T& item)
     {
-        if (m_elements.empty())
-            return m_elements[0];
-
-        const int randomIndex = frand() % m_elements.size();
-        return m_elements[randomIndex];
-    }
-
-    bool GetLast(T& item)
-    {
-        if (m_elements.empty())
+        if (m_itemCount <= 0)
             return false;
 
-        item = m_elements.back();
+        item = m_elements[m_itemCount - 1];
         return true;
     }
 
-    Array<T>& operator = (const Array<T>& other)
+    //
+    // Function: AssignFrom
+    //  Reassigns current array with specified one.
+    //
+    // Parameters:
+    //  other - Other array that should be assigned.
+    //
+    // Returns:
+    //  True if operation succeeded, false otherwise.
+    //
+    bool AssignFrom(const Array <T>& other)
     {
         if (&other == this)
-            return *this;
+            return true;
 
-        m_elements = other.m_elements;
+        if (!SetSize(other.m_itemCount, false))
+            return false;
+
+        int i;
+        for (i = 0; i < other.m_itemCount; i++)
+            m_elements[i] = other.m_elements[i];
+
+        m_itemCount = other.m_itemCount;
+        m_resizeStep = other.m_resizeStep;
+        return true;
+    }
+
+    //
+    // Function: GetRandomElement
+    //  Gets the random element from the array.
+    //
+    // Returns:
+    //  Random element reference.
+    //
+    T& GetRandomElement(void) const
+    {
+        if (m_itemCount < 2)
+            return m_elements[0];
+
+        return m_elements[crandomint(0, m_itemCount - 1)];
+    }
+
+    Array <T>& operator = (const Array <T>& other)
+    {
+        AssignFrom(other);
         return *this;
     }
 
     T& operator [] (const int index)
     {
-        if (index < 0 || index >= m_elements.size())
-            return m_elements[0];
+        if (index < m_itemSize && index >= m_itemCount)
+            m_itemCount = index + 1;
 
-        return m_elements[index];
+        return GetAt(index);
     }
 };
 
@@ -932,144 +1354,14 @@ public:
     template <typename A1, typename A2> Pair(const Pair <A1, A2>& right) : first(right.first), second(right.second) {}
 };
 
-template <class K, class V>
-class Map
-{
-private:
-    typedef std::pair<K, V> Pair;
-    typedef std::list<Pair> MapEntries;
-    typedef typename MapEntries::iterator MapIterator;
-
-public:
-    Map(const int hashSize = 36) : m_mapTable(hashSize) {}
-
-    bool IsExists(const K& keyName) const
-    {
-        const MapIterator it = Find(keyName);
-        return it != m_mapTable.end();
-    }
-
-    void SetupMap(const int hashSize)
-    {
-        m_mapTable.clear();
-        m_mapTable.resize(hashSize);
-    }
-
-    bool IsEmpty(void) const
-    {
-        return m_mapTable.empty();
-    }
-
-    int GetSize(void) const
-    {
-        return m_mapTable.size();
-    }
-
-    K& GetKey(const int index)
-    {
-        const MapIterator it = GetIterator(index);
-        if (it != m_mapTable.end())
-            return it->first;
-
-        return K();
-    }
-
-    const K& GetKey(const int index) const
-    {
-        const MapIterator it = GetIterator(index);
-        if (it != m_mapTable.end())
-            return it->first;
-
-        return K();
-    }
-
-    V& GetValue(const int index)
-    {
-        const MapIterator it = GetIterator(index);
-        if (it != m_mapTable.end())
-            return it->second;
-
-        return V();
-    }
-
-    const V& GetValue(const int index) const
-    {
-        const MapIterator it = GetIterator(index);
-        if (it != m_mapTable.end())
-            return it->second;
-
-        return V();
-    }
-
-    MapEntries& GetElements(void)
-    {
-        return m_mapTable;
-    }
-
-    bool Find(const K& keyName, V& element) const
-    {
-        const MapIterator it = Find(keyName);
-        if (it != m_mapTable.end())
-        {
-            element = it->second;
-            return true;
-        }
-
-        return false;
-    }
-
-    bool Remove(const K& keyName)
-    {
-        const MapIterator it = Find(keyName);
-        if (it != m_mapTable.end())
-        {
-            m_mapTable.erase(it);
-            return true;
-        }
-
-        return false;
-    }
-
-    void RemoveAll(void)
-    {
-        m_mapTable.clear();
-    }
-
-    V& operator[](const K& keyName)
-    {
-        const MapIterator it = Find(keyName);
-        if (it != m_mapTable.end())
-            return it->second;
-
-        return m_mapTable.emplace_back(keyName, V()).second;
-    }
-
-private:
-    MapIterator Find(const K& keyName) const
-    {
-        return std::find_if(m_mapTable.begin(), m_mapTable.end(), [&keyName](const Pair& p) { return p.first == keyName; });
-    }
-
-    MapIterator GetIterator(const int index)
-    {
-        if (index >= 0 && index < m_mapTable.size())
-        {
-            const MapIterator it = m_mapTable.begin();
-            std::advance(it, index);
-            return it;
-        }
-
-        return m_mapTable.end();
-    }
-
-private:
-    MapEntries m_mapTable;
-};
-
+//
+// Class: String
+//  Reference counted string class.
+//
 class String
 {
 private:
-    std::unique_ptr<char[]> m_bufferPtr;
+    char* m_bufferPtr;
     int m_allocatedSize;
     int m_stringLength;
 
@@ -1091,16 +1383,16 @@ private:
             return;
 
         m_allocatedSize = size + 16;
-        std::unique_ptr<char[]> tempBuffer(new char[size + 1]);
+        char* tempBuffer = new char[size + 1];
 
         if (m_bufferPtr != nullptr)
         {
-            cstrcpy(tempBuffer.get(), m_bufferPtr.get());
+            cstrcpy(tempBuffer, m_bufferPtr);
             tempBuffer[m_stringLength] = 0;
-            m_bufferPtr.reset();
+            delete[] m_bufferPtr;
         }
 
-        m_bufferPtr = std::move(tempBuffer);
+        m_bufferPtr = tempBuffer;
         m_allocatedSize = size;
     }
 
@@ -1114,7 +1406,7 @@ private:
     //
     void MoveItems(const int destIndex, const int sourceIndex)
     {
-        cmemmove(m_bufferPtr.get() + destIndex, m_bufferPtr.get() + sourceIndex, sizeof(char) * (m_stringLength - sourceIndex + 1));
+        cmemmove(m_bufferPtr + destIndex, m_bufferPtr + sourceIndex, sizeof(char) * (m_stringLength - sourceIndex + 1));
     }
 
     //
@@ -1127,12 +1419,10 @@ private:
     void Initialize(const int length)
     {
         const int freeSize = m_allocatedSize - m_stringLength - 1;
-
         if (length <= freeSize)
             return;
 
         int delta = 4;
-
         if (m_allocatedSize > 64)
             delta = m_allocatedSize * 0.5;
         else if (m_allocatedSize > 8)
@@ -1169,7 +1459,6 @@ private:
     {
         CorrectIndex(index);
         Initialize(size);
-
         MoveItems(index + size, index);
     }
 
@@ -1183,7 +1472,7 @@ private:
     // Returns:
     //  True if it's a trim char, false otherwise.
     //
-    bool IsTrimChar(char input)
+    bool IsTrimChar(const char input)
     {
         return input == ' ' || input == '\t' || input == '\n';
     }
@@ -1194,19 +1483,28 @@ private:
 public:
     String(void)
     {
+        m_bufferPtr = nullptr;
         m_allocatedSize = 0;
         m_stringLength = 0;
     }
 
+    ~String(void)
+    {
+        if (m_bufferPtr)
+            delete[] m_bufferPtr;
+    }
+
     String(const char* bufferPtr)
     {
+        m_bufferPtr = nullptr;
         m_allocatedSize = 0;
         m_stringLength = 0;
         Assign(bufferPtr);
     }
 
-    String(char input)
+    String(const char input)
     {
+        m_bufferPtr = nullptr;
         m_allocatedSize = 0;
         m_stringLength = 0;
         Assign(input);
@@ -1214,6 +1512,7 @@ public:
 
     String(const String& inputString)
     {
+        m_bufferPtr = nullptr;
         m_allocatedSize = 0;
         m_stringLength = 0;
         Assign(inputString.GetBuffer());
@@ -1224,16 +1523,6 @@ public:
     //
 public:
 
-    inline char* GetRawData(void)
-    {
-        return m_bufferPtr.get();
-    }
-
-    inline const char* GetRawData(void) const
-    {
-        return m_bufferPtr.get();
-    }
-
     //
     // Function: GetBuffer
     //  Gets the string buffer.
@@ -1243,7 +1532,7 @@ public:
     //
     const char* GetBuffer(void)
     {
-        if (!m_bufferPtr || *m_bufferPtr.get() == 0x0)
+        if (m_bufferPtr == nullptr || *m_bufferPtr == 0x0)
             return "";
 
         return &m_bufferPtr[0];
@@ -1258,7 +1547,7 @@ public:
     //
     const char* GetBuffer(void) const
     {
-        if (!m_bufferPtr || *m_bufferPtr.get() == 0x0)
+        if (m_bufferPtr == nullptr || *m_bufferPtr == 0x0)
             return "";
 
         return &m_bufferPtr[0];
@@ -1273,7 +1562,7 @@ public:
     //
     float ToFloat(void)
     {
-        return catof(m_bufferPtr.get());
+        return catof(m_bufferPtr);
     }
 
     //
@@ -1285,7 +1574,7 @@ public:
     //
     int ToInt(void) const
     {
-        return catoi(m_bufferPtr.get());
+        return catoi(m_bufferPtr);
     }
 
     //
@@ -1294,7 +1583,7 @@ public:
     //
     void ReleaseBuffer(void)
     {
-        ReleaseBuffer(cstrlen(m_bufferPtr.get()));
+        ReleaseBuffer(cstrlen(m_bufferPtr));
     }
 
     //
@@ -1325,7 +1614,7 @@ public:
         if (minLength >= m_allocatedSize)
             UpdateBufferSize(minLength + 1);
 
-        return m_bufferPtr.get();
+        return m_bufferPtr;
     }
 
     //
@@ -1358,9 +1647,8 @@ public:
     void Append(const char* bufferPtr)
     {
         UpdateBufferSize(m_stringLength + cstrlen(bufferPtr) + 1);
-        cstrcat(m_bufferPtr.get(), bufferPtr);
-
-        m_stringLength = cstrlen(m_bufferPtr.get());
+        cstrcat(m_bufferPtr, bufferPtr);
+        m_stringLength = cstrlen(m_bufferPtr);
     }
 
     //
@@ -1373,7 +1661,6 @@ public:
     void Append(const char input)
     {
         UpdateBufferSize(m_stringLength + 2);
-
         m_bufferPtr[m_stringLength] = input;
         m_bufferPtr[m_stringLength++] = 0;
     }
@@ -1389,9 +1676,8 @@ public:
     {
         const char* bufferPtr = inputString.GetBuffer();
         UpdateBufferSize(m_stringLength + cstrlen(bufferPtr));
-
-        cstrcat(m_bufferPtr.get(), bufferPtr);
-        m_stringLength = cstrlen(m_bufferPtr.get());
+        cstrcat(m_bufferPtr, bufferPtr);
+        m_stringLength = cstrlen(m_bufferPtr);
     }
 
     //
@@ -1432,9 +1718,9 @@ public:
     // Parameters:
     //  input - Character to assign.
     //
-    void Assign(char input)
+    void Assign(const char input)
     {
-        char psz[2] = { input, 0 };
+        const char psz[2] = {input, 0x0};
         Assign(psz);
     }
 
@@ -1458,8 +1744,8 @@ public:
 
         if (m_bufferPtr != nullptr)
         {
-            cstrcpy(m_bufferPtr.get(), bufferPtr);
-            m_stringLength = cstrlen(m_bufferPtr.get());
+            cstrcpy(m_bufferPtr, bufferPtr);
+            m_stringLength = cstrlen(m_bufferPtr);
         }
         else
             m_stringLength = 0;
@@ -1488,15 +1774,13 @@ public:
     // Function: Empty
     //  Empties the string.
     //
-    void SetEmpty(void)
+    void Empty(void)
     {
         if (m_bufferPtr != nullptr)
         {
             m_bufferPtr[0] = 0;
             m_stringLength = 0;
         }
-
-        m_bufferPtr.reset();
     }
 
     //
@@ -1508,7 +1792,7 @@ public:
     //
     bool IsEmpty(void) const
     {
-        if (!m_bufferPtr || m_stringLength == 0)
+        if (m_bufferPtr == nullptr || !m_stringLength)
             return true;
 
         return false;
@@ -1523,7 +1807,7 @@ public:
     //
     int GetLength(void)
     {
-        if (!m_bufferPtr)
+        if (m_bufferPtr == nullptr)
             return 0;
 
         return m_stringLength;
@@ -1536,7 +1820,7 @@ public:
 
     operator char* (void)
     {
-        return const_cast <char*> (GetBuffer());
+        return const_cast<char*>(GetBuffer());
     }
 
     operator int(void)
@@ -1546,7 +1830,7 @@ public:
 
     operator long(void)
     {
-        return static_cast <long> (ToInt());
+        return static_cast<long>(ToInt());
     }
 
     operator float(void)
@@ -1556,7 +1840,7 @@ public:
 
     operator double(void)
     {
-        return static_cast <double> (ToFloat());
+        return static_cast<double>(ToFloat());
     }
 
     friend String operator + (const String& s1, const String& s2)
@@ -1567,7 +1851,7 @@ public:
         return result;
     }
 
-    friend String operator + (const String& holder, char ch)
+    friend String operator + (const String& holder, const char ch)
     {
         String result(holder);
         result += ch;
@@ -1575,7 +1859,7 @@ public:
         return result;
     }
 
-    friend String operator + (char ch, const String& holder)
+    friend String operator + (const char ch, const String& holder)
     {
         String result(ch);
         result += holder;
@@ -1601,7 +1885,7 @@ public:
 
     friend bool operator == (const String& s1, const String& s2)
     {
-        return s1.Compare(s2) == 0;
+        return !s1.Compare(s2);
     }
 
     friend bool operator < (const String& s1, const String& s2)
@@ -1616,12 +1900,12 @@ public:
 
     friend bool operator == (const char* s1, const String& s2)
     {
-        return s2.Compare(s1) == 0;
+        return !s2.Compare(s1);
     }
 
     friend bool operator == (const String& s1, const char* s2)
     {
-        return s1.Compare(s2) == 0;
+        return !s1.Compare(s2);
     }
 
     friend bool operator != (const String& s1, const String& s2)
@@ -1651,7 +1935,7 @@ public:
         return *this;
     }
 
-    String& operator = (char input)
+    String& operator = (const char input)
     {
         Assign(input);
         return *this;
@@ -1671,7 +1955,7 @@ public:
 
     char operator [] (const int index)
     {
-        if (index > m_stringLength)
+        if (index < 0 || index > m_stringLength)
             return -1;
 
         return m_bufferPtr[index];
@@ -1692,7 +1976,7 @@ public:
     {
         String result;
 
-        if (startIndex >= m_stringLength || !m_bufferPtr)
+        if (m_bufferPtr == nullptr || !m_stringLength || startIndex >= m_stringLength)
             return result;
 
         if (count == -1)
@@ -1700,16 +1984,18 @@ public:
         else if (startIndex + count >= m_stringLength)
             count = m_stringLength - startIndex;
 
-        if (count <= 0)
-            return result;
+        int i = 0, j = 0;
+        char* holder = new char[m_stringLength + 1];
+        if (holder != nullptr)
+        {
+            for (i = startIndex; i < startIndex + count; i++)
+                holder[j++] = m_bufferPtr[i];
 
-        std::unique_ptr<char[]> holder(new char[count + 1], std::default_delete<char[]>());
+            holder[j] = 0;
+            result.Assign(holder);
 
-        for (int i = 0; i < count; i++)
-            holder[i] = m_bufferPtr[startIndex + i];
-
-        holder[count] = '\0';
-        result.Assign(holder.get());
+            delete[] holder;
+        }
 
         return result;
     }
@@ -1763,7 +2049,7 @@ public:
     }
 
     //
-    // Function: ctoupper
+    // Function: ToUpper
     //  Gets the string in upper case.
     //
     // Returns:
@@ -1773,15 +2059,16 @@ public:
     {
         String result;
 
+        int i;
         const int length = GetLength();
-        for (int i = 0; i < length; i++)
+        for (i = 0; i < length; i++)
             result += ctoupper(m_bufferPtr[i]);
 
         return result;
     }
 
     //
-    // Function: ctoupper
+    // Function: ToUpper
     //  Gets the string in upper case.
     //
     // Returns:
@@ -1791,8 +2078,9 @@ public:
     {
         String result;
 
+        int i;
         const int length = GetLength();
-        for (int i = 0; i < length; i++)
+        for (i = 0; i < length; i++)
             result += ctolower(m_bufferPtr[i]);
 
         return result;
@@ -1807,8 +2095,8 @@ public:
     //
     String ToReverse(void)
     {
-        char* source = m_bufferPtr.get() + GetLength() - 1;
-        char* dest = m_bufferPtr.get();
+        char* source = m_bufferPtr + GetLength() - 1;
+        char* dest = m_bufferPtr;
 
         while (source > dest)
         {
@@ -1825,7 +2113,7 @@ public:
             }
         }
 
-        return m_bufferPtr.get();
+        return m_bufferPtr;
     }
 
     //
@@ -1867,7 +2155,22 @@ public:
     //
     int Compare(const String& string) const
     {
-        return cstrcmp(m_bufferPtr.get(), string.m_bufferPtr.get());
+        return cstrcmp(m_bufferPtr, string.m_bufferPtr);
+    }
+
+    //
+    // Function: CompareI
+    //  Compares string with other string without case check.
+    //
+    // Parameters:
+    //  string - String t compare with.
+    //
+    // Returns:
+    //  Zero if they are equal.
+    //
+    int CompareI(String& string) const
+    {
+        return cstricmp(m_bufferPtr, string.m_bufferPtr);
     }
 
     //
@@ -1882,7 +2185,22 @@ public:
     //
     int Compare(const char* str) const
     {
-        return cstrcmp(m_bufferPtr.get(), str);
+        return cstrcmp(m_bufferPtr, str);
+    }
+
+    //
+    // Function: CompareI
+    //  Compares string with other string without case check.
+    //
+    // Parameters:
+    //  str - String to compare with.
+    //
+    // Returns:
+    //  Zero if they are equal.
+    //
+    int CompareI(const char* str) const
+    {
+        return cstricmp(m_bufferPtr, str);
     }
 
     //
@@ -1897,7 +2215,7 @@ public:
     //
     int Collate(const String& string) const
     {
-        return cstrcoll(m_bufferPtr.get(), string.m_bufferPtr.get());
+        return cstrcoll(m_bufferPtr, string.m_bufferPtr);
     }
 
     //
@@ -1910,7 +2228,7 @@ public:
     // Returns:
     //  Index of character.
     //
-    int Find(char input) const
+    int Find(const char input) const
     {
         return Find(input, 0);
     }
@@ -1926,16 +2244,16 @@ public:
     // Returns:
     //  Index of character.
     //
-    int Find(char input, const int startIndex) const
+    int Find(const char input, const int startIndex) const
     {
-        char* str = m_bufferPtr.get() + startIndex;
+        char* str = m_bufferPtr + startIndex;
 
         for (;;)
         {
             if (*str == input)
-                return str - m_bufferPtr.get();
+                return static_cast<int>(str - m_bufferPtr);
 
-            if (*str == 0)
+            if (!*str)
                 return -1;
 
             str++;
@@ -1970,13 +2288,12 @@ public:
     //
     int Find(const String& string, int startIndex) const
     {
-        if (string.m_stringLength == 0)
+        if (!string.m_stringLength)
             return startIndex;
 
         for (; startIndex < m_stringLength; startIndex++)
         {
             int j;
-
             for (j = 0; j < string.m_stringLength && startIndex + j < m_stringLength; j++)
             {
                 if (m_bufferPtr[startIndex + j] != string.m_bufferPtr[j])
@@ -2000,20 +2317,20 @@ public:
     // Returns:
     //  Position of found character.
     //
-    int ReverseFind(char ch)
+    int ReverseFind(const char ch)
     {
-        if (m_stringLength == 0)
+        if (!m_stringLength)
             return -1;
 
-        char* str = m_bufferPtr.get() + m_stringLength - 1;
-
+        char* str = m_bufferPtr + m_stringLength - 1;
         for (;;)
         {
             if (*str == ch)
-                return str - m_bufferPtr.get();
+                return str - m_bufferPtr;
 
-            if (str == m_bufferPtr.get())
+            if (str == m_bufferPtr)
                 return -1;
+
             str--;
         }
     }
@@ -2030,7 +2347,8 @@ public:
     //
     int FindOneOf(const String& string)
     {
-        for (int i = 0; i < m_stringLength; i++)
+        int i;
+        for (i = 0; i < m_stringLength; i++)
         {
             if (string.Find(m_bufferPtr[i]) >= 0)
                 return i;
@@ -2048,7 +2366,7 @@ public:
     //
     String& TrimRight(void)
     {
-        char* str = m_bufferPtr.get();
+        char* str = m_bufferPtr;
         char* last = nullptr;
 
         while (*str != 0)
@@ -2065,7 +2383,7 @@ public:
         }
 
         if (last != nullptr)
-            Delete(last - m_bufferPtr.get());
+            Delete(static_cast<int>(last - m_bufferPtr));
 
         return *this;
     }
@@ -2079,14 +2397,14 @@ public:
     //
     String& TrimLeft(void)
     {
-        char* str = m_bufferPtr.get();
+        char* str = m_bufferPtr;
 
         while (IsTrimChar(*str))
             str++;
 
-        if (str != m_bufferPtr.get())
+        if (str != m_bufferPtr)
         {
-            const int first = int(str - GetBuffer());
+            const int first = static_cast<int>(str - GetBuffer());
             char* buffer = GetBuffer(GetLength());
 
             str = buffer + first;
@@ -2118,9 +2436,9 @@ public:
     // Parameters:
     //  ch - Character to trim.
     //
-    void TrimRight(char ch)
+    void TrimRight(const char ch)
     {
-        const char* str = m_bufferPtr.get();
+        const char* str = m_bufferPtr;
         const char* last = nullptr;
 
         while (*str != 0)
@@ -2138,7 +2456,7 @@ public:
 
         if (last != nullptr)
         {
-            const int i = last - m_bufferPtr.get();
+            const int i = static_cast<int>(last - m_bufferPtr);
             Delete(i, m_stringLength - i);
         }
     }
@@ -2150,14 +2468,14 @@ public:
     // Parameters:
     //  ch - Character to trim.
     //
-    void TrimLeft(char ch)
+    void TrimLeft(const char ch)
     {
-        char* str = m_bufferPtr.get();
+        char* str = m_bufferPtr;
 
         while (ch == *str)
             str++;
 
-        Delete(0, str - m_bufferPtr.get());
+        Delete(0, static_cast<int>(str - m_bufferPtr));
     }
 
     //
@@ -2171,7 +2489,7 @@ public:
     // Returns:
     //  New string length.
     //
-    int Insert(int index, char ch)
+    int Insert(int index, const char ch)
     {
         InsertSpace(index, 1);
 
@@ -2196,17 +2514,17 @@ public:
     {
         CorrectIndex(index);
 
-        if (string.m_stringLength == 0)
+        if (!string.m_stringLength)
             return m_stringLength;
 
         const int numInsertChars = string.m_stringLength;
         InsertSpace(index, numInsertChars);
 
-        for (int i = 0; i < numInsertChars; i++)
+        int i;
+        for (i = 0; i < numInsertChars; i++)
             m_bufferPtr[index + i] = string[i];
 
         m_stringLength += numInsertChars;
-
         return m_stringLength;
     }
 
@@ -2221,12 +2539,12 @@ public:
     // Returns:
     //  Number of occurrences replaced.
     //
-    int Replace(char oldCharacter, char newCharacter)
+    int Replace(const char oldCharacter, const char newCharacter)
     {
         if (oldCharacter == newCharacter)
             return 0;
 
-        static int num = 0;
+        int num = 0;
         int position = 0;
 
         while (position < GetLength())
@@ -2258,10 +2576,10 @@ public:
     //
     int Replace(const String& oldString, const String& newString)
     {
-        if (oldString.m_stringLength == 0)
+        if (!oldString.m_stringLength)
             return 0;
 
-        if (newString.m_stringLength == 0)
+        if (!newString.m_stringLength)
             return 0;
 
         const int oldLength = oldString.m_stringLength;
@@ -2342,7 +2660,7 @@ public:
     //
     bool Contains(const String& what)
     {
-        return cstrstr(m_bufferPtr.get(), what.m_bufferPtr.get()) != nullptr;
+        return cstrstr(m_bufferPtr, what.m_bufferPtr) != nullptr;
     }
 
     //
@@ -2355,7 +2673,7 @@ public:
     unsigned long Hash(void)
     {
         unsigned long hash = 0;
-        const char* ptr = m_bufferPtr.get();
+        const char* ptr = m_bufferPtr;
 
         while (*ptr)
         {
@@ -2393,7 +2711,6 @@ public:
                 holder.Push(Mid(index, tokenLength));
 
             index += tokenLength;
-
         } while (tokenLength > 0);
 
         return holder;
@@ -2412,363 +2729,300 @@ public:
     // See Also:
     //  <Array>
     //
-    Array <String> Split(char separator)
+    Array <String> Split(const char separator)
     {
-        char sep[2];
-
-        sep[0] = separator;
-        sep[1] = 0x0;
-
+        const char sep[2] = {separator , 0x0};
         return Split(sep);
     }
 };
 
 //
 // Class: File
-// A simple wrapper to a stdio FILE.
+//  Simple STDIO file wrapper class.
 //
 class File
 {
-    //
-    // Group: Private members.
-    //
-private:
-
-    //
-    // Variable: m_handle
-    // Pointer to C file stream.
-    //
+protected:
     FILE* m_handle;
-
-    // Variable: m_size
-    // Number of bytes in file.
-    //
-    int m_size;
+    int m_fileSize;
 
     //
-    // Group: (Con/De)structors.
+    // Group: (Con/De)structors
     //
 public:
+
     //
     // Function: File
+    //  Default file class, constructor.
     //
-    // Default file class constructor.
-    //
-    inline File(void) : m_handle(nullptr), m_size(0)
+    File(void)
     {
+        m_handle = nullptr;
+        m_fileSize = 0;
     }
 
     //
     // Function: File
+    //  Default file class, constructor, with file opening.
     //
-    // Default file class, constructor, with file opening.
-    //
-    // Parameters:
-    //   filePath - String containing file name.
-    //   mode - String containing open mode for file.
-    //
-    inline File(const String& filePath, const String& mode = "rt") : m_handle(nullptr), m_size(0)
+    File(const String fileName, const String mode = "rt")
     {
-        Open(filePath, mode);
+        Open(fileName, mode);
     }
 
     //
     // Function: ~File
+    //  Default file class, destructor.
     //
-    // Default file class, destructor.
-    //
-    inline ~File(void)
+    ~File(void)
     {
-        if (IsValid())
-            fclose(m_handle);
+        Close();
     }
 
     //
-    // Group: Functions.
-    //
-public:
-    //
     // Function: Open
-    //
-    // Opens file and gets it's size.
+    //  Opens file and gets it's size.
     //
     // Parameters:
-    //	  filePath - String containing file name.
-    //	  mode - String containing open mode for file.
+    //  fileName - String containing file name.
+    //  mode - String containing open mode for file.
     //
     // Returns:
-    //   True if operation succeeded, false otherwise.
+    //  True if operation succeeded, false otherwise.
     //
-    inline bool Open(const String& filePath, const String& mode = "rt")
+    bool Open(const String& fileName, const String& mode)
     {
-        m_handle = fopen(filePath, mode);
-
-        if (!IsValid())
+        if ((m_handle = fopen(fileName.GetBuffer(), mode.GetBuffer())) == nullptr)
             return false;
 
-        fseek(m_handle, 0l, SEEK_END);
-        m_size = ftell(m_handle); // get the filesize.
-        fseek(m_handle, 0l, SEEK_SET);
+        fseek(m_handle, 0L, SEEK_END);
+        m_fileSize = ftell(m_handle);
+        fseek(m_handle, 0L, SEEK_SET);
 
         return true;
     }
 
     //
     // Function: Close
+    //  Closes file, and destroys STDIO file object.
     //
-    // Closes file, and destroys STDIO file object.
-    //
-    inline void Close(void)
+    void Close(void)
     {
-        if (IsValid())
+        if (m_handle != nullptr)
         {
             fclose(m_handle);
             m_handle = nullptr;
         }
 
-        m_size = 0;
+        m_fileSize = 0;
     }
 
     //
-    // Function: IsEndOfFile
-    //
-    // Checks whether we reached end of file.
+    // Function: Eof
+    //  Checks whether we reached end of file.
     //
     // Returns:
-    //   True if reached, false otherwise.
+    //  True if reached, false otherwise.
     //
-    inline bool IsEndOfFile(void) const
+    bool Eof(void)
     {
-        return feof(m_handle) != 0;
+        return feof(m_handle) ? true : false;
     }
 
     //
     // Function: Flush
-    //
-    // Flushes file stream.
+    //  Flushes file stream.
     //
     // Returns:
-    //   True if operation succeeded, false otherwise.
+    //  True if operation succeeded, false otherwise.
     //
-    inline bool Flush(void) const
+    bool Flush(void)
     {
-        return fflush(m_handle) == 0;
+        return fflush(m_handle) ? false : true;
     }
 
     //
-    // Function: GetCharacter
-    //
-    // Pops one character from the file stream.
-    //
-    // Returns:
-    //   Popped from stream character.
-    //
-    inline uint8_t GetCharacter(void) const
-    {
-        return static_cast<uint8_t>(fgetc(m_handle));
-    }
-
-    //
-    // Function: GetBuffer
-    //
-    // Gets the line from file stream, and stores it inside string class.
-    //
-    // Parameters:
-    //	  buffer - String buffer, that should receive line.
-    //	  count - Maximum size of buffer.
+    // Function: GetChar
+    //  Pops one character from the file stream.
     //
     // Returns:
-    //   True if operation succeeded, false otherwise.
+    //  Popped from stream character
     //
-    inline bool GetBuffer(String& buffer, const int count = 256) const
+    int GetCharacter(void)
     {
-        std::unique_ptr<char[]> tempBuffer(new char[count]);
-        buffer.SetEmpty();
-
-        if (!tempBuffer)
-            return false;
-
-        if (fgets(tempBuffer.get(), count, m_handle) != nullptr)
-        {
-            buffer = tempBuffer.get();
-            return true;
-        }
-
-        return false;
+        return fgetc(m_handle);
     }
 
     //
     // Function: GetBuffer
-    //
-    // Gets the line from file stream, and stores it inside string class.
+    //  Gets the single line, from the non-binary stream.
     //
     // Parameters:
-    //	  buffer - String buffer, that should receive line.
-    //	  count - Maximum size of buffer.
+    //  buffer - Pointer to buffer, that should receive string.
+    //  count - Max. size of buffer.
     //
     // Returns:
-    //   True if operation succeeded, false otherwise.
+    //  Pointer to string containing popped line.
     //
-    inline bool GetBuffer(char* buffer, int count = 256) const
+    char* GetBuffer(char* buffer, const int count)
     {
-        return fgets(buffer, count, m_handle) != nullptr;
+        return fgets(buffer, count, m_handle);
     }
 
     //
-    // Function: Print
-    //
-    // Puts formatted buffer, into stream.
+    // Function: GetBuffer
+    //  Gets the line from file stream, and stores it inside string class.
     //
     // Parameters:
-    //	  format - String to write.
+    //  buffer - String buffer, that should receive line.
+    //  count - Max. size of buffer.
     //
     // Returns:
-    //   Number of bytes, that was written.
+    //  True if operation succeeded, false otherwise.
     //
-    inline int Print(const char* format, ...) const
+    bool GetBuffer(String& buffer, const int count)
+    {
+        return !String(fgets(buffer, count, m_handle)).IsEmpty();
+    }
+
+    //
+    // Function: Printf
+    //  Puts formatted buffer, into stream.
+    //
+    // Parameters:
+    //  format - 
+    //
+    // Returns:
+    //  Number of bytes, that was written.
+    //
+    int Printf(const char* format, ...)
     {
         va_list ap;
-
         va_start(ap, format);
         const int written = vfprintf(m_handle, format, ap);
         va_end(ap);
+
+        if (written < 0)
+            return 0;
 
         return written;
     }
 
     //
-    // Function: Print
-    //
-    // Puts formatted buffer, into stream.
-    //
-    // Parameters:
-    //	  format - String to write.
-    //
-    // Returns
-    //   Number of bytes, that was written.
-    //
-    inline int Print(const String& message) const
-    {
-        return fprintf(m_handle, message);
-    }
-
-    //
     // Function: PutCharacter
-    //
-    // Puts character into file stream.
+    //  Puts character into file stream.
     //
     // Parameters:
-    //	  character - Character that should be put into stream.
+    //  ch - Character that should be put into stream.
     //
     // Returns:
-    //   Character that was putted into the stream.
+    //  Character that was putted into the stream.
     //
-    inline bool PutCharacter(uint8_t character) const
+    char PutCharacter(const char ch)
     {
-        return fputc(static_cast<int>(character), m_handle) != EOF;
+        return static_cast<char>(fputc(ch, m_handle));
     }
 
     //
     // Function: PutString
-    //
-    // Puts buffer into the file stream.
+    //  Puts buffer into the file stream.
     //
     // Parameters:
-    //	  string - Buffer that should be put, into stream.
+    //  buffer - Buffer that should be put, into stream.
     //
     // Returns:
-    //   True if operation succeeded, false otherwise.
+    //  True, if operation succeeded, false otherwise.
     //
-    inline bool PutString(const String& string) const
+    bool PutString(const String buffer)
     {
-        return fputs(string, m_handle) != EOF;
+        if (fputs(buffer.GetBuffer(), m_handle) < 0)
+            return false;
+
+        return true;
     }
 
     //
     // Function: Read
-    //
-    // Reads buffer from file stream in binary format.
+    //  Reads buffer from file stream in binary format.
     //
     // Parameters:
-    //	  buffer - Holder for read buffer.
-    //	  size - Size of the buffer to read.
-    //	  count - Number of buffer chunks to read.
+    //  buffer - Holder for read buffer.
+    //  size - Size of the buffer to read.
+    //  count - Number of buffer chunks to read.
     //
     // Returns:
-    //   Number of bytes red from file.
+    //  Number of bytes red from file.
     //
-    inline bool Read(void* buffer, uint32_t size, uint32_t count = 1) const
+    int Read(void* buffer, const int size, const int count = 1)
     {
-        return fread(buffer, size, count, m_handle) == count;
+        return fread(buffer, size, count, m_handle);
     }
 
     //
     // Function: Write
-    //
-    // Writes binary buffer into file stream.
+    //  Writes binary buffer into file stream.
     //
     // Parameters:
-    //	  buffer - Buffer holder, that should be written into file stream.
-    //	  size - Size of the buffer that should be written.
-    //	  count - Number of buffer chunks to write.
+    //  buffer - Buffer holder, that should be written into file stream.
+    //  size - Size of the buffer that should be written.
+    //  count - Number of buffer chunks to write.
     //
     // Returns:
-    //   Numbers of bytes written to file.
+    //  Numbers of bytes written to file.
     //
-    inline bool Write(void* buffer, uint32_t size, uint32_t count = 1) const
+    int Write(void* buffer, const int size, const int count = 1)
     {
-        return fwrite(buffer, size, count, m_handle) == count;
+        return fwrite(buffer, size, count, m_handle);
     }
 
     //
     // Function: Seek
-    //
-    // Seeks file stream with specified parameters.
+    //  Seeks file stream with specified parameters.
     //
     // Parameters:
-    //	  offset - Offset where cursor should be set.
-    //	  origin - Type of offset set.
+    //  offset - Offset where cursor should be set.
+    //  origin - Type of offset set.
     //
     // Returns:
-    //   True if operation success, false otherwise.
+    //  True if operation success, false otherwise.
     //
-    inline bool Seek(long offset, int origin) const
+    bool Seek(const long offset, const int origin)
     {
-        return fseek(m_handle, offset, origin) == 0;
+        if (fseek(m_handle, offset, origin) != 0)
+            return false;
+
+        return true;
     }
 
     //
     // Function: Rewind
+    //  Rewinds the file stream.
     //
-    // Rewinds the file stream.
-    //
-    inline void Rewind(void) const
+    void Rewind(void)
     {
         rewind(m_handle);
     }
 
     //
     // Function: GetSize
-    //
-    // Gets the file size of opened file stream.
+    //  Gets the file size of opened file stream.
     //
     // Returns:
-    //   Number of bytes in file.
+    //  Number of bytes in file.
     //
-    inline int GetSize(void) const
+    int GetSize(void)
     {
-        return m_size;
+        return m_fileSize;
     }
 
     //
     // Function: IsValid
-    //
-    // Checks whether file stream is valid.
+    //  Checks whether file stream is valid.
     //
     // Returns:
-    //   True if file stream valid, false otherwise.
+    //  True if file stream valid, false otherwise.
     //
-    inline bool IsValid(void) const
+    bool IsValid(void)
     {
         return m_handle != nullptr;
     }
@@ -2930,7 +3184,7 @@ public:
 #define DEFINE_PRINT_FUNCTION(funcName, logMask, logStr) \
    void funcName (const char *format, ...) \
    { \
-      int flags = m_logger->GetFlags (); \
+      const int flags = m_logger->GetFlags (); \
       \
       if ((flags & logMask) != logMask) \
          return; \
@@ -2945,7 +3199,7 @@ public:
       if (flags & LM_CONSOLE) \
          m_logger->EchoWithTag ("(%s): %s", logStr, buffer); \
       \
-      m_logFile.Print ("[%s] (%s): %s\n", GetTimeFormatString (), logStr, buffer); \
+      m_logFile.Printf ("[%s] (%s): %s\n", GetTimeFormatString (), logStr, buffer); \
       \
    }
 
@@ -3022,9 +3276,9 @@ template <typename T1, typename T2> inline Pair <T1, T2> MakePair(T1 first, T2 s
     return Pair <T1, T2>(first, second);
 }
 
-
 // @DEPRECATEME@
 #define ITERATE_ARRAY(arrayName, iteratorName) \
-   for (int iteratorName = 0; iteratorName != arrayName.GetElementNumber (); iteratorName++)
+    int iteratorName; \
+    for (iteratorName = 0; iteratorName != arrayName.GetElementNumber (); iteratorName++)
 
 #endif // RUNTIME_INCLUDED
