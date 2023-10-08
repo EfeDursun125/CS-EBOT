@@ -1323,7 +1323,7 @@ void Bot::Kick(void)
 // this function handles the selection of teams & class
 void Bot::StartGame(void)
 {
-	if (g_gameVersion == Game::HalfLife)
+	if (g_gameVersion & Game::HalfLife)
 	{
 		if (crandomint(1, 5) == 1)
 			ChatMessage(CHAT_HELLO);
@@ -1343,25 +1343,19 @@ void Bot::StartGame(void)
 		m_startAction = CMENU_IDLE;
 		return;
 	}
-	else if (m_team == Team::Unassinged && m_retryJoin > 5)
-		m_startAction = CMENU_TEAM;
 
-	// if bot was unable to join team, and no menus popups, check for stacked team
-	if (m_startAction == CMENU_IDLE)
-	{
-		if (++m_retryJoin > 10)
-		{
-			m_retryJoin = 0;
-			Kick();
-			return;
-		}
-	}
+	m_retryJoin++;
+
+	if (m_retryJoin > 30)
+		m_retryJoin = 0;
+	else if (m_retryJoin > 20)
+		m_startAction = CMENU_CLASS;
+	else if (m_retryJoin > 10)
+		m_startAction = CMENU_TEAM;
 
 	// handle counter-strike stuff here...
 	if (m_startAction == CMENU_TEAM)
 	{
-		m_startAction = CMENU_IDLE; // switch back to idle
-
 		if (ebot_forceteam.GetString()[0] == 'C' || ebot_forceteam.GetString()[0] == 'c' || ebot_forceteam.GetString()[0] == '2')
 			m_wantedTeam = 2;
 		else if (ebot_forceteam.GetString()[0] == 'T' || ebot_forceteam.GetString()[0] == 't' || ebot_forceteam.GetString()[0] == '1') // 1 = T, 2 = CT
@@ -1372,12 +1366,12 @@ void Bot::StartGame(void)
 
 		// select the team the bot wishes to join...
 		FakeClientCommand(GetEntity(), "menuselect %d", m_wantedTeam);
+		m_startAction = CMENU_TEAM; // switch to team
 	}
-	else if (m_startAction == CMENU_CLASS)
-	{
-		m_startAction = CMENU_IDLE; // switch back to idle
 
-		const int maxChoice = g_gameVersion == Game::CZero ? 5 : 4;
+	if (m_startAction == CMENU_CLASS)
+	{
+		const int maxChoice = g_gameVersion & Game::CZero ? 5 : 4;
 		m_wantedClass = crandomint(1, maxChoice);
 
 		// select the class the bot wishes to use...
@@ -1389,5 +1383,7 @@ void Bot::StartGame(void)
 		// check for greeting other players, since we connected
 		if (crandomint(1, 5) == 1)
 			ChatMessage(CHAT_HELLO);
+
+		m_startAction = CMENU_IDLE; // switch back to idle
 	}
 }
