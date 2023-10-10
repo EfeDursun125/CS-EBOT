@@ -34,9 +34,10 @@
 #include <vector>
 #include <list>
 #include <cstring>
-#include <memory>
 #include <cstdarg>
 #include <algorithm>
+
+#include <cmemory.h>
 
 #pragma warning (disable : 4996) // get rid of this
 
@@ -1406,7 +1407,7 @@ private:
     //
     void MoveItems(const int destIndex, const int sourceIndex)
     {
-        cmemmove(m_bufferPtr + destIndex, m_bufferPtr + sourceIndex, sizeof(char) * (m_stringLength - sourceIndex + 1));
+        c::memmove(m_bufferPtr + destIndex, m_bufferPtr + sourceIndex, sizeof(char) * (m_stringLength - sourceIndex + 1));
     }
 
     //
@@ -2410,7 +2411,7 @@ public:
             str = buffer + first;
             const int length = GetLength() - first;
 
-            cmemmove(buffer, str, (length + 1) * sizeof(char));
+            c::memmove(buffer, str, (length + 1) * sizeof(char));
             ReleaseBuffer(length);
         }
 
@@ -3145,7 +3146,7 @@ private:
     inline const char* GetTimeFormatString(void) const
     {
         static char timeFormatStr[32];
-        cmemset(timeFormatStr, 0, sizeof(char) * 32);
+        c::memset(timeFormatStr, 0, sizeof(char) * 32);
         time_t tick = time(&tick);
         const tm* time = localtime(&tick);
         sprintf(timeFormatStr, "%02i:%02i:%02i", time->tm_hour, time->tm_min, time->tm_sec);

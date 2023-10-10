@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright (c) 2003-2009, by Yet Another POD-Bot Development Team.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -58,6 +58,7 @@ using namespace Math;
 using namespace std;
 
 #include <runtime.h>
+#include <cmemory.h>
 
 const int checkEntityNum = 20;
 const int checkEnemyNum = 128;
@@ -388,7 +389,6 @@ struct AStar_t
 	float g;
 	float f;
 	int parent;
-
 	State state;
 };
 
@@ -403,11 +403,12 @@ class PathNode
 private:
 	size_t m_cursor = 0;
 	size_t m_length = 0;
-	unique_ptr <uint32_t[]> m_path;
+	size_t m_capacity = 0;
+	uint32_t* m_path = nullptr;
 
 public:
 	explicit PathNode(void) = default;
-	~PathNode(void) = default;
+	~PathNode(void) { c::free(m_path); }
 
 public:
 	uint32_t& Next(void)
@@ -425,7 +426,7 @@ public:
 		return At(Length() - 1);
 	}
 
-	uint32_t& At(const size_t index)
+	uint32_t& At(const uint32_t index)
 	{
 		return m_path[m_cursor + index];
 	}
@@ -461,9 +462,27 @@ public:
 		return !Length();
 	}
 
-	void Add(const int node)
+	void Add(const int waypoint)
 	{
-		m_path[m_length++] = node;
+		if (waypoint < 0)
+			return;
+
+		if (m_length >= m_capacity)
+		{
+			const size_t newCapacity = m_length * 2;
+			uint32_t* newPath = static_cast<uint32_t*>(c::malloc(newCapacity));
+
+			if (m_length > 0)
+			{
+				c::memcpy(newPath, m_path, m_length * sizeof(uint32_t));
+				c::free(m_path);
+			}
+
+			m_path = newPath;
+			m_capacity = newCapacity;
+		}
+
+		m_path[m_length++] = waypoint;
 	}
 
 	void Clear(void)
@@ -475,7 +494,8 @@ public:
 
 	void Init(const size_t length)
 	{
-		m_path = make_unique<uint32_t[]>(length);
+		m_capacity = length;
+		c::malloc(m_path, length);
 	}
 };
 
@@ -883,8 +903,8 @@ public:
 	SayText m_sayTextBuffer; // holds the index & the actual message of the last unprocessed text message of a player
 	BurstMode m_weaponBurstMode; // bot using burst mode? (famas/glock18, but also silencer mode)
 
-	int m_pingOffset; // offset for faking pings
-	int m_ping; // bots pings in scoreboard
+	int m_pingOffset[2]; // offset for faking pings
+	int m_ping[3]; // bots pings in scoreboard
 
 	float m_enemyReachableTimer; // time to recheck if Enemy reachable
 	bool m_isEnemyReachable; // direct line to enemy
@@ -1253,8 +1273,6 @@ public:
 	~Waypoint(void);
 
 	void Initialize(void);
-
-	void AddGoals(void);
 	void Analyze(void);
 	void AnalyzeDeleteUselessWaypoints(void);
 	void InitTypes();
@@ -1398,7 +1416,7 @@ extern void TraceHull(const Vector& start, const Vector& end, bool ignoreMonster
 
 inline bool IsNullString(const char* input)
 {
-	if (!input)
+	if (input == nullptr)
 		return true;
 
 	return *input == '\0';

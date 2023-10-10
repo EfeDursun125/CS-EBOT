@@ -7,7 +7,7 @@ int frand(void)
 
 // https://vigna.di.unimi.it/xorshift/xoroshiro128plus.c
 static uint64_t s[2] = {0x123456789ABCDEF0ULL, 0xABCDEF0123456789ULL};
-uint64_t next(void)
+uint64_t fnext(void)
 {
 	const uint64_t s0 = s[0];
 	uint64_t s1 = s[1];
