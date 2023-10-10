@@ -1344,6 +1344,12 @@ bool Bot::IsEnemyReachable(void)
 	if (m_enemyReachableTimer > time)
 		return m_isEnemyReachable;
 
+	if (!m_hasEnemiesNear || FNullEnt(m_nearestEnemy))
+	{
+		m_enemyReachableTimer = time + crandomfloat(0.33f, 0.66f);
+		return m_isEnemyReachable;
+	}
+
 	if (!m_isEnemyReachable && (!(m_nearestEnemy->v.flags & FL_ONGROUND) || (m_nearestEnemy->v.flags & FL_PARTIALGROUND && !(m_nearestEnemy->v.flags & FL_DUCKING))))
 	{
 		m_enemyReachableTimer = time + crandomfloat(0.33f, 0.66f);
@@ -1359,12 +1365,6 @@ bool Bot::IsEnemyReachable(void)
 	}
 
 	if (m_currentTravelFlags & PATHFLAG_JUMP || m_waypointFlags & WAYPOINT_JUMP)
-	{
-		m_enemyReachableTimer = time + crandomfloat(0.33f, 0.66f);
-		return m_isEnemyReachable;
-	}
-
-	if (!m_hasEnemiesNear || FNullEnt(m_nearestEnemy))
 	{
 		m_enemyReachableTimer = time + crandomfloat(0.33f, 0.66f);
 		return m_isEnemyReachable;
@@ -1772,7 +1772,6 @@ void Bot::BaseUpdate(void)
 		else
 		{
 			m_isSlowThink = true;
-			pev->flags |= FL_FAKECLIENT;
 			CheckSlowThink();
 			m_slowthinktimer = time + crandomfloat(0.9f, 1.1f);
 
@@ -2261,13 +2260,10 @@ void Bot::CalculatePing(void)
 
 	for (const auto& client : g_clients)
 	{
-		if (FNullEnt(client.ent))
+		if (client.index < 0)
 			continue;
 
-		if (!(client.flags & CFLAG_USED))
-			continue;
-
-		if (IsValidBot(client.ent))
+		if (IsValidBot(client.index))
 			continue;
 
 		numHumans++;
@@ -2287,13 +2283,26 @@ void Bot::CalculatePing(void)
 		averagePing = crandomint(30, 60);
 
 	int botPing = m_basePingLevel + crandomint(averagePing - averagePing * 0.2f, averagePing + averagePing * 0.2f) + crandomint(m_difficulty + 3, m_difficulty + 6);
-	if (botPing < 9)
+
+	if (botPing <= 9)
 		botPing = crandomint(9, 19);
 	else if (botPing > 133)
 		botPing = crandomint(99, 119);
 
-	m_ping = (botPing + m_pingOffset) / 2;
-	m_pingOffset = botPing;
+	int j;
+	for (j = 0; j < 2; j++)
+	{
+		for (m_pingOffset[j] = 0; m_pingOffset[j] < 4; m_pingOffset[j]++)
+		{
+			if ((botPing - m_pingOffset[j]) % 4 == 0)
+			{
+				m_ping[j] = (botPing - m_pingOffset[j]) * 0.25f;
+				break;
+			}
+		}
+	}
+
+	m_ping[2] = botPing;
 }
 
 void Bot::MoveAction(void)

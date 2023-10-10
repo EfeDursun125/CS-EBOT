@@ -173,7 +173,7 @@ void Bot::PrepareChatMessage(char* text)
     if (!ebot_chat.GetBool() || IsNullString(text))
         return;
 
-    cmemset(&m_tempStrings, 0, sizeof(m_tempStrings));
+    c::memset(&m_tempStrings, 0, sizeof(m_tempStrings));
 
     char* textStart = text;
     char* pattern = text;

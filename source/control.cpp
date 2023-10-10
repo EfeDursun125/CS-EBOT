@@ -53,7 +53,7 @@ BotControl::BotControl(void)
 	m_economicsGood[Team::Terrorist] = true;
 	m_economicsGood[Team::Counter] = true;
 
-	cmemset(m_bots, 0, sizeof(m_bots));
+	c::memset(m_bots, 0, sizeof(m_bots));
 	InitQuota();
 }
 
@@ -80,7 +80,6 @@ void BotControl::CallGameEntity(entvars_t* vars)
 // then sends result to bot constructor
 int BotControl::CreateBot(String name, int skill, int personality, const int team, const int member)
 {
-	edict_t* bot = nullptr;
 	if (g_numWaypoints < 1) // don't allow creating bots with no waypoints loaded
 	{
 		ServerPrint("No any waypoints for this map, Cannot Add E-BOT");
@@ -183,6 +182,7 @@ int BotControl::CreateBot(String name, int skill, int personality, const int tea
 	else
 		cstrncpy(botName, outputName, sizeof(botName));
 
+	edict_t* bot = nullptr;
 	if (FNullEnt((bot = (*g_engfuncs.pfnCreateFakeClient) (botName))))
 	{
 		CenterPrint(" Unable to create E-Bot, Maximum players reached (%d/%d)", engine->GetMaxClients(), engine->GetMaxClients());
@@ -191,7 +191,7 @@ int BotControl::CreateBot(String name, int skill, int personality, const int tea
 
 	const int index = ENTINDEX(bot) - 1;
 	m_bots[index] = new Bot(bot, skill, personality, team, member);
-	if (!m_bots[index])
+	if (m_bots[index] == nullptr)
 	{
 		AddLogEntry(Log::Memory, "unexpected memory error");
 		return -1;
@@ -690,11 +690,12 @@ void BotControl::RemoveMenu(edict_t* ent, const int selection)
 		return;
 
 	char tempBuffer[1024], buffer[1024];
-	cmemset(tempBuffer, 0, sizeof(tempBuffer));
-	cmemset(buffer, 0, sizeof(buffer));
+	c::memset(tempBuffer, 0, sizeof(tempBuffer));
+	c::memset(buffer, 0, sizeof(buffer));
 
+	int i;
 	int validSlots = (selection == 4) ? (1 << 9) : ((1 << 8) | (1 << 9));
-	for (int i = ((selection - 1) * 8); i < selection * 8; ++i)
+	for (i = ((selection - 1) * 8); i < selection * 8; ++i)
 	{
 		if ((m_bots[i] != nullptr) && !FNullEnt(m_bots[i]->GetEntity()))
 		{
@@ -1001,7 +1002,7 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 	const int clientIndex = ENTINDEX(bot);
 	const float time = engine->GetTime();
 
-	cmemset(reinterpret_cast<void*>(this), 0, sizeof(*this));
+	c::memset(reinterpret_cast<void*>(this), 0, sizeof(*this));
 
 	pev = &bot->v;
 
@@ -1054,7 +1055,6 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 	}
 
 	MDLL_ClientPutInServer(bot);
-	bot->v.flags |= FL_FAKECLIENT;
 
 	// initialize all the variables for this bot...
 	m_notStarted = true;  // hasn't joined game yet
@@ -1091,8 +1091,8 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 		m_personality = Personality::Normal;
 	}
 
-	cmemset(&m_ammoInClip, 0, sizeof(m_ammoInClip));
-	cmemset(&m_ammo, 0, sizeof(m_ammo));
+	c::memset(&m_ammoInClip, 0, sizeof(m_ammoInClip));
+	c::memset(&m_ammo, 0, sizeof(m_ammo));
 	m_currentWeapon = 0; // current weapon is not assigned at start
 
 	// just to be sure
@@ -1264,8 +1264,8 @@ void Bot::NewRound(void)
 
 	if (!IsAlive(GetEntity())) // if bot died, clear all weapon stuff and force buying again
 	{
-		cmemset(&m_ammoInClip, 0, sizeof(m_ammoInClip));
-		cmemset(&m_ammo, 0, sizeof(m_ammo));
+		c::memset(&m_ammoInClip, 0, sizeof(m_ammoInClip));
+		c::memset(&m_ammo, 0, sizeof(m_ammo));
 		m_currentWeapon = 0;
 	}
 }

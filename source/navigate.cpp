@@ -26,7 +26,6 @@
 
 ConVar ebot_zombies_as_path_cost("ebot_zombie_count_as_path_cost", "1");
 ConVar ebot_has_semiclip("ebot_has_semiclip", "0");
-ConVar ebot_use_old_jump_method("ebot_use_old_jump_method", "0");
 ConVar ebot_breakable_health_limit("ebot_breakable_health_limit", "3000.0");
 
 int Bot::FindGoal(void)
@@ -382,35 +381,34 @@ void Bot::DoWaypointNav(void)
 		{
 			// cheating for jump, bots cannot do some hard jumps and double jumps too
 			// who cares about double jump for bots? :)
-			pev->button |= (IN_DUCK | IN_JUMP);
-
-			if (ebot_use_old_jump_method.GetBool())
-			{
-				pev->velocity.x = (m_destOrigin.x - (pev->origin.x + pev->velocity.x * (m_frameInterval * 2.0f))) * (2.0f + cabsf((pev->maxspeed * 0.004) - pev->gravity));
-				pev->velocity.y = (m_destOrigin.y - (pev->origin.y + pev->velocity.y * (m_frameInterval * 2.0f))) * (2.0f + cabsf((pev->maxspeed * 0.004) - pev->gravity));
-
-				// poor bots can't jump :(
-				if (pev->gravity >= 0.88f)
-					pev->velocity.z *= (cabsf(pev->gravity - 0.88f) + pev->gravity + m_frameInterval);
-			}
-			else
+			auto jump = [&](void)
 			{
 				const Vector myOrigin = GetBottomOrigin(GetEntity());
 				Vector waypointOrigin = m_destOrigin;
 
-				if (currentWaypoint->flags & WAYPOINT_CROUCH)
+				Vector walkableOrigin1 = GetWalkablePosition(waypointOrigin + pev->velocity * m_frameInterval, GetEntity(), true);
+				Vector walkableOrigin2 = GetWalkablePosition(waypointOrigin + pev->velocity * -m_frameInterval, GetEntity(), true);
+
+				if (m_waypointFlags & WAYPOINT_CROUCH)
 					waypointOrigin.z -= 18.0f;
 				else
 					waypointOrigin.z -= 36.0f;
 
-				const float timeToReachWaypoint = csqrtf(squaredf(waypointOrigin.x - myOrigin.x) + squaredf(waypointOrigin.y - myOrigin.y)) / pev->maxspeed;
+				if (walkableOrigin1 != nullvec && (waypointOrigin - walkableOrigin1).GetLengthSquared() < squaredf(8.0f))
+					waypointOrigin = walkableOrigin1;
+				else if (walkableOrigin2 != nullvec && (waypointOrigin - walkableOrigin2).GetLengthSquared() < squaredf(8.0f))
+					waypointOrigin = walkableOrigin2;
+
+				const float heightDifference = waypointOrigin.z - myOrigin.z;
+				const float timeToReachWaypoint = csqrtf(squaredf(waypointOrigin.x - myOrigin.x) + squaredf(waypointOrigin.y - myOrigin.y) + squaredf(waypointOrigin.z - myOrigin.z)) / pev->maxspeed;
 				pev->velocity.x = (waypointOrigin.x - myOrigin.x) / timeToReachWaypoint;
 				pev->velocity.y = (waypointOrigin.y - myOrigin.y) / timeToReachWaypoint;
-			}
-			
-			// pause
-			if (GetNextBestNode())
-				SetProcess(Process::Jump, "entering the jump state", false, engine->GetTime() + 2.0f);
+				pev->velocity.z = (heightDifference * pev->gravity * squaredf(timeToReachWaypoint)) / timeToReachWaypoint;
+			};
+
+			jump();
+			pev->button |= (IN_DUCK | IN_JUMP);
+			jump();
 
 			m_jumpFinished = true;
 		}
@@ -1013,7 +1011,6 @@ private:
 	int m_size;
 	int m_heapSize;
 	Node* m_heap;
-
 public:
 
 	inline bool IsEmpty(void)
@@ -1026,19 +1023,15 @@ public:
 		return m_size;
 	}
 
-	inline PriorityQueue(const int initialSize = g_numWaypoints + 32)
+	inline PriorityQueue(void)
 	{
-		m_size = 0;
-		m_heapSize = initialSize;
 		m_allocCount = 0;
-		m_heap = static_cast<Node*>(malloc(sizeof(Node) * m_heapSize));
+		m_size = 0;
+		m_heapSize = g_numWaypoints + 32;
+		c::malloc(m_heap, m_heapSize);
 	}
 
-	inline ~PriorityQueue(void)
-	{
-		free(m_heap);
-		m_heap = nullptr;
-	}
+	inline ~PriorityQueue(void) { c::free(m_heap); }
 
 	// inserts a value into the priority queue
 	inline void Insert(const int value, const float pri)
@@ -1049,17 +1042,12 @@ public:
 			return;
 		}
 
-		if (m_heap == nullptr)
-			return;
-
 		if (m_size >= m_heapSize)
 		{
 			m_allocCount++;
 			m_heapSize += 100;
-
-			Node* newHeap = static_cast<Node*>(realloc(m_heap, sizeof(Node) * m_heapSize));
-			if (newHeap != nullptr)
-				m_heap = newHeap;
+			Node* newHeap = static_cast<Node*>(c::realloc(m_heap, sizeof(Node) * m_heapSize));
+			m_heap = newHeap;
 		}
 
 		m_heap[m_size].pri = pri;

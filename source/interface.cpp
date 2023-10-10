@@ -2382,24 +2382,47 @@ void SetPing(edict_t* to)
 			return;
 	}
 
+	static int sending;
 	for (const auto& bot : g_botManager->m_bots)
 	{
-		if (!bot)
+		if (bot == nullptr)
 			continue;
 
-		if (g_messageEnded)
+		const int index = bot->GetIndex() - 1;
+		switch (sending)
 		{
-			const int index = bot->GetIndex() - 1;
+		case 0:
+		{
+			// start a new message
 			MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, 17, nullptr, to);
-			WRITE_BYTE(64 + (1 + 2 * index));
-			WRITE_SHORT(bot->m_ping);
-			WRITE_BYTE(128 + (2 + 4 * index));
-			WRITE_SHORT(bot->m_ping);
+			WRITE_BYTE((bot->m_pingOffset[sending] * 64) + (1 + 2 * index));
+			WRITE_SHORT(bot->m_ping[sending]);
+			sending++;
+		}
+		case 1:
+		{
+			// append additional data
+			WRITE_BYTE((bot->m_pingOffset[sending] * 128) + (2 + 4 * index));
+			WRITE_SHORT(bot->m_ping[sending]);
+			sending++;
+		}
+		case 2:
+		{
+			// append additional data and end message
 			WRITE_BYTE(4 + 8 * index);
-			WRITE_SHORT(bot->m_ping);
+			WRITE_SHORT(bot->m_ping[sending]);
 			WRITE_BYTE(0);
 			MESSAGE_END();
+			sending = 0;
 		}
+		}
+	}
+
+	// end message if not yet sent
+	if (sending)
+	{
+		WRITE_BYTE(0);
+		MESSAGE_END();
 	}
 }
 
@@ -2649,7 +2672,7 @@ exportc int GetEntityAPI2(DLL_FUNCTIONS* functionTable, int* /*interfaceVersion*
 	// engine, and then calls the MOD DLL's version of GetEntityAPI to get the REAL gamedll
 	// functions this time (to use in the bot code).
 
-	cmemset(functionTable, 0, sizeof(DLL_FUNCTIONS));
+	c::memset(functionTable, 0, sizeof(DLL_FUNCTIONS));
 	functionTable->pfnGameInit = GameDLLInit;
 	functionTable->pfnSpawn = Spawn;
 	functionTable->pfnClientConnect = ClientConnect;
@@ -2675,7 +2698,7 @@ exportc int GetEntityAPI2_Post(DLL_FUNCTIONS* functionTable, int* /*interfaceVer
 	// engine, and then calls the MOD DLL's version of GetEntityAPI to get the REAL gamedll
 	// functions this time (to use in the bot code). Post version, called only by metamod.
 
-	cmemset(functionTable, 0, sizeof(DLL_FUNCTIONS));
+	c::memset(functionTable, 0, sizeof(DLL_FUNCTIONS));
 	functionTable->pfnSpawn = Spawn_Post;
 	functionTable->pfnStartFrame = StartFrame_Post;
 	functionTable->pfnGameInit = GameDLLInit_Post;
@@ -2702,7 +2725,7 @@ unsigned int pfnGetPlayerWONId(edict_t* e)
 
 exportc int GetEngineFunctions(enginefuncs_t* functionTable, int* /*interfaceVersion*/)
 {
-	cmemset(functionTable, 0, sizeof(enginefuncs_t));
+	c::memset(functionTable, 0, sizeof(enginefuncs_t));
 
 	functionTable->pfnMessageBegin = [](int msgDest, int msgType, const float* origin, edict_t* ed)
 	{
@@ -2962,7 +2985,7 @@ exportc int Meta_Attach(PLUG_LOADTIME now, metamod_funcs_t* functionTable, meta_
 
 	// keep track of the pointers to engine function tables metamod gives us
 	gpMetaGlobals = pMGlobals;
-	cmemcpy(functionTable, &gMetaFunctionTable, sizeof(metamod_funcs_t));
+	c::memcpy(functionTable, &gMetaFunctionTable, sizeof(metamod_funcs_t));
 	gpGamedllFuncs = pGamedllFuncs;
 
 	return true; // returning true enables metamod to attach this plugin
@@ -3026,7 +3049,7 @@ DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* 
 	};
 
 	// get the engine functions from the engine...
-	cmemcpy(&g_engfuncs, functionTable, sizeof(enginefuncs_t));
+	c::memcpy(&g_engfuncs, functionTable, sizeof(enginefuncs_t));
 	g_pGlobals = pGlobals;
 
 	ModSupport_t* knownMod = nullptr;

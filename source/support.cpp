@@ -472,7 +472,7 @@ const char* GetField(const char* string, int fieldId, bool endLine)
 	static char field[256];
 
 	// reset the string
-	cmemset(field, 0, sizeof(field));
+	c::memset(field, 0, sizeof(field));
 
 	int i, index = 0, fieldCount = 0, start, stop;
 
@@ -915,8 +915,7 @@ bool IsBreakable(edict_t* ent)
 	if (FNullEnt(ent))
 		return false;
 
-	extern ConVar ebot_breakable_health_limit;
-	if ((FClassnameIs(ent, "func_breakable") || (FClassnameIs(ent, "func_pushable") && (ent->v.spawnflags & SF_PUSH_BREAKABLE)) || FClassnameIs(ent, "func_wall")) && ent->v.health <= ebot_breakable_health_limit.GetFloat())
+	if ((FClassnameIs(ent, "func_breakable") || (FClassnameIs(ent, "func_pushable") && (ent->v.spawnflags & SF_PUSH_BREAKABLE)) || FClassnameIs(ent, "func_wall")))
 	{
 		if (ent->v.takedamage != DAMAGE_NO && ent->v.impulse <= 0 && !(ent->v.flags & FL_WORLDBRUSH) && !(ent->v.spawnflags & SF_BREAK_TRIGGER_ONLY))
 			return (ent->v.movetype == MOVETYPE_PUSH || ent->v.movetype == MOVETYPE_PUSHSTEP);
