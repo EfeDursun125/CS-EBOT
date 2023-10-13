@@ -48,17 +48,7 @@
 using namespace Math;
 
 #include <platform.h>
-
-#include <assert.h>
-#include <ctype.h>
-#include <limits.h>
-#include <float.h>
-#include <time.h>
-
-using namespace std;
-
 #include <runtime.h>
-#include <cmemory.h>
 
 const int checkEntityNum = 20;
 const int checkEnemyNum = 128;
@@ -408,7 +398,11 @@ private:
 
 public:
 	explicit PathNode(void) = default;
-	~PathNode(void) { c::free(m_path); }
+	~PathNode(void)
+	{
+		delete m_path;
+		m_path = nullptr;
+	}
 
 public:
 	uint32_t& Next(void)
@@ -426,22 +420,28 @@ public:
 		return At(Length() - 1);
 	}
 
-	uint32_t& At(const uint32_t index)
+	uint32_t& At(const size_t index)
 	{
+		if (m_path == nullptr)
+			return m_cursor;
+
 		return m_path[m_cursor + index];
 	}
 
 	void Shift(void)
 	{
-		++m_cursor;
+		m_cursor++;
 	}
 
 	void Reverse(void)
 	{
+		if (m_path == nullptr)
+			return;
+
 		size_t i;
-		const size_t half = m_length * 0.5f;
-		for (i = 0; i < half; ++i)
-			swap(m_path[i], m_path[m_length - 1 - i]);
+		const size_t half = m_length / 2;
+		for (i = 0; i < half; i++)
+			std::swap(m_path[i], m_path[m_length - 1 - i]);
 	}
 
 	size_t Length(void) const
@@ -469,18 +469,15 @@ public:
 
 		if (m_length >= m_capacity)
 		{
-			const size_t newCapacity = m_length * 2;
-			uint32_t* newPath = static_cast<uint32_t*>(c::malloc(newCapacity));
-
-			if (m_length > 0)
-			{
-				c::memcpy(newPath, m_path, m_length * sizeof(uint32_t));
-				c::free(m_path);
-			}
-
-			m_path = newPath;
-			m_capacity = newCapacity;
+			m_capacity = m_length * 2;
+			if (m_path != nullptr)
+				m_path = static_cast<uint32_t*>(realloc(m_path, m_capacity * sizeof(uint32_t)));
+			else
+				m_path = new(std::nothrow) uint32_t[m_capacity];
 		}
+
+		if (m_path == nullptr)
+			return;
 
 		m_path[m_length++] = waypoint;
 	}
@@ -489,13 +486,20 @@ public:
 	{
 		m_cursor = 0;
 		m_length = 0;
-		m_path[0] = 0;
+		if (m_path != nullptr)
+			m_path[0] = 0;
 	}
 
 	void Init(const size_t length)
 	{
+		while (m_path == nullptr)
+		{
+			m_path = new(std::nothrow) uint32_t[length];
+			if (m_path != nullptr)
+				break;
+		}
+
 		m_capacity = length;
-		c::malloc(m_path, length);
 	}
 };
 

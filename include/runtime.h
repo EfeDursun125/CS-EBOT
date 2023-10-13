@@ -37,8 +37,6 @@
 #include <cstdarg>
 #include <algorithm>
 
-#include <cmemory.h>
-
 #pragma warning (disable : 4996) // get rid of this
 
 //
@@ -878,7 +876,9 @@ public:
         if (newSize > checkSize)
             checkSize = newSize;
 
-        T* buffer = new T[checkSize];
+        T* buffer = new(std::nothrow) T[checkSize];
+        if (buffer == nullptr)
+            return false;
 
         if (keepData && m_elements != nullptr)
         {
@@ -1232,7 +1232,9 @@ public:
             return;
         }
 
-        T* buffer = new T[m_itemCount];
+        T* buffer = new(std::nothrow) T[m_itemCount];
+        if (buffer == nullptr)
+            return;
 
         if (m_elements != nullptr)
         {
@@ -1320,9 +1322,6 @@ public:
     //
     T& GetRandomElement(void) const
     {
-        if (m_itemCount < 2)
-            return m_elements[0];
-
         return m_elements[crandomint(0, m_itemCount - 1)];
     }
 
@@ -1384,7 +1383,9 @@ private:
             return;
 
         m_allocatedSize = size + 16;
-        char* tempBuffer = new char[size + 1];
+        char* tempBuffer = new(std::nothrow) char[size + 1];
+        if (tempBuffer == nullptr)
+            return;
 
         if (m_bufferPtr != nullptr)
         {
@@ -1407,7 +1408,7 @@ private:
     //
     void MoveItems(const int destIndex, const int sourceIndex)
     {
-        c::memmove(m_bufferPtr + destIndex, m_bufferPtr + sourceIndex, sizeof(char) * (m_stringLength - sourceIndex + 1));
+        cmemmove(m_bufferPtr + destIndex, m_bufferPtr + sourceIndex, sizeof(char) * (m_stringLength - sourceIndex + 1));
     }
 
     //
@@ -1719,9 +1720,9 @@ public:
     // Parameters:
     //  input - Character to assign.
     //
-    void Assign(const char input)
+    void Assign(char input)
     {
-        const char psz[2] = {input, 0x0};
+        char psz[2] = { input, 0 };
         Assign(psz);
     }
 
@@ -1975,10 +1976,8 @@ public:
     //
     String Mid(const int startIndex, int count = -1)
     {
-        String result;
-
-        if (m_bufferPtr == nullptr || !m_stringLength || startIndex >= m_stringLength)
-            return result;
+        if (startIndex >= m_stringLength || !m_bufferPtr)
+            return nullptr;
 
         if (count == -1)
             count = m_stringLength - startIndex;
@@ -1986,18 +1985,18 @@ public:
             count = m_stringLength - startIndex;
 
         int i = 0, j = 0;
-        char* holder = new char[m_stringLength + 1];
-        if (holder != nullptr)
-        {
-            for (i = startIndex; i < startIndex + count; i++)
-                holder[j++] = m_bufferPtr[i];
+        char* holder = new(std::nothrow) char[m_stringLength + 1];
+        if (holder == nullptr)
+            return nullptr;
 
-            holder[j] = 0;
-            result.Assign(holder);
+        for (i = startIndex; i < startIndex + count; i++)
+            holder[j++] = m_bufferPtr[i];
 
-            delete[] holder;
-        }
+        String result;
+        holder[j] = 0;
+        result.Assign(holder);
 
+        delete[] holder;
         return result;
     }
 
@@ -2252,7 +2251,7 @@ public:
         for (;;)
         {
             if (*str == input)
-                return static_cast<int>(str - m_bufferPtr);
+                return str - m_bufferPtr;
 
             if (!*str)
                 return -1;
@@ -2384,7 +2383,7 @@ public:
         }
 
         if (last != nullptr)
-            Delete(static_cast<int>(last - m_bufferPtr));
+            Delete(last - m_bufferPtr);
 
         return *this;
     }
@@ -2411,7 +2410,7 @@ public:
             str = buffer + first;
             const int length = GetLength() - first;
 
-            c::memmove(buffer, str, (length + 1) * sizeof(char));
+            cmemmove(buffer, str, (length + 1) * sizeof(char));
             ReleaseBuffer(length);
         }
 
@@ -2457,7 +2456,7 @@ public:
 
         if (last != nullptr)
         {
-            const int i = static_cast<int>(last - m_bufferPtr);
+            const int i = last - m_bufferPtr;
             Delete(i, m_stringLength - i);
         }
     }
@@ -2476,7 +2475,7 @@ public:
         while (ch == *str)
             str++;
 
-        Delete(0, static_cast<int>(str - m_bufferPtr));
+        Delete(0, str - m_bufferPtr);
     }
 
     //
@@ -2732,7 +2731,7 @@ public:
     //
     Array <String> Split(const char separator)
     {
-        const char sep[2] = {separator , 0x0};
+        const char sep[2] = { separator, 0x0 };
         return Split(sep);
     }
 };
@@ -3146,7 +3145,7 @@ private:
     inline const char* GetTimeFormatString(void) const
     {
         static char timeFormatStr[32];
-        c::memset(timeFormatStr, 0, sizeof(char) * 32);
+        cmemset(timeFormatStr, 0, sizeof(char) * 32);
         time_t tick = time(&tick);
         const tm* time = localtime(&tick);
         sprintf(timeFormatStr, "%02i:%02i:%02i", time->tm_hour, time->tm_min, time->tm_sec);

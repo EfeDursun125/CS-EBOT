@@ -26,6 +26,4 @@ __asm__(".symver strftime,strftime@GLIBC_2.0");
 __asm__(".symver mkdir,mkdir@GLIBC_2.0");
 __asm__(".symver unlink,unlink@GLIBC_2.0");
 __asm__(".symver sscanf,sscanf@GLIBC_2.0");
-__asm__(".symver malloc,malloc@GLIBC_2.0");
 __asm__(".symver realloc,realloc@GLIBC_2.0");
-__asm__(".symver free,free@GLIBC_2.0");
