@@ -63,7 +63,7 @@ void NetworkMsg::Execute(void* p)
     case NETMSG_VGUI:
     {
         // this message is sent when a VGUI menu is displayed.
-        if (m_state == 0)
+        if (m_state == 0 && m_bot != nullptr)
         {
             const int x = PTR_TO_INT(p);
             switch (x)
@@ -87,6 +87,7 @@ void NetworkMsg::Execute(void* p)
         if (m_state < 3) // ignore first 3 fields of message
             break;
 
+        if (m_bot != nullptr)
         {
             const char* x = PTR_TO_STR(p);
             if (cstrncmp(x, "#Team_Select", 13) == 0) // team select menu?
@@ -160,14 +161,17 @@ void NetworkMsg::Execute(void* p)
             break;
 
         case 2:
-            clip = PTR_TO_INT(p); // ammo currently in the clip for this weapon
-
-            if (id >= 0 && id < Const_MaxWeapons)
+            if (m_bot != nullptr)
             {
-                if (state != 0)
-                    m_bot->m_currentWeapon = id;
+                clip = PTR_TO_INT(p); // ammo currently in the clip for this weapon
 
-                m_bot->m_ammoInClip[id] = clip;
+                if (id >= 0 && id < Const_MaxWeapons)
+                {
+                    if (state != 0)
+                        m_bot->m_currentWeapon = id;
+
+                    m_bot->m_ammoInClip[id] = clip;
+                }
             }
 
             break;
@@ -184,7 +188,7 @@ void NetworkMsg::Execute(void* p)
             break;
 
         case 1:
-            if (index >= 0 && index < Const_MaxWeapons)
+            if (m_bot != nullptr && index >= 0 && index < Const_MaxWeapons)
                 m_bot->m_ammo[index] = PTR_TO_INT(p); // store it away
 
             break;
@@ -203,7 +207,7 @@ void NetworkMsg::Execute(void* p)
             break;
 
         case 1:
-            if (index >= 0 && index < Const_MaxWeapons)
+            if (m_bot != nullptr && index >= 0 && index < Const_MaxWeapons)
                 m_bot->m_ammo[index] = PTR_TO_INT(p); // store it away
 
             break;
@@ -213,7 +217,7 @@ void NetworkMsg::Execute(void* p)
     case NETMSG_MONEY:
     {
         // this message gets sent when the bots money amount changes
-        if (m_state == 0)
+        if (m_state == 0 && m_bot != nullptr)
             m_bot->m_moneyAmount = PTR_TO_INT(p); // amount of money
         break;
     }
@@ -228,6 +232,7 @@ void NetworkMsg::Execute(void* p)
         }
         case 1:
         {
+            if (m_bot != nullptr)
             {
                 const char* x = PTR_TO_STR(p);
                 if (cstrncmp(x, "defuser", 8) == 0)
@@ -293,7 +298,8 @@ void NetworkMsg::Execute(void* p)
             break;
 
         case 6:
-            m_bot->TakeBlinded(Vector(r, g, b), PTR_TO_BYTE(p));
+            if (m_bot != nullptr)
+                m_bot->TakeBlinded(Vector(r, g, b), PTR_TO_BYTE(p));
             break;
         }
         break;
@@ -342,8 +348,7 @@ void NetworkMsg::Execute(void* p)
                 {
                     if (cstrncmp(x, "#CTs_Win", 9) == 0)
                         g_botManager->SetLastWinner(Team::Counter); // update last winner for economics
-
-                    if (cstrncmp(x, "#Terrorists_Win", 16) == 0)
+                    else if (cstrncmp(x, "#Terrorists_Win", 16) == 0)
                         g_botManager->SetLastWinner(Team::Terrorist); // update last winner for economics
                 }
 
@@ -380,7 +385,7 @@ void NetworkMsg::Execute(void* p)
     }
     case NETMSG_BARTIME:
     {
-        if (m_state == 0)
+        if (m_state == 0 && m_bot != nullptr)
         {
             if (GetGameMode() == GameMode::Original)
             {

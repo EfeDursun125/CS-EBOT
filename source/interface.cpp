@@ -2672,7 +2672,7 @@ exportc int GetEntityAPI2(DLL_FUNCTIONS* functionTable, int* /*interfaceVersion*
 	// engine, and then calls the MOD DLL's version of GetEntityAPI to get the REAL gamedll
 	// functions this time (to use in the bot code).
 
-	c::memset(functionTable, 0, sizeof(DLL_FUNCTIONS));
+	cmemset(functionTable, 0, sizeof(DLL_FUNCTIONS));
 	functionTable->pfnGameInit = GameDLLInit;
 	functionTable->pfnSpawn = Spawn;
 	functionTable->pfnClientConnect = ClientConnect;
@@ -2698,7 +2698,7 @@ exportc int GetEntityAPI2_Post(DLL_FUNCTIONS* functionTable, int* /*interfaceVer
 	// engine, and then calls the MOD DLL's version of GetEntityAPI to get the REAL gamedll
 	// functions this time (to use in the bot code). Post version, called only by metamod.
 
-	c::memset(functionTable, 0, sizeof(DLL_FUNCTIONS));
+	cmemset(functionTable, 0, sizeof(DLL_FUNCTIONS));
 	functionTable->pfnSpawn = Spawn_Post;
 	functionTable->pfnStartFrame = StartFrame_Post;
 	functionTable->pfnGameInit = GameDLLInit_Post;
@@ -2725,7 +2725,7 @@ unsigned int pfnGetPlayerWONId(edict_t* e)
 
 exportc int GetEngineFunctions(enginefuncs_t* functionTable, int* /*interfaceVersion*/)
 {
-	c::memset(functionTable, 0, sizeof(enginefuncs_t));
+	cmemset(functionTable, 0, sizeof(enginefuncs_t));
 
 	functionTable->pfnMessageBegin = [](int msgDest, int msgType, const float* origin, edict_t* ed)
 	{
@@ -2985,7 +2985,7 @@ exportc int Meta_Attach(PLUG_LOADTIME now, metamod_funcs_t* functionTable, meta_
 
 	// keep track of the pointers to engine function tables metamod gives us
 	gpMetaGlobals = pMGlobals;
-	c::memcpy(functionTable, &gMetaFunctionTable, sizeof(metamod_funcs_t));
+	cmemcpy(functionTable, &gMetaFunctionTable, sizeof(metamod_funcs_t));
 	gpGamedllFuncs = pGamedllFuncs;
 
 	return true; // returning true enables metamod to attach this plugin
@@ -3049,7 +3049,7 @@ DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* 
 	};
 
 	// get the engine functions from the engine...
-	c::memcpy(&g_engfuncs, functionTable, sizeof(enginefuncs_t));
+	cmemcpy(&g_engfuncs, functionTable, sizeof(enginefuncs_t));
 	g_pGlobals = pGlobals;
 
 	ModSupport_t* knownMod = nullptr;

@@ -1344,21 +1344,27 @@ bool Bot::IsEnemyReachable(void)
 	if (m_enemyReachableTimer > time)
 		return m_isEnemyReachable;
 
+	m_isEnemyReachable = false;
+
+	if (IsOnLadder())
+	{
+		m_enemyReachableTimer = time + crandomfloat(0.33f, 0.66f);
+		return m_isEnemyReachable;
+	}
+
 	if (!m_hasEnemiesNear || FNullEnt(m_nearestEnemy))
 	{
 		m_enemyReachableTimer = time + crandomfloat(0.33f, 0.66f);
 		return m_isEnemyReachable;
 	}
 
-	if (!m_isEnemyReachable && (!(m_nearestEnemy->v.flags & FL_ONGROUND) || (m_nearestEnemy->v.flags & FL_PARTIALGROUND && !(m_nearestEnemy->v.flags & FL_DUCKING))))
+	if (cabsf(m_nearestEnemy->v.origin.z - pev->origin.z) > 54.0f)
 	{
 		m_enemyReachableTimer = time + crandomfloat(0.33f, 0.66f);
 		return m_isEnemyReachable;
 	}
 
-	m_isEnemyReachable = false;
-
-	if (IsOnLadder())
+	if (!m_isEnemyReachable && (!(m_nearestEnemy->v.flags & FL_ONGROUND) || (m_nearestEnemy->v.flags & FL_PARTIALGROUND && !(m_nearestEnemy->v.flags & FL_DUCKING))))
 	{
 		m_enemyReachableTimer = time + crandomfloat(0.33f, 0.66f);
 		return m_isEnemyReachable;

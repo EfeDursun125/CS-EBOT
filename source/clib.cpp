@@ -340,6 +340,51 @@ void cstrcpy(char* dest, const char* src)
 	*dest = '\0';
 }
 
+void cmemcpy(void* dest, const void* src, const size_t size)
+{
+	char* dest2 = static_cast<char*>(dest);
+	const char* src2 = static_cast<const char*>(src);
+
+	for (cache = 0; cache < size; cache++)
+		dest2[cache] = src2[cache];
+}
+
+void cmemset(void* dest, const int value, const size_t count)
+{
+	unsigned char* ptr = static_cast<unsigned char*>(dest);
+	const unsigned char byteValue = static_cast<unsigned char>(value);
+
+	for (cache = 0; cache < count; cache++)
+	{
+		*ptr = byteValue;
+		ptr++;
+	}
+}
+
+void* cmemmove(void* dest, const void* src, size_t count)
+{
+	unsigned char* d = static_cast<unsigned char*>(dest);
+	const unsigned char* s = static_cast<const unsigned char*>(src);
+
+	if (d == s)
+		return dest;
+
+	if (d < s)
+	{
+		while (count--)
+			*d++ = *s++;
+	}
+	else
+	{
+		d += count;
+		s += count;
+		while (count--)
+			*--d = *--s;
+	}
+
+	return dest;
+}
+
 int cctz(unsigned int value)
 {
 	if (value == 0)
@@ -393,7 +438,7 @@ bool cspace(const int str)
 
 void cstrtrim(char* string)
 {
-	if (!string)
+	if (string == nullptr)
 		return;
 
 	char* ptr = string;

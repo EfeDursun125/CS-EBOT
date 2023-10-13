@@ -55,7 +55,7 @@ void Waypoint::Initialize(void)
             if (path == nullptr)
                 continue;
 
-            free(path);
+            delete path;
             path = nullptr;
         }
     }
@@ -642,7 +642,7 @@ void Waypoint::Add(const int flags, const Vector waypointOrigin)
     int index = -1, i;
 
     Vector forward = nullvec;
-    Path* path = static_cast<Path*>(malloc(sizeof(Path)));
+    Path* path = new(std::nothrow) Path;
     if (path == nullptr)
         return;
 
@@ -697,7 +697,7 @@ void Waypoint::Add(const int flags, const Vector waypointOrigin)
 
         index = g_numWaypoints;
 
-        m_paths[index] = static_cast<Path*>(malloc(sizeof(Path)));
+        m_paths[index] = new(std::nothrow) Path;
         if (m_paths[index] == nullptr)
         {
             AddLogEntry(Log::Memory, "unexpected memory error");
@@ -987,7 +987,7 @@ void Waypoint::Delete(void)
     }
 
     // free deleted node
-    free(m_paths[index]);
+    delete m_paths[index];
     m_paths[index] = nullptr;
 
     // Rotate Path Array down
@@ -1049,7 +1049,7 @@ void Waypoint::DeleteByIndex(int index)
     }
 
     // free deleted node
-    free(m_paths[index]);
+    delete m_paths[index];
     m_paths[index] = nullptr;
 
     // Rotate Path Array down
@@ -1704,7 +1704,7 @@ bool Waypoint::Load(void)
 
             for (i = 0; i < g_numWaypoints; i++)
             {
-                m_paths[i] = static_cast<Path*>(malloc(sizeof(Path)));
+                m_paths[i] = new(std::nothrow) Path;
                 if (m_paths[i] == nullptr)
                     continue;
 
@@ -1716,15 +1716,16 @@ bool Waypoint::Load(void)
             g_numWaypoints = header.pointNumber;
             PathOLD2* paths[g_numWaypoints];
 
+            int C;
             for (i = 0; i < g_numWaypoints; i++)
             {
-                paths[i] = static_cast<PathOLD2*>(malloc(sizeof(PathOLD2)));
+                paths[i] = new(std::nothrow) PathOLD2;
                 if (paths == nullptr)
                     continue;
 
                 fp.Read(paths[i], sizeof(PathOLD2));
 
-                m_paths[i] = static_cast<Path*>(malloc(sizeof(Path)));
+                m_paths[i] = new(std::nothrow) Path;
                 if (m_paths[i] == nullptr)
                     continue;
 
@@ -1734,7 +1735,6 @@ bool Waypoint::Load(void)
                 m_paths[i]->mesh = static_cast<uint8_t>(paths[i]->mesh);
                 m_paths[i]->gravity = paths[i]->gravity;
 
-                int C;
                 for (C = 0; C < 8; C++)
                 {
                     m_paths[i]->index[C] = paths[i]->index[C];
@@ -1747,15 +1747,16 @@ bool Waypoint::Load(void)
             g_numWaypoints = header.pointNumber;
             PathOLD* paths[g_numWaypoints];
 
+            int C;
             for (i = 0; i < g_numWaypoints; i++)
             {
-                paths[i] = static_cast<PathOLD*>(malloc(sizeof(PathOLD)));
+                paths[i] = new(std::nothrow) PathOLD;
                 if (paths == nullptr)
                     continue;
 
                 fp.Read(paths[i], sizeof(PathOLD));
 
-                m_paths[i] = static_cast<Path*>(malloc(sizeof(Path)));
+                m_paths[i] = new(std::nothrow) Path;
                 if (m_paths[i] == nullptr)
                     continue;
 
@@ -1765,7 +1766,6 @@ bool Waypoint::Load(void)
                 m_paths[i]->mesh = static_cast<uint8_t>(paths[i]->campStartX);
                 m_paths[i]->gravity = paths[i]->campStartY;
 
-                int C;
                 for (C = 0; C < 8; C++)
                 {
                     m_paths[i]->index[C] = paths[i]->index[C];
@@ -1833,9 +1833,9 @@ void Waypoint::Save(void)
 {
     WaypointHeader header;
 
-    c::memset(header.header, 0, sizeof(header.header));
-    c::memset(header.mapName, 0, sizeof(header.mapName));
-    c::memset(header.author, 0, sizeof(header.author));
+    cmemset(header.header, 0, sizeof(header.header));
+    cmemset(header.mapName, 0, sizeof(header.mapName));
+    cmemset(header.author, 0, sizeof(header.author));
 
     char waypointAuthor[32];
 
@@ -1872,8 +1872,13 @@ void Waypoint::Save(void)
         fp.Write(&header, sizeof(header), 1);
 
         // save the waypoint paths...
-        for (int i = 0; i < g_numWaypoints; i++)
-            fp.Write(m_paths[i], sizeof(Path));
+        for (const auto path : m_paths)
+        {
+            if (path == nullptr)
+                continue;
+
+            fp.Write(path, sizeof(Path));
+        }
 
         fp.Close();
     }
@@ -1885,9 +1890,9 @@ void Waypoint::SaveOLD(void)
 {
     WaypointHeader header;
 
-    c::memset(header.header, 0, sizeof(header.header));
-    c::memset(header.mapName, 0, sizeof(header.mapName));
-    c::memset(header.author, 0, sizeof(header.author));
+    cmemset(header.header, 0, sizeof(header.header));
+    cmemset(header.mapName, 0, sizeof(header.mapName));
+    cmemset(header.author, 0, sizeof(header.author));
 
     char waypointAuthor[32];
 
@@ -1918,15 +1923,15 @@ void Waypoint::SaveOLD(void)
     // file was opened
     if (fp.IsValid())
     {
-        int i;
+        int i, x;
 
         // write the waypoint header to the file...
         fp.Write(&header, sizeof(header), 1);
 
-        unique_ptr <PathOLD> paths[header.pointNumber];
+        PathOLD* paths[header.pointNumber];
         for (i = 0; i < header.pointNumber; i++)
         {
-            paths[i] = make_unique<PathOLD>();
+            paths[i] = new(std::nothrow) PathOLD;
             if (paths[i] == nullptr)
                 continue;
 
@@ -1941,20 +1946,15 @@ void Waypoint::SaveOLD(void)
             paths[i]->campEndX = 0.0f;
             paths[i]->campEndY = 0.0f;
 
-            int C;
-            for (C = 0; C < 8; C++)
+            for (x = 0; x < 8; x++)
             {
-                paths[i]->index[C] = m_paths[i]->index[C];
-                paths[i]->connectionFlags[C] = m_paths[i]->connectionFlags[C];
-                paths[i]->connectionVelocity[C] = nullvec;
-                paths[i]->distances[C] = 0;
+                paths[i]->index[x] = m_paths[i]->index[x];
+                paths[i]->connectionFlags[x] = m_paths[i]->connectionFlags[x];
+                paths[i]->connectionVelocity[x] = nullvec;
+                paths[i]->distances[x] = -1;
             }
-        }
 
-        for (i = 0; i < header.pointNumber; i++)
-        {
             // iterate through connections and find, if it's a jump path
-            int x;
             for (x = 0; x < Const_MaxPathIndex; x++)
             {
                 // check if we got a valid connection
@@ -1962,6 +1962,7 @@ void Waypoint::SaveOLD(void)
                 {
                     Vector myOrigin = paths[i]->origin;
                     Vector waypointOrigin = paths[m_paths[i]->index[x]]->origin;
+                    paths[i]->distances[x] = static_cast<int32>((myOrigin - waypointOrigin).GetLength());
 
                     if (paths[m_paths[i]->index[x]]->flags & WAYPOINT_CROUCH)
                         waypointOrigin.z -= 18.0f;
@@ -1973,25 +1974,19 @@ void Waypoint::SaveOLD(void)
                     else
                         myOrigin.z -= 36.0f;
 
-                    paths[i]->distances[x] = static_cast<int32>((myOrigin - waypointOrigin).GetLength());
-
                     if (paths[i]->connectionFlags[x] & PATHFLAG_JUMP)
                     {
-                        const float timeToReachWaypoint = csqrtf(squaredf(waypointOrigin.x - myOrigin.x) + squaredf(waypointOrigin.y - myOrigin.y)) / 250.0f;
+                        const float timeToReachWaypoint = csqrtf(squaredf(waypointOrigin.x - myOrigin.x) + squaredf(waypointOrigin.y - myOrigin.y) + squaredf(waypointOrigin.z - myOrigin.z)) / 250.0f;
                         paths[i]->connectionVelocity[x].x = (waypointOrigin.x - myOrigin.x) / timeToReachWaypoint;
                         paths[i]->connectionVelocity[x].y = (waypointOrigin.y - myOrigin.y) / timeToReachWaypoint;
-                        paths[i]->connectionVelocity[x].z = 2.0f * (waypointOrigin.z - myOrigin.z - 0.5f * 1.0f * squaredf(timeToReachWaypoint)) / timeToReachWaypoint;
-
-                        if (paths[i]->connectionVelocity[x].z > 250.0f)
-                            paths[i]->connectionVelocity[x].z = 250.0f;
+                        paths[i]->connectionVelocity[x].z = ((waypointOrigin.z - myOrigin.z) * squaredf(timeToReachWaypoint)) / timeToReachWaypoint;
                     }
                 }
             }
-        }
 
-        // save the waypoint paths...
-        for (i = 0; i < header.pointNumber; i++)
-            fp.Write(paths[i].get(), sizeof(PathOLD));
+            // save the waypoint paths...
+            fp.Write(paths[i], sizeof(PathOLD));
+        }
 
         fp.Close();
     }

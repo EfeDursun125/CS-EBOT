@@ -27,6 +27,7 @@
 ConVar ebot_zombies_as_path_cost("ebot_zombie_count_as_path_cost", "1");
 ConVar ebot_has_semiclip("ebot_has_semiclip", "0");
 ConVar ebot_breakable_health_limit("ebot_breakable_health_limit", "3000.0");
+ConVar ebot_stuck_detect_height("ebot_stuck_detect_height", "54.0");
 
 int Bot::FindGoal(void)
 {
@@ -367,6 +368,15 @@ void Bot::DoWaypointNav(void)
 		FindWaypoint();
 		return;
 	}
+	
+	if (!IsOnLadder() && !(m_waypointFlags & WAYPOINT_LADDER) && !(m_waypointFlags & WAYPOINT_HMCAMPMESH) && !(m_waypointFlags & WAYPOINT_ZMHMCAMP) && cabsf(m_destOrigin.z - pev->origin.z) > ebot_stuck_detect_height.GetFloat())
+	{
+		m_isStuck = true;
+		DeleteSearchNodes();
+		m_currentWaypointIndex = -1;
+		FindWaypoint();
+		return;
+	}
 
 	const Path* currentWaypoint = g_waypoint->GetPath(m_currentWaypointIndex);
 	if (currentWaypoint == nullptr)
@@ -630,9 +640,7 @@ void Bot::DoWaypointNav(void)
 		if (!m_navNode.IsEmpty())
 		{
 			const int destIndex = m_navNode.First();
-
 			ChangeWptIndex(destIndex);
-			SetWaypointOrigin();
 
 			int i;
 			for (i = 0; i < Const_MaxPathIndex; i++)
@@ -982,10 +990,7 @@ bool Bot::UpdateLiftStates(void)
 		if (IsValidWaypoint(m_prevWptIndex[0]))
 		{
 			if (!(g_waypoint->GetPath(m_prevWptIndex[0])->flags & WAYPOINT_LIFT))
-			{
 				ChangeWptIndex(m_prevWptIndex[0]);
-				SetWaypointOrigin();
-			}
 			else
 				FindWaypoint();
 		}
@@ -1000,110 +1005,132 @@ bool Bot::UpdateLiftStates(void)
 
 class PriorityQueue
 {
+public:
+	PriorityQueue(void);
+	~PriorityQueue(void);
+
+	inline bool IsEmpty(void) { return !m_size; }
+	inline int Size(void) { return m_size; }
+	void Insert(const int value, const float priority);
+	int Remove(void);
+
 private:
-	struct Node
+	struct HeapNode
 	{
 		int id;
-		float pri;
-	};
+		float priority;
+	} *m_heap = nullptr;
 
-	int m_allocCount;
 	int m_size;
 	int m_heapSize;
-	Node* m_heap;
-public:
 
-	inline bool IsEmpty(void)
-	{
-		return !m_size;
-	}
-
-	inline int Size(void)
-	{
-		return m_size;
-	}
-
-	inline PriorityQueue(void)
-	{
-		m_allocCount = 0;
-		m_size = 0;
-		m_heapSize = g_numWaypoints + 32;
-		c::malloc(m_heap, m_heapSize);
-	}
-
-	inline ~PriorityQueue(void) { c::free(m_heap); }
-
-	// inserts a value into the priority queue
-	inline void Insert(const int value, const float pri)
-	{
-		if (m_allocCount > 20)
-		{
-			AddLogEntry(Log::Fatal, "Tried to re-allocate heap too many times in pathfinder. This usually indicates corrupted waypoint file. Please obtain new copy of waypoint.");
-			return;
-		}
-
-		if (m_size >= m_heapSize)
-		{
-			m_allocCount++;
-			m_heapSize += 100;
-			Node* newHeap = static_cast<Node*>(c::realloc(m_heap, sizeof(Node) * m_heapSize));
-			m_heap = newHeap;
-		}
-
-		m_heap[m_size].pri = pri;
-		m_heap[m_size].id = value;
-
-		int child = ++m_size - 1;
-		while (child)
-		{
-			const int parent = (child - 1) * 0.5f;
-			if (m_heap[parent].pri <= m_heap[child].pri)
-				break;
-
-			const Node ref = m_heap[child];
-
-			m_heap[child] = m_heap[parent];
-			m_heap[parent] = ref;
-
-			child = parent;
-		}
-	}
-
-	// removes the smallest item from the priority queue
-	inline int Remove(void)
-	{
-		if (m_heap == nullptr)
-			return -1;
-
-		const int result = m_heap[0].id;
-
-		m_size--;
-		m_heap[0] = m_heap[m_size];
-
-		int parent = 0;
-		int child = (2 * parent) + 1;
-
-		const Node ref = m_heap[parent];
-
-		while (child < m_size)
-		{
-			const int right = (2 * parent) + 2;
-			if (right < m_size && m_heap[right].pri < m_heap[child].pri)
-				child = right;
-
-			if (ref.pri <= m_heap[child].pri)
-				break;
-
-			m_heap[parent] = m_heap[child];
-
-			parent = child;
-			child = (2 * parent) + 1;
-		}
-
-		m_heap[parent] = ref;
-		return result;
-	}
+	void HeapSiftDown(const int subRoot);
+	void HeapSiftUp(void);
 };
+
+PriorityQueue::PriorityQueue(void)
+{
+	m_size = 0;
+	m_heapSize = g_numWaypoints * 2;
+	m_heap = new(std::nothrow) HeapNode[m_heapSize];
+}
+
+PriorityQueue::~PriorityQueue(void)
+{
+	if (m_heap != nullptr)
+	{
+		delete[] m_heap;
+		m_heap = nullptr;
+	}
+
+	m_size = 0;
+	m_heapSize = 0;
+}
+
+// inserts a value into the priority queue
+void PriorityQueue::Insert(const int value, const float priority)
+{
+	if (m_size >= m_heapSize)
+	{
+		m_heapSize += 100;
+		if (m_heap != nullptr)
+			m_heap = static_cast<HeapNode*>(realloc(m_heap, sizeof(HeapNode) * m_heapSize));
+		else
+			m_heap = new(std::nothrow) HeapNode[m_heapSize];
+	}
+
+	if (m_heap == nullptr)
+		return;
+
+	m_heap[m_size].priority = priority;
+	m_heap[m_size].id = value;
+
+	m_size++;
+	HeapSiftUp();
+}
+
+// removes the smallest item from the priority queue
+int PriorityQueue::Remove(void)
+{
+	if (m_heap == nullptr)
+		return -1;
+
+	const int retID = m_heap[0].id;
+	m_size--;
+	m_heap[0] = m_heap[m_size];
+	HeapSiftDown(0);
+	return retID;
+}
+
+void PriorityQueue::HeapSiftDown(const int subRoot)
+{
+	if (m_heap == nullptr)
+		return;
+
+	int parent = subRoot;
+	int child = (2 * parent) + 1;
+
+	const HeapNode ref = m_heap[parent];
+
+	while (child < m_size)
+	{
+		const int rightChild = (2 * parent) + 2;
+		if (rightChild < m_size)
+		{
+			if (m_heap[rightChild].priority < m_heap[child].priority)
+				child = rightChild;
+		}
+
+		if (ref.priority <= m_heap[child].priority)
+			break;
+
+		m_heap[parent] = m_heap[child];
+		parent = child;
+		child = (2 * parent) + 1;
+	}
+
+	m_heap[parent] = ref;
+}
+
+void PriorityQueue::HeapSiftUp(void)
+{
+	if (m_heap == nullptr)
+		return;
+
+	int child = m_size - 1;
+
+	while (child)
+	{
+		const int parent = (child - 1) / 2;
+		if (m_heap[parent].priority <= m_heap[child].priority)
+			break;
+
+		const HeapNode temp = m_heap[child];
+		m_heap[child] = m_heap[parent];
+		m_heap[parent] = temp;
+		child = parent;
+	}
+}
 
 inline const float GF_CostHuman(const int index, const int parent, const int team, const float gravity, const bool isZombie)
 {
@@ -1512,8 +1539,14 @@ void Bot::FindPath(int srcIndex, int destIndex, edict_t* enemy)
 
 	if (g_gameVersion & Game::HalfLife)
 	{
-		FindShortestPath(srcIndex, destIndex);
-		return;
+		if (g_numWaypoints > 1024)
+		{
+			FindShortestPath(srcIndex, destIndex);
+			return;
+		}
+		
+		if (enemy == nullptr && !FNullEnt(m_nearestEnemy))
+			enemy = m_nearestEnemy;
 	}
 
 	if (m_isBomber && !m_navNode.IsEmpty())
@@ -1657,6 +1690,8 @@ void Bot::FindPath(int srcIndex, int destIndex, edict_t* enemy)
 	{
 		// remove the first node from the open list
 		int currentIndex = openList.Remove();
+		if (!IsValidWaypoint(currentIndex))
+			break;
 
 		// is the current node the goal node?
 		if (currentIndex == destIndex)
@@ -1664,7 +1699,7 @@ void Bot::FindPath(int srcIndex, int destIndex, edict_t* enemy)
 			// delete path for new one
 			DeleteSearchNodes();
 
-			// set the chosen goal value
+			// set the chosen goal
 			m_chosenGoalIndex = destIndex;
 
 			do
@@ -1674,19 +1709,7 @@ void Bot::FindPath(int srcIndex, int destIndex, edict_t* enemy)
 			} while (IsValidWaypoint(currentIndex));
 
 			m_navNode.Reverse();
-
-			m_currentWaypointIndex = m_navNode.First();
-
-			const Path* pointer = g_waypoint->GetPath(m_currentWaypointIndex);
-			if (pointer != nullptr)
-			{
-				if (pointer->radius > 8 && ((pev->origin + pev->velocity * m_frameInterval) - pointer->origin).GetLengthSquared2D() < squaredi(pointer->radius))
-					m_waypointOrigin = pev->origin + pev->velocity * (m_frameInterval + m_frameInterval);
-				else
-					m_waypointOrigin = pointer->origin;
-			}
-
-			m_destOrigin = m_waypointOrigin;
+			ChangeWptIndex(m_navNode.First());
 			m_jumpFinished = false;
 			g_pathTimer = engine->GetTime() + 0.25f;
 
@@ -1702,7 +1725,7 @@ void Bot::FindPath(int srcIndex, int destIndex, edict_t* enemy)
 
 		// now expand the current node
 		const Path* pointer = g_waypoint->GetPath(currentIndex);
-		if (!pointer)
+		if (pointer == nullptr)
 			continue;
 
 		for (i = 0; i < Const_MaxPathIndex; i++)
@@ -1730,7 +1753,7 @@ void Bot::FindPath(int srcIndex, int destIndex, edict_t* enemy)
 					if (pev->gravity * (1600.0f - engine->GetGravity()) < g_waypoint->GetPath(self)->gravity)
 						continue;
 				}
-				else if (enemy != nullptr)
+				else if (!FNullEnt(enemy))
 				{
 					const Vector origin = g_waypoint->GetPath(self)->origin;
 					if (::IsInViewCone(origin, enemy) && IsVisible(origin, enemy))
@@ -1865,6 +1888,8 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 	{
 		// remove the first node from the open list
 		int currentIndex = openList.Remove();
+		if (!IsValidWaypoint(currentIndex))
+			break;
 
 		// is the current node the goal node?
 		if (currentIndex == destIndex)
@@ -1882,18 +1907,7 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 			} while (IsValidWaypoint(currentIndex));
 
 			m_navNode.Reverse();
-			m_currentWaypointIndex = m_navNode.First();
-
-			const Path* pointer = g_waypoint->GetPath(m_currentWaypointIndex);
-			if (pointer != nullptr)
-			{
-				if (pointer->radius > 8 && ((pev->origin + pev->velocity * m_frameInterval) - pointer->origin).GetLengthSquared2D() < squaredi(pointer->radius))
-					m_waypointOrigin = pev->origin + pev->velocity * (m_frameInterval + m_frameInterval);
-				else
-					m_waypointOrigin = pointer->origin;
-			}
-
-			m_destOrigin = m_waypointOrigin;
+			ChangeWptIndex(m_navNode.First());
 			m_jumpFinished = false;
 			g_pathTimer = engine->GetTime() + 0.25f;
 
@@ -1909,7 +1923,7 @@ void Bot::FindShortestPath(int srcIndex, int destIndex)
 
 		// now expand the current node
 		const Path* pointer = g_waypoint->GetPath(currentIndex);
-		if (!pointer)
+		if (pointer == nullptr)
 			continue;
 		
 		for (i = 0; i < Const_MaxPathIndex; i++)
@@ -2165,7 +2179,6 @@ int Bot::FindWaypoint(void)
 		selected = g_waypoint->FindNearestInCircle(pev->origin + pev->velocity);
 
 	ChangeWptIndex(selected);
-	SetWaypointOrigin();
 	return selected;
 }
 
@@ -2195,9 +2208,8 @@ void Bot::CheckStuck(const float maxSpeed)
 					{
 						if (g_waypoint->Reachable(GetEntity(), index) && !IsDeadlyDrop(g_waypoint->GetPath(index)->origin))
 						{
-							m_navNode.First() = index;
 							ChangeWptIndex(index);
-							SetWaypointOrigin();
+							m_navNode.First() = index;
 						}
 						else if (GetCurrentState() == Process::Default && m_hasFriendsNear && !FNullEnt(m_nearestFriend))
 						{
@@ -2209,9 +2221,8 @@ void Bot::CheckStuck(const float maxSpeed)
 								{
 									if (bot->GetCurrentState() == Process::Default && !bot->m_navNode.IsEmpty())
 									{
-										m_navNode.First() = bot->m_navNode.First();
 										ChangeWptIndex(bot->m_navNode.First());
-										SetWaypointOrigin();
+										m_navNode.First() = bot->m_navNode.First();
 									}
 								}
 								else if (m_nearestFriend->v.speed > (m_nearestFriend->v.maxspeed * 0.25))
@@ -2219,9 +2230,8 @@ void Bot::CheckStuck(const float maxSpeed)
 									const int index = g_waypoint->FindNearest(m_nearestFriend->v.origin + m_nearestFriend->v.velocity, 99999999.0f, -1, GetEntity());
 									if (IsValidWaypoint(index))
 									{
-										m_navNode.First() = index;
 										ChangeWptIndex(index);
-										SetWaypointOrigin();
+										m_navNode.First() = index;
 									}
 								}
 								else
@@ -2493,6 +2503,8 @@ void Bot::ChangeWptIndex(const int waypointIndex)
 
 	m_waypointFlags = g_waypoint->GetPath(m_currentWaypointIndex)->flags;
 	m_jumpFinished = false;
+
+	SetWaypointOrigin();
 }
 
 int Bot::FindDefendWaypoint(const Vector& origin)

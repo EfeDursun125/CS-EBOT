@@ -53,7 +53,7 @@ BotControl::BotControl(void)
 	m_economicsGood[Team::Terrorist] = true;
 	m_economicsGood[Team::Counter] = true;
 
-	c::memset(m_bots, 0, sizeof(m_bots));
+	cmemset(m_bots, 0, sizeof(m_bots));
 	InitQuota();
 }
 
@@ -190,7 +190,7 @@ int BotControl::CreateBot(String name, int skill, int personality, const int tea
 	}
 
 	const int index = ENTINDEX(bot) - 1;
-	m_bots[index] = new Bot(bot, skill, personality, team, member);
+	m_bots[index] = new(std::nothrow) Bot(bot, skill, personality, team, member);
 	if (m_bots[index] == nullptr)
 	{
 		AddLogEntry(Log::Memory, "unexpected memory error");
@@ -536,7 +536,6 @@ void BotControl::MaintainBotQuota(void)
 	if (!m_creationTab.IsEmpty() && m_maintainTime < time)
 	{
 		CreateItem last = m_creationTab.Pop();
-
 		const int resultOfCall = CreateBot(last.name, last.skill, last.personality, last.team, last.member);
 
 		// check the result of creation
@@ -690,8 +689,8 @@ void BotControl::RemoveMenu(edict_t* ent, const int selection)
 		return;
 
 	char tempBuffer[1024], buffer[1024];
-	c::memset(tempBuffer, 0, sizeof(tempBuffer));
-	c::memset(buffer, 0, sizeof(buffer));
+	cmemset(tempBuffer, 0, sizeof(tempBuffer));
+	cmemset(buffer, 0, sizeof(buffer));
 
 	int i;
 	int validSlots = (selection == 4) ? (1 << 9) : ((1 << 8) | (1 << 9));
@@ -975,7 +974,6 @@ void BotControl::Free(void)
 		if (ebot_save_bot_names.GetBool())
 			m_savedBotNames.Push(STRING(bot->GetEntity()->v.netname));
 
-		bot->m_stayTime = -1.0f;
 		delete bot;
 		bot = nullptr;
 	}
@@ -987,7 +985,9 @@ void BotControl::Free(const int index)
 	if (index < 0 || index >= 32)
 		return;
 
-	m_bots[index]->m_stayTime = -1.0f;
+	if (m_bots[index] == nullptr)
+		return;
+
 	delete m_bots[index];
 	m_bots[index] = nullptr;
 }
@@ -1002,7 +1002,7 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 	const int clientIndex = ENTINDEX(bot);
 	const float time = engine->GetTime();
 
-	c::memset(reinterpret_cast<void*>(this), 0, sizeof(*this));
+	cmemset(reinterpret_cast<void*>(this), 0, sizeof(*this));
 
 	pev = &bot->v;
 
@@ -1091,8 +1091,8 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 		m_personality = Personality::Normal;
 	}
 
-	c::memset(&m_ammoInClip, 0, sizeof(m_ammoInClip));
-	c::memset(&m_ammo, 0, sizeof(m_ammo));
+	cmemset(&m_ammoInClip, 0, sizeof(m_ammoInClip));
+	cmemset(&m_ammo, 0, sizeof(m_ammo));
 	m_currentWeapon = 0; // current weapon is not assigned at start
 
 	// just to be sure
@@ -1264,8 +1264,8 @@ void Bot::NewRound(void)
 
 	if (!IsAlive(GetEntity())) // if bot died, clear all weapon stuff and force buying again
 	{
-		c::memset(&m_ammoInClip, 0, sizeof(m_ammoInClip));
-		c::memset(&m_ammo, 0, sizeof(m_ammo));
+		cmemset(&m_ammoInClip, 0, sizeof(m_ammoInClip));
+		cmemset(&m_ammo, 0, sizeof(m_ammo));
 		m_currentWeapon = 0;
 	}
 }
@@ -1375,7 +1375,7 @@ void Bot::StartGame(void)
 		m_wantedClass = crandomint(1, maxChoice);
 
 		// select the class the bot wishes to use...
-		FakeClientCommand(GetEntity(), "menuselect %d", maxChoice);
+		FakeClientCommand(GetEntity(), "menuselect %d", m_wantedClass);
 
 		// bot has now joined the game (doesn't need to be started)
 		m_notStarted = false;

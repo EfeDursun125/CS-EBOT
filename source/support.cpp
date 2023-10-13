@@ -472,7 +472,7 @@ const char* GetField(const char* string, int fieldId, bool endLine)
 	static char field[256];
 
 	// reset the string
-	c::memset(field, 0, sizeof(field));
+	cmemset(field, 0, sizeof(field));
 
 	int i, index = 0, fieldCount = 0, start, stop;
 

@@ -62,8 +62,6 @@ int Bot::GetNearbyEnemiesNearPosition(const Vector origin, const float radius)
 
 void Bot::FindFriendsAndEnemiens(void)
 {
-	edict_t* me = GetEntity();
-
 	m_enemyDistance = FLT_MAX;
 	m_friendDistance = FLT_MAX;
 	m_enemiesNearCount = 0;
@@ -73,31 +71,36 @@ void Bot::FindFriendsAndEnemiens(void)
 	m_hasEnemiesNear = false;
 	m_hasFriendsNear = false;
 
+	float distance;
 	TraceResult tr{};
+	Vector headOrigin;
 	const Vector myOrigin = pev->origin + pev->view_ofs;
 	for (const auto& client : g_clients)
 	{
 		if (FNullEnt(client.ent))
 			continue;
 
-		if (client.ent == me)
+		if (client.ent == pev->pContainingEntity)
 			continue;
 
 		if (!IsAlive(client.ent))
 			continue;
 
-		const Vector headOrigin = client.ent->v.origin + client.ent->v.view_ofs;
+		if (client.team < 0)
+			continue;
+
+		headOrigin = client.ent->v.origin + client.ent->v.view_ofs;
 		if (client.team == m_team)
 		{
 			m_numFriendsLeft++;
 
 			// simple check
-			TraceLine(myOrigin, headOrigin, true, true, me, &tr);
+			TraceLine(myOrigin, headOrigin, true, true, pev->pContainingEntity, &tr);
 			if (tr.flFraction != 1.0f)
 				continue;
 
 			m_friendsNearCount++;
-			const float distance = (myOrigin - headOrigin).GetLengthSquared();
+			distance = (myOrigin - headOrigin).GetLengthSquared();
 			if (distance < m_friendDistance)
 			{
 				m_friendDistance = distance;
@@ -128,7 +131,7 @@ void Bot::FindFriendsAndEnemiens(void)
 			}
 
 			m_enemiesNearCount++;
-			const float distance = (myOrigin - headOrigin).GetLengthSquared();
+			distance = (myOrigin - headOrigin).GetLengthSquared();
 			if (distance < m_enemyDistance)
 			{
 				m_enemyDistance = distance;
@@ -159,26 +162,30 @@ void Bot::FindEnemyEntities(void)
 	m_hasEntitiesNear = false;
 
 	int i;
+	Vector origin;
+	float distance;
+	edict_t* entity;
+	TraceResult tr{};
+
 	for (i = 0; i < entityNum; i++)
 	{
 		if (g_entityId[i] == -1 || g_entityAction[i] != 1 || m_team == g_entityTeam[i])
 			continue;
 
-		edict_t* entity = INDEXENT(g_entityId[i]);
+		entity = INDEXENT(g_entityId[i]);
 		if (FNullEnt(entity) || !IsAlive(entity) || entity->v.effects & EF_NODRAW || entity->v.takedamage == DAMAGE_NO)
 			continue;
 
 		m_numEntitiesLeft++;
 
 		// simple check
-		TraceResult tr{};
-		const Vector origin = GetEntityOrigin(entity);
+		origin = GetEntityOrigin(entity);
 		TraceLine(pev->origin, origin, true, true, pev->pContainingEntity, &tr);
 		if (tr.flFraction != 1.0f)
 			continue;
 
 		m_entitiesNearCount++;
-		const float distance = (pev->origin - origin).GetLengthSquared();
+		distance = (pev->origin - origin).GetLengthSquared();
 		if (distance < m_entityDistance)
 		{
 			m_entityDistance = distance;
@@ -274,7 +281,8 @@ bool Bot::IsFriendInLineOfFire(const float distance)
 	MakeVectors(pev->v_angle);
 
 	TraceResult tr{};
-	TraceLine(EyePosition(), EyePosition() + distance * pev->v_angle.Normalize(), false, false, GetEntity(), &tr);
+	Vector origin = EyePosition();
+	TraceLine(origin, origin + distance * pev->v_angle.Normalize(), false, false, pev->pContainingEntity, &tr);
 
 	if (!FNullEnt(tr.pHit))
 	{
@@ -283,8 +291,8 @@ bool Bot::IsFriendInLineOfFire(const float distance)
 			if (IsValidPlayer(tr.pHit))
 				return true;
 
-			const int entityIndex = ENTINDEX(tr.pHit);
 			int i;
+			const int entityIndex = ENTINDEX(tr.pHit);
 			for (i = 0; i < entityNum; i++)
 			{
 				if (g_entityId[i] == -1 || g_entityAction[i] != 1)
@@ -296,17 +304,17 @@ bool Bot::IsFriendInLineOfFire(const float distance)
 		}
 	}
 
+	float friendDistance;
 	for (const auto& client : g_clients)
 	{
 		if (FNullEnt(client.ent))
 			continue;
 
-		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != m_team || client.ent == GetEntity())
+		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != m_team || client.ent == pev->pContainingEntity)
 			continue;
 
-		const Vector origin = client.ent->v.origin;
-		const float friendDistance = (origin - pev->origin).GetLengthSquared();
-
+		origin = client.ent->v.origin;
+		friendDistance = (origin - pev->origin).GetLengthSquared();
 		if (friendDistance <= distance && GetShootingConeDeviation(GetEntity(), &origin) > (friendDistance / (friendDistance + 1089.0f)))
 			return true;
 	}

@@ -48,7 +48,7 @@ void Engine::RegisterVariable(const char* variable, const char* value, VarType v
     newVariable.reg.flags = engineFlags;
     newVariable.self = self;
 
-    c::memcpy(&m_regVars[m_regCount], &newVariable, sizeof(VarPair));
+    cmemcpy(&m_regVars[m_regCount], &newVariable, sizeof(VarPair));
     m_regCount++;
 }
 
