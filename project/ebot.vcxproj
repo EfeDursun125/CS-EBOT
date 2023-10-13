@@ -159,7 +159,7 @@
       </AdditionalDependencies>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
       <TreatLinkerWarningAsErrors>false</TreatLinkerWarningAsErrors>
-      <LargeAddressAware>false</LargeAddressAware>
+      <LargeAddressAware>true</LargeAddressAware>
       <AdditionalLibraryDirectories>SDK Path\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
       <EnableUAC>false</EnableUAC>
