@@ -1255,19 +1255,27 @@ int16_t PriorityQueue::RemoveHighest(void)
 	return retID;
 }
 
+static Vector startV;
+static Vector endV;
 inline const float HF_Distance(const int16_t& start, const int16_t& goal)
 {
-	return (g_waypoint->m_paths[start].origin - g_waypoint->m_paths[goal].origin).GetLength();
+	startV = g_waypoint->m_paths[start].origin;
+	endV = g_waypoint->m_paths[goal].origin;
+	return (startV - endV).GetLength();
 }
 
 inline const float HF_Distance2D(const int16_t& start, const int16_t& goal)
 {
-	return (g_waypoint->m_paths[start].origin - g_waypoint->m_paths[goal].origin).GetLength2D();
+	startV = g_waypoint->m_paths[start].origin;
+	endV = g_waypoint->m_paths[goal].origin;
+	return (startV - endV).GetLength2D();
 }
 
 inline const float HF_DistanceSquared(const int16_t& start, const int16_t& goal)
 {
-	return (g_waypoint->m_paths[start].origin - g_waypoint->m_paths[goal].origin).GetLengthSquared();
+	startV = g_waypoint->m_paths[start].origin;
+	endV = g_waypoint->m_paths[goal].origin;
+	return (startV - endV).GetLengthSquared();
 }
 
 static Path pathCache;
