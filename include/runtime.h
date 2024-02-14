@@ -97,7 +97,7 @@ typedef unsigned short uint16_t;
 //
 inline char* FormatBuffer(char* format, ...)
 {
-    static char buffer[1024];
+    static char buffer[1024]{};
     va_list ap;
     va_start(ap, format);
     vsprintf(buffer, format, ap);
@@ -166,7 +166,7 @@ public:
     //
     static inline T* GetObjectPtr(void)
     {
-        static T reference;
+        static T reference{};
         return &reference;
     }
 
@@ -180,7 +180,7 @@ public:
     //
     static inline T& GetReference(void)
     {
-        static T reference;
+        static T reference{};
         return reference;
     }
 };
@@ -331,7 +331,9 @@ public:
     // Variable: x,y,z
     // X, Y and Z axis members.
     //
-    float x, y, z;
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
 
     //
     // Group: (Con/De)structors.
@@ -758,10 +760,10 @@ namespace Math
 template <typename T> class Array
 {
 private:
-    T* m_elements;
-    int m_resizeStep;
-    int m_itemSize;
-    int m_itemCount;
+    T* m_elements{};
+    int m_resizeStep{};
+    int m_itemSize{};
+    int m_itemCount{};
 
     //
     // Group: (Con/De)structors
@@ -1333,8 +1335,8 @@ public:
 template <typename T1, typename T2> struct Pair
 {
 public:
-    T1 first;
-    T2 second;
+    T1 first{};
+    T2 second{};
 public:
     Pair <T1, T2>(void) : first(T1()), second(T2()) {}
     Pair(const T1& f, const T2& s) : first(f), second(s) {}
@@ -1348,9 +1350,9 @@ public:
 class String
 {
 private:
-    char* m_bufferPtr;
-    int m_allocatedSize;
-    int m_stringLength;
+    char* m_bufferPtr{};
+    int m_allocatedSize{};
+    int m_stringLength{};
 
     //
     // Group: Private functions
@@ -2724,8 +2726,8 @@ public:
 class File
 {
 protected:
-    FILE* m_handle;
-    int m_fileSize;
+    FILE* m_handle{};
+    int m_fileSize{};
 
     //
     // Group: (Con/De)structors
@@ -3066,12 +3068,12 @@ private:
     // Variable: m_logFile
     // Pointer to log file.
     //
-    File m_logFile;
+    File m_logFile{};
 
     //
     // Variable: m_logger
     //
-    ILoggerEngine* m_logger;
+    ILoggerEngine* m_logger{};
 
     //
     // Group: (Con/De)structors.
@@ -3125,7 +3127,7 @@ private:
     //
     inline const char* GetTimeFormatString(void) const
     {
-        static char timeFormatStr[32];
+        static char timeFormatStr[32]{};
         cmemset(timeFormatStr, 0, sizeof(char) * 32);
         time_t tick = time(&tick);
         const tm* time = localtime(&tick);
@@ -3197,7 +3199,7 @@ public:
 class Color
 {
 public:
-    uint8_t red, green, blue, alpha;
+    uint8_t red{}, green{}, blue{}, alpha{};
 public:
     inline Color(const uint8_t color = 0) : red(color), green(color), blue(color), alpha(color) {}
     inline Color(uint8_t inputRed, uint8_t inputGreen, uint8_t inputBlue, uint8_t inputAlpha = 0) : red(inputRed), green(inputGreen), blue(inputBlue), alpha(inputAlpha) {}

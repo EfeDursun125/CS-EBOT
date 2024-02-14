@@ -842,9 +842,9 @@ template <typename T>
 class MiniArray
 {
 private:
-	T* m_array;
-	int16_t m_size;
-	int16_t m_capacity;
+	T* m_array{};
+	int16_t m_size{};
+	int16_t m_capacity{};
 public:
 	MiniArray(const int16_t size = 0) : m_size(size), m_capacity(size) { safeloc(m_array, size); }
 	virtual ~MiniArray(void) { Destroy(); }

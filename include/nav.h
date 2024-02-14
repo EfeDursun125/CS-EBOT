@@ -2,8 +2,8 @@
 
 struct ENavHeader
 {
-	int16_t fileVersion;
-	int16_t navNumber;
+	int16_t fileVersion{};
+	int16_t navNumber{};
 };
 
 enum ENavFlag
@@ -37,12 +37,12 @@ enum ENavDir
 class ENavArea
 {
 public:
-	uint16_t index;
-	uint32_t flags;
-	uint8_t connectionCount;
-	uint16_t* connection;
-	float direction[ENavDir::NumDir];
-	float dirHeight[ENavDir::NumDir];
+	uint16_t index{};
+	uint32_t flags{};
+	uint8_t connectionCount{};
+	uint16_t* connection{};
+	float direction[ENavDir::NumDir]{};
+	float dirHeight[ENavDir::NumDir]{};
 
 	Vector GetClosestPosition(const Vector origin);
 	Vector GetFarestPosition(const Vector origin);
@@ -61,7 +61,7 @@ class ENavMesh : public Singleton <ENavMesh>
 {
 	friend class Bot;
 private:
-	MiniArray <ENavArea> m_area;
+	MiniArray <ENavArea> m_area{};
 public:
 	int16_t m_selectedNavIndex{};
 
