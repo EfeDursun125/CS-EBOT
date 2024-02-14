@@ -15,7 +15,7 @@ void Bot::PlantUpdate(void)
 
 	SelectWeaponByName("weapon_c4");
 
-	pev->button |= (IN_ATTACK | IN_DUCK);
+	pev->buttons |= (IN_ATTACK | IN_DUCK);
 
 	m_moveSpeed = 0.0f;
 	m_strafeSpeed = 0.0f;
@@ -30,13 +30,25 @@ void Bot::PlantEnd(void)
 	switch (random)
 	{
 	case 1:
+	{
 		RadioMessage(Radio::RegroupTeam);
+		break;
+	}
 	case 2:
+	{
 		RadioMessage(Radio::HoldPosition);
+		break;
+	}
 	case 3:
+	{
 		RadioMessage(Radio::GetInPosition);
+		break;
+	}
 	case 4:
+	{
 		RadioMessage(Radio::StickTogether);
+		break;
+	}
 	}
 
 	m_isBomber = false;

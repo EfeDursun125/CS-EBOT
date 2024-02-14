@@ -2,7 +2,7 @@
 
 void Bot::AttackStart(void)
 {
-	DeleteSearchNodes();
+	m_navNode.Clear();
 }
 
 void Bot::AttackUpdate(void)
@@ -19,13 +19,12 @@ void Bot::AttackUpdate(void)
 	FindEnemyEntities();
 	LookAtEnemies();
 	FacePosition();
-	CheckReload();
 
 	if (!m_hasEnemiesNear && !m_hasEntitiesNear)
 	{
 		if (g_bombPlanted && (m_team == Team::Counter || IsBombDefusing(g_waypoint->GetBombPosition())))
 		{
-			if (!FNullEnt(m_nearestEnemy) && IsAlive(m_nearestEnemy))
+			if (IsAlive(m_nearestEnemy))
 				CheckGrenadeThrow(m_nearestEnemy);
 
 			FinishCurrentProcess("no target exist");
@@ -57,16 +56,15 @@ void Bot::AttackUpdate(void)
 			{
 				const bool usesSniper = UsesSniper();
 				if (!usesSniper)
-					SelectBestWeapon(true, true);
+					SelectBestWeapon();
 
-				const float minRange = squaredf(384.0f);
 				const float distance = GetTargetDistance();
-				if (distance > minRange)
+				if (distance > squaredf(384.0f))
 				{
 					if (!CheckWallOnBehind() && !CheckWallOnForward() && !CheckWallOnLeft() && !CheckWallOnRight())
 					{
-						if (usesSniper && pev->fov == 90.0f && !(pev->button & IN_ATTACK2) && !(pev->oldbuttons & IN_ATTACK2))
-							pev->button |= IN_ATTACK2;
+						if (usesSniper && pev->fov == 90.0f && !(pev->buttons & IN_ATTACK2) && !(pev->oldbuttons & IN_ATTACK2))
+							pev->buttons |= IN_ATTACK2;
 
 						wait = cclampf(csqrtf(distance) * 0.01f, 5.0f, 15.0f);
 					}
@@ -87,8 +85,11 @@ void Bot::AttackUpdate(void)
 		{
 			SetWalkTime(7.0f);
 			FinishCurrentProcess("no target exist");
+
+			if (!(pev->oldbuttons & IN_RELOAD))
+				pev->buttons |= IN_RELOAD; // press reload button
 		}
-		else if (!FNullEnt(m_nearestEnemy) && IsAlive(m_nearestEnemy))
+		else if (IsAlive(m_nearestEnemy))
 			CheckGrenadeThrow(m_nearestEnemy);
 
 		return;
@@ -97,16 +98,31 @@ void Bot::AttackUpdate(void)
 		FireWeapon();
 
 	const float distance = GetTargetDistance();
-	const int melee = (g_gameVersion & Game::HalfLife) ? WeaponHL::Crowbar : Weapon::Knife;
+	int melee = (g_gameVersion & Game::HalfLife) ? WeaponHL::Crowbar : Weapon::Knife;
 	if (m_currentWeapon == melee)
 	{
 		if (IsEnemyReachable())
 		{
-			DeleteSearchNodes();
+			m_navNode.Clear();
 			MoveTo(m_enemyOrigin);
 		}
+		else if (!m_navNode.IsEmpty())
+			FollowPath();
 		else
-			FollowPath(m_enemyOrigin);
+		{
+			if (!FNullEnt(m_nearestEnemy))
+				melee = g_waypoint->FindNearest(m_nearestEnemy->v.origin, 256.0f, -1, m_nearestEnemy);
+			else
+				melee = g_waypoint->FindNearest(m_enemyOrigin);
+
+			if (IsValidWaypoint(melee))
+				FindPath(m_currentWaypointIndex, melee);
+			else
+			{
+				m_moveSpeed = pev->maxspeed;
+				m_strafeSpeed = 0.0f;
+			}
+		}
 
 		return;
 	}
@@ -124,16 +140,16 @@ void Bot::AttackUpdate(void)
 		if (m_currentWeapon == WeaponHL::Mp5_HL && distance > squaredf(300.0f) && distance < squaredf(800.0f))
 		{
 			if (!(pev->oldbuttons & IN_ATTACK2) && !m_isSlowThink && crandomint(1, 3) == 1)
-				pev->button |= IN_ATTACK2;
+				pev->buttons |= IN_ATTACK2;
 		}
 		else if (m_currentWeapon == WeaponHL::Crowbar && m_personality != Personality::Careful)
-			pev->button |= IN_ATTACK;
+			pev->buttons |= IN_ATTACK;
 	}
 
 	int approach;
 	if (!m_hasEnemiesNear && !m_hasEntitiesNear) // if suspecting enemy stand still
 		approach = 49;
-	else if (!(g_gameVersion & Game::HalfLife) && (m_isReloading || m_isVIP)) // if reloading or vip back off
+	else if (!(g_gameVersion & Game::HalfLife) && ((pev->buttons & IN_RELOAD || pev->oldbuttons & IN_RELOAD) || m_isVIP)) // if reloading or vip back off
 		approach = 29;
 	else
 	{
@@ -203,17 +219,13 @@ void Bot::AttackUpdate(void)
 		}
 	}
 
-	if (m_fightStyle == 0 || ((pev->button & IN_RELOAD) || m_isReloading) || (UsesPistol() && distance < squaredf(768.0f)) || m_currentWeapon == melee)
+	if (m_fightStyle == 0 || (pev->buttons & IN_RELOAD || pev->oldbuttons & IN_RELOAD) || (UsesPistol() && distance < squaredf(768.0f)) || m_currentWeapon == melee)
 	{
 		if (m_strafeSetTime < time)
 		{
 			// to start strafing, we have to first figure out if the target is on the left side or right side
 			MakeVectors(m_nearestEnemy->v.v_angle);
-
-			const Vector& dirToPoint = (pev->origin - m_enemyOrigin).Normalize2D();
-			const Vector& rightSide = g_pGlobals->v_right.Normalize2D();
-
-			if ((dirToPoint | rightSide) < 0)
+			if (((pev->origin - m_enemyOrigin).Normalize2D() | g_pGlobals->v_right.Normalize2D()) < 0)
 				m_combatStrafeDir = 1;
 			else
 				m_combatStrafeDir = 0;
@@ -245,8 +257,8 @@ void Bot::AttackUpdate(void)
 			}
 		}
 
-		if (m_jumpTime + 2.0f < time && !IsOnLadder() && chanceof(m_isReloading ? 5 : 2) && !UsesSniper() && pev->velocity.GetLength2D() > float(m_skill + 50))
-			pev->button |= IN_JUMP;
+		if (m_jumpTime + 2.0f < time && !IsOnLadder() && !UsesSniper() && chanceof(5) && pev->velocity.GetLength2D() > static_cast<float>(m_skill + 50))
+			pev->buttons |= IN_JUMP;
 
 		if (m_moveSpeed > 0.0f && distance > squaredf(512.0f) && m_currentWeapon != melee)
 			m_moveSpeed = 0.0f;
@@ -256,8 +268,7 @@ void Bot::AttackUpdate(void)
 	}
 	else if (m_fightStyle == 1)
 	{
-		const Vector& src = pev->origin - Vector(0, 0, 18.0f);
-		if (!(m_visibility & (Visibility::Head | Visibility::Body)) && IsVisible(src, m_nearestEnemy))
+		if (!(m_visibility & (Visibility::Head | Visibility::Body)) && IsVisible(pev->origin - Vector(0, 0, 18.0f), m_nearestEnemy))
 			m_duckTime = time + 1.0f;
 
 		m_moveSpeed = 0.0f;
@@ -270,12 +281,6 @@ void Bot::AttackUpdate(void)
 		m_strafeSpeed = 0.0f;
 	}
 
-	if (m_isReloading)
-	{
-		m_moveSpeed = -pev->maxspeed;
-		m_duckTime = 0.0f;
-	}
-
 	if (!IsInWater() && !IsOnLadder() && (m_moveSpeed > 0.0f || m_strafeSpeed > 0.0f))
 	{
 		MakeVectors(pev->v_angle);
@@ -284,12 +289,11 @@ void Bot::AttackUpdate(void)
 		{
 			m_strafeSpeed = -m_strafeSpeed;
 			m_moveSpeed = -m_moveSpeed;
-			pev->button &= ~IN_JUMP;
+			pev->buttons &= ~IN_JUMP;
 		}
 	}
 
-	const Vector directionOld = m_enemyOrigin - pev->origin;
-	m_moveAngles = directionOld.ToAngles();
+	m_moveAngles = (m_enemyOrigin - pev->origin).ToAngles();
 	m_moveAngles.ClampAngles();
 }
 

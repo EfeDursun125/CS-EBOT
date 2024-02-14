@@ -27,7 +27,7 @@ void Bot::BlindUpdate(void)
 		break;
 	}
 	default:
-		pev->button |= IN_ATTACK;
+		pev->buttons |= IN_ATTACK;
 	}
 }
 

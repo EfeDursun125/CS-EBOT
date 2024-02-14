@@ -2,21 +2,34 @@
 
 void Bot::CampStart(void)
 {
-	DeleteSearchNodes();
+	m_navNode.Clear();
 
 	if (IsZombieMode() && IsValidWaypoint(m_zhCampPointIndex))
 		m_campIndex = m_zhCampPointIndex;
 
 	if (crandomint(1, 3) == 1)
 	{
-		const int random = crandomint(1, 3);
-		if (random == 1)
+		switch (crandomint(1, 3))
+		{
+		case 1:
+		{
 			RadioMessage(Radio::InPosition);
-		else if (random == 2)
+			break;
+		}
+		case 2:
+		{
 			RadioMessage(Radio::GetInPosition);
-		else
+			break;
+		}
+		case 3:
+		{
 			RadioMessage(Radio::HoldPosition);
+			break;
+		}
+		}
 	}
+
+	m_isStuck = false;
 }
 
 void Bot::CampUpdate(void)
@@ -34,7 +47,7 @@ void Bot::CampUpdate(void)
 	{
 		// revert the zoom to normal
 		if (pev->fov != 90.0f)
-			pev->button |= IN_ATTACK2;
+			pev->buttons |= IN_ATTACK2;
 
 		FindEnemyEntities();
 
@@ -44,8 +57,6 @@ void Bot::CampUpdate(void)
 			if (ebot_chat.GetBool() && m_lastChatTime + 10.0f < time && g_lastChatTime + 5.0f < time && !RepliesToPlayer()) // bot chatting turned on?
 				m_lastChatTime = time;
 		}
-
-		CheckRadioCommands();
 	}
 	else
 	{
@@ -58,20 +69,34 @@ void Bot::CampUpdate(void)
 				return;
 		}
 		else
-		{
-			CheckReload();
 			FindFriendsAndEnemiens();
-		}
 	}
 
 	if (IsZombieMode())
 	{
 		if (m_hasEnemiesNear && IsEnemyReachable())
 		{
-			m_currentWaypointIndex = -1;
-			DeleteSearchNodes();
-			MoveOut(m_enemyOrigin);
-			CheckStuck(pev->maxspeed);
+			if (m_navNode.IsEmpty())
+			{
+				// find new safe spot
+				m_campIndex = FindGoal();
+				FindEscapePath(m_currentWaypointIndex, m_nearestEnemy->v.origin);
+				MoveOut(m_enemyOrigin);
+				CheckStuck(pev->maxspeed);
+			}
+			else if (((pev->origin - g_waypoint->m_paths[m_navNode.First()].origin).GetLengthSquared() > (m_nearestEnemy->v.origin - g_waypoint->m_paths[m_navNode.First()].origin).GetLengthSquared() ||
+				(pev->origin - g_waypoint->m_paths[m_navNode.Next()].origin).GetLengthSquared() > (m_nearestEnemy->v.origin - g_waypoint->m_paths[m_navNode.Next()].origin).GetLengthSquared()) && ::IsInViewCone(pev->origin, m_nearestEnemy))
+			{
+				if (m_currentWaypointIndex != m_campIndex)
+					m_currentWaypointIndex = -1;
+
+				FindEscapePath(m_currentWaypointIndex, m_nearestEnemy->v.origin);
+				MoveOut(m_enemyOrigin);
+				CheckStuck(pev->maxspeed);
+			}
+			else
+				FollowPath();
+
 			return;
 		}
 		else
@@ -95,6 +120,8 @@ void Bot::CampUpdate(void)
 				if (crouch && IsVisible(m_enemyOrigin, GetEntity()))
 					m_duckTime = time + 1.0f;
 			}
+
+			ResetStuck();
 		}
 	}
 	else
@@ -106,12 +133,21 @@ void Bot::CampUpdate(void)
 			if (SetProcess(Process::Attack, "i found a target", false, time + 99999999.0f))
 				return;
 		}
+		else if (m_isSlowThink)
+			CheckRadioCommands();
 	}
-
-	FollowPath(m_campIndex);
 
 	if (m_currentWaypointIndex == m_campIndex)
 	{
+		if (!m_navNode.IsEmpty())
+		{
+			FollowPath();
+			return;
+		}
+
+		m_moveSpeed = 0.0f;
+		m_strafeSpeed = 0.0f;
+
 		ResetStuck();
 
 		if (IsZombieMode())
@@ -120,9 +156,9 @@ void Bot::CampUpdate(void)
 			if (m_isSlowThink)
 			{
 				const float maxRange = zhPath->flags & WAYPOINT_CROUCH ? 125.0f : 200.0f;
-				if (zhPath->mesh != 0 && ((zhPath->origin - pev->origin).GetLengthSquared2D() > squaredf(maxRange) || (zhPath->origin.z - 54.0f > pev->origin.z)))
+				if (!zhPath->mesh && ((zhPath->origin - pev->origin).GetLengthSquared2D() > squaredf(maxRange) || (zhPath->origin.z - 54.0f > pev->origin.z)))
 				{
-					DeleteSearchNodes();
+					m_navNode.Clear();
 					FindWaypoint();
 					return;
 				}
@@ -132,16 +168,16 @@ void Bot::CampUpdate(void)
 
 			if (!g_waypoint->m_hmMeshPoints.IsEmpty())
 			{
-				if (m_currentProcessTime < time + 0.16f || m_currentProcessTime > time + 60.0f)
+				if (m_currentProcessTime < time + 1.0f || m_currentProcessTime > time + 60.0f)
 				{
-					Array <int> MeshWaypoints;
+					int16_t i, index, myCampPoint;
+					MiniArray <int16_t> MeshWaypoints;
 
-					for (int i = 0; i <= g_waypoint->m_hmMeshPoints.GetElementNumber(); i++)
+					for (i = 0; i < g_waypoint->m_hmMeshPoints.Size(); i++)
 					{
-						int index;
-						g_waypoint->m_hmMeshPoints.GetAt(i, index);
+						index = g_waypoint->m_hmMeshPoints.Get(i);
 
-						if (g_waypoint->GetPath(index)->mesh == 0)
+						if (!g_waypoint->GetPath(index)->mesh)
 							continue;
 
 						if (zhPath->mesh != g_waypoint->GetPath(index)->mesh)
@@ -152,9 +188,7 @@ void Bot::CampUpdate(void)
 
 					if (!MeshWaypoints.IsEmpty())
 					{
-						m_prevGoalIndex = m_chosenGoalIndex;
-						const int myCampPoint = MeshWaypoints.GetRandomElement();
-						m_chosenGoalIndex = myCampPoint;
+						myCampPoint = MeshWaypoints.Random();
 						m_myMeshWaypoint = myCampPoint;
 						MeshWaypoints.Destroy();
 
@@ -177,11 +211,24 @@ void Bot::CampUpdate(void)
 		else
 			m_duckTime = time + 1.0f;
 	}
+	else if (!m_navNode.IsEmpty())
+		FollowPath();
+	else if (IsValidWaypoint(m_campIndex))
+		FindPath(m_currentWaypointIndex, m_campIndex);
+	else
+	{
+		// refresh :)
+		if (IsZombieMode() && IsValidWaypoint(m_zhCampPointIndex))
+			m_campIndex = m_zhCampPointIndex;
+		else
+			FinishCurrentProcess();
+	}
 }
 
 void Bot::CampEnd(void)
 {
 	m_campIndex = -1;
+	m_isStuck = false;
 }
 
 bool Bot::CampReq(void)
@@ -192,7 +239,7 @@ bool Bot::CampReq(void)
 	if (m_isVIP)
 		return false;
 
-	if (HasHostage())
+	if (m_team == Team::Counter && HasHostage())
 		return false;
 
 	if (!IsValidWaypoint(m_campIndex))

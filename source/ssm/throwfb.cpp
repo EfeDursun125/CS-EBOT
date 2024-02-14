@@ -21,7 +21,19 @@ void Bot::ThrowFBUpdate(void)
 	{
 		if (ent->v.owner == pev->pContainingEntity && cstrcmp(STRING(ent->v.model) + 9, "flashbang.mdl") == 0)
 		{
-			ent->v.velocity = m_throw;
+			cvar_t* maxVel = g_engfuncs.pfnCVarGetPointer("sv_maxvelocity");
+			if (maxVel)
+			{
+				const float fVel = maxVel->value;
+				Vector fixedVel;
+				fixedVel.x = cclampf(m_throw.x, -fVel, fVel);
+				fixedVel.y = cclampf(m_throw.y, -fVel, fVel);
+				fixedVel.z = cclampf(m_throw.z, -fVel, fVel);
+				ent->v.velocity = fixedVel;
+			}
+			else
+				ent->v.velocity = m_throw;
+
 			FinishCurrentProcess("i have throwed FB grenade");
 			return;
 		}
@@ -36,8 +48,8 @@ void Bot::ThrowFBUpdate(void)
 		else // no grenade???
 			FinishCurrentProcess("i have throwed FB grenade");
 	}
-	else if (!(pev->button & IN_ATTACK) && !(pev->oldbuttons & IN_ATTACK))
-		pev->button |= IN_ATTACK;
+	else if (!(pev->buttons & IN_ATTACK) && !(pev->oldbuttons & IN_ATTACK))
+		pev->buttons |= IN_ATTACK;
 }
 
 void Bot::ThrowFBEnd(void)

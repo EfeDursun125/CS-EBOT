@@ -39,47 +39,75 @@ void Bot::StartProcess(const Process process)
 	switch (process)
 	{
 	case Process::Default:
+	{
 		DefaultStart();
 		break;
+	}
 	case Process::Attack:
+	{
 		AttackStart();
 		break;
+	}
 	case Process::Defuse:
+	{
 		DefuseStart();
 		break;
+	}
 	case Process::Plant:
+	{
 		PlantStart();
 		break;
+	}
 	case Process::Escape:
+	{
 		EscapeStart();
 		break;
+	}
 	case Process::Pause:
+	{
 		PauseStart();
 		break;
+	}
 	case Process::DestroyBreakable:
+	{
 		DestroyBreakableStart();
 		break;
+	}
 	case Process::Pickup:
+	{
 		PickupStart();
 		break;
+	}
 	case Process::Camp:
+	{
 		CampStart();
 		break;
+	}
 	case Process::ThrowHE:
+	{
 		ThrowHEStart();
 		break;
+	}
 	case Process::ThrowFB:
+	{
 		ThrowFBStart();
 		break;
+	}
 	case Process::ThrowSM:
+	{
 		ThrowSMStart();
 		break;
+	}
 	case Process::Blind:
+	{
 		BlindStart();
 		break;
+	}
 	case Process::Jump:
+	{
 		JumpStart();
 		break;
+	}
 	}
 }
 
@@ -88,46 +116,75 @@ void Bot::EndProcess(const Process process)
 	switch (process)
 	{
 	case Process::Default:
+	{
 		DefaultEnd();
 		break;
+	}
 	case Process::Attack:
+	{
 		AttackEnd();
 		break;
+	}
 	case Process::Defuse:
+	{
 		DefuseEnd();
 		break;
+	}
 	case Process::Plant:
+	{
 		PlantEnd();
 		break;
+	}
 	case Process::Escape:
+	{
 		EscapeEnd();
 		break;
+	}
 	case Process::Pause:
+	{
 		PauseEnd();
+		break;
+	}
 	case Process::DestroyBreakable:
+	{
 		DestroyBreakableEnd();
 		break;
+	}
 	case Process::Pickup:
+	{
 		PickupEnd();
 		break;
+	}
 	case Process::Camp:
+	{
 		CampEnd();
 		break;
+	}
 	case Process::ThrowHE:
+	{
 		ThrowHEEnd();
 		break;
+	}
 	case Process::ThrowFB:
+	{
 		ThrowFBEnd();
 		break;
+	}
 	case Process::ThrowSM:
+	{
 		ThrowSMEnd();
 		break;
+	}
 	case Process::Blind:
+	{
 		BlindEnd();
 		break;
+	}
 	case Process::Jump:
+	{
 		JumpEnd();
 		break;
+	}
 	}
 }
 
@@ -138,50 +195,77 @@ void Bot::UpdateProcess(void)
 	switch (m_currentProcess)
 	{
 	case Process::Default:
+	{
 		DefaultUpdate();
 		break;
+	}
 	case Process::Attack:
+	{
 		AttackUpdate();
 		break;
+	}
 	case Process::Defuse:
+	{
 		DefuseUpdate();
 		break;
+	}
 	case Process::Plant:
+	{
 		PlantUpdate();
 		break;
+	}
 	case Process::Escape:
+	{
 		EscapeUpdate();
 		break;
+	}
 	case Process::Pause:
+	{
 		PauseUpdate();
 		break;
+	}
 	case Process::DestroyBreakable:
+	{
 		DestroyBreakableUpdate();
 		break;
+	}
 	case Process::Pickup:
+	{
 		PickupUpdate();
 		break;
+	}
 	case Process::Camp:
+	{
 		CampUpdate();
 		break;
+	}
 	case Process::ThrowHE:
+	{
 		ThrowHEUpdate();
 		break;
+	}
 	case Process::ThrowFB:
+	{
 		ThrowFBUpdate();
 		break;
+	}
 	case Process::ThrowSM:
+	{
 		ThrowSMUpdate();
 		break;
+	}
 	case Process::Blind:
+	{
 		BlindUpdate();
 		break;
+	}
 	case Process::Jump:
+	{
 		JumpUpdate();
 		break;
+	}
 	default:
 		SetProcess(Process::Default, "unknown process", true, time + 99999999.0f);
-		break;
 	}
 
 	if (m_currentProcess > Process::Default && m_currentProcessTime < time)
@@ -302,6 +386,8 @@ char* Bot::GetProcessName(const Process process)
 		return "BLINDED";
 	case Process::Jump:
 		return "JUMPING";
+	default:
+		return "UNKNOWN";
 	}
 
 	return "UNKNOWN";

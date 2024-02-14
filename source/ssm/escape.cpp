@@ -2,7 +2,7 @@
 
 void Bot::EscapeStart(void)
 {
-	DeleteSearchNodes();
+	m_navNode.Clear();
 	RadioMessage(Radio::ShesGonnaBlow);
 }
 
@@ -12,7 +12,7 @@ void Bot::EscapeUpdate(void)
 	FindFriendsAndEnemiens();
 	UpdateLooking();
 
-	if (m_currentWaypointIndex == m_chosenGoalIndex)
+	if (m_currentWaypointIndex == m_navNode.Last())
 		SetProcess(Process::Pause, "i have escaped from the bomb", true, engine->GetTime() + 99999999.0f);
 	else
 	{
@@ -20,24 +20,21 @@ void Bot::EscapeUpdate(void)
 			SelectKnife();
 
 		m_walkTime = 0.0f; // RUN FOR YOUR LIFE!
-		if (!GoalIsValid())
+		if (m_navNode.IsEmpty())
 		{
 			Vector bombOrigin = g_waypoint->GetBombPosition();
 			if (bombOrigin == nullvec)
 				bombOrigin = pev->origin;
 
-			const int index = g_waypoint->FindFarest(bombOrigin, 2048.0f);
+			
+			int index = g_waypoint->FindFarest(bombOrigin, 2048.0f);
 			if (IsValidWaypoint(index))
-			{
-				m_prevGoalIndex = index;
-				m_chosenGoalIndex = index;
-				FollowPath(index);
-			}
+				FindPath(m_currentWaypointIndex, index);
 			else // WHERE WE MUST GO???
-				m_chosenGoalIndex = crandomint(0, g_numWaypoints - 1);
+				FindEscapePath(m_currentWaypointIndex, bombOrigin);
 		}
 		else
-			FollowPath(m_chosenGoalIndex);
+			FollowPath();
 	}
 }
 
@@ -46,7 +43,7 @@ void Bot::EscapeEnd(void)
 	if (m_numEnemiesLeft > 0)
 	{
 		if (IsShieldDrawn())
-			pev->button |= IN_ATTACK2;
+			pev->buttons |= IN_ATTACK2;
 		else
 			SelectBestWeapon();
 	}

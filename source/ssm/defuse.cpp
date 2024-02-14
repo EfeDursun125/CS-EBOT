@@ -19,9 +19,9 @@ void Bot::DefuseUpdate(void)
 	LookAt(bombOrigin);
 
 	if (EyePosition().z < bombOrigin.z)
-		pev->button |= IN_USE;
+		pev->buttons |= IN_USE;
 	else
-		pev->button |= (IN_USE | IN_DUCK);
+		pev->buttons |= (IN_USE | IN_DUCK);
 
 	m_moveSpeed = 0.0f;
 	m_strafeSpeed = 0.0f;

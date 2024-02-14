@@ -38,21 +38,21 @@ void Bot::PickupUpdate(void)
 	MoveTo(destination);
 	CheckStuck(pev->maxspeed);
 
-	// find the distance to the item
-	const float itemDistance = (destination - pev->origin).GetLengthSquared();
-
 	switch (m_pickupType)
 	{
 	case PickupType::GetEntity:
+	{
 		if (FNullEnt(m_pickupItem) || (GetTeam(m_pickupItem) != Team(-1) && m_team != GetTeam(m_pickupItem)))
 		{
 			m_pickupItem = nullptr;
 			m_pickupType = PickupType::None;
 		}
 		break;
-
+	}
 	case PickupType::Weapon:
+	{
 		// near to weapon?
+		const float itemDistance = (destination - pev->origin).GetLengthSquared();
 		if (itemDistance < squaredf(64.0f))
 		{
 			int i;
@@ -66,7 +66,6 @@ void Bot::PickupUpdate(void)
 			{
 				// secondary weapon. i.e., pistol
 				int weaponID = 0;
-
 				for (i = 0; i < 7; i++)
 				{
 					if (pev->weapons & (1 << g_weaponSelect[i].id))
@@ -80,41 +79,37 @@ void Bot::PickupUpdate(void)
 					if (HasShield()) // If we have the shield...
 						FakeClientCommand(GetEntity(), "drop"); // discard both shield and pistol
 				}
-
-				EquipInBuyzone(0);
 			}
 			else
 			{
 				// primary weapon
 				const int weaponID = GetHighestWeapon();
-
-				if ((weaponID > 6) || HasShield())
+				if (weaponID > 6 || HasShield())
 				{
 					SelectWeaponbyNumber(weaponID);
 					FakeClientCommand(GetEntity(), "drop");
 				}
-
-				EquipInBuyzone(0);
 			}
 
 			CheckSilencer(); // check the silencer
-
 			if (IsValidWaypoint(m_currentWaypointIndex))
 			{
-				if (itemDistance > squaredi(g_waypoint->GetPath(m_currentWaypointIndex)->radius))
+				if (itemDistance > squaredi(m_waypoint.radius))
 					FindWaypoint();
 			}
 		}
-
 		break;
-
+	}
 	case PickupType::Shield:
+	{
 		if (HasShield())
 		{
 			m_pickupItem = nullptr;
 			break;
 		}
-		else if (itemDistance < squaredf(64.0f)) // near to shield?
+
+		const float itemDistance = (destination - pev->origin).GetLengthSquared();
+		if (itemDistance < squaredf(64.0f)) // near to shield?
 		{
 			// get current best weapon to check if it's a primary in need to be dropped
 			const int weaponID = GetHighestWeapon();
@@ -125,24 +120,25 @@ void Bot::PickupUpdate(void)
 
 				if (IsValidWaypoint(m_currentWaypointIndex))
 				{
-					if (itemDistance > squaredi(g_waypoint->GetPath(m_currentWaypointIndex)->radius))
+					if (itemDistance > squaredi(m_waypoint.radius))
 						FindWaypoint();
 				}
 			}
 		}
 		break;
-
+	}
 	case PickupType::PlantedC4:
-		if (m_team == Team::Counter && itemDistance < squaredf(64.0f))
+	{
+		if (m_team == Team::Counter && (destination - pev->origin).GetLengthSquared() < squaredf(64.0f))
 		{
 			if (!SetProcess(Process::Defuse, "trying to defusing the bomb", false, engine->GetTime() + m_hasDefuser ? 6.0f : 12.0f))
 				FinishCurrentProcess("cannot start to defuse bomb");
 		}
-
 		break;
-
+	}
 	case PickupType::Hostage:
-		if (!IsAlive(m_pickupItem) || m_team != Team::Counter)
+	{
+		if (m_team != Team::Counter || !IsAlive(m_pickupItem))
 		{
 			// don't pickup dead hostages
 			m_pickupItem = nullptr;
@@ -152,36 +148,40 @@ void Bot::PickupUpdate(void)
 
 		LookAt(destination);
 
-		if (itemDistance < squaredf(64.0f))
+		// let A* find better path for hostages
+		m_navNode.Clear();
+
+		if ((destination - pev->origin).GetLengthSquared() < squaredf(64.0f))
 		{
 			if (g_gameVersion & Game::Xash)
-				pev->button |= IN_USE;
+				pev->buttons |= IN_USE;
 			else // use game dll function to make sure the hostage is correctly 'used'
 				MDLL_Use(m_pickupItem, GetEntity());
 
-			for (int i = 0; i < Const_MaxHostages; i++)
+			for (auto& hostage : m_hostages)
 			{
-				if (FNullEnt(m_hostages[i])) // store pointer to hostage so other bots don't steal from this one or bot tries to reuse it
+				if (FNullEnt(hostage)) // store pointer to hostage so other bots don't steal from this one or bot tries to reuse it
 				{
-					m_hostages[i] = m_pickupItem;
+					hostage = m_pickupItem;
 					m_pickupItem = nullptr;
 					break;
 				}
 			}
 		}
 		break;
-
+	}
 	case PickupType::DefuseKit:
+	{
 		if (m_hasDefuser || m_team != Team::Counter)
 		{
 			m_pickupItem = nullptr;
 			m_pickupType = PickupType::None;
 		}
 		break;
-
+	}
 	case PickupType::Button:
-		const float time = engine->GetTime();
-		if (FNullEnt(m_pickupItem) || m_buttonPushTime < time) // it's safer...
+	{
+		if (FNullEnt(m_pickupItem) || m_buttonPushTime < engine->GetTime()) // it's safer...
 		{
 			FinishCurrentProcess("button is gone...");
 			m_pickupType = PickupType::None;
@@ -191,31 +191,29 @@ void Bot::PickupUpdate(void)
 		LookAt(destination);
 
 		// find angles from bot origin to entity...
-		const float angleToEntity = InFieldOfView(destination - EyePosition());
-
-		if (itemDistance < squaredf(90.0f)) // near to the button?
+		if ((destination - pev->origin).GetLengthSquared() < squaredf(90.0f)) // near to the button?
 		{
-			if (angleToEntity < 15) // facing it directly?
+			if (InFieldOfView(destination - EyePosition()) < 15) // facing it directly?
 			{
 				if (g_gameVersion & Game::Xash)
-					pev->button |= IN_USE;
+					pev->buttons |= IN_USE;
 				else
 					MDLL_Use(m_pickupItem, GetEntity());
 
 				m_pickupItem = nullptr;
 				m_pickupType = PickupType::None;
-				m_buttonPushTime = time;
+				m_buttonPushTime = engine->GetTime();
 				FinishCurrentProcess("i have pushed the button");
 			}
 		}
-
 		break;
+	}
 	}
 }
 
 void Bot::PickupEnd(void)
 {
-	DeleteSearchNodes();
+	m_navNode.Clear();
 	FindWaypoint();
 }
 
