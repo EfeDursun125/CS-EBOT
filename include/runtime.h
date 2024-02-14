@@ -31,6 +31,11 @@
 #include <float.h>
 #include <time.h>
 #include <stdarg.h>
+#include <vector>
+#include <list>
+#include <cstring>
+#include <cstdarg>
+#include <clib.h>
 
 #pragma warning (disable : 4996) // get rid of this
 
@@ -72,6 +77,13 @@ typedef unsigned short uint16_t;
 #define nullvec Vector::GetNull()
 
 //
+// Macro: InternalAssert
+//
+// Asserts expression.
+//
+#define Assert(expr)
+
+//
 // Function: FormatBuffer
 // 
 // Formats a buffer using variable arguments.
@@ -90,7 +102,7 @@ inline char* FormatBuffer(char* format, ...)
     va_start(ap, format);
     vsprintf(buffer, format, ap);
     va_end(ap);
-    return buffer;
+    return &buffer[0];
 }
 
 //
@@ -173,24 +185,18 @@ public:
     }
 };
 
+#define MATH_ONEPSILON 0.01f
+#define MATH_EQEPSILON 0.001f
+#define MATH_FLEPSILON 1.192092896e-07f
+#define MATH_D2R 0.017453292519943295f
+#define MATH_R2D 57.295779513082320876f
+
 //
 // Namespace: Math
 // Utility mathematical functions.
 //
 namespace Math
 {
-    const float MATH_ONEPSILON = 0.01f;
-    const float MATH_EQEPSILON = 0.001f;
-    const float MATH_FLEPSILON = 1.192092896e-07f;
-
-    //
-    // Constant: MATH_PI
-    // Mathematical PI value.
-    //
-    const float MATH_PI = 3.14159265358979323846f;
-    const float MATH_D2R = 0.017453292519943295f;
-    const float MATH_R2D = 57.295779513082320876f;
-
     //
     // Function: FltZero
     // 
@@ -287,7 +293,7 @@ namespace Math
     //
     inline float AngleMod(const float angle)
     {
-        return 0.00549316406f * (static_cast<int>(angle * 182.044444444f) & 65535);
+        return 182.044444444f * (static_cast<int>(angle * 182.044444444f) & 65535);
     }
 
     //
@@ -303,11 +309,10 @@ namespace Math
     //
     inline float AngleNormalize(float angle)
     {
-        angle -= 360.0f * croundf(angle * 0.00277777777f);
         if (angle > 180.0f)
-            angle -= 360.0f;
+            angle -= 360.0f * croundf(angle / 360.0f);
         else if (angle < -180.0f)
-            angle += 360.0f;
+            angle += 360.0f * croundf(-angle / 360.0f);
         return angle;
     }
 }
@@ -398,12 +403,12 @@ public:
         return (&x)[index];
     }
 
-    inline const Vector operator + (const Vector right) const
+    inline const Vector operator + (const Vector& right) const
     {
         return Vector(x + right.x, y + right.y, z + right.z);
     }
 
-    inline const Vector operator - (const Vector right) const
+    inline const Vector operator - (const Vector& right) const
     {
         return Vector(x - right.x, y - right.y, z - right.z);
     }
@@ -413,7 +418,7 @@ public:
         return Vector(-x, -y, -z);
     }
 
-    friend inline const Vector operator * (const float vec, const Vector right)
+    friend inline const Vector operator * (const float vec, const Vector& right)
     {
         return Vector(right.x * vec, right.y * vec, right.z * vec);
     }
@@ -429,17 +434,17 @@ public:
         return Vector(inv * x, inv * y, inv * z);
     }
 
-    inline const Vector operator ^ (const Vector right) const
+    inline const Vector operator ^ (const Vector& right) const
     {
         return Vector(y * right.z - z * right.y, z * right.x - x * right.z, x * right.y - y * right.x);
     }
 
-    inline float operator | (const Vector right) const
+    inline float operator | (const Vector& right) const
     {
         return x * right.x + y * right.y + z * right.z;
     }
 
-    inline const Vector& operator += (const Vector right)
+    inline const Vector& operator += (const Vector& right)
     {
         x += right.x;
         y += right.y;
@@ -447,7 +452,7 @@ public:
         return *this;
     }
 
-    inline const Vector& operator -= (const Vector right)
+    inline const Vector& operator -= (const Vector& right)
     {
         x -= right.x;
         y -= right.y;
@@ -472,12 +477,12 @@ public:
         return *this;
     }
 
-    inline bool operator == (const Vector right) const
+    inline bool operator == (const Vector& right) const
     {
         return Math::FltEqual(x, right.x) && Math::FltEqual(y, right.y) && Math::FltEqual(z, right.z);
     }
 
-    inline bool operator != (const Vector right) const
+    inline bool operator != (const Vector& right) const
     {
         return !Math::FltEqual(x, right.x) && !Math::FltEqual(y, right.y) && !Math::FltEqual(z, right.z);
     }
@@ -623,7 +628,7 @@ public:
     //
     inline static const Vector& GetNull(void)
     {
-        static const Vector& s_null = Vector(0.0f, 0.0f, 0.0f);
+        static const Vector& s_null = Vector(0.0, 0.0, 0.0f);
         return s_null;
     }
 
@@ -640,6 +645,7 @@ public:
         x = Math::AngleNormalize(x);
         y = Math::AngleNormalize(y);
         z = 0.0f;
+
         return *this;
     }
 
@@ -714,21 +720,21 @@ public:
         csincosf(Math::DegreeToRadian(y), sineYaw, cosineYaw); // compute the sine and cosine of the yaw component
         csincosf(Math::DegreeToRadian(z), sineRoll, cosineRoll); // compute the sine and cosine of the roll component
 
-        if (forward != nullptr)
+        if (forward)
         {
             forward->x = cosinePitch * cosineYaw;
             forward->y = cosinePitch * sineYaw;
             forward->z = -sinePitch;
         }
 
-        if (right != nullptr)
+        if (right)
         {
             right->x = -sineRoll * sinePitch * cosineYaw + cosineRoll * sineYaw;
             right->y = -sineRoll * sinePitch * sineYaw - cosineRoll * cosineYaw;
             right->z = -sineRoll * cosinePitch;
         }
 
-        if (upward != nullptr)
+        if (upward)
         {
             upward->x = cosineRoll * sinePitch * cosineYaw + sineRoll * sineYaw;
             upward->y = cosineRoll * sinePitch * sineYaw - sineRoll * cosineYaw;
@@ -813,9 +819,15 @@ public:
     //
     void Destroy(void)
     {
-        safedel(m_elements);
+        if (m_elements)
+        {
+            delete[] m_elements;
+            m_elements = nullptr;
+        }
+
         m_itemSize = 0;
         m_itemCount = 0;
+        m_resizeStep = 0;
     }
 
     //
@@ -838,6 +850,7 @@ public:
         }
 
         int checkSize = 0;
+
         if (m_resizeStep != 0)
             checkSize = m_itemCount + m_resizeStep;
         else
@@ -857,7 +870,7 @@ public:
             checkSize = newSize;
 
         T* buffer = safeloc<T>(checkSize);
-        if (keepData && m_elements != nullptr)
+        if (keepData && m_elements)
         {
             if (checkSize < m_itemCount)
                 m_itemCount = checkSize;
@@ -871,7 +884,6 @@ public:
 
         m_elements = buffer;
         m_itemSize = checkSize;
-        buffer = nullptr;
         return true;
     }
 
@@ -1021,7 +1033,7 @@ public:
     //
     bool InsertAt(const int index, const T* objects, const int count = 1, const bool enlarge = true)
     {
-        if (objects == nullptr || count < 1)
+        if (!objects || count < 1)
             return false;
 
         int newSize = 0;
@@ -1211,7 +1223,7 @@ public:
         }
 
         T* buffer = safeloc<T>(m_itemCount);
-        if (m_elements != nullptr)
+        if (m_elements)
         {
             int i;
             for (i = 0; i < m_itemCount; i++)
@@ -1222,7 +1234,6 @@ public:
 
         m_elements = buffer;
         m_itemSize = m_itemCount;
-        buffer = nullptr;
     }
 
     //
@@ -1278,6 +1289,9 @@ public:
             return true;
 
         if (!SetSize(other.m_itemCount, false))
+            return false;
+
+        if (!other.m_elements)
             return false;
 
         int i;
@@ -1357,7 +1371,7 @@ private:
 
         m_allocatedSize = size + 16;
         char* tempBuffer = safeloc<char>(size + 1);
-        if (m_bufferPtr != nullptr)
+        if (m_bufferPtr)
         {
             cstrcpy(tempBuffer, m_bufferPtr);
             tempBuffer[m_stringLength] = 0;
@@ -1366,7 +1380,6 @@ private:
 
         m_bufferPtr = tempBuffer;
         m_allocatedSize = size;
-        tempBuffer = nullptr;
     }
 
     //
@@ -1461,7 +1474,11 @@ public:
         m_stringLength = 0;
     }
 
-    ~String(void) { safedel(m_bufferPtr); }
+    ~String(void)
+    {
+        if (m_bufferPtr)
+            delete[] m_bufferPtr;
+    }
 
     String(const char* bufferPtr)
     {
@@ -1501,7 +1518,7 @@ public:
     //
     const char* GetBuffer(void)
     {
-        if (m_bufferPtr == nullptr || *m_bufferPtr == 0x0)
+        if (!m_bufferPtr || *m_bufferPtr == 0x0)
             return "";
 
         return &m_bufferPtr[0];
@@ -1516,7 +1533,7 @@ public:
     //
     const char* GetBuffer(void) const
     {
-        if (m_bufferPtr == nullptr || *m_bufferPtr == 0x0)
+        if (!m_bufferPtr || *m_bufferPtr == 0x0)
             return "";
 
         return &m_bufferPtr[0];
@@ -1599,8 +1616,10 @@ public:
     char* GetBufferSetLength(const int length)
     {
         char* buffer = GetBuffer(length);
+
         m_stringLength = length;
         m_bufferPtr[length] = 0;
+
         return buffer;
     }
 
@@ -1658,9 +1677,11 @@ public:
     {
         va_list ap;
         char buffer[1024];
+
         va_start(ap, fmt);
         vsprintf(buffer, fmt, ap);
         va_end(ap);
+
         Append(buffer);
     }
 
@@ -1683,9 +1704,9 @@ public:
     // Parameters:
     //  input - Character to assign.
     //
-    void Assign(const char input)
+    void Assign(char input)
     {
-        const char psz[2] = { input, 0 };
+        char psz[2] = { input, 0 };
         Assign(psz);
     }
 
@@ -1698,7 +1719,7 @@ public:
     //
     void Assign(const char* bufferPtr)
     {
-        if (bufferPtr == nullptr)
+        if (!bufferPtr)
         {
             UpdateBufferSize(1);
             m_stringLength = 0;
@@ -1706,7 +1727,8 @@ public:
         }
 
         UpdateBufferSize(cstrlen(bufferPtr));
-        if (m_bufferPtr != nullptr)
+
+        if (m_bufferPtr)
         {
             cstrcpy(m_bufferPtr, bufferPtr);
             m_stringLength = cstrlen(m_bufferPtr);
@@ -1726,9 +1748,11 @@ public:
     {
         va_list ap;
         char buffer[1024];
+
         va_start(ap, fmt);
         vsprintf(buffer, fmt, ap);
         va_end(ap);
+
         Assign(buffer);
     }
 
@@ -1738,7 +1762,7 @@ public:
     //
     void Empty(void)
     {
-        if (m_bufferPtr != nullptr)
+        if (m_bufferPtr)
         {
             m_bufferPtr[0] = 0;
             m_stringLength = 0;
@@ -1754,7 +1778,7 @@ public:
     //
     bool IsEmpty(void) const
     {
-        if (m_bufferPtr == nullptr || !m_stringLength)
+        if (!m_bufferPtr || !m_stringLength)
             return true;
 
         return false;
@@ -1769,7 +1793,7 @@ public:
     //
     int GetLength(void)
     {
-        if (m_bufferPtr == nullptr)
+        if (!m_bufferPtr)
             return 0;
 
         return m_stringLength;
@@ -1788,11 +1812,6 @@ public:
     operator int(void)
     {
         return ToInt();
-    }
-
-    operator int8_t(void)
-    {
-        return static_cast<int8_t>(ToInt());
     }
 
     operator long(void)
@@ -1814,6 +1833,7 @@ public:
     {
         String result(s1);
         result += s2;
+
         return result;
     }
 
@@ -1821,6 +1841,7 @@ public:
     {
         String result(holder);
         result += ch;
+
         return result;
     }
 
@@ -1828,6 +1849,7 @@ public:
     {
         String result(ch);
         result += holder;
+
         return result;
     }
 
@@ -1835,6 +1857,7 @@ public:
     {
         String result(holder);
         result += str;
+
         return result;
     }
 
@@ -1842,6 +1865,7 @@ public:
     {
         String result(const_cast <char*> (str));
         result += holder;
+
         return result;
     }
 
@@ -1936,7 +1960,7 @@ public:
     //
     String Mid(const int startIndex, int count = -1)
     {
-        if (startIndex >= m_stringLength || m_bufferPtr == nullptr)
+        if (startIndex >= m_stringLength || !m_bufferPtr)
             return nullptr;
 
         if (count == -1)
@@ -1944,7 +1968,7 @@ public:
         else if (startIndex + count >= m_stringLength)
             count = m_stringLength - startIndex;
 
-        int i = 0, j = 0;
+        int i, j = 0;
         char* holder = safeloc<char>(m_stringLength + 1);
         for (i = startIndex; i < startIndex + count; i++)
             holder[j++] = m_bufferPtr[i];
@@ -2330,7 +2354,7 @@ public:
         {
             if (IsTrimChar(*str))
             {
-                if (last == nullptr)
+                if (!last)
                     last = str;
             }
             else
@@ -2339,7 +2363,7 @@ public:
             str++;
         }
 
-        if (last != nullptr)
+        if (last)
             Delete(last - m_bufferPtr);
 
         return *this;
@@ -2402,7 +2426,7 @@ public:
         {
             if (*str == ch)
             {
-                if (last == nullptr)
+                if (!last)
                     last = str;
             }
             else
@@ -2411,7 +2435,7 @@ public:
             str++;
         }
 
-        if (last != nullptr)
+        if (last)
         {
             const int i = last - m_bufferPtr;
             Delete(i, m_stringLength - i);
@@ -2617,7 +2641,7 @@ public:
     //
     bool Contains(const String& what)
     {
-        return cstrstr(m_bufferPtr, what.m_bufferPtr) != nullptr;
+        return cstrstr(m_bufferPtr, what.m_bufferPtr);
     }
 
     //
@@ -2749,7 +2773,7 @@ public:
     //
     bool Open(const String& fileName, const String& mode)
     {
-        if ((m_handle = fopen(fileName.GetBuffer(), mode.GetBuffer())) == nullptr)
+        if (!(m_handle = fopen(fileName.GetBuffer(), mode.GetBuffer())))
             return false;
 
         fseek(m_handle, 0L, SEEK_END);
@@ -2765,7 +2789,7 @@ public:
     //
     void Close(void)
     {
-        if (m_handle != nullptr)
+        if (m_handle)
         {
             fclose(m_handle);
             m_handle = nullptr;
@@ -2852,7 +2876,7 @@ public:
     // Returns:
     //  Number of bytes, that was written.
     //
-    int Print(const char* format, ...)
+    int Printf(const char* format, ...)
     {
         va_list ap;
         va_start(ap, format);
@@ -2981,7 +3005,7 @@ public:
     //
     bool IsValid(void)
     {
-        return m_handle != nullptr;
+        return m_handle;
     }
 };
 
@@ -3103,12 +3127,9 @@ private:
     {
         static char timeFormatStr[32];
         cmemset(timeFormatStr, 0, sizeof(char) * 32);
-
         time_t tick = time(&tick);
-        tm* time = localtime(&tick);
-
+        const tm* time = localtime(&tick);
         sprintf(timeFormatStr, "%02i:%02i:%02i", time->tm_hour, time->tm_min, time->tm_sec);
-
         return &timeFormatStr[0];
     }
 
@@ -3128,7 +3149,6 @@ public:
     {
         m_logger = logger;
 
-
         if (m_logger && m_logFile.IsValid())
         {
             m_logFile.Close();
@@ -3144,7 +3164,7 @@ public:
 #define DEFINE_PRINT_FUNCTION(funcName, logMask, logStr) \
    void funcName (const char *format, ...) \
    { \
-      int flags = m_logger->GetFlags (); \
+      const int flags = m_logger->GetFlags (); \
       \
       if ((flags & logMask) != logMask) \
          return; \
@@ -3159,7 +3179,7 @@ public:
       if (flags & LM_CONSOLE) \
          m_logger->EchoWithTag ("(%s): %s", logStr, buffer); \
       \
-      m_logFile.Print ("[%s] (%s): %s\n", GetTimeFormatString (), logStr, buffer); \
+      m_logFile.Printf ("[%s] (%s): %s\n", GetTimeFormatString (), logStr, buffer); \
       \
    }
 
@@ -3176,63 +3196,28 @@ public:
 
 class Color
 {
-    //
-    // Group: Red, green, blue and alpha (controls transparency (0 - transparent, 255 - opaque)) color components (0 - 255).
-    //
 public:
-    int red, green, blue, alpha;
-
-    //
-    // Group: (Con/De)structors.
-    //
+    uint8_t red, green, blue, alpha;
 public:
-    inline Color(int color = 0) : red(color), green(color), blue(color), alpha(color)
-    {
-
-    }
-
-    inline Color(int inputRed, int inputGreen, int inputBlue, int inputAlpha = 0) : red(inputRed), green(inputGreen), blue(inputBlue), alpha(inputAlpha)
-    {
-    }
-
-    inline Color(const Color& right) : red(right.red), green(right.green), blue(right.blue), alpha(right.alpha)
-    {
-    }
-
-    //
-    // Group: Operators.
-    //
+    inline Color(const uint8_t color = 0) : red(color), green(color), blue(color), alpha(color) {}
+    inline Color(uint8_t inputRed, uint8_t inputGreen, uint8_t inputBlue, uint8_t inputAlpha = 0) : red(inputRed), green(inputGreen), blue(inputBlue), alpha(inputAlpha) {}
+    inline Color(const Color& right) : red(right.red), green(right.green), blue(right.blue), alpha(right.alpha) {}
 public:
-    // equality
-    inline bool operator == (const Color& right) const
-    {
-        return red == right.red && green == right.green && blue == right.blue && alpha == right.alpha;
-    }
-
-    inline bool operator != (const Color& right) const
-    {
-        return !operator == (right);
-    }
-
-    // array access
-    inline int& operator [] (int colourIndex)
-    {
-        return (&red)[colourIndex];
-    }
-
-    inline const int& operator [] (int colourIndex) const
-    {
-        return (&red)[colourIndex];
-    }
-
-    inline const Color operator / (int scaler) const
-    {
-        return Color(red / scaler, green / scaler, blue / scaler, alpha / scaler);
-    }
+    inline bool operator == (const Color& right) const { return red == right.red && green == right.green && blue == right.blue && alpha == right.alpha; }
+    inline bool operator != (const Color& right) const { return !operator == (right); }
+    inline uint8_t& operator [] (uint8_t colourIndex) { return (&red)[colourIndex]; }
+    inline const uint8_t& operator [] (uint8_t colourIndex) const { return (&red)[colourIndex]; }
+    inline const Color operator / (uint8_t scaler) const { return Color(red / scaler, green / scaler, blue / scaler, alpha / scaler); }
 };
 
 template <typename T1, typename T2> inline Pair <T1, T2> MakePair(T1 first, T2 second)
 {
     return Pair <T1, T2>(first, second);
 }
+
+// @DEPRECATEME@
+#define ITERATE_ARRAY(arrayName, iteratorName) \
+    int iteratorName; \
+    for (iteratorName = 0; iteratorName < arrayName.GetElementNumber (); iteratorName++)
+
 #endif // RUNTIME_INCLUDED
