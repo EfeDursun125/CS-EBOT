@@ -35,10 +35,10 @@ extern bool g_autoWaypoint;
 extern bool g_editNoclip;
 extern bool g_isFakeCommand;
 extern bool g_analyzewaypoints;
+extern bool g_analyzenavmesh;
 extern bool g_analyzeputrequirescrouch;
-extern bool g_expanded[Const_MaxWaypoints];
 extern bool g_hasDoors;
-extern bool g_messageEnded;
+extern bool g_navmeshOn;
 
 extern float g_autoPathDistance;
 extern float g_timeBombPlanted;
@@ -51,11 +51,11 @@ extern float g_fakePingUpdate;
 extern float g_randomJoinTime;
 extern float g_DelayTimer;
 extern float g_pathTimer;
+extern float g_audioTime;
 
-extern int g_lastMessageID;
-extern int g_numBytesWritten;
 extern int g_mapType;
 extern int g_numWaypoints;
+extern uint16_t g_numNavAreas;
 extern int g_gameVersion;
 extern int g_fakeArgc;
 extern int g_radioSelect[32];
@@ -64,13 +64,13 @@ extern int g_storeAddbotVars[4];
 extern int g_modelIndexLaser;
 extern int g_modelIndexArrow;
 extern char g_fakeArgv[256];
-const int entityNum = 256;
+#define entityNum 254
 extern int g_entityId[entityNum];
 extern int g_entityTeam[entityNum];
 extern int g_entityAction[entityNum];
 
-extern Array <Array <String>> g_chatFactory;
-extern Array <NameItem> g_botNames;
+extern Array <Array<String>> g_chatFactory;
+extern MiniArray <NameItem> g_botNames;
 extern Array <KwChat> g_replyFactory;
 
 extern FireDelay g_fireDelay[Const_NumWeapons + 1];
@@ -83,7 +83,5 @@ extern MenuText g_menus[28];
 
 extern edict_t* g_hostEntity;
 extern edict_t* g_worldEdict;
-
-extern bool IsCStrike(void);
 
 #endif // GLOBALS_INCLUDED

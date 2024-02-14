@@ -35,7 +35,7 @@
 #include <list>
 #include <cstring>
 #include <cstdarg>
-#include <algorithm>
+#include <clib.h>
 
 #pragma warning (disable : 4996) // get rid of this
 
@@ -74,7 +74,7 @@ typedef unsigned short uint16_t;
 //
 // This macro is a null vector.
 //
-#define nullvec Vector::GetNull ()
+#define nullvec Vector::GetNull()
 
 //
 // Macro: InternalAssert
@@ -99,11 +99,9 @@ inline char* FormatBuffer(char* format, ...)
 {
     static char buffer[1024];
     va_list ap;
-
     va_start(ap, format);
     vsprintf(buffer, format, ap);
     va_end(ap);
-
     return &buffer[0];
 }
 
@@ -187,24 +185,18 @@ public:
     }
 };
 
+#define MATH_ONEPSILON 0.01f
+#define MATH_EQEPSILON 0.001f
+#define MATH_FLEPSILON 1.192092896e-07f
+#define MATH_D2R 0.017453292519943295f
+#define MATH_R2D 57.295779513082320876f
+
 //
 // Namespace: Math
 // Utility mathematical functions.
 //
 namespace Math
 {
-    const float MATH_ONEPSILON = 0.01f;
-    const float MATH_EQEPSILON = 0.001f;
-    const float MATH_FLEPSILON = 1.192092896e-07f;
-
-    //
-    // Constant: MATH_PI
-    // Mathematical PI value.
-    //
-    const float MATH_PI = 3.14159265358f;
-    const float MATH_D2R = MATH_PI * 0.00555555555f;
-    const float MATH_R2D = 57.2957795131f;
-
     //
     // Function: FltZero
     // 
@@ -222,7 +214,7 @@ namespace Math
     // Remarks:
     //   This eliminates Intel C++ Compiler's warning about float equality/inquality.
     //
-    inline bool FltZero(float entry)
+    inline bool FltZero(const float entry)
     {
         return cabsf(entry) < MATH_ONEPSILON;
     }
@@ -245,7 +237,7 @@ namespace Math
     // Remarks:
     //   This eliminates Intel C++ Compiler's warning about float equality/inquality.
     //
-    inline bool FltEqual(float entry1, float entry2)
+    inline bool FltEqual(const float entry1, const float entry2)
     {
         return cabsf(entry1 - entry2) < MATH_EQEPSILON;
     }
@@ -264,7 +256,7 @@ namespace Math
     // See Also:
     //   <DegreeToRadian>
     //
-    inline float RadianToDegree(float radian)
+    inline float RadianToDegree(const float radian)
     {
         return radian * MATH_R2D;
     }
@@ -283,7 +275,7 @@ namespace Math
     // See Also:
     //   <RadianToDegree>
     //
-    inline float DegreeToRadian(float degree)
+    inline float DegreeToRadian(const float degree)
     {
         return degree * MATH_D2R;
     }
@@ -299,9 +291,9 @@ namespace Math
     // Returns:
     //   Resulting angle.
     //
-    inline float AngleMod(float angle)
+    inline float AngleMod(const float angle)
     {
-        return 360.0f / 65536.0f * (static_cast<int>(angle * (65536.0f / 360.0f)) & 65535);
+        return 182.044444444f * (static_cast<int>(angle * 182.044444444f) & 65535);
     }
 
     //
@@ -317,7 +309,11 @@ namespace Math
     //
     inline float AngleNormalize(float angle)
     {
-        return 360.0f / 65536.0f * (static_cast<int>((angle + 180.0f) * (65536.0f / 360.0f)) & 65535) - 180.0f;
+        if (angle > 180.0f)
+            angle -= 360.0f * croundf(angle / 360.0f);
+        else if (angle < -180.0f)
+            angle += 360.0f * croundf(-angle / 360.0f);
+        return angle;
     }
 }
 
@@ -349,9 +345,7 @@ public:
     // Parameters:
     //	  scaler - Value for axises.
     //
-    inline Vector(float scaler = 0.0f) : x(scaler), y(scaler), z(scaler)
-    {
-    }
+    inline Vector(const float scaler = 0.0f) : x(scaler), y(scaler), z(scaler) {}
 
     //
     // Function: Vector
@@ -363,9 +357,7 @@ public:
     //	  inputY - Input Y axis.
     //	  inputZ - Input Z axis.
     //
-    inline Vector(float inputX, float inputY, float inputZ) : x(inputX), y(inputY), z(inputZ)
-    {
-    }
+    inline Vector(const float inputX, const float inputY, const float inputZ) : x(inputX), y(inputY), z(inputZ) {}
 
     //
     // Function: Vector
@@ -375,9 +367,7 @@ public:
     // Parameters:
     //	  other - Float pointer.
     //
-    inline Vector(float* other) : x(other[0]), y(other[1]), z(other[2])
-    {
-    }
+    inline Vector(float* other) : x(other[0]), y(other[1]), z(other[2]) {}
 
     //
     // Function: Vector
@@ -387,9 +377,8 @@ public:
     // Parameters:
     //   right - Other Vector, that should be assigned.
     //
-    inline Vector(const Vector& right) : x(right.x), y(right.y), z(right.z)
-    {
-    }
+    inline Vector(const Vector& right) : x(right.x), y(right.y), z(right.z) {}
+
     //
     // Group: Operators.
     //
@@ -414,12 +403,12 @@ public:
         return (&x)[index];
     }
 
-    inline const Vector operator + (const Vector& right) const
+    inline const Vector operator + (const Vector right) const
     {
         return Vector(x + right.x, y + right.y, z + right.z);
     }
 
-    inline const Vector operator - (const Vector& right) const
+    inline const Vector operator - (const Vector right) const
     {
         return Vector(x - right.x, y - right.y, z - right.z);
     }
@@ -429,76 +418,71 @@ public:
         return Vector(-x, -y, -z);
     }
 
-    friend inline const Vector operator * (const float vec, const Vector& right)
+    friend inline const Vector operator * (const float vec, const Vector right)
     {
         return Vector(right.x * vec, right.y * vec, right.z * vec);
     }
 
-    inline const Vector operator * (float vec) const
+    inline const Vector operator * (const float vec) const
     {
         return Vector(vec * x, vec * y, vec * z);
     }
 
-    inline const Vector operator / (float vec) const
+    inline const Vector operator / (const float vec) const
     {
         const float inv = 1.0f / vec;
         return Vector(inv * x, inv * y, inv * z);
     }
 
-    inline const Vector operator ^ (const Vector& right) const
+    inline const Vector operator ^ (const Vector right) const
     {
         return Vector(y * right.z - z * right.y, z * right.x - x * right.z, x * right.y - y * right.x);
     }
 
-    inline float operator | (const Vector& right) const
+    inline float operator | (const Vector right) const
     {
         return x * right.x + y * right.y + z * right.z;
     }
 
-    inline const Vector& operator += (const Vector& right)
+    inline const Vector& operator += (const Vector right)
     {
         x += right.x;
         y += right.y;
         z += right.z;
-
         return *this;
     }
 
-    inline const Vector& operator -= (const Vector& right)
+    inline const Vector& operator -= (const Vector right)
     {
         x -= right.x;
         y -= right.y;
         z -= right.z;
-
         return *this;
     }
 
-    inline const Vector& operator *= (float vec)
+    inline const Vector& operator *= (const float vec)
     {
         x *= vec;
         y *= vec;
         z *= vec;
-
         return *this;
     }
 
-    inline const Vector& operator /= (float vec)
+    inline const Vector& operator /= (const float vec)
     {
         const float inv = 1.0f / vec;
-
         x *= inv;
         y *= inv;
         z *= inv;
-
         return *this;
     }
 
-    inline bool operator == (const Vector& right) const
+    inline bool operator == (const Vector right) const
     {
         return Math::FltEqual(x, right.x) && Math::FltEqual(y, right.y) && Math::FltEqual(z, right.z);
     }
 
-    inline bool operator != (const Vector& right) const
+    inline bool operator != (const Vector right) const
     {
         return !Math::FltEqual(x, right.x) && !Math::FltEqual(y, right.y) && !Math::FltEqual(z, right.z);
     }
@@ -508,9 +492,9 @@ public:
         x = right.x;
         y = right.y;
         z = right.z;
-
         return *this;
     }
+
     //
     // Group: Functions.
     //
@@ -554,7 +538,7 @@ public:
     // Gets squared length (magnitude) of 3D vector.
     //
     // Returns:
-    //   squared length (magnitude) of the 3D vector.
+    //   Squared length (magnitude) of the 3D vector.
     //
     // See Also:
     //   <GetLength>
@@ -736,21 +720,21 @@ public:
         csincosf(Math::DegreeToRadian(y), sineYaw, cosineYaw); // compute the sine and cosine of the yaw component
         csincosf(Math::DegreeToRadian(z), sineRoll, cosineRoll); // compute the sine and cosine of the roll component
 
-        if (forward != nullptr)
+        if (forward)
         {
             forward->x = cosinePitch * cosineYaw;
             forward->y = cosinePitch * sineYaw;
             forward->z = -sinePitch;
         }
 
-        if (right != nullptr)
+        if (right)
         {
             right->x = -sineRoll * sinePitch * cosineYaw + cosineRoll * sineYaw;
             right->y = -sineRoll * sinePitch * sineYaw - cosineRoll * cosineYaw;
             right->z = -sineRoll * cosinePitch;
         }
 
-        if (upward != nullptr)
+        if (upward)
         {
             upward->x = cosineRoll * sinePitch * cosineYaw + sineRoll * sineYaw;
             upward->y = cosineRoll * sinePitch * sineYaw - sineRoll * cosineYaw;
@@ -758,6 +742,14 @@ public:
         }
     }
 };
+
+namespace Math
+{
+    inline bool BBoxIntersects(const Vector& min1, const Vector& max1, const Vector& min2, const Vector& max2)
+    {
+        return min1.x < max2.x && max1.x > min2.x && min1.y < max2.y && max1.y > min2.y && min1.z < max2.z && max1.z > min2.z;
+    }
+}
 
 //
 // Class: Array
@@ -827,7 +819,7 @@ public:
     //
     void Destroy(void)
     {
-        if (m_elements != nullptr)
+        if (m_elements)
         {
             delete[] m_elements;
             m_elements = nullptr;
@@ -835,6 +827,7 @@ public:
 
         m_itemSize = 0;
         m_itemCount = 0;
+        m_resizeStep = 0;
     }
 
     //
@@ -876,11 +869,8 @@ public:
         if (newSize > checkSize)
             checkSize = newSize;
 
-        T* buffer = new(std::nothrow) T[checkSize];
-        if (buffer == nullptr)
-            return false;
-
-        if (keepData && m_elements != nullptr)
+        T* buffer = safeloc<T>(checkSize);
+        if (keepData && m_elements)
         {
             if (checkSize < m_itemCount)
                 m_itemCount = checkSize;
@@ -1043,7 +1033,7 @@ public:
     //
     bool InsertAt(const int index, const T* objects, const int count = 1, const bool enlarge = true)
     {
-        if (objects == nullptr || count < 1)
+        if (!objects || count < 1)
             return false;
 
         int newSize = 0;
@@ -1232,11 +1222,8 @@ public:
             return;
         }
 
-        T* buffer = new(std::nothrow) T[m_itemCount];
-        if (buffer == nullptr)
-            return;
-
-        if (m_elements != nullptr)
+        T* buffer = safeloc<T>(m_itemCount);
+        if (m_elements)
         {
             int i;
             for (i = 0; i < m_itemCount; i++)
@@ -1304,6 +1291,9 @@ public:
         if (!SetSize(other.m_itemCount, false))
             return false;
 
+        if (!other.m_elements)
+            return false;
+
         int i;
         for (i = 0; i < other.m_itemCount; i++)
             m_elements[i] = other.m_elements[i];
@@ -1345,12 +1335,9 @@ template <typename T1, typename T2> struct Pair
 public:
     T1 first;
     T2 second;
-
 public:
     Pair <T1, T2>(void) : first(T1()), second(T2()) {}
-
     Pair(const T1& f, const T2& s) : first(f), second(s) {}
-
     template <typename A1, typename A2> Pair(const Pair <A1, A2>& right) : first(right.first), second(right.second) {}
 };
 
@@ -1383,11 +1370,8 @@ private:
             return;
 
         m_allocatedSize = size + 16;
-        char* tempBuffer = new(std::nothrow) char[size + 1];
-        if (tempBuffer == nullptr)
-            return;
-
-        if (m_bufferPtr != nullptr)
+        char* tempBuffer = safeloc<char>(size + 1);
+        if (m_bufferPtr)
         {
             cstrcpy(tempBuffer, m_bufferPtr);
             tempBuffer[m_stringLength] = 0;
@@ -1534,7 +1518,7 @@ public:
     //
     const char* GetBuffer(void)
     {
-        if (m_bufferPtr == nullptr || *m_bufferPtr == 0x0)
+        if (!m_bufferPtr || *m_bufferPtr == 0x0)
             return "";
 
         return &m_bufferPtr[0];
@@ -1549,7 +1533,7 @@ public:
     //
     const char* GetBuffer(void) const
     {
-        if (m_bufferPtr == nullptr || *m_bufferPtr == 0x0)
+        if (!m_bufferPtr || *m_bufferPtr == 0x0)
             return "";
 
         return &m_bufferPtr[0];
@@ -1735,7 +1719,7 @@ public:
     //
     void Assign(const char* bufferPtr)
     {
-        if (bufferPtr == nullptr)
+        if (!bufferPtr)
         {
             UpdateBufferSize(1);
             m_stringLength = 0;
@@ -1744,7 +1728,7 @@ public:
 
         UpdateBufferSize(cstrlen(bufferPtr));
 
-        if (m_bufferPtr != nullptr)
+        if (m_bufferPtr)
         {
             cstrcpy(m_bufferPtr, bufferPtr);
             m_stringLength = cstrlen(m_bufferPtr);
@@ -1778,7 +1762,7 @@ public:
     //
     void Empty(void)
     {
-        if (m_bufferPtr != nullptr)
+        if (m_bufferPtr)
         {
             m_bufferPtr[0] = 0;
             m_stringLength = 0;
@@ -1794,7 +1778,7 @@ public:
     //
     bool IsEmpty(void) const
     {
-        if (m_bufferPtr == nullptr || !m_stringLength)
+        if (!m_bufferPtr || !m_stringLength)
             return true;
 
         return false;
@@ -1809,7 +1793,7 @@ public:
     //
     int GetLength(void)
     {
-        if (m_bufferPtr == nullptr)
+        if (!m_bufferPtr)
             return 0;
 
         return m_stringLength;
@@ -1984,11 +1968,8 @@ public:
         else if (startIndex + count >= m_stringLength)
             count = m_stringLength - startIndex;
 
-        int i = 0, j = 0;
-        char* holder = new(std::nothrow) char[m_stringLength + 1];
-        if (holder == nullptr)
-            return nullptr;
-
+        int i, j = 0;
+        char* holder = safeloc<char>(m_stringLength + 1);
         for (i = startIndex; i < startIndex + count; i++)
             holder[j++] = m_bufferPtr[i];
 
@@ -1996,7 +1977,7 @@ public:
         holder[j] = 0;
         result.Assign(holder);
 
-        delete[] holder;
+        safedel(holder);
         return result;
     }
 
@@ -2291,9 +2272,9 @@ public:
         if (!string.m_stringLength)
             return startIndex;
 
+        int j;
         for (; startIndex < m_stringLength; startIndex++)
         {
-            int j;
             for (j = 0; j < string.m_stringLength && startIndex + j < m_stringLength; j++)
             {
                 if (m_bufferPtr[startIndex + j] != string.m_bufferPtr[j])
@@ -2373,7 +2354,7 @@ public:
         {
             if (IsTrimChar(*str))
             {
-                if (last == nullptr)
+                if (!last)
                     last = str;
             }
             else
@@ -2382,7 +2363,7 @@ public:
             str++;
         }
 
-        if (last != nullptr)
+        if (last)
             Delete(last - m_bufferPtr);
 
         return *this;
@@ -2445,7 +2426,7 @@ public:
         {
             if (*str == ch)
             {
-                if (last == nullptr)
+                if (!last)
                     last = str;
             }
             else
@@ -2454,7 +2435,7 @@ public:
             str++;
         }
 
-        if (last != nullptr)
+        if (last)
         {
             const int i = last - m_bufferPtr;
             Delete(i, m_stringLength - i);
@@ -2660,7 +2641,7 @@ public:
     //
     bool Contains(const String& what)
     {
-        return cstrstr(m_bufferPtr, what.m_bufferPtr) != nullptr;
+        return cstrstr(m_bufferPtr, what.m_bufferPtr);
     }
 
     //
@@ -2697,7 +2678,7 @@ public:
     // See Also:
     //  <Array>
     //
-    Array <String> Split(const char* separator)
+    Array <String> Split(char* separator)
     {
         Array <String> holder;
         int tokenLength, index = 0;
@@ -2731,7 +2712,7 @@ public:
     //
     Array <String> Split(const char separator)
     {
-        const char sep[2] = { separator, 0x0 };
+        char sep[2] = { separator, 0x0 };
         return Split(sep);
     }
 };
@@ -2765,7 +2746,7 @@ public:
     // Function: File
     //  Default file class, constructor, with file opening.
     //
-    File(const String fileName, const String mode = "rt")
+    File(String fileName, String mode = "rt")
     {
         Open(fileName, mode);
     }
@@ -2792,7 +2773,7 @@ public:
     //
     bool Open(const String& fileName, const String& mode)
     {
-        if ((m_handle = fopen(fileName.GetBuffer(), mode.GetBuffer())) == nullptr)
+        if (!(m_handle = fopen(fileName.GetBuffer(), mode.GetBuffer())))
             return false;
 
         fseek(m_handle, 0L, SEEK_END);
@@ -2808,7 +2789,7 @@ public:
     //
     void Close(void)
     {
-        if (m_handle != nullptr)
+        if (m_handle)
         {
             fclose(m_handle);
             m_handle = nullptr;
@@ -2886,7 +2867,7 @@ public:
     }
 
     //
-    // Function: Printf
+    // Function: Print
     //  Puts formatted buffer, into stream.
     //
     // Parameters:
@@ -3024,7 +3005,7 @@ public:
     //
     bool IsValid(void)
     {
-        return m_handle != nullptr;
+        return m_handle;
     }
 };
 
@@ -3168,7 +3149,6 @@ public:
     {
         m_logger = logger;
 
-
         if (m_logger && m_logFile.IsValid())
         {
             m_logFile.Close();
@@ -3216,59 +3196,18 @@ public:
 
 class Color
 {
-    //
-    // Group: Red, green, blue and alpha (controls transparency (0 - transparent, 255 - opaque)) color components (0 - 255).
-    //
 public:
-    int red, green, blue, alpha;
-
-    //
-    // Group: (Con/De)structors.
-    //
+    uint8_t red, green, blue, alpha;
 public:
-    inline Color(int color = 0) : red(color), green(color), blue(color), alpha(color)
-    {
-
-    }
-
-    inline Color(int inputRed, int inputGreen, int inputBlue, int inputAlpha = 0) : red(inputRed), green(inputGreen), blue(inputBlue), alpha(inputAlpha)
-    {
-    }
-
-    inline Color(const Color& right) : red(right.red), green(right.green), blue(right.blue), alpha(right.alpha)
-    {
-    }
-
-    //
-    // Group: Operators.
-    //
+    inline Color(const uint8_t color = 0) : red(color), green(color), blue(color), alpha(color) {}
+    inline Color(uint8_t inputRed, uint8_t inputGreen, uint8_t inputBlue, uint8_t inputAlpha = 0) : red(inputRed), green(inputGreen), blue(inputBlue), alpha(inputAlpha) {}
+    inline Color(const Color& right) : red(right.red), green(right.green), blue(right.blue), alpha(right.alpha) {}
 public:
-    // equality
-    inline bool operator == (const Color& right) const
-    {
-        return red == right.red && green == right.green && blue == right.blue && alpha == right.alpha;
-    }
-
-    inline bool operator != (const Color& right) const
-    {
-        return !operator == (right);
-    }
-
-    // array access
-    inline int& operator [] (int colourIndex)
-    {
-        return (&red)[colourIndex];
-    }
-
-    inline const int& operator [] (int colourIndex) const
-    {
-        return (&red)[colourIndex];
-    }
-
-    inline const Color operator / (int scaler) const
-    {
-        return Color(red / scaler, green / scaler, blue / scaler, alpha / scaler);
-    }
+    inline bool operator == (const Color& right) const { return red == right.red && green == right.green && blue == right.blue && alpha == right.alpha; }
+    inline bool operator != (const Color& right) const { return !operator == (right); }
+    inline uint8_t& operator [] (uint8_t colourIndex) { return (&red)[colourIndex]; }
+    inline const uint8_t& operator [] (uint8_t colourIndex) const { return (&red)[colourIndex]; }
+    inline const Color operator / (uint8_t scaler) const { return Color(red / scaler, green / scaler, blue / scaler, alpha / scaler); }
 };
 
 template <typename T1, typename T2> inline Pair <T1, T2> MakePair(T1 first, T2 second)
@@ -3279,6 +3218,6 @@ template <typename T1, typename T2> inline Pair <T1, T2> MakePair(T1 first, T2 s
 // @DEPRECATEME@
 #define ITERATE_ARRAY(arrayName, iteratorName) \
     int iteratorName; \
-    for (iteratorName = 0; iteratorName != arrayName.GetElementNumber (); iteratorName++)
+    for (iteratorName = 0; iteratorName < arrayName.GetElementNumber (); iteratorName++)
 
 #endif // RUNTIME_INCLUDED

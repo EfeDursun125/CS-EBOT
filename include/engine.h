@@ -753,25 +753,16 @@ typedef void* HINSTANCE;
 #define MSG_SPEC            9   // Sends to all spectator proxies
 
 // contents of a spot in the world
-#define    CONTENTS_EMPTY      -1
-#define    CONTENTS_SOLID      -2
-#define    CONTENTS_WATER      -3
-#define    CONTENTS_SLIME      -4
-#define    CONTENTS_LAVA       -5
-#define    CONTENTS_SKY        -6
-
-#define    CONTENTS_LADDER     -16
-
-#define    CONTENT_FLYFIELD            -17
-#define    CONTENT_GRAVITY_FLYFIELD    -18
-#define    CONTENT_FOG                 -19
-
-#define CONTENT_EMPTY    -1
-#define CONTENT_SOLID    -2
-#define CONTENT_WATER    -3
-#define CONTENT_SLIME    -4
-#define CONTENT_LAVA     -5
-#define CONTENT_SKY      -6
+#define    CONTENTS_EMPTY -1
+#define    CONTENTS_SOLID -2
+#define    CONTENTS_WATER -3
+#define    CONTENTS_SLIME -4
+#define    CONTENTS_LAVA -5
+#define    CONTENTS_SKY -6
+#define    CONTENTS_LADDER -16
+#define    CONTENTS_FLYFIELD -17
+#define    CONTENTS_GRAVITY_FLYFIELD -18
+#define    CONTENTS_FOG -19
 
 // channels
 #define CHAN_AUTO              0
@@ -786,9 +777,9 @@ typedef void* HINSTANCE;
 
 // attenuation values
 #define ATTN_NONE        0
-#define ATTN_NORM       (float)0.8
-#define ATTN_IDLE       (float)2
-#define ATTN_STATIC     (float)1.25
+#define ATTN_NORM       0.8f
+#define ATTN_IDLE       2.0f
+#define ATTN_STATIC     1.25f
 
 // pitch values
 #define PITCH_NORM       100    // non-pitch shifted
@@ -948,9 +939,9 @@ typedef struct
 
 typedef struct
 {
-    qboolean allsolid;           // if true, plane is not valid
-    qboolean startsolid;         // if true, the initial point was in a solid area
-    qboolean inopen, inwater;
+    int allsolid;           // if true, plane is not valid
+    int startsolid;         // if true, the initial point was in a solid area
+    int inopen, inwater;
     float fraction;              // time completed, 1.0f = didn't hit anything
     Vector endpos;               // final position
     plane_t plane;               // surface normal at impact
@@ -1083,22 +1074,7 @@ typedef struct
     int iHitgroup;               // 0 == generic, non zero is specific body part
 } TraceResult;
 
-// CD audio status
-typedef struct
-{
-    int fPlaying;                // is sound playing right now?
-    int fWasPlaying;             // if not, CD is paused if WasPlaying is true.
-    int fInitialized;
-    int fEnabled;
-    int fPlayLooping;
-    float cdvolume;
-    //BYTE     remap[100];
-    int fCDRom;
-    int fPlayTrack;
-} CDStatus;
-
-typedef uint32 CRC32_t;
-typedef unsigned char byte;
+typedef uint32_t CRC32_t;
 
 // Engine hands this to DLLs for functionality callbacks
 typedef struct enginefuncs_s
@@ -1384,12 +1360,6 @@ typedef struct
     void (*pfnCvarValue2) (const edict_t* pEnt, int requestID, const char* cvarName, const char* value);
 } NEW_DLL_FUNCTIONS;
 
-// Pointer operators
-#define PTR_TO_BYTE(in) *(uint8_t *) (in)
-#define PTR_TO_FLT(in) *(float *) (in)
-#define PTR_TO_INT(in) *(int *) (in)
-#define PTR_TO_STR(in) (char *) (in)
-
 // Must be provided by user of this code
 extern enginefuncs_t g_engfuncs;
 
@@ -1637,7 +1607,7 @@ typedef struct entvars_s
     int deadflag;
     Vector view_ofs; // eye position
 
-    int button;
+    int buttons;
     int impulse;
 
     edict_t* chain; // Entity pointer when linked into a linked list
@@ -1891,8 +1861,8 @@ typedef int (*META_ATTACH_FN) (PLUG_LOADTIME now, metamod_funcs_t* pFunctionTabl
 C_DLLEXPORT int Meta_Detach(PLUG_LOADTIME now, PL_UNLOAD_REASON reason);
 typedef int (*META_DETACH_FN) (PLUG_LOADTIME now, PL_UNLOAD_REASON reason);
 
-C_DLLEXPORT int GetEntityAPI_Post(DLL_FUNCTIONS* pFunctionTable, int interfaceVersion);
-C_DLLEXPORT int GetEntityAPI2_Post(DLL_FUNCTIONS* pFunctionTable, int* interfaceVersion);
+C_DLLEXPORT int GetEntityAPI2(DLL_FUNCTIONS* functionTable, int* interfaceVersion);
+C_DLLEXPORT int GetEntityAPI2_Post(DLL_FUNCTIONS* functionTable, int* interfaceVersion);
 
 C_DLLEXPORT int GetNewDLLFunctions_Post(NEW_DLL_FUNCTIONS* pNewFunctionTable, int* interfaceVersion);
 C_DLLEXPORT int GetEngineFunctions(enginefuncs_t* pengfuncsFromEngine, int* interfaceVersion);
@@ -2066,29 +2036,28 @@ inline edict_t* FIND_ENTITY_BY_TARGET(edict_t* entStart, const char* pszName)
    // More explicit than "int"
 typedef int EOFFSET;
 
-   //
-   // Conversion among the three types of "entity", including identity-conversions.
-   //
+//
+// Conversion among the three types of "entity", including identity-conversions.
+//
 inline edict_t* ENT(const entvars_t* pev)
 {
-    if (pev == nullptr)
+    if (!pev)
         return nullptr;
 
     return pev->pContainingEntity;
 }
+
 inline edict_t* ENT(edict_t* pent)
 {
     return pent;
 }
-inline edict_t* ENT(EOFFSET eoffset)
-{
-    if (!eoffset)
-        return nullptr;
 
+inline edict_t* ENT(const EOFFSET eoffset)
+{
     return (*g_engfuncs.pfnPEntityOfEntOffset) (eoffset);
 }
 
-inline EOFFSET OFFSET(EOFFSET eoffset)
+inline EOFFSET OFFSET(const EOFFSET eoffset)
 {
     return eoffset;
 }
@@ -2110,20 +2079,20 @@ inline entvars_t* VARS(entvars_t* pev)
 
 inline entvars_t* VARS(edict_t* pent)
 {
-    if (pent == nullptr)
+    if (!pent)
         return nullptr;
 
     return &pent->v;
 }
 
-inline entvars_t* VARS(EOFFSET eoffset)
+inline entvars_t* VARS(const EOFFSET eoffset)
 {
     return VARS(ENT(eoffset));
 }
 
 inline int ENTINDEX(edict_t* pentEdict)
 {
-    if (pentEdict == nullptr)
+    if (!pentEdict)
         return -1;
 
     return (*g_engfuncs.pfnIndexOfEdict) (pentEdict);
@@ -2138,19 +2107,19 @@ inline edict_t* INDEXENT(const int iEdictNum)
 }
 
 // Testing the three types of "entity" for nullity
-inline bool FNullEnt(EOFFSET eoffset)
+inline bool FNullEnt(const EOFFSET eoffset)
 {
     return !eoffset;
 }
 
 inline bool FNullEnt(entvars_t* pev)
 {
-    return pev == nullptr || FNullEnt(OFFSET(pev));
+    return !pev || FNullEnt(OFFSET(pev));
 }
 
-inline int FNullEnt(const edict_t* pent)
+inline bool FNullEnt(const edict_t* pent)
 {
-    return pent == nullptr || !(*g_engfuncs.pfnEntOffsetOfPEntity) (pent);
+    return !pent || !(*g_engfuncs.pfnEntOffsetOfPEntity) (pent);
 }
 
 inline bool FStringNull(const int iString)
@@ -2227,16 +2196,16 @@ extern Vector GetEntityOrigin(entvars_t* pevBModel);
 #define PUSH_BLOCK_ONLY_Y    2
 
 #define VEC_HULL_MIN         Vector(-16.0f, -16.0f, -36.0f)
-#define VEC_HULL_MAX         Vector( 16.0f,  16.0f,  36.0f)
-#define VEC_HUMAN_HULL_MIN   Vector( -16.0f, -16.0f, 0.0f )
-#define VEC_HUMAN_HULL_MAX   Vector( 16.0f, 16.0f, 72.0f )
-#define VEC_HUMAN_HULL_DUCK  Vector( 16.0f, 16.0f, 36.0f )
+#define VEC_HULL_MAX         Vector(16.0f, 16.0f, 36.0f)
+#define VEC_HUMAN_HULL_MIN   Vector(-16.0f, -16.0f, 0.0f)
+#define VEC_HUMAN_HULL_MAX   Vector(16.0f, 16.0f, 72.0f)
+#define VEC_HUMAN_HULL_DUCK  Vector(16.0f, 16.0f, 36.0f)
 
-#define VEC_VIEW             Vector( 0.0f, 0.0f, 2.0f8 )
+#define VEC_VIEW             Vector(0.0f, 0.0f, 2.0f)
 
-#define VEC_DUCK_HULL_MIN    Vector(-16.0f, -16.0f, -18.0f )
-#define VEC_DUCK_HULL_MAX    Vector( 16.0f,  16.0f,  18.0f )
-#define VEC_DUCK_VIEW        Vector( 0.0f, 0.0f, 12.0f )
+#define VEC_DUCK_HULL_MIN    Vector(-16.0f, -16.0f, -18.0f)
+#define VEC_DUCK_HULL_MAX    Vector(16.0f, 16.0f, 18.0f)
+#define VEC_DUCK_VIEW        Vector(0.0f, 0.0f, 12.0f)
 
 #define SVC_TEMPENTITY      23
 #define SVC_INTERMISSION    30
@@ -2278,15 +2247,15 @@ extern Vector GetEntityOrigin(entvars_t* pevBModel);
    // EMIT_SOUND_DYN with pitch != 100 should be used sparingly, as it's not quite as
    // fast as EMIT_SOUND (the pitchshift mixer is not native coded).
 
-void EMIT_SOUND_DYN(edict_t* entity, int channel, const char* sample, float volume, float attenuation, int flags, int pitch);
+void EMIT_SOUND_DYN(edict_t* entity, const int channel, const char* sample, const float volume, const float attenuation, const int flags, const int pitch);
 
 
-inline void EMIT_SOUND(edict_t* entity, int channel, const char* sample, float volume, float attenuation)
+inline void EMIT_SOUND(edict_t* entity, const int channel, const char* sample, const float volume, const float attenuation)
 {
     EMIT_SOUND_DYN(entity, channel, sample, volume, attenuation, 0, PITCH_NORM);
 }
 
-inline void STOP_SOUND(edict_t* entity, int channel, const char* sample)
+inline void STOP_SOUND(edict_t* entity, const int channel, const char* sample)
 {
     EMIT_SOUND_DYN(entity, channel, sample, 0, 0, SND_STOP, PITCH_NORM);
 }
@@ -2334,7 +2303,7 @@ inline void SET_LOCALINFO(char* key, char* value)
     SET_SERVER_KEYVALUE(GET_INFOKEYBUFFER(nullptr), key, value);
 }
 
-short FixedSigned16(const float value, const float scale);
+int16_t FixedSigned16(const float value, const float scale);
 uint16_t FixedUnsigned16(const float value, const float scale);
 
 #include "stdarg.h"
@@ -2349,7 +2318,7 @@ static inline void MakeVectors(const Vector& in)
 
 namespace SDK_Utils
 {
-    inline const char* GetStringFromOffset(int offset)
+    inline const char* GetStringFromOffset(const int offset)
     {
         return static_cast<const char*>(g_pGlobals->pStringBase + offset);
     }
@@ -2424,10 +2393,8 @@ class ConVar
 {
 public:
     cvar_t* m_eptr;
-
 public:
-    ConVar(const char* name, const char* initval, VarType type = VARTYPE_NORMAL);
-
+    ConVar(const char* name, const char* initval, const VarType type = VARTYPE_NORMAL);
     inline bool GetBool(void)
     {
         return m_eptr->value > 0.0f;
@@ -2458,21 +2425,21 @@ public:
         return m_eptr->name;
     }
 
-    inline void SetFloat(float val)
+    inline void SetFloat(const float val)
     {
-        if (m_eptr != nullptr)
+        if (m_eptr)
             g_engfuncs.pfnCVarSetFloat(m_eptr->name, val);
     }
 
-    inline void SetInt(int val)
+    inline void SetInt(const int val)
     {
-        if (m_eptr != nullptr)
+        if (m_eptr)
             g_engfuncs.pfnCVarSetFloat(m_eptr->name, static_cast<float>(val));
     }
 
     inline void SetString(const char* val)
     {
-        if (m_eptr != nullptr)
+        if (m_eptr)
             g_engfuncs.pfnCVarSetString(m_eptr->name, val);
     }
 };
@@ -2481,10 +2448,8 @@ class Entity
 {
 public:
     edict_t* m_ent;
-
     inline Entity(void) : m_ent(nullptr) {}
     inline Entity(edict_t* ent) : m_ent(ent) {}
-
 public:
     Entity* operator -> (void)
     {
@@ -2531,7 +2496,7 @@ public:
 
     inline bool IsValid(void) const
     {
-        if (m_ent == nullptr || g_engfuncs.pfnEntOffsetOfPEntity(m_ent) == 0 || m_ent->free || m_ent->v.flags & FL_KILLME)
+        if (!m_ent || g_engfuncs.pfnEntOffsetOfPEntity(m_ent) == 0 || m_ent->free || m_ent->v.flags & FL_KILLME)
             return false;
 
         return true;
@@ -2632,7 +2597,7 @@ public:
         return m_ent->v.maxspeed;
     }
 
-    inline void SetMaximumSpeed(float maxSpeed) const
+    inline void SetMaximumSpeed(const float maxSpeed) const
     {
         m_ent->v.maxspeed = maxSpeed;
     }
@@ -2652,7 +2617,7 @@ public:
         return m_ent->v.health;
     }
 
-    inline void SetHealth(float health) const
+    inline void SetHealth(const float health) const
     {
         m_ent->v.health = health;
     }
@@ -2679,7 +2644,7 @@ public:
 
     inline bool IsInWater(void) const
     {
-        return m_ent->v.waterlevel >= 2;
+        return m_ent->v.waterlevel > 1;
     }
 
     inline Vector GetCenter(void) const
@@ -2712,7 +2677,7 @@ public:
         return m_ent->v.fov;
     }
 
-    inline void SetFOV(float fov) const
+    inline void SetFOV(const float fov) const
     {
         m_ent->v.fov = fov;
     }
@@ -2729,7 +2694,6 @@ private:
     int m_team;
     int m_flags;
     Vector m_safeOrigin;
-
 public:
     Client(void)
     {
@@ -2744,7 +2708,6 @@ public:
         m_team = CLIENT_UNASSIGNED;
         m_ent = ent;
     }
-
 public:
     Entity* operator -> (void)
     {
@@ -2756,7 +2719,6 @@ public:
         m_ent = other;
         return *this;
     }
-
 
     inline Client& operator = (const Client& other)
     {
@@ -2789,15 +2751,10 @@ public:
     {
         return m_ent != other.m_ent;
     }
-
 public:
-    inline float GetShootingConeDeviation(const Vector& pos) const;
-
     inline bool IsInViewCone(const Vector& pos) const;
-
     inline bool IsVisible(const Vector& pos) const;
-
-    void Print(PrintType printType, const char* format, ...) const
+    inline void Print(const PrintType printType, const char* format, ...) const
     {
         if (IsBot())
             return;
@@ -2814,29 +2771,29 @@ public:
         switch (printType)
         {
         case PRINT_CENTER:
+        {
             enginePrintType = 1;
             break;
-
+        }
         case PRINT_CHAT:
+        {
             enginePrintType = 2;
             break;
-
+        }
         case PRINT_CONSOLE:
+        {
             enginePrintType = 0;
             break;
         }
+        }
 
         cstrcat(buffer, "\n");
-
-        // print to client
         g_engfuncs.pfnClientPrintf(m_ent, static_cast<PRINT_TYPE>(enginePrintType), buffer);
     }
 
-    inline bool HasFlag(int clientFlags);
-
+    inline bool HasFlag(const int clientFlags);
     virtual Vector GetOrigin(void) const;
     virtual bool IsAlive(void) const;
-
     void Maintain(const Entity& ent);
 };
 
@@ -2850,7 +2807,6 @@ enum NetMsg
     NETMSG_CURWEAPON = 4,
     NETMSG_AMMOX = 5,
     NETMSG_AMMOPICK = 6,
-    NETMSG_DAMAGE = 7,
     NETMSG_MONEY = 8,
     NETMSG_STATUSICON = 9,
     NETMSG_DEATH = 10,
@@ -2868,14 +2824,8 @@ enum NetMsg
 class Engine : public Singleton <Engine>
 {
     friend class Client;
-
 private:
     Client m_clients[32];
-
-private:
-    uint32_t m_rnd[2];
-    double m_divider;
-
 private:
     enum GameVars
     {
@@ -2887,193 +2837,43 @@ private:
         GVAR_FOOTSTEPS,
         GVAR_GRAVITY,
         GVAR_DEVELOPER,
-
         GVAR_NUM
     };
-
 private:
-    const static int MAX_BOTVARS = 100;
-
     struct VarPair
     {
         cvar_t reg;
         class ConVar* self;
-    } m_regVars[MAX_BOTVARS];
-
-    int m_regCount;
+    };
+    MiniArray <VarPair> m_regVars;
     cvar_t* m_gameVars[GVAR_NUM];
-
 public:
     Engine* operator -> (void)
     {
         return this;
     }
-
 public:
-    // pushes global convar to list that will be registered by engine
-    void RegisterVariable(const char* variable, const char* value, VarType varType, ConVar* self);
-
-    // register previously pushed convars to the engine registration
+    void RegisterVariable(const char* variable, const char* value, const VarType varType, ConVar* self);
     void PushRegisteredConVarsToEngine(void);
-
-    // get the pointers of game cvars
     void GetGameConVarsPointers(void);
-
-    const Vector& GetGlobalVector(GlobalVector id);
-
-    void SetGlobalVector(GlobalVector id, const Vector& newVector);
-
+    const Vector& GetGlobalVector(const GlobalVector id);
+    void SetGlobalVector(const GlobalVector id, const Vector& newVector);
     void BuildGlobalVectors(const Vector& on);
-
     bool IsFriendlyFireOn(void);
-
     bool IsFootstepsOn(void);
-
     float GetC4TimerTime(void);
-
     float GetBuyTime(void);
-
     float GetRoundTime(void);
-
     float GetFreezeTime(void);
-
     int GetGravity(void);
-
     int GetDeveloperLevel(void);
-
     void PrintServer(const char* format, ...);
-
     float GetTime(void);
-
     int GetMaxClients(void);
-
-    const Entity& GetEntityByIndex(int index);
-
-    const Client& GetClientByIndex(int index);
-
+    const Entity& GetEntityByIndex(const int index);
+    const Client& GetClientByIndex(const int index);
     void MaintainClients(void);
-
     void DrawLine(edict_t* client, const Vector& start, const Vector& end, const Color& color, const int width, const int noise, const int speed, const int life, const int lineType = LINE_SIMPLE);
 };
 
 #define engine Engine::GetReference()
-
-class Tracer
-{
-private:
-    Vector m_hitEndPos;
-    Vector m_planeNormal;
-
-    float m_fraction;
-    Entity m_hit;
-
-    Vector m_start;
-    Vector m_end;
-
-    bool m_monsters;
-    bool m_glass;
-    bool m_solid;
-    bool m_allSolid;
-
-    Entity m_ignore;
-    int m_hullNumber;
-
-public:
-    Tracer(const Vector& start, const Vector& end, int ignoreFlags, const Entity& ignore, int hull = -1, bool run = false)
-    {
-        // @DEPRECATEME@
-        SetParameters(start, end, ignoreFlags, ignore, hull);
-
-        if (run)
-            Fire();
-    }
-
-    Tracer(void) {}
-
-    inline float Fire(void)
-    {
-        TraceResult tr{};
-
-        if (m_hullNumber != -1)
-            g_engfuncs.pfnTraceHull(m_start, m_end, m_monsters ? 1 : 0, m_hullNumber, m_ignore ? m_ignore : nullptr, &tr);
-        else
-            g_engfuncs.pfnTraceLine(m_start, m_end, m_monsters ? 1 : 0 || m_glass ? 0x100 : 0, m_ignore ? m_ignore : nullptr, &tr);
-
-        m_fraction = tr.flFraction;
-        m_planeNormal = tr.vecPlaneNormal;
-        m_end = tr.vecEndPos;
-        m_hit = tr.pHit;
-        m_solid = tr.fStartSolid > 0;
-        m_allSolid = tr.fAllSolid > 0;
-
-        return m_fraction;
-    }
-
-    inline Tracer* SetParameters(const Vector& start, const Vector& end, int ignoreFlags, const Entity& ignore, int hull = -1)
-    {
-        m_start = start;
-        m_end = end;
-        m_ignore = ignore;
-        m_hullNumber = hull;
-        m_glass = false;
-        m_monsters = false;
-        m_solid = false;
-        m_allSolid = false;
-
-        if (ignoreFlags & NO_GLASS)
-            m_glass = true;
-
-        if (ignoreFlags & NO_MONSTERS)
-            m_monsters = true;
-
-        return this;
-    }
-
-    inline bool IsStartSolid(void)
-    {
-        return m_solid;
-    }
-
-    inline bool IsAllSolid(void)
-    {
-        return m_allSolid;
-    }
-
-    inline const Vector& GetHitEndPos(void)
-    {
-        return m_hitEndPos;
-    }
-
-    inline const Vector& GetPlaneNormal(void)
-    {
-        return m_planeNormal;
-    }
-
-    inline const Entity& GetHit(void)
-    {
-        return m_hit;
-    }
-
-    inline bool HasHitEntity(void)
-    {
-        return m_hit.IsValid();
-    }
-
-    inline bool CheckHitClassname(const String& other)
-    {
-        if (m_hit.GetClassname().Find(other) != -1)
-            return true;
-
-        return false;
-    }
-
-    inline String GetClassname(void)
-    {
-        return m_hit.GetClassname();
-    }
-
-    inline float GetFraction(void)
-    {
-        return m_fraction;
-    }
-};
