@@ -316,7 +316,7 @@ void Waypoint::AddPath(const int addIndex, const int pathIndex, const int type)
     {
         if (path->index[i] == -1)
         {
-            path->index[i] = static_cast<int16>(pathIndex);
+            path->index[i] = static_cast<int16_t>(pathIndex);
 
             if (type == 1)
             {
@@ -350,7 +350,7 @@ void Waypoint::AddPath(const int addIndex, const int pathIndex, const int type)
 
     if (slotID != -1)
     {
-        path->index[slotID] = static_cast<int16>(pathIndex);
+        path->index[slotID] = static_cast<int16_t>(pathIndex);
 
         if (type == 1)
         {

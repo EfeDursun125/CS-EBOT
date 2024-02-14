@@ -49,32 +49,15 @@ int Bot::FindGoal(void)
 			return m_zhCampPointIndex;
 		else
 		{
-			if (g_DelayTimer < engine->GetTime())
+			if (!g_waypoint->m_zmHmPoints.IsEmpty())
 			{
-				float dist, maxDist = 999999999999.0f;
-				int16_t i, index = -1, temp;
-
-				if (m_numFriendsLeft)
+				if (g_DelayTimer < engine->GetTime())
 				{
-					for (i = 0; i < g_waypoint->m_zmHmPoints.Size(); i++)
+					float dist, maxDist = 999999999999.0f;
+					int16_t i, index = -1, temp;
+
+					if (m_numFriendsLeft)
 					{
-						temp = g_waypoint->m_zmHmPoints.Get(i);
-						dist = (pev->origin - g_waypoint->m_paths[temp].origin).GetLengthSquared();
-						if (dist > maxDist)
-							continue;
-
-						// bots won't left you alone like other persons in your life...
-						if (!IsFriendReachableToPosition(g_waypoint->m_paths[temp].origin))
-							continue;
-
-						index = temp;
-						maxDist = dist;
-					}
-
-					if (!IsValidWaypoint(index))
-					{
-						maxDist = 999999999999.0f;
-						int16_t i, index = -1, temp;
 						for (i = 0; i < g_waypoint->m_zmHmPoints.Size(); i++)
 						{
 							temp = g_waypoint->m_zmHmPoints.Get(i);
@@ -82,42 +65,62 @@ int Bot::FindGoal(void)
 							if (dist > maxDist)
 								continue;
 
-							// no friends nearby? go to safe camp spot
-							if (IsEnemyReachableToPosition(g_waypoint->m_paths[temp].origin))
+							// bots won't left you alone like other persons in your life...
+							if (!IsFriendReachableToPosition(g_waypoint->m_paths[temp].origin))
+								continue;
+
+							index = temp;
+							maxDist = dist;
+						}
+
+						if (!IsValidWaypoint(index))
+						{
+							maxDist = 999999999999.0f;
+							int16_t i, index = -1, temp;
+							for (i = 0; i < g_waypoint->m_zmHmPoints.Size(); i++)
+							{
+								temp = g_waypoint->m_zmHmPoints.Get(i);
+								dist = (pev->origin - g_waypoint->m_paths[temp].origin).GetLengthSquared();
+								if (dist > maxDist)
+									continue;
+
+								// no friends nearby? go to safe camp spot
+								if (IsEnemyReachableToPosition(g_waypoint->m_paths[temp].origin))
+									continue;
+
+								index = temp;
+								maxDist = dist;
+							}
+						}
+					}
+
+					// if we are alone just stay to nearest
+					// theres nothing we can do...
+					if (!IsValidWaypoint(index))
+					{
+						maxDist = 999999999999.0f;
+						for (i = 0; i < g_waypoint->m_zmHmPoints.Size(); i++)
+						{
+							temp = g_waypoint->m_zmHmPoints.Get(i);
+							dist = (pev->origin - g_waypoint->m_paths[temp].origin).GetLengthSquared();
+
+							// at least get nearest camp spot
+							if (dist > maxDist)
 								continue;
 
 							index = temp;
 							maxDist = dist;
 						}
 					}
+
+					if (IsValidWaypoint(index))
+						return index;
+					else
+						return g_waypoint->m_zmHmPoints.Random();
 				}
-
-				// if we are alone just stay to nearest
-				// theres nothing we can do...
-				if (!IsValidWaypoint(index))
-				{
-					maxDist = 999999999999.0f;
-					for (i = 0; i < g_waypoint->m_zmHmPoints.Size(); i++)
-					{
-						temp = g_waypoint->m_zmHmPoints.Get(i);
-						dist = (pev->origin - g_waypoint->m_paths[temp].origin).GetLengthSquared();
-
-						// at least get nearest camp spot
-						if (dist > maxDist)
-							continue;
-
-						index = temp;
-						maxDist = dist;
-					}
-				}
-
-				if (IsValidWaypoint(index))
-					return index;
 				else
 					return g_waypoint->m_zmHmPoints.Random();
 			}
-			else
-				return g_waypoint->m_zmHmPoints.Random();
 		}
 
 		return crandomint(0, g_numWaypoints - 1);
@@ -2941,12 +2944,11 @@ bool Bot::IsDeadlyDrop(const Vector targetOriginPos)
 
 void Bot::FacePosition(void)
 {
-	// no spinbot please...
-	if (m_lastAimTime < engine->GetTime() - 1.25f)
-		m_lastAimTime = engine->GetTime();
+	float delta = engine->GetTime() - m_aimInterval;
+	m_aimInterval += delta;
 
-	m_aimInterval = engine->GetTime() - m_lastAimTime;
-	m_lastAimTime = engine->GetTime();
+	if (delta > 0.05f)
+		delta = 0.05f;
 
 	// adjust all body and view angles to face an absolute vector
 	Vector direction = (m_lookAt - EyePosition()).ToAngles() + pev->punchangle;
@@ -2954,7 +2956,7 @@ void Bot::FacePosition(void)
 
 	const float angleDiffPitch = AngleNormalize(direction.x - pev->v_angle.x);
 	const float angleDiffYaw = AngleNormalize(direction.y - pev->v_angle.y);
-	const float lockn = 0.125f / m_aimInterval;
+	const float lockn = 0.125f / delta;
 
 	if (angleDiffYaw < lockn && angleDiffYaw > -lockn)
 	{
@@ -2965,8 +2967,8 @@ void Bot::FacePosition(void)
 	{
 		const float fskill = static_cast<float>(m_skill);
 		const float accelerate = fskill * 40.0f;
-		m_lookYawVel += m_aimInterval * cclampf((fskill * 4.0f * angleDiffYaw) - (fskill * 0.4f * m_lookYawVel), -accelerate, accelerate);
-		pev->v_angle.y += m_aimInterval * m_lookYawVel;
+		m_lookYawVel += delta * cclampf((fskill * 4.0f * angleDiffYaw) - (fskill * 0.4f * m_lookYawVel), -accelerate, accelerate);
+		pev->v_angle.y += delta * m_lookYawVel;
 	}
 
 	if (angleDiffPitch < lockn && angleDiffPitch > -lockn)
@@ -2978,8 +2980,8 @@ void Bot::FacePosition(void)
 	{
 		const float fskill = static_cast<float>(m_skill);
 		const float accelerate = fskill * 40.0f;
-		m_lookPitchVel += m_aimInterval * cclampf(2.0f * fskill * 4.0f * angleDiffPitch - (fskill * 0.4f * m_lookPitchVel), -accelerate, accelerate);
-		pev->v_angle.x += m_aimInterval * m_lookPitchVel;
+		m_lookPitchVel += delta * cclampf(2.0f * fskill * 4.0f * angleDiffPitch - (fskill * 0.4f * m_lookPitchVel), -accelerate, accelerate);
+		pev->v_angle.x += delta * m_lookPitchVel;
 	}
 
 	if (pev->v_angle.x < -89.0f)
