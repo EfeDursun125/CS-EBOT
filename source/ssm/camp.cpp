@@ -120,6 +120,12 @@ void Bot::CampUpdate(void)
 				if (crouch && IsVisible(m_enemyOrigin, GetEntity()))
 					m_duckTime = time + 1.0f;
 			}
+			else
+			{
+				const auto flag = g_waypoint->GetPath(m_campIndex)->flags;
+				if (!(flag & WAYPOINT_ZMHMCAMP) && !(flag & WAYPOINT_HMCAMPMESH))
+					m_campIndex = FindGoal();
+			}
 
 			ResetStuck();
 		}
@@ -134,7 +140,12 @@ void Bot::CampUpdate(void)
 				return;
 		}
 		else if (m_isSlowThink)
-			CheckRadioCommands();
+		{
+			if (!(g_waypoint->GetPath(m_campIndex)->flags & WAYPOINT_CAMP))
+				FinishCurrentProcess();
+			else
+				CheckRadioCommands();
+		}
 	}
 
 	if (m_currentWaypointIndex == m_campIndex)
