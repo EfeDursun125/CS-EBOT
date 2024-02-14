@@ -51,13 +51,13 @@ void NetworkMsg::Execute(void* p)
         return; // no message or not for bot, return
 
     // some needed variables
-    static uint8_t r, g, b;
-    static uint8_t enabled;
+    static uint8_t r{}, g{}, b{};
+    static uint8_t enabled{};
 
-    static int index, numPlayers;
-    static int state, id;
+    static int index{}, numPlayers{};
+    static int state{}, id{};
 
-    static WeaponProperty weaponProp;
+    static WeaponProperty weaponProp{};
 
     // now starts of netmessage execution
     switch (m_message)

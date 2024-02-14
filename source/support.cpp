@@ -491,7 +491,7 @@ char* GetField(const char* string, const int fieldId, const bool endLine)
 
 char* GetModName(void)
 {
-	static char modName[256];
+	static char modName[256]{};
 
 	// ask the engine for the MOD directory path
 	// get the length of the returned string
@@ -1221,7 +1221,7 @@ void ServerCommand(const char* format, ...)
 
 char* GetEntityName(edict_t* entity)
 {
-	static char entityName[256];
+	static char entityName[256]{};
 	if (FNullEnt(entity))
 		cstrcpy(entityName, "nullptr");
 	else if (IsValidPlayer(entity))
@@ -1235,7 +1235,7 @@ char* GetEntityName(edict_t* entity)
 // this function gets the map name and store it in the map_name global string variable.
 char* GetMapName(void)
 {
-	static char mapName[256];
+	static char mapName[256]{};
 	cstrncpy(mapName, STRING(g_pGlobals->mapname), sizeof(mapName));
 	return &mapName[0]; // and return a pointer to it
 }
@@ -1461,8 +1461,8 @@ int GetWeaponReturn(const bool needString, const char* weaponAlias, const int we
 	// structure definition for weapon tab
 	struct WeaponTab_t
 	{
-		int weaponID; // weapon id
-		const char* alias; // weapon alias
+		int weaponID{}; // weapon id
+		const char* alias{}; // weapon alias
 	};
 
 	// weapon enumeration

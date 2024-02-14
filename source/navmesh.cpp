@@ -257,8 +257,8 @@ void ENavMesh::Analyze(void)
     if (g_numNavAreas <= 0)
         return;
 
-    static bool* expanded;
-    static float magicTimer;
+    static bool* expanded{};
+    static float magicTimer{};
     if (!FNullEnt(g_hostEntity))
     {
         char message[] =

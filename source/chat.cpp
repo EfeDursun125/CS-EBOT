@@ -31,7 +31,7 @@
 ConVar ebot_chat("ebot_chat", "1");
 ConVar ebot_chat_percent("ebot_chat_percent", "40");
 
-static float getChatTimer;
+static float getChatTimer{};
 
 // this function strips 'clan' tags specified below in given string buffer
 void StripTags(char* buffer)
@@ -111,7 +111,7 @@ void StripTags(char* buffer)
 // this function humanize player name (i.e. trim clan and switch to lower case (sometimes))
 char* HumanizeName(char* name)
 {
-    static char outputName[32]; // create return name buffer
+    static char outputName[32]{}; // create return name buffer
     cstrncpy(outputName, name, sizeof(outputName)); // copy name to new buffer
 
     // drop tag marks, 75 percent of time

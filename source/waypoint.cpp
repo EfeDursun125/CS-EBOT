@@ -137,8 +137,8 @@ void CreateWaypoint(Vector Next, float range)
 
 void AnalyzeThread(void)
 {
-    static bool* expanded;
-    static float magicTimer;
+    static bool* expanded{};
+    static float magicTimer{};
     if (!FNullEnt(g_hostEntity))
     {
         char message[] =
@@ -1551,13 +1551,13 @@ bool Waypoint::Load(void)
 
             struct PathOLD2
             {
-                Vector origin;
-                int32 flags;
-                int16 radius;
-                int16 mesh;
-                int16 index[8];
-                uint16 connectionFlags[8];
-                float gravity;
+                Vector origin{};
+                int32 flags{};
+                int16 radius{};
+                int16 mesh{};
+                int16 index[8]{};
+                uint16 connectionFlags[8]{};
+                float gravity{};
             };
 
             PathOLD2 paths[g_numWaypoints];
@@ -1589,22 +1589,22 @@ bool Waypoint::Load(void)
 
             struct PathOLD
             {
-                int32 pathNumber;
-                int32 flags;
-                Vector origin;
-                float radius;
+                int32 pathNumber{};
+                int32 flags{};
+                Vector origin{};
+                float radius{};
 
-                float campStartX;
-                float campStartY;
-                float campEndX;
-                float campEndY;
+                float campStartX{};
+                float campStartY{};
+                float campEndX{};
+                float campEndY{};
 
-                int16 index[8];
-                uint16 connectionFlags[8];
-                Vector connectionVelocity[8];
-                int32 distances[8];
+                int16 index[8]{};
+                uint16 connectionFlags[8]{};
+                Vector connectionVelocity[8]{};
+                int32 distances[8]{};
 
-                struct Vis_t { uint16 stand, crouch; } vis;
+                struct Vis_t { uint16 stand{}, crouch{}; } vis;
             };
 
             PathOLD paths[g_numWaypoints];
@@ -2310,7 +2310,7 @@ void Waypoint::ShowWaypointMsg(void)
         }
 
         // draw the radius circle
-        const Vector origin = (path->flags & WAYPOINT_CROUCH) ? path->origin : path->origin - Vector(0, 0, 18.0f);
+        const Vector origin = (path->flags & WAYPOINT_CROUCH) ? path->origin : path->origin - Vector(00.0f, 00.0f, 18.0f);
 
         // if radius is nonzero, draw a square
         if (path->radius > 4)
@@ -2318,18 +2318,18 @@ void Waypoint::ShowWaypointMsg(void)
             const float root = static_cast<float>(path->radius);
             const Color& def = Color(0, 0, 255, 255);
 
-            engine->DrawLine(g_hostEntity, origin + Vector(root, root, 0), origin + Vector(-root, root, 0), def, 5, 0, 0, 10);
-            engine->DrawLine(g_hostEntity, origin + Vector(root, root, 0), origin + Vector(root, -root, 0), def, 5, 0, 0, 10);
-            engine->DrawLine(g_hostEntity, origin + Vector(-root, -root, 0), origin + Vector(root, -root, 0), def, 5, 0, 0, 10);
-            engine->DrawLine(g_hostEntity, origin + Vector(-root, -root, 0), origin + Vector(-root, root, 0), def, 5, 0, 0, 10);
+            engine->DrawLine(g_hostEntity, origin + Vector(root, root, 0.0f), origin + Vector(-root, root, 0.0f), def, 5, 0, 0, 10);
+            engine->DrawLine(g_hostEntity, origin + Vector(root, root, 0.0f), origin + Vector(root, -root, 0.0f), def, 5, 0, 0, 10);
+            engine->DrawLine(g_hostEntity, origin + Vector(-root, -root, 0.0f), origin + Vector(root, -root, 0.0f), def, 5, 0, 0, 10);
+            engine->DrawLine(g_hostEntity, origin + Vector(-root, -root, 0.0f), origin + Vector(-root, root, 0.0f), def, 5, 0, 0, 10);
         }
         else
         {
             const float root = 5.0f;
             const Color& def = Color(0, 0, 255, 255);
 
-            engine->DrawLine(g_hostEntity, origin + Vector(root, -root, 0), origin + Vector(-root, root, 0), def, 5, 0, 0, 10);
-            engine->DrawLine(g_hostEntity, origin + Vector(-root, -root, 0), origin + Vector(root, root, 0), def, 5, 0, 0, 10);
+            engine->DrawLine(g_hostEntity, origin + Vector(root, -root, 0.0f), origin + Vector(-root, root, 0.0f), def, 5, 0, 0, 10);
+            engine->DrawLine(g_hostEntity, origin + Vector(-root, -root, 0.0f), origin + Vector(root, root, 0.0f), def, 5, 0, 0, 10);
         }
 
         // display some information

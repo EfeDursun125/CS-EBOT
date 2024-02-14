@@ -1073,11 +1073,11 @@ public:
 private:
 	struct HeapNode
 	{
-		int16_t id;
-		float priority;
-	} *m_heap;
-	int16_t m_size;
-	int16_t m_heapSize;
+		int16_t id{};
+		float priority{};
+	} *m_heap{};
+	int16_t m_size{};
+	int16_t m_heapSize{};
 };
 
 PriorityQueue::PriorityQueue(void)
@@ -1118,9 +1118,9 @@ void PriorityQueue::InsertLowest(const int16_t value, const float priority)
 	m_heap[m_size].priority = priority;
 	m_heap[m_size].id = value;
 
-	static int16_t child;
-	static int16_t parent;
-	static HeapNode temp;
+	static int16_t child{};
+	static int16_t parent{};
+	static HeapNode temp{};
 
 	child = ++m_size - 1;
 	while (child)
@@ -1158,9 +1158,9 @@ void PriorityQueue::InsertHighest(const int16_t value, const float priority)
 	m_heap[m_size].priority = priority;
 	m_heap[m_size].id = value;
 
-	static int16_t child;
-	static int16_t parent;
-	static HeapNode temp;
+	static int16_t child{};
+	static int16_t parent{};
+	static HeapNode temp{};
 
 	child = ++m_size - 1;
 	while (child)
@@ -1182,16 +1182,16 @@ int16_t PriorityQueue::RemoveLowest(void)
 	if (!m_heap)
 		return -1;
 
-	static int16_t retID;
+	static int16_t retID{};
 	retID = m_heap[0].id;
 
 	m_size--;
 	m_heap[0] = m_heap[m_size];
 
-	static int16_t parent;
-	static int16_t child;
-	static int16_t rightChild;
-	static HeapNode ref;
+	static int16_t parent{};
+	static int16_t child{};
+	static int16_t rightChild{};
+	static HeapNode ref{};
 
 	parent = 0;
 	child = (2 * parent) + 1;
@@ -1223,16 +1223,16 @@ int16_t PriorityQueue::RemoveHighest(void)
 	if (!m_heap)
 		return -1;
 
-	static int16_t retID;
+	static int16_t retID{};
 	retID = m_heap[0].id;
 
 	m_size--;
 	m_heap[0] = m_heap[m_size];
 
-	static int16_t parent;
-	static int16_t child;
-	static int16_t rightChild;
-	static HeapNode ref;
+	static int16_t parent{};
+	static int16_t child{};
+	static int16_t rightChild{};
+	static HeapNode ref{};
 
 	parent = 0;
 	child = (2 * parent) + 1;
@@ -1258,31 +1258,23 @@ int16_t PriorityQueue::RemoveHighest(void)
 	return retID;
 }
 
-static Vector startV;
-static Vector endV;
 inline const float HF_Distance(const int16_t& start, const int16_t& goal)
 {
-	startV = g_waypoint->m_paths[start].origin;
-	endV = g_waypoint->m_paths[goal].origin;
-	return (startV - endV).GetLength();
+	return (g_waypoint->m_paths[start].origin - g_waypoint->m_paths[goal].origin).GetLength();
 }
 
 inline const float HF_Distance2D(const int16_t& start, const int16_t& goal)
 {
-	startV = g_waypoint->m_paths[start].origin;
-	endV = g_waypoint->m_paths[goal].origin;
-	return (startV - endV).GetLength2D();
+	return (g_waypoint->m_paths[start].origin - g_waypoint->m_paths[goal].origin).GetLength2D();
 }
 
 inline const float HF_DistanceSquared(const int16_t& start, const int16_t& goal)
 {
-	startV = g_waypoint->m_paths[start].origin;
-	endV = g_waypoint->m_paths[goal].origin;
-	return (startV - endV).GetLengthSquared();
+	return (g_waypoint->m_paths[start].origin - g_waypoint->m_paths[goal].origin).GetLengthSquared();
 }
 
-static Path pathCache;
-static int8_t countCache;
+static Path pathCache{};
+static int8_t countCache{};
 inline const float GF_CostHuman(const int16_t& index, const int16_t& parent, const uint32_t& parentFlags, const int8_t& team, const float& gravity, const bool& isZombie)
 {
 	if (!parentFlags)
@@ -1318,8 +1310,8 @@ inline const float GF_CostHuman(const int16_t& index, const int16_t& parent, con
 		}
 	}
 
-	static float distance;
-	static float totalDistance;
+	static float distance{};
+	static float totalDistance{};
 	totalDistance = 0.0f;
 	countCache = 0;
 	for (const auto& client : g_clients)
@@ -1626,10 +1618,10 @@ void Bot::FindPath(int& srcIndex, int& destIndex, edict_t* enemy)
 
 	struct AStar
 	{
-		float g;
-		float f;
-		int16_t parent;
-		bool is_closed;
+		float g{};
+		float f{};
+		int16_t parent{};
+		bool is_closed{};
 	} waypoints[g_numWaypoints];
 
 	for (i = 0; i < g_numWaypoints; i++)
@@ -1807,10 +1799,10 @@ void Bot::FindShortestPath(int& srcIndex, int& destIndex)
 
 	struct AStar
 	{
-		float g;
-		float f;
-		int16_t parent;
-		bool is_closed;
+		float g{};
+		float f{};
+		int16_t parent{};
+		bool is_closed{};
 	} waypoints[g_numWaypoints];
 
 	for (i = 0; i < g_numWaypoints; i++)
@@ -1919,10 +1911,10 @@ void Bot::FindEscapePath(int& srcIndex, const Vector& dangerOrigin)
 
 	struct AStar
 	{
-		float g;
-		float f;
-		int16_t parent;
-		bool is_closed;
+		float g{};
+		float f{};
+		int16_t parent{};
+		bool is_closed{};
 	} waypoints[g_numWaypoints];
 
 	for (i = 0; i < g_numWaypoints; i++)

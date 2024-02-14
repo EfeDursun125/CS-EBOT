@@ -795,19 +795,19 @@ void Bot::PlayChatterMessage(const ChatterMessage message)
 
 	struct WavHeader
 	{
-		char chunk_id[4];
-		int chunk_size;
-		char format[4];
-		char subchunk1_id[4];
-		int subchunk1_size;
-		short int audio_format;
-		short int num_channels;
-		int sample_rate;
-		int byte_rate;
-		short int block_align;
-		short int bits_per_sample;
-		char subchunk2_id[4];
-		int subchunk2_size;
+		char chunk_id[4]{};
+		int chunk_size{};
+		char format[4]{};
+		char subchunk1_id[4]{};
+		int subchunk1_size{};
+		short int audio_format{};
+		short int num_channels{};
+		int sample_rate{};
+		int byte_rate{};
+		short int block_align{};
+		short int bits_per_sample{};
+		char subchunk2_id[4]{};
+		int subchunk2_size{};
 	};
 
 	WavHeader header;
@@ -2601,8 +2601,8 @@ void Bot::DebugModeMsg(void)
 	if (specIndex != m_index)
 		return;
 
-	static int index, goal;
-	static Process processID, rememberedProcessID;
+	static int index{}, goal{};
+	static Process processID{}, rememberedProcessID{};
 
 	if (processID != m_currentProcess || rememberedProcessID != m_rememberedProcess || index != m_currentWaypointIndex || goal != m_navNode.Last() || timeDebugUpdate < engine->GetTime())
 	{

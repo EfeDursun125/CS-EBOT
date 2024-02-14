@@ -2666,7 +2666,7 @@ void SetPing(edict_t* to)
 	}
 
 	int index;
-	static int sending;
+	static int sending{};
 	for (const auto& bot : g_botManager->m_bots)
 	{
 		if (!bot)
@@ -3271,11 +3271,11 @@ DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* 
 
 	struct ModSupport
 	{
-		char name[32];
-		char linuxLib[32];
-		char winLib[32];
-		char desc[256];
-		Game modType;
+		char name[32]{};
+		char linuxLib[32]{};
+		char winLib[32]{};
+		char desc[256]{};
+		Game modType{};
 	} s_supportedMods[] =
 	{
 		{ "cstrike", "cs_i386.so", "mp.dll", "Counter-Strike v1.6", Game::CStrike },
