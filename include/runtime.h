@@ -310,9 +310,9 @@ namespace Math
     inline float AngleNormalize(float angle)
     {
         if (angle > 180.0f)
-            angle -= 360.0f * croundf(angle / 360.0f);
+            angle -= 360.0f * croundf(angle * 0.00277777777778f);
         else if (angle < -180.0f)
-            angle += 360.0f * croundf(-angle / 360.0f);
+            angle += 360.0f * croundf(-angle * 0.00277777777778f);
         return angle;
     }
 }

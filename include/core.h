@@ -666,7 +666,6 @@ private:
 	float m_msecInterval; // used for leon hartwig's method for msec calculation
 	float m_frameInterval; // bot's frame interval
 	float m_aimInterval;
-	float m_lastAimTime;
 
 	float m_zoomCheckTime; // time to check zoom again
 	float m_shieldCheckTime; // time to check shiled drawing again
