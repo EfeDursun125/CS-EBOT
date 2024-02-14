@@ -37,10 +37,12 @@ ConVar ebot_think_fps("ebot_think_fps", "30");
 float secondTimer;
 float updateTimer;
 
+Bot* bot;
+
 void ebotVersionMSG(edict_t* entity = nullptr)
 {
 	const int buildVersion[4] = { PRODUCT_VERSION_DWORD };
-	const uint16 bV16[4] = {(uint16)buildVersion[0], (uint16)buildVersion[1], (uint16)buildVersion[2], (uint16)buildVersion[3]};
+	const uint16_t bV16[4] = {static_cast<uint16_t>(buildVersion[0]), static_cast<uint16_t>(buildVersion[1]), static_cast<uint16_t>(buildVersion[2]), static_cast<uint16_t>(buildVersion[3])};
 
 	char versionData[1024];
 	sprintf(versionData,
@@ -151,7 +153,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 			// loop through all players
 			for (const auto& bot : g_botManager->m_bots)
 			{
-				if (bot != nullptr)
+				if (bot)
 					bot->m_voteMap = nominatedMap;
 			}
 
@@ -277,7 +279,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 
 			for (const auto& bot : g_botManager->m_bots)
 			{
-				if (bot != nullptr)
+				if (bot)
 					bot->pev->health = cabsf(catof(arg1));
 			}
 		}
@@ -294,7 +296,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 
 			for (const auto& bot : g_botManager->m_bots)
 			{
-				if (bot != nullptr)
+				if (bot)
 					bot->pev->gravity = gravity;
 			}
 		}
@@ -321,9 +323,162 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		// test random number generator
 		if (cstricmp(arg0, "randgen") == 0)
 		{
-			for (int i = 0; i < 500; i++)
+			int i;
+			for (i = 0; i < 500; i++)
 				ServerPrintNoTag("Result Range[0 - 100]: %d", crandomint(0, 100));
 		}
+	}
+
+	else if (cstricmp(arg0, "nav") == 0 || cstricmp(arg0, "navmesh") == 0 || cstricmp(arg0, "navigation") == 0)
+	{
+		if (IsDedicatedServer() || FNullEnt(g_hostEntity))
+			return 2;
+
+		else if (cstricmp(arg1, "addbasic") == 0)
+		{
+			g_navmesh->CreateBasic();
+			CenterPrint("Basic navmeshes was Created");
+		}
+
+		if (cstricmp(arg1, "analyze") == 0)
+		{
+			g_navmesh->CreateBasic();
+			ServerPrint("NavMesh Analyzing On");
+			ServerCommand("ebot nav on");
+			g_analyzenavmesh = true;
+		}
+		else if (cstricmp(arg1, "analyzeoff") == 0)
+		{
+			ServerPrint("NavMesh Analyzing Off");
+			ServerCommand("ebot nav off");
+			g_analyzenavmesh = false;
+		}
+		else if (cstricmp(arg1, "create") == 0)
+		{
+			const Vector aimPos = g_navmesh->GetAimingPosition();
+			if (aimPos != nullvec)
+			{
+				g_navmeshOn = true;
+				g_navmesh->CreateArea(aimPos, true);
+				ServerCommand("ebot wp mdl on");
+			}
+		}
+		else if (cstricmp(arg1, "delete") == 0)
+		{
+			g_navmeshOn = true;
+
+			const Vector aimPos = g_navmesh->GetAimingPosition();
+			g_navmesh->DeleteAreaByIndex(g_navmesh->GetNearestNavAreaID(aimPos));
+
+			ServerCommand("ebot wp mdl on");
+		}
+		else if (cstricmp(arg1, "disconnect") == 0)
+		{
+			const int16_t seleted = g_navmesh->m_selectedNavIndex;
+			if (seleted < 0 || seleted >= g_numNavAreas)
+			{
+				CenterPrint("Select target nav area first!");
+			}
+			else
+			{
+				const Vector aimPos = g_navmesh->GetAimingPosition();
+				if (aimPos != nullvec)
+				{
+					const int16_t index = g_navmesh->GetNearestNavAreaID(aimPos);
+					if (index != -1 && index != seleted)
+					{
+						g_navmeshOn = true;
+						g_navmesh->DisconnectArea(seleted, index);
+						ServerCommand("ebot wp mdl on");
+						g_navmesh->UnselectNavArea();
+					}
+				}
+			}
+		}
+		else if (cstricmp(arg1, "connect") == 0)
+		{
+			const int16_t seleted = g_navmesh->m_selectedNavIndex;
+			if (seleted < 0 || seleted >= g_numNavAreas)
+			{
+				CenterPrint("Select target nav area first!");
+			}
+			else
+			{
+				const Vector aimPos = g_navmesh->GetAimingPosition();
+				if (aimPos != nullvec)
+				{
+					const int16_t index = g_navmesh->GetNearestNavAreaID(aimPos);
+					if (index != -1 && index != seleted)
+					{
+						g_navmeshOn = true;
+						g_navmesh->ConnectArea(seleted, index);
+						ServerCommand("ebot wp mdl on");
+						g_navmesh->UnselectNavArea();
+					}
+				}
+			}
+		}
+		else if (cstricmp(arg1, "merge") == 0)
+		{
+			const int16_t selected = g_navmesh->m_selectedNavIndex;
+			if (selected < 0 || selected >= g_numNavAreas)
+			{
+				CenterPrint("Select target nav area first!");
+			}
+			else
+			{
+				const Vector aimPos = g_navmesh->GetAimingPosition();
+				if (aimPos != nullvec)
+				{
+					const int16_t index = g_navmesh->GetNearestNavAreaID(aimPos);
+					if (index != -1 && index != selected)
+					{
+						g_navmeshOn = true;
+						g_navmesh->GetNavAreaP(selected)->MergeWith(g_navmesh->GetNavArea(index));
+						ServerCommand("ebot wp mdl on");
+						g_navmesh->UnselectNavArea();
+					}
+				}
+			}
+		}
+		else if (cstricmp(arg1, "unselect") == 0)
+			g_navmesh->UnselectNavArea(true);
+		else if (cstricmp(arg1, "select") == 0)
+			g_navmesh->SelectNavArea();
+		else if (cstricmp(arg1, "on") == 0)
+		{
+			g_navmeshOn = true;
+			ServerPrint("NavMesh Editing Enabled");
+			ServerCommand("ebot wp mdl on");
+		}
+		else if (cstricmp(arg1, "noclip") == 0)
+		{
+			if (g_editNoclip)
+			{
+				g_hostEntity->v.movetype = MOVETYPE_WALK;
+				ServerPrint("Noclip Cheat Disabled");
+			}
+			else
+			{
+				g_hostEntity->v.movetype = MOVETYPE_NOCLIP;
+				ServerPrint("Noclip Cheat Enabled");
+			}
+
+			g_editNoclip ^= true; // switch on/off (XOR it!)
+		}
+		else if (cstricmp(arg1, "off") == 0)
+		{
+			g_navmeshOn = false;
+			g_editNoclip = false;
+			g_hostEntity->v.movetype = MOVETYPE_WALK;
+
+			ServerPrint("NavMesh Editing Disabled");
+			ServerCommand("ebot wp mdl off");
+		}
+		else if (cstricmp(arg1, "save") == 0)
+			g_navmesh->SaveNav();
+		else if (cstricmp(arg1, "load") == 0)
+			g_navmesh->LoadNav();
 	}
 
 	// waypoint manimupulation (really obsolete, can be edited through menu) (supported only on listen server)
@@ -339,10 +494,6 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 			ServerCommand("ebot wp on");
 			if (ebot_analyze_create_goal_waypoints.GetInt() == 1)
 				g_waypoint->CreateBasic();
-
-			// no expand
-			for (int i = 0; i < (Const_MaxWaypoints - 1); i++)
-				g_expanded[i] = false;
 
 			g_analyzewaypoints = true;
 		}
@@ -492,24 +643,10 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		// save waypoint data into file on hard disk
 		else if (cstricmp(arg1, "save") == 0)
 		{
-			if (cstrncmp(arg2, "pwf", 4) == 0)
-			{
-				g_waypoint->SaveOLD();
-				ServerPrint("Waypoints Saved As PWF");
-				CenterPrint("Waypoints are saved as pwf");
-			}
-			else if (cstrncmp(arg2, "nocheck", 8) == 0)
-			{
+			if (cstrncmp(arg2, "nocheck", 8) == 0)
 				g_waypoint->Save();
-				ServerPrint("Waypoints Saved");
-				CenterPrint("Waypoints are saved!");
-			}
 			else if (g_waypoint->NodesValid())
-			{
 				g_waypoint->Save();
-				ServerPrint("Waypoints Saved");
-				CenterPrint("Waypoints are saved!");
-			}
 		}
 
 		// load all waypoints again (overrides all changes, that wasn't saved)
@@ -558,7 +695,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 
 		// otherwise display waypoint current status
 		else
-			ServerPrint("Waypoints are %s", g_waypointOn == true ? "Enabled" : "Disabled");
+			ServerPrint("Waypoints are %s", g_waypointOn ? "Enabled" : "Disabled");
 	}
 
 	// path waypoint editing system (supported only on listen server)
@@ -657,6 +794,7 @@ void CheckEntityAction(void)
 	int i;
 	int workEntityWork = 0;
 	edict_t* entity = nullptr;
+	char action[33], team[33];
 
 	for (i = 0; i < entityNum; i++)
 	{
@@ -667,7 +805,6 @@ void CheckEntityAction(void)
 		if (FNullEnt(entity) || entity->v.effects & EF_NODRAW)
 			continue;
 
-		char action[33], team[33];
 		if (g_entityAction[i] == 1)
 			sprintf(action, "Enemy");
 		else if (g_entityAction[i] == 2)
@@ -695,14 +832,13 @@ void LoadEntityData(void)
 			continue;
 
 		entity = INDEXENT(g_entityId[i]);
-		if (FNullEnt(entity) || !IsAlive(entity))
+		if (!IsAlive(entity))
 			SetEntityActionData(i);
 	}
 
 	for (i = 0; i < engine->GetMaxClients(); i++)
 	{
 		entity = INDEXENT(i + 1);
-
 		if (FNullEnt(entity))
 		{
 			g_clients[i].flags = 0;
@@ -718,22 +854,14 @@ void LoadEntityData(void)
 		g_clients[i].flags |= CFLAG_USED;
 
 		if (IsAlive(entity))
-			g_clients[i].flags |= CFLAG_ALIVE;
-		else
-			g_clients[i].flags &= ~CFLAG_ALIVE;
-
-		if (g_clients[i].flags & CFLAG_ALIVE)
 		{
-			// get team
+			g_clients[i].flags |= CFLAG_ALIVE;
 			g_clients[i].team = GetTeam(entity);
-
-			// keep the clipping mode enabled, or it can be turned off after new round has started
-			if (g_hostEntity == entity && g_editNoclip && g_waypointOn)
-				g_hostEntity->v.movetype = MOVETYPE_NOCLIP;
-
 			g_clients[i].origin = GetEntityOrigin(entity);
 			continue;
 		}
+
+		g_clients[i].flags &= ~CFLAG_ALIVE;
 	}
 }
 
@@ -764,8 +892,9 @@ void InitConfig(void)
 
 	if (!g_botNames.IsEmpty())
 	{
-		ITERATE_ARRAY(g_botNames, j)
-			g_botNames[j].isUsed = false;
+		int16_t i;
+		for (i = 0; i < g_botNames.Size(); i++)
+			g_botNames[i].isUsed = false;
 	}
 
 	// NAME SYSTEM INITIALIZATION
@@ -783,7 +912,6 @@ void InitConfig(void)
 
 			item.name = Name;
 			item.isUsed = false;
-
 			g_botNames.Push(item);
 		}
 
@@ -852,19 +980,23 @@ void InitConfig(void)
 				switch (chatType)
 				{
 				case 0:
+				{
 					g_chatFactory[CHAT_KILL].Push(line);
 					break;
-
+				}
 				case 1:
+				{
 					g_chatFactory[CHAT_PLANTBOMB].Push(line);
 					break;
-
+				}
 				case 2:
+				{
 					g_chatFactory[CHAT_DEAD].Push(line);
 					break;
-
+				}
 				case 3:
-					if (cstrstr(line, "@KEY") != nullptr)
+				{
+					if (cstrstr(line, "@KEY"))
 					{
 						if (!replyKey.keywords.IsEmpty() && !replyKey.replies.IsEmpty())
 						{
@@ -880,24 +1012,28 @@ void InitConfig(void)
 					}
 					else if (!replyKey.keywords.IsEmpty())
 						replyKey.replies.Push(line);
-
 					break;
-
+				}
 				case 4:
+				{
 					g_chatFactory[CHAT_NOKW].Push(line);
 					break;
-
+				}
 				case 5:
+				{
 					g_chatFactory[CHAT_TEAMATTACK].Push(line);
 					break;
-
+				}
 				case 6:
+				{
 					g_chatFactory[CHAT_HELLO].Push(line);
 					break;
-
+				}
 				case 7:
+				{
 					g_chatFactory[CHAT_TEAMKILL].Push(line);
 					break;
+				}
 				}
 			}
 
@@ -961,7 +1097,6 @@ int Spawn(edict_t* ent)
 	// Spawn() function is one of the functions any entity is supposed to have in the game DLL,
 	// and any MOD is supposed to implement one for each of its entities.
 	const char* entityClassname = STRING(ent->v.classname);
-	
 	if (cstrcmp(entityClassname, "worldspawn") == 0)
 	{
 		PRECACHE_SOUND("weapons/xbow_hit1.wav");      // waypoint add
@@ -978,11 +1113,13 @@ int Spawn(edict_t* ent)
 		RoundInit();
 
 		g_hasDoors = false; // reset doors if they are removed by a custom plugin
-		g_mapType = 0; // reset map type as worldspawn is the first entity spawned
 		g_worldEdict = ent; // save the world entity for future use
 
 		if (g_gameVersion & Game::HalfLife)
-			PRECACHE_MODEL("models/player/gordon/gordon.mdl");
+		{
+			if (!IsDedicatedServer())
+				PRECACHE_MODEL("models/player/gordon/gordon.mdl");
+		}
 	}
 	else if (cstrcmp(entityClassname, "func_door") == 0 || cstrcmp(entityClassname, "func_door_rotating") == 0)
 		g_hasDoors = true;
@@ -1003,40 +1140,41 @@ int Spawn(edict_t* ent)
 	{
 		if (g_gameVersion & Game::HalfLife)
 		{
-			if (cstrcmp(entityClassname, "info_player_start") == 0)
+			if (!IsDedicatedServer())
 			{
-				SET_MODEL(ent, "models/player/gordon/gordon.mdl");
-				ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
-				ent->v.renderamt = 127; // set its transparency amount
-				ent->v.effects |= EF_NODRAW;
+				if (cstrcmp(entityClassname, "info_player_start") == 0)
+				{
+					SET_MODEL(ent, "models/player/gordon/gordon.mdl");
+					ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
+					ent->v.renderamt = 127; // set its transparency amount
+					ent->v.effects |= EF_NODRAW;
+				}
+				else if (cstrcmp(entityClassname, "info_player_deathmatch") == 0)
+				{
+					SET_MODEL(ent, "models/player/gordon/gordon.mdl");
+					ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
+					ent->v.renderamt = 127; // set its transparency amount
+					ent->v.effects |= EF_NODRAW;
+				}
 			}
-			else if (cstrcmp(entityClassname, "info_player_deathmatch") == 0)
-			{
-				SET_MODEL(ent, "models/player/gordon/gordon.mdl");
-				ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
-				ent->v.renderamt = 127; // set its transparency amount
-				ent->v.effects |= EF_NODRAW;
-			}
-
-			g_mapType |= MAP_DE;
 		}
-		else if (!(g_gameVersion & Game::HalfLife))
+		else
 		{
-			if (cstrcmp(entityClassname, "info_player_start") == 0)
+			if (!IsDedicatedServer() && cstrcmp(entityClassname, "info_player_start") == 0)
 			{
 				SET_MODEL(ent, "models/player/gsg9/gsg9.mdl");
 				ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
 				ent->v.renderamt = 127; // set its transparency amount
 				ent->v.effects |= EF_NODRAW;
 			}
-			else if (cstrcmp(entityClassname, "info_player_deathmatch") == 0)
+			else if (!IsDedicatedServer() && cstrcmp(entityClassname, "info_player_deathmatch") == 0)
 			{
 				SET_MODEL(ent, "models/player/terror/terror.mdl");
 				ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
 				ent->v.renderamt = 127; // set its transparency amount
 				ent->v.effects |= EF_NODRAW;
 			}
-			else if (cstrcmp(entityClassname, "info_vip_start") == 0)
+			else if (!IsDedicatedServer() && cstrcmp(entityClassname, "info_vip_start") == 0)
 			{
 				SET_MODEL(ent, "models/player/vip/vip.mdl");
 				ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
@@ -1044,49 +1182,36 @@ int Spawn(edict_t* ent)
 				ent->v.effects |= EF_NODRAW;
 			}
 			else if (cstrcmp(entityClassname, "func_vip_safetyzone") == 0 || cstrcmp(entityClassname, "info_vip_safetyzone") == 0)
-				g_mapType |= MAP_AS; // assassination map
-			else if (cstrcmp(entityClassname, "hostage_entity") == 0)
-				g_mapType |= MAP_CS; // rescue map
+				g_mapType = MAP_AS; // assassination map
+			else if (cstrcmp(entityClassname, "hostage_entity") == 0 || cstrcmp(entityClassname, "monster_scientist") == 0)
+				g_mapType = MAP_CS; // rescue map
 			else if (cstrcmp(entityClassname, "func_bomb_target") == 0 || cstrcmp(entityClassname, "info_bomb_target") == 0)
-				g_mapType |= MAP_DE; // defusion map
+				g_mapType = MAP_DE; // defusion map
 			else if (cstrcmp(entityClassname, "func_escapezone") == 0)
-				g_mapType |= MAP_ES;
+				g_mapType = MAP_ES;
 			else
 			{
 				// next maps doesn't have map-specific entities, so determine it by name
 				const char* map = GetMapName();
-				if (cstrncmp(map, "fy_", 4) == 0) // fun map
-					g_mapType |= MAP_FY;
-				else if (cstrncmp(map, "ka_", 4) == 0) // knife arena map
-					g_mapType |= MAP_KA;
-				else if (cstrncmp(map, "awp_", 5) == 0) // awp only map
-					g_mapType |= MAP_AWP;
-				else if (cstrncmp(map, "he_", 4) == 0) // grenade wars
-					g_mapType |= MAP_HE;
-				else if (cstrncmp(map, "ze_", 4) == 0) // zombie escape
-					g_mapType |= MAP_ZE;
-				else
-					g_mapType |= MAP_DE;
+				if (cstrncmp(map, "fy_", 3) == 0) // fun map
+					g_mapType = MAP_FY;
+				else if (cstrncmp(map, "ka_", 3) == 0) // knife arena map
+					g_mapType = MAP_KA;
+				else if (cstrncmp(map, "awp_", 4) == 0) // awp only map
+					g_mapType = MAP_AWP;
+				else if (cstrncmp(map, "he_", 3) == 0) // grenade wars
+					g_mapType = MAP_HE;
+				else if (cstrncmp(map, "ze_", 3) == 0) // zombie escape
+					g_mapType = MAP_ZE;
 			}
-		}
-		else
-		{
-			if (cstrcmp(entityClassname, "info_player_start") == 0)
-			{
-				ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
-				ent->v.renderamt = 127; // set its transparency amount
-				ent->v.effects |= EF_NODRAW;
-			}
-			else if (cstrcmp(entityClassname, "info_player_deathmatch") == 0)
-			{
-				ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
-				ent->v.renderamt = 127; // set its transparency amount
-				ent->v.effects |= EF_NODRAW;
-			}
-
-			g_mapType |= MAP_DE;
 		}
 	}
+
+	if (g_mapType != MAP_DE)
+		g_bombPlanted = false;
+
+	if (g_mapType <= MAP_MIN || g_mapType >= MAP_MAX)
+		g_mapType = MAP_DE;
 
 	RETURN_META_VALUE(MRES_IGNORED, 0);
 }
@@ -1104,8 +1229,8 @@ int Spawn_Post(edict_t* ent)
 		ent->v.flags &= ~FL_WORLDBRUSH; // clear the FL_WORLDBRUSH flag out of transparent ents
 
 	// reset bot
-	Bot* bot = g_botManager->GetBot(ent);
-	if (bot != nullptr)
+	bot = g_botManager->GetBot(ent);
+	if (bot)
 		bot->NewRound();
 
 	RETURN_META_VALUE(MRES_IGNORED, 0);
@@ -1124,8 +1249,8 @@ void Touch_Post(edict_t* pentTouched, edict_t* pentOther)
 	// the two entities both have velocities, for example two players colliding, this function
 	// is called twice, once for each entity moving.
 
-	Bot* bot = g_botManager->GetBot(pentOther);
-	if (bot != nullptr)
+	bot = g_botManager->GetBot(pentOther);
+	if (bot)
 		bot->CheckTouchEntity(pentTouched);
 
 	RETURN_META(MRES_IGNORED);
@@ -1179,8 +1304,8 @@ void ClientDisconnect(edict_t* ent)
 	const int clientIndex = ENTINDEX(ent) - 1;
 
 	// check if its a bot
-	Bot* bot = g_botManager->GetBot(clientIndex);
-	if (bot != nullptr && bot->pev->pContainingEntity == ent)
+	bot = g_botManager->GetBot(clientIndex);
+	if (bot && bot->pev->pContainingEntity == ent)
 		g_botManager->Free(clientIndex);
 
 	LoadEntityData();
@@ -1242,21 +1367,25 @@ void ClientCommand(edict_t* ent)
 			switch (state)
 			{
 			case 0:
+			{
 				ClientPrint(ent, print_withtag, "Unknown command: %s", arg1);
 				break;
-
+			}
 			case 3:
+			{
 				ClientPrint(ent, print_withtag, "CVar ebot_%s, can be only set via RCON access.", CMD_ARGV(2));
 				break;
-
+			}
 			case 2:
+			{
 				ClientPrint(ent, print_withtag, "Command %s, can only be executed from server console.", arg1);
 				break;
+			}
 			}
 
 			RETURN_META(MRES_SUPERCEDE);
 		}
-		else if (cstricmp(command, "menuselect") == 0 && !IsNullString(arg1) && g_clients[ENTINDEX(ent) - 1].menu != nullptr)
+		else if (cstricmp(command, "menuselect") == 0 && !IsNullString(arg1) && g_clients[ENTINDEX(ent) - 1].menu)
 		{
 			Clients* client = &g_clients[ENTINDEX(ent) - 1];
 			const int selection = catoi(arg1);
@@ -1274,20 +1403,25 @@ void ClientCommand(edict_t* ent)
 				case 5:
 				case 6:
 				case 7:
+				{
 					g_waypoint->Add(selection - 1);
 					break;
-
+				}
 				case 8:
+				{
 					g_waypoint->Add(100);
 					break;
-
+				}
 				case 9:
+				{
 					g_waypoint->SetLearnJumpWaypoint();
 					break;
-
+				}
 				case 10:
+				{
 					DisplayMenuToClient(ent, nullptr);
 					break;
+				}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1297,44 +1431,55 @@ void ClientCommand(edict_t* ent)
 				switch (selection)
 				{
 				case 1:
+				{
 					g_waypoint->ToggleFlags(WAYPOINT_FALLCHECK);
 					break;
-
+				}
 				case 2:
+				{
 					g_waypoint->ToggleFlags(WAYPOINT_TERRORIST);
 					break;
-
+				}
 				case 3:
+				{
 					g_waypoint->ToggleFlags(WAYPOINT_COUNTER);
 					break;
-
+				}
 				case 4:
+				{
 					g_waypoint->ToggleFlags(WAYPOINT_LIFT);
 					break;
-
+				}
 				case 5:
+				{
 					g_waypoint->ToggleFlags(WAYPOINT_SNIPER);
 					break;
-
+				}
 				case 6:
+				{
 					g_waypoint->ToggleFlags(WAYPOINT_ZMHMCAMP);
 					break;
-
+				}
 				case 7:
+				{
 					g_waypoint->DeleteFlags();
 					break;
-
+				}
 				case 8:
+				{
 					DisplayMenuToClient(ent, &g_menus[27]);
 					break;
-
+				}
 				case 9:
+				{
 					DisplayMenuToClient(ent, &g_menus[26]);
 					break;
-
+				}
 				case 10:
+				{
 					DisplayMenuToClient(ent, nullptr);
 					break;
+				}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1344,44 +1489,55 @@ void ClientCommand(edict_t* ent)
 				switch (selection)
 				{
 				case 1:
+				{
 					g_waypoint->ToggleFlags(WAYPOINT_USEBUTTON);
 					break;
-
+				}
 				case 2:
+				{
 					g_waypoint->ToggleFlags(WAYPOINT_HMCAMPMESH);
 					break;
-
+				}
 				case 3:
+				{
 					g_waypoint->ToggleFlags(WAYPOINT_ZOMBIEONLY);
 					break;
-
+				}
 				case 4:
+				{
 					g_waypoint->ToggleFlags(WAYPOINT_HUMANONLY);
 					break;
-
+				}
 				case 5:
+				{
 					g_waypoint->ToggleFlags(WAYPOINT_ZOMBIEPUSH);
 					break;
-
+				}
 				case 6:
+				{
 					g_waypoint->ToggleFlags(WAYPOINT_FALLRISK);
 					break;
-
+				}
 				case 7:
+				{
 					g_waypoint->ToggleFlags(WAYPOINT_SPECIFICGRAVITY);
 					break;
-
+				}
 				case 8:
+				{
 					DisplayMenuToClient(ent, &g_menus[13]);
 					break;
-
+				}
 				case 9:
+				{
 					DisplayMenuToClient(ent, &g_menus[27]);
 					break;
-
+				}
 				case 10:
+				{
 					DisplayMenuToClient(ent, nullptr);
 					break;
+				}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1391,32 +1547,40 @@ void ClientCommand(edict_t* ent)
 				switch (selection)
 				{
 				case 1:
+				{
 					g_waypoint->ToggleFlags(WAYPOINT_CROUCH);
 					break;
-
+				}
 				case 2:
+				{
 					g_waypoint->ToggleFlags(WAYPOINT_ONLYONE);
 					break;
-
+				}
 				case 3:
+				{
 					g_waypoint->ToggleFlags(WAYPOINT_WAITUNTIL);
 					break;
-
+				}
 				case 4:
+				{
 					g_waypoint->ToggleFlags(WAYPOINT_AVOID);
 					break;
-
+				}
 				case 8:
+				{
 					DisplayMenuToClient(ent, &g_menus[26]);
 					break;
-
+				}
 				case 9:
+				{
 					DisplayMenuToClient(ent, &g_menus[13]);
 					break;
-
+				}
 				case 10:
+				{
 					DisplayMenuToClient(ent, nullptr);
 					break;
+				}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1428,54 +1592,65 @@ void ClientCommand(edict_t* ent)
 				switch (selection)
 				{
 				case 1:
+				{
 					if (g_waypointOn)
 						ServerCommand("ebot waypoint off");
 					else
 						ServerCommand("ebot waypoint on");
 					break;
-
+				}
 				case 2:
+				{
 					g_waypointOn = true;
 					g_waypoint->CacheWaypoint();
 					break;
-
+				}
 				case 3:
+				{
 					g_waypointOn = true;
 					DisplayMenuToClient(ent, &g_menus[20]);
 					break;
-
+				}
 				case 4:
+				{
 					g_waypointOn = true;
 					g_waypoint->DeletePath();
 					break;
-
+				}
 				case 5:
+				{
 					g_waypointOn = true;
 					DisplayMenuToClient(ent, &g_menus[12]);
 					break;
-
+				}
 				case 6:
+				{
 					g_waypointOn = true;
 					g_waypoint->Delete();
 					break;
-
+				}
 				case 7:
+				{
 					g_waypointOn = true;
 					DisplayMenuToClient(ent, &g_menus[19]);
 					break;
-
+				}
 				case 8:
+				{
 					g_waypointOn = true;
 					DisplayMenuToClient(ent, &g_menus[11]);
 					break;
-
+				}
 				case 9:
+				{
 					DisplayMenuToClient(ent, &g_menus[10]);
 					break;
-
+				}
 				case 10:
+				{
 					DisplayMenuToClient(ent, nullptr);
 					break;
+				}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1498,33 +1673,39 @@ void ClientCommand(edict_t* ent)
 					int meshPoints = 0;
 					int usePoints = 0;
 
-					for (int i = 0; i < g_numWaypoints; i++)
+					int i;
+					Path* pointer;
+					for (i = 0; i < g_numWaypoints; i++)
 					{
-						if (g_waypoint->GetPath(i)->flags & WAYPOINT_TERRORIST)
+						pointer = g_waypoint->GetPath(i);
+						if (!pointer)
+							continue;
+
+						if (pointer->flags & WAYPOINT_TERRORIST)
 							terrPoints++;
 
-						if (g_waypoint->GetPath(i)->flags & WAYPOINT_COUNTER)
+						if (pointer->flags & WAYPOINT_COUNTER)
 							ctPoints++;
 
-						if (g_waypoint->GetPath(i)->flags & WAYPOINT_GOAL)
+						if (pointer->flags & WAYPOINT_GOAL)
 							goalPoints++;
 
-						if (g_waypoint->GetPath(i)->flags & WAYPOINT_RESCUE)
+						if (pointer->flags & WAYPOINT_RESCUE)
 							rescuePoints++;
 
-						if (g_waypoint->GetPath(i)->flags & WAYPOINT_CAMP)
+						if (pointer->flags & WAYPOINT_CAMP)
 							campPoints++;
 
-						if (g_waypoint->GetPath(i)->flags & WAYPOINT_SNIPER)
+						if (pointer->flags & WAYPOINT_SNIPER)
 							sniperPoints++;
 
-						if (g_waypoint->GetPath(i)->flags & WAYPOINT_AVOID)
+						if (pointer->flags & WAYPOINT_AVOID)
 							avoidPoints++;
 
-						if (g_waypoint->GetPath(i)->flags & WAYPOINT_USEBUTTON)
+						if (pointer->flags & WAYPOINT_USEBUTTON)
 							usePoints++;
 
-						if (g_waypoint->GetPath(i)->flags & WAYPOINT_HMCAMPMESH)
+						if (pointer->flags & WAYPOINT_HMCAMPMESH)
 							meshPoints++;
 					}
 
@@ -1533,51 +1714,60 @@ void ClientCommand(edict_t* ent)
 						"Rescue Points: %d - Camp Points: %d\n"
 						"Avoid Points: %d - Sniper Points: %d\n"
 						"Use Points: %d - Mesh Points: %d", g_numWaypoints, terrPoints, ctPoints, goalPoints, rescuePoints, campPoints, avoidPoints, sniperPoints, usePoints, meshPoints);
-				}
-				break;
 
+					break;
+				}
 				case 2:
+				{
 					g_waypointOn = true;
 					g_autoWaypoint &= 1;
 					g_autoWaypoint ^= 1;
 
 					CenterPrint("Auto-Waypoint %s", g_autoWaypoint ? "Enabled" : "Disabled");
 					break;
-
+				}
 				case 3:
+				{
 					g_waypointOn = true;
 					DisplayMenuToClient(ent, &g_menus[13]);
 					break;
-
+				}
 				case 4:
+				{
 					if (g_waypoint->NodesValid())
 						g_waypoint->Save();
 					else
 						CenterPrint("Waypoint not saved\nThere are errors, see console");
 					break;
-
+				}
 				case 5:
+				{
 					g_waypoint->Save();
 					break;
-
+				}
 				case 6:
+				{
 					g_waypoint->Load();
 					break;
-
+				}
 				case 7:
+				{
 					if (g_waypoint->NodesValid())
 						CenterPrint("Nodes work Find");
 					else
 						CenterPrint("There are errors, see console");
 					break;
-
+				}
 				case 8:
+				{
 					ServerCommand("ebot wp noclip");
 					break;
-
+				}
 				case 9:
+				{
 					DisplayMenuToClient(ent, &g_menus[9]);
 					break;
+				}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1600,27 +1790,32 @@ void ClientCommand(edict_t* ent)
 				switch (selection)
 				{
 				case 1:
+				{
 					fillCommand = false;
 					DisplayMenuToClient(ent, &g_menus[2]);
 					break;
-
+				}
 				case 2:
+				{
 					DisplayMenuToClient(ent, &g_menus[1]);
 					break;
-
+				}
 				case 3:
+				{
 					fillCommand = true;
 					DisplayMenuToClient(ent, &g_menus[6]);
 					break;
-
+				}
 				case 4:
+				{
 					g_botManager->KillAll();
 					break;
-
+				}
 				case 10:
+				{
 					DisplayMenuToClient(ent, nullptr);
 					break;
-
+				}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1632,28 +1827,35 @@ void ClientCommand(edict_t* ent)
 				switch (selection)
 				{
 				case 1:
+				{
 					g_botManager->AddRandom();
 					break;
-
+				}
 				case 2:
+				{
 					DisplayMenuToClient(ent, &g_menus[5]);
 					break;
-
+				}
 				case 3:
+				{
 					g_botManager->RemoveRandom();
 					break;
-
+				}
 				case 4:
+				{
 					g_botManager->RemoveAll();
 					break;
-
+				}
 				case 5:
+				{
 					g_botManager->RemoveMenu(ent, 1);
 					break;
-
+				}
 				case 10:
+				{
 					DisplayMenuToClient(ent, nullptr);
 					break;
+				}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1661,28 +1863,32 @@ void ClientCommand(edict_t* ent)
 			else if (client->menu == &g_menus[1])
 			{
 				DisplayMenuToClient(ent, nullptr); // reset menu display
-
 				extern ConVar ebot_debug;
 
 				switch (selection)
 				{
 				case 1:
+				{
 					DisplayMenuToClient(ent, &g_menus[3]);
 					break;
-
+				}
 				case 2:
+				{
 					DisplayMenuToClient(ent, &g_menus[9]);
 					break;
-
+				}
 				case 3:
+				{
 					DisplayMenuToClient(ent, &g_menus[4]);
 					break;
-
+				}
 				case 4:
+				{
 					ebot_debug.SetInt(ebot_debug.GetInt() ^ 1);
 					break;
-
+				}
 				case 5:
+				{
 					if (IsAlive(ent))
 						DisplayMenuToClient(ent, &g_menus[18]);
 					else
@@ -1691,10 +1897,12 @@ void ClientCommand(edict_t* ent)
 						CenterPrint("You're dead, and have no access to this menu");
 					}
 					break;
-
+				}
 				case 10:
+				{
 					DisplayMenuToClient(ent, nullptr);
 					break;
+				}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1702,13 +1910,14 @@ void ClientCommand(edict_t* ent)
 			else if (client->menu == &g_menus[18])
 			{
 				DisplayMenuToClient(ent, nullptr); // reset menu display
-				Bot* bot = nullptr;
+				bot = nullptr;
 
 				switch (selection)
 				{
 				case 1:
 				case 2:
-					if (FindNearestPlayer(reinterpret_cast <void**> (&bot), client->ent, 4096.0, true, true, true))
+				{
+					if (FindNearestPlayer(reinterpret_cast<void**>(&bot), client->ent, 4096.0f, true, true, true))
 					{
 						if (!(bot->pev->weapons & (1 << Weapon::C4)) && !bot->HasHostage())
 						{
@@ -1726,16 +1935,19 @@ void ClientCommand(edict_t* ent)
 						}
 					}
 					break;
-
+				}
 				case 3:
 				case 4:
-					if (FindNearestPlayer(reinterpret_cast <void**> (&bot), ent, 300.0, true, true, true))
+				{
+					if (FindNearestPlayer(reinterpret_cast<void**>(&bot), ent, 300.0f, true, true, true))
 						bot->DiscardWeaponForUser(ent, selection == 4 ? false : true);
 					break;
-
+				}
 				case 10:
+				{
 					DisplayMenuToClient(ent, nullptr);
 					break;
+				}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1759,32 +1971,40 @@ void ClientCommand(edict_t* ent)
 				switch (selection)
 				{
 				case 1:
+				{
 					g_waypoint->CreatePath(PATHCON_OUTGOING);
 					break;
-
+				}
 				case 2:
+				{
 					g_waypoint->CreatePath(PATHCON_INCOMING);
 					break;
-
+				}
 				case 3:
+				{
 					g_waypoint->CreatePath(PATHCON_BOTHWAYS);
 					break;
-
+				}
 				case 4:
+				{
 					g_waypoint->CreatePath(PATHCON_JUMPING);
 					break;
-
+				}
 				case 5:
+				{
 					g_waypoint->CreatePath(PATHCON_BOOSTING);
 					break;
-
+				}
 				case 6:
+				{
 					g_waypoint->DeletePath();
 					break;
-
+				}
 				case 10:
+				{
 					DisplayMenuToClient(ent, nullptr);
 					break;
+				}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1795,39 +2015,48 @@ void ClientCommand(edict_t* ent)
 				switch (selection)
 				{
 				case 1:
+				{
 					DisplayMenuToClient(ent, &g_menus[22]);  // Add Waypoint
 					break;
-
+				}
 				case 2:
+				{
 					DisplayMenuToClient(ent, &g_menus[13]); //Set Waypoint Flag
 					break;
-
+				}
 				case 3:
+				{
 					DisplayMenuToClient(ent, &g_menus[20]); // Create Path
 					break;
-
+				}
 				case 4:
+				{
 					DisplayMenuToClient(ent, &g_menus[11]); // Set Waypoint Radius
 					break;
-
+				}
 				case 5:
+				{
 					DisplayMenuToClient(ent, &g_menus[21]);
 					g_waypoint->TeleportWaypoint(); // Teleport to Waypoint
 					break;
-
+				}
 				case 6:
+				{
 					DisplayMenuToClient(ent, &g_menus[21]);
 					g_waypoint->Delete(); // Delete Waypoint 
 					break;
-
+				}
 				case 9:
+				{
 					g_waypoint->Save();
 					DisplayMenuToClient(ent, &g_menus[26]);
 					break;
-
+				}
 				case 10:
+				{
 					DisplayMenuToClient(ent, nullptr);
 					break;
+				}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1837,46 +2066,55 @@ void ClientCommand(edict_t* ent)
 				switch (selection)
 				{
 				case 1:
+				{
 					g_waypoint->Add(0);
 					g_waypoint->SetRadius(64);
 					break;
-
+				}
 				case 2:
 				case 3:
 				case 5:
+				{
 					g_waypoint->Add(selection - 1);
 					g_waypoint->SetRadius(64);
 					break;
-
+				}
 				case 4:
+				{
 					g_waypoint->Add(selection - 1);
 					g_waypoint->SetRadius(0);
 					break;
-
+				}
 				case 6:
+				{
 					g_waypoint->Add(100);
 					g_waypoint->SetRadius(32);
 					break;
-
+				}
 				case 7:
+				{
 					g_waypoint->Add(5);
 					g_waypoint->Add(6);
 					g_waypoint->SetRadius(0);
 					DisplayMenuToClient(ent, &g_menus[24]);
 					break;
-
+				}
 				case 8:
+				{
 					g_waypoint->SetLearnJumpWaypoint();
 					ChatPrint("[SgdWP] You could Jump now, system will auto save your Jump Point");
 					break;
-
+				}
 				case 9:
+				{
 					DisplayMenuToClient(ent, &g_menus[23]);
 					break;
-
+				}
 				case 10:
+				{
 					DisplayMenuToClient(ent, &g_menus[21]);
 					break;
+				}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1888,38 +2126,45 @@ void ClientCommand(edict_t* ent)
 				switch (selection)
 				{
 				case 1:
+				{
 					g_waypoint->Add(0);
 					g_waypoint->ToggleFlags(WAYPOINT_LIFT);
 					g_waypoint->SetRadius(0);
 					break;
-
+				}
 				case 2:
+				{
 					g_waypoint->Add(5);
 					g_waypoint->Add(6);
 					g_waypoint->ToggleFlags(WAYPOINT_SNIPER);
 					g_waypoint->SetRadius(0);
 					DisplayMenuToClient(ent, &g_menus[24]);
 					break;
-
+				}
 				case 3:
+				{
 					g_waypoint->Add(0);
 					g_waypoint->ToggleFlags(WAYPOINT_ZMHMCAMP);
 					g_waypoint->SetRadius(64);
 					break;
-
+				}
 				case 4:
+				{
 					g_waypoint->Add(0);
 					g_waypoint->ToggleFlags(WAYPOINT_HMCAMPMESH);
 					g_waypoint->SetRadius(64);
 					break;
-
+				}
 				case 9:
+				{
 					DisplayMenuToClient(ent, &g_menus[22]);
 					break;
-
+				}
 				case 10:
+				{
 					DisplayMenuToClient(ent, &g_menus[21]);
 					break;
+				}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1931,12 +2176,15 @@ void ClientCommand(edict_t* ent)
 				switch (selection)
 				{
 				case 1:
+				{
 					g_waypoint->ToggleFlags(WAYPOINT_TERRORIST);
 					break;
-
+				}
 				case 2:
+				{
 					g_waypoint->ToggleFlags(WAYPOINT_COUNTER);
 					break;
+				}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1948,12 +2196,15 @@ void ClientCommand(edict_t* ent)
 				switch (selection)
 				{
 				case 1:
+				{
 					g_waypoint->Save();
 					break;
-
+				}
 				case 2:
+				{
 					DisplayMenuToClient(ent, &g_menus[21]);
 					break;
+				}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1967,32 +2218,40 @@ void ClientCommand(edict_t* ent)
 				switch (selection)
 				{
 				case 1:
+				{
 					g_storeAddbotVars[0] = crandomint(0, 20);
 					break;
-
+				}
 				case 2:
+				{
 					g_storeAddbotVars[0] = crandomint(20, 40);
 					break;
-
+				}
 				case 3:
+				{
 					g_storeAddbotVars[0] = crandomint(40, 60);
 					break;
-
+				}
 				case 4:
+				{
 					g_storeAddbotVars[0] = crandomint(60, 80);
 					break;
-
+				}
 				case 5:
+				{
 					g_storeAddbotVars[0] = crandomint(80, 99);
 					break;
-
+				}
 				case 6:
+				{
 					g_storeAddbotVars[0] = 100;
 					break;
-
+				}
 				case 10:
+				{
 					DisplayMenuToClient(ent, nullptr);
 					break;
+				}
 				}
 
 				if (client->menu == &g_menus[4])
@@ -2008,18 +2267,22 @@ void ClientCommand(edict_t* ent)
 				{
 				case 1:
 				case 2:
+				{
 					// turn off cvars if specified team
 					CVAR_SET_STRING("mp_limitteams", "0");
 					CVAR_SET_STRING("mp_autoteambalance", "0");
-
+				}
 				case 5:
+				{
 					fillServerTeam = selection;
 					DisplayMenuToClient(ent, &g_menus[5]);
 					break;
-
+				}
 				case 10:
+				{
 					DisplayMenuToClient(ent, nullptr);
 					break;
+				}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -2035,10 +2298,11 @@ void ClientCommand(edict_t* ent)
 				case 3:
 				case 4:
 					g_botManager->FillServer(fillServerTeam, selection - 2, g_storeAddbotVars[0]);
-
 				case 10:
+				{
 					DisplayMenuToClient(ent, nullptr);
 					break;
+				}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -2052,6 +2316,7 @@ void ClientCommand(edict_t* ent)
 				case 1:
 				case 2:
 				case 5:
+				{
 					g_storeAddbotVars[1] = selection;
 					if (selection == 5)
 					{
@@ -2066,10 +2331,12 @@ void ClientCommand(edict_t* ent)
 							DisplayMenuToClient(ent, &g_menus[8]);
 					}
 					break;
-
+				}
 				case 10:
+				{
 					DisplayMenuToClient(ent, nullptr);
 					break;
+				}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -2084,13 +2351,16 @@ void ClientCommand(edict_t* ent)
 				case 2:
 				case 3:
 				case 4:
+				{
 					g_storeAddbotVars[3] = selection - 2;
 					DisplayMenuToClient(ent, &g_menus[6]);
 					break;
-
+				}
 				case 10:
+				{
 					DisplayMenuToClient(ent, nullptr);
 					break;
+				}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -2106,13 +2376,16 @@ void ClientCommand(edict_t* ent)
 				case 3:
 				case 4:
 				case 5:
+				{
 					g_storeAddbotVars[2] = selection;
 					g_botManager->AddBot("", g_storeAddbotVars[0], g_storeAddbotVars[3], g_storeAddbotVars[1], g_storeAddbotVars[2]);
 					break;
-
+				}
 				case 10:
+				{
 					DisplayMenuToClient(ent, nullptr);
 					break;
+				}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -2130,12 +2403,15 @@ void ClientCommand(edict_t* ent)
 				case 5:
 				case 6:
 				case 7:
+				{
 					g_botManager->SetWeaponMode(selection);
 					break;
-
+				}
 				case 10:
+				{
 					DisplayMenuToClient(ent, nullptr);
 					break;
+				}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -2154,16 +2430,20 @@ void ClientCommand(edict_t* ent)
 				case 6:
 				case 7:
 				case 8:
+				{
 					g_botManager->GetBot(selection - 1)->Kick();
 					break;
-
+				}
 				case 9:
+				{
 					g_botManager->RemoveMenu(ent, 2);
 					break;
-
+				}
 				case 10:
+				{
 					DisplayMenuToClient(ent, &g_menus[2]);
 					break;
+				}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -2182,16 +2462,20 @@ void ClientCommand(edict_t* ent)
 				case 6:
 				case 7:
 				case 8:
+				{
 					g_botManager->GetBot(selection + 8 - 1)->Kick();
 					break;
-
+				}
 				case 9:
+				{
 					g_botManager->RemoveMenu(ent, 3);
 					break;
-
+				}
 				case 10:
+				{
 					g_botManager->RemoveMenu(ent, 1);
 					break;
+				}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -2210,16 +2494,20 @@ void ClientCommand(edict_t* ent)
 				case 6:
 				case 7:
 				case 8:
+				{
 					g_botManager->GetBot(selection + 16 - 1)->Kick();
 					break;
-
+				}
 				case 9:
+				{
 					g_botManager->RemoveMenu(ent, 4);
 					break;
-
+				}
 				case 10:
+				{
 					g_botManager->RemoveMenu(ent, 2);
 					break;
+				}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -2238,12 +2526,15 @@ void ClientCommand(edict_t* ent)
 				case 6:
 				case 7:
 				case 8:
+				{
 					g_botManager->GetBot(selection + 24 - 1)->Kick();
 					break;
-
+				}
 				case 10:
+				{
 					g_botManager->RemoveMenu(ent, 3);
 					break;
+				}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -2253,7 +2544,7 @@ void ClientCommand(edict_t* ent)
 
 	if (!g_isFakeCommand && (cstricmp(command, "say") == 0 || cstricmp(command, "say_team") == 0))
 	{
-		Bot* bot = nullptr;
+		bot = nullptr;
 
 		if (cstrncmp(arg1, "dropme", 7) == 0 || cstrncmp(arg1, "dropc4", 7) == 0)
 		{
@@ -2273,7 +2564,7 @@ void ClientCommand(edict_t* ent)
 
 		for (const auto& bot : g_botManager->m_bots)
 		{
-			if (bot == nullptr)
+			if (!bot)
 				continue;
 
 			if (team != -1 && team != bot->m_team)
@@ -2304,7 +2595,7 @@ void ClientCommand(edict_t* ent)
 				for (const auto& bot : g_botManager->m_bots)
 				{
 					// validate bot
-					if (bot != nullptr && bot->m_team == g_clients[clientIndex].team && VARS(ent) != bot->pev && bot->m_radioOrder == 0)
+					if (bot && bot->m_team == g_clients[clientIndex].team && VARS(ent) != bot->pev && bot->m_radioOrder == 0)
 					{
 						bot->m_radioOrder = radioCommand;
 						bot->m_radioEntity = ent;
@@ -2354,14 +2645,6 @@ void ServerActivate(edict_t* pentEdictList, int edictCount, int clientMax)
 	updateTimer = 0.0f;
 	g_pathTimer = 0.0f;
 
-	g_gameVersion &= ~Game::Xash;
-	if (g_engfuncs.pfnCVarGetPointer("host_ver") != nullptr)
-		g_gameVersion |= Game::Xash;
-
-	g_lastMessageID = -1;
-	g_numBytesWritten = 0;
-	g_messageEnded = true;
-
 	RETURN_META(MRES_IGNORED);
 }
 
@@ -2376,19 +2659,20 @@ void SetPing(edict_t* to)
 	if (g_fakePingUpdate < engine->GetTime())
 	{
 		// update timer if someone lookin' at scoreboard
-		if (to->v.button & IN_SCORE || to->v.oldbuttons & IN_SCORE)
+		if (to->v.buttons & IN_SCORE || to->v.oldbuttons & IN_SCORE)
 			g_fakePingUpdate = engine->GetTime() + 2.0f;
 		else
 			return;
 	}
 
+	int index;
 	static int sending;
 	for (const auto& bot : g_botManager->m_bots)
 	{
-		if (bot == nullptr)
+		if (!bot)
 			continue;
 
-		const int index = bot->GetIndex() - 1;
+		index = bot->m_index - 1;
 		switch (sending)
 		{
 		case 0:
@@ -2440,6 +2724,8 @@ void JustAStuff(void)
 	// code below is executed only on dedicated server
 	if (IsDedicatedServer())
 	{
+		const char* password = ebot_password.GetString();
+		const char* key = ebot_password_key.GetString();
 		for (const auto& client : g_clients)
 		{
 			if (client.index < 0)
@@ -2450,9 +2736,6 @@ void JustAStuff(void)
 
 			if (!(client.ent->v.flags & FL_CLIENT))
 				continue;
-
-			const char* password = ebot_password.GetString();
-			const char* key = ebot_password_key.GetString();
 
 			if (client.flags & CFLAG_OWNER)
 			{
@@ -2476,11 +2759,24 @@ void JustAStuff(void)
 	}
 	else if (!FNullEnt(g_hostEntity))
 	{
-		if (g_waypointOn)
+		if (g_navmeshOn)
 		{
 			for (const auto& bot : g_botManager->m_bots)
 			{
-				if (bot != nullptr)
+				if (bot)
+				{
+					g_botManager->RemoveAll();
+					break;
+				}
+			}
+
+			g_navmesh->DrawNavArea();
+		}
+		else if (g_waypointOn)
+		{
+			for (const auto& bot : g_botManager->m_bots)
+			{
+				if (bot)
 				{
 					g_botManager->RemoveAll();
 					break;
@@ -2489,13 +2785,13 @@ void JustAStuff(void)
 
 			g_waypoint->Think();
 
-			if (ebot_showwp.GetBool() == true)
+			if (ebot_showwp.GetBool())
 				ebot_showwp.SetInt(0);
 		}
-		else if (ebot_showwp.GetBool() == true)
+		else if (ebot_showwp.GetBool())
 			g_waypoint->ShowWaypointMsg();
-
-		CheckWelcomeMessage();
+		else
+			CheckWelcomeMessage();
 	}
 }
 
@@ -2511,11 +2807,15 @@ void FrameThread(void)
 	if (g_gameVersion & Game::Xash)
 	{
 		const auto simulate = g_engfuncs.pfnCVarGetPointer("sv_forcesimulating");
-		if (simulate != nullptr && simulate->value != 1.0f)
+		if (simulate && simulate->value != 1.0f)
 			g_engfuncs.pfnCVarSetFloat("sv_forcesimulating", 1.0f);
 	}
 
-	secondTimer = engine->GetTime() + 1.0f;
+	float ut = 0.5f;
+	if (g_navmeshOn && !g_analyzewaypoints)
+		ut = 0.05f;
+
+	secondTimer = engine->GetTime() + ut;
 }
 
 void StartFrame(void)
@@ -2532,7 +2832,9 @@ void StartFrame(void)
 		FrameThread();
 	else
 	{
-		if (g_analyzewaypoints)
+		if (g_analyzenavmesh)
+			g_navmesh->Analyze();
+		else if (g_analyzewaypoints)
 			g_waypoint->Analyze();
 		else // keep bot number up to date
 			g_botManager->MaintainBotQuota();
@@ -2577,22 +2879,6 @@ void GameDLLInit_Post(void)
 	RETURN_META(MRES_IGNORED);
 }
 
-int pfnCmd_Argc(void)
-{
-	// this function returns the number of arguments the current client command string has. Since
-	// bots have no client DLL and we may want a bot to execute a client command, we had to
-	// implement a g_xgv string in the bot DLL for holding the bots' commands, and also keep
-	// track of the argument count. Hence this hook not to let the engine ask an unexistent client
-	// DLL for a command we are holding here. Of course, real clients commands are still retrieved
-	// the normal way, by asking the engine.
-
-	// is this a bot issuing that client command ?
-	if (g_isFakeCommand)
-		RETURN_META_VALUE(MRES_SUPERCEDE, g_fakeArgc);
-
-	RETURN_META_VALUE(MRES_IGNORED, 0);
-}
-
 const char* pfnCmd_Args(void)
 {
 	// this function returns a pointer to the whole current client command string. Since bots
@@ -2632,31 +2918,6 @@ const char* pfnCmd_Argv(int argc)
 		RETURN_META_VALUE(MRES_SUPERCEDE, GetField(g_fakeArgv, argc));
 
 	RETURN_META_VALUE(MRES_IGNORED, nullptr);
-}
-
-void pfnClientPrintf(edict_t* ent, PRINT_TYPE printType, const char* message)
-{
-	// this function prints the text message string pointed to by message by the client side of
-	// the client entity pointed to by ent, in a manner depending of printType (print_console,
-	// print_center or print_chat). Be certain never to try to feed a bot with this function,
-	// as it will crash your server. Why would you, anyway ? bots have no client DLL as far as
-	// we know, right ? But since stupidity rules this world, we do a preventive check :)
-
-	if (IsValidBot(ent) || ent->v.flags & FL_FAKECLIENT || ent->v.flags & FL_DORMANT)
-		RETURN_META(MRES_SUPERCEDE);
-
-	RETURN_META(MRES_IGNORED);
-}
-
-void pfnSetClientMaxspeed(const edict_t* ent, float newMaxspeed)
-{
-	Bot* bot = g_botManager->GetBot(const_cast<edict_t*>(ent));
-
-	// check wether it's not a bot
-	if (bot != nullptr)
-		bot->pev->maxspeed = newMaxspeed;
-
-	RETURN_META(MRES_IGNORED);
 }
 
 gamedll_funcs_t gameDLLFunc;
@@ -2707,220 +2968,199 @@ exportc int GetEntityAPI2_Post(DLL_FUNCTIONS* functionTable, int* /*interfaceVer
 	return true;
 }
 
-const char* pfnGetPlayerAuthId(edict_t* e)
-{
-	if (IsValidBot(e))
-		RETURN_META_VALUE(MRES_SUPERCEDE, "BOT");
-
-	RETURN_META_VALUE(MRES_IGNORED, 0);
-}
-
-unsigned int pfnGetPlayerWONId(edict_t* e)
-{
-	if (IsValidBot(e))
-		RETURN_META_VALUE(MRES_SUPERCEDE, 0);
-
-	RETURN_META_VALUE(MRES_IGNORED, 0);
-}
-
 exportc int GetEngineFunctions(enginefuncs_t* functionTable, int* /*interfaceVersion*/)
 {
 	cmemset(functionTable, 0, sizeof(enginefuncs_t));
 
 	functionTable->pfnMessageBegin = [](int msgDest, int msgType, const float* origin, edict_t* ed)
 	{
-		if (g_netMsg->GetId(NETMSG_MONEY) == -1)
-		{
-			g_netMsg->SetId(NETMSG_VGUI, GET_USER_MSG_ID(PLID, "VGUIMenu", nullptr));
-			g_netMsg->SetId(NETMSG_SHOWMENU, GET_USER_MSG_ID(PLID, "ShowMenu", nullptr));
-			g_netMsg->SetId(NETMSG_WLIST, GET_USER_MSG_ID(PLID, "WeaponList", nullptr));
-			g_netMsg->SetId(NETMSG_CURWEAPON, GET_USER_MSG_ID(PLID, "CurWeapon", nullptr));
-			g_netMsg->SetId(NETMSG_AMMOX, GET_USER_MSG_ID(PLID, "AmmoX", nullptr));
-			g_netMsg->SetId(NETMSG_AMMOPICK, GET_USER_MSG_ID(PLID, "AmmoPickup", nullptr));
-			g_netMsg->SetId(NETMSG_MONEY, GET_USER_MSG_ID(PLID, "Money", nullptr));
-			g_netMsg->SetId(NETMSG_STATUSICON, GET_USER_MSG_ID(PLID, "StatusIcon", nullptr));
-			g_netMsg->SetId(NETMSG_DEATH, GET_USER_MSG_ID(PLID, "DeathMsg", nullptr));
-			g_netMsg->SetId(NETMSG_SCREENFADE, GET_USER_MSG_ID(PLID, "ScreenFade", nullptr));
-			g_netMsg->SetId(NETMSG_HLTV, GET_USER_MSG_ID(PLID, "HLTV", nullptr));
-			g_netMsg->SetId(NETMSG_TEXTMSG, GET_USER_MSG_ID(PLID, "TextMsg", nullptr));
-			g_netMsg->SetId(NETMSG_SCOREINFO, GET_USER_MSG_ID(PLID, "ScoreInfo", nullptr));
-			g_netMsg->SetId(NETMSG_BARTIME, GET_USER_MSG_ID(PLID, "BarTime", nullptr));
-			g_netMsg->SetId(NETMSG_SENDAUDIO, GET_USER_MSG_ID(PLID, "SendAudio", nullptr));
-			g_netMsg->SetId(NETMSG_SAYTEXT, GET_USER_MSG_ID(PLID, "SayText", nullptr));
-		}
-
-		/*if (!g_messageEnded)
-		{
-			if (g_lastMessageID == g_netMsg->GetId(NETMSG_HLTV) && g_numBytesWritten == 2)
+			// store the message type in our own variables, since the GET_USER_MSG_ID will just do a lot of strcmp's...
+			if (g_netMsg->GetId(NETMSG_MONEY) == -1)
 			{
-				g_messageEnded = false;
-				MESSAGE_END();
+				g_netMsg->SetId(NETMSG_VGUI, GET_USER_MSG_ID(PLID, "VGUIMenu", nullptr));
+				g_netMsg->SetId(NETMSG_SHOWMENU, GET_USER_MSG_ID(PLID, "ShowMenu", nullptr));
+				g_netMsg->SetId(NETMSG_WLIST, GET_USER_MSG_ID(PLID, "WeaponList", nullptr));
+				g_netMsg->SetId(NETMSG_CURWEAPON, GET_USER_MSG_ID(PLID, "CurWeapon", nullptr));
+				g_netMsg->SetId(NETMSG_AMMOX, GET_USER_MSG_ID(PLID, "AmmoX", nullptr));
+				g_netMsg->SetId(NETMSG_AMMOPICK, GET_USER_MSG_ID(PLID, "AmmoPickup", nullptr));
+				//g_netMsg->SetId(NETMSG_DAMAGE, GET_USER_MSG_ID(PLID, "Damage", nullptr));
+				g_netMsg->SetId(NETMSG_MONEY, GET_USER_MSG_ID(PLID, "Money", nullptr));
+				g_netMsg->SetId(NETMSG_STATUSICON, GET_USER_MSG_ID(PLID, "StatusIcon", nullptr));
+				g_netMsg->SetId(NETMSG_DEATH, GET_USER_MSG_ID(PLID, "DeathMsg", nullptr));
+				g_netMsg->SetId(NETMSG_SCREENFADE, GET_USER_MSG_ID(PLID, "ScreenFade", nullptr));
+				g_netMsg->SetId(NETMSG_HLTV, GET_USER_MSG_ID(PLID, "HLTV", nullptr));
+				g_netMsg->SetId(NETMSG_TEXTMSG, GET_USER_MSG_ID(PLID, "TextMsg", nullptr));
+				g_netMsg->SetId(NETMSG_SCOREINFO, GET_USER_MSG_ID(PLID, "ScoreInfo", nullptr));
+				g_netMsg->SetId(NETMSG_BARTIME, GET_USER_MSG_ID(PLID, "BarTime", nullptr));
+				g_netMsg->SetId(NETMSG_SENDAUDIO, GET_USER_MSG_ID(PLID, "SendAudio", nullptr));
+				g_netMsg->SetId(NETMSG_SAYTEXT, GET_USER_MSG_ID(PLID, "SayText", nullptr));
+				g_netMsg->SetId(NETMSG_BOTVOICE, GET_USER_MSG_ID(PLID, "BotVoice", nullptr));
 			}
-		}*/
 
-		g_netMsg->Reset();
+			if (msgDest == MSG_SPEC && msgType == g_netMsg->GetId(NETMSG_HLTV))
+				g_netMsg->SetMessage(NETMSG_HLTV);
 
-		//if (!IsDedicatedServer() && msgDest == MSG_SPEC && msgType == g_netMsg->GetId(NETMSG_HLTV) && !FNullEnt(g_hostEntity))
-		if (msgDest == MSG_SPEC && msgType == g_netMsg->GetId(NETMSG_HLTV))
-			g_netMsg->SetMessage(NETMSG_HLTV);
+			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_WLIST);
 
-		g_netMsg->HandleMessageIfRequired(msgType, NETMSG_WLIST);
-
-		if (!FNullEnt(ed) && !(ed->v.flags & FL_DORMANT))
-		{
-			Bot* bot = g_botManager->GetBot(ed);
-
-			// is this message for a bot?
-			if (bot != nullptr && bot->pev->pContainingEntity == ed)
+			if (msgDest == MSG_ALL)
 			{
-				g_netMsg->Reset();
-				g_netMsg->SetBot(bot);
-
-				// message handling is done in usermsg.cpp
-				g_netMsg->HandleMessageIfRequired(msgType, NETMSG_VGUI);
-				g_netMsg->HandleMessageIfRequired(msgType, NETMSG_CURWEAPON);
-				g_netMsg->HandleMessageIfRequired(msgType, NETMSG_AMMOX);
-				g_netMsg->HandleMessageIfRequired(msgType, NETMSG_AMMOPICK);
-				g_netMsg->HandleMessageIfRequired(msgType, NETMSG_MONEY);
-				g_netMsg->HandleMessageIfRequired(msgType, NETMSG_STATUSICON);
-				g_netMsg->HandleMessageIfRequired(msgType, NETMSG_SCREENFADE);
-				g_netMsg->HandleMessageIfRequired(msgType, NETMSG_BARTIME);
+				//g_netMsg->HandleMessageIfRequired (msgType, NETMSG_SCOREINFO);
+				g_netMsg->HandleMessageIfRequired(msgType, NETMSG_DEATH);
 				g_netMsg->HandleMessageIfRequired(msgType, NETMSG_TEXTMSG);
-				g_netMsg->HandleMessageIfRequired(msgType, NETMSG_SHOWMENU);
-			}
-		}
-		else if (msgDest == MSG_ALL)
-		{
-			g_netMsg->Reset();
-			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_DEATH);
-			g_netMsg->HandleMessageIfRequired(msgType, NETMSG_TEXTMSG);
 
-			if (msgType == SVC_INTERMISSION)
-			{
-				for (const auto& bot : g_botManager->m_bots)
+				if (msgType == SVC_INTERMISSION)
 				{
-					if (bot == nullptr)
-						continue;
-
-					bot->m_isAlive = false;
+					for (const auto& bot : g_botManager->m_bots)
+					{
+						if (bot)
+							bot->m_isAlive = false;
+					}
 				}
 			}
-		}
+			else
+			{
+				bot = g_botManager->GetBot(ed);
 
-		g_lastMessageID = msgType;
-		g_numBytesWritten = 0;
-		g_messageEnded = false;
+				// is this message for a bot?
+				if (bot && bot->GetEntity() == ed)
+				{
+					g_netMsg->SetBot(bot);
+
+					// message handling is done in usermsg.cpp
+					g_netMsg->HandleMessageIfRequired(msgType, NETMSG_VGUI);
+					g_netMsg->HandleMessageIfRequired(msgType, NETMSG_CURWEAPON);
+					g_netMsg->HandleMessageIfRequired(msgType, NETMSG_AMMOX);
+					g_netMsg->HandleMessageIfRequired(msgType, NETMSG_AMMOPICK);
+					//g_netMsg->HandleMessageIfRequired(msgType, NETMSG_DAMAGE);
+					g_netMsg->HandleMessageIfRequired(msgType, NETMSG_MONEY);
+					g_netMsg->HandleMessageIfRequired(msgType, NETMSG_STATUSICON);
+					g_netMsg->HandleMessageIfRequired(msgType, NETMSG_SCREENFADE);
+					g_netMsg->HandleMessageIfRequired(msgType, NETMSG_BARTIME);
+					g_netMsg->HandleMessageIfRequired(msgType, NETMSG_TEXTMSG);
+					g_netMsg->HandleMessageIfRequired(msgType, NETMSG_SHOWMENU);
+				}
+			}
+
 		RETURN_META(MRES_IGNORED);
 	};
 
 	functionTable->pfnMessageEnd = [](void)
 	{
-		/*if (g_messageEnded)
-			RETURN_META(MRES_SUPERCEDE);
-
-		if (g_lastMessageID == g_netMsg->GetId(NETMSG_HLTV) && g_numBytesWritten < 2)
-			RETURN_META(MRES_SUPERCEDE);*/
-
 		g_netMsg->Reset();
-		g_messageEnded = true;
 		RETURN_META(MRES_IGNORED);
 	};
 
 	functionTable->pfnWriteByte = [](int value)
 	{
-		/*if (g_messageEnded)
-			RETURN_META(MRES_SUPERCEDE);
-
-		if (g_lastMessageID == g_netMsg->GetId(NETMSG_HLTV) && g_numBytesWritten >= 2)
-		{
-			g_messageEnded = false;
-			MESSAGE_END();
-			RETURN_META(MRES_SUPERCEDE);
-		}*/
-
-		// if this message is for a bot, call the client message function...
-		g_numBytesWritten++;
 		g_netMsg->Execute((void*)&value);
 		RETURN_META(MRES_IGNORED);
 	};
 
 	functionTable->pfnWriteChar = [](int value)
 	{
-		/*if (g_messageEnded)
-			RETURN_META(MRES_SUPERCEDE);*/
-
-		// if this message is for a bot, call the client message function...
 		g_netMsg->Execute((void*)&value);
 		RETURN_META(MRES_IGNORED);
 	};
 
 	functionTable->pfnWriteShort = [](int value)
 	{
-		/*if (g_messageEnded)
-			RETURN_META(MRES_SUPERCEDE);*/
-
-		// if this message is for a bot, call the client message function...
 		g_netMsg->Execute((void*)&value);
 		RETURN_META(MRES_IGNORED);
 	};
 
 	functionTable->pfnWriteLong = [](int value)
 	{
-		/*if (g_messageEnded)
-			RETURN_META(MRES_SUPERCEDE);*/
-
-		// if this message is for a bot, call the client message function...
 		g_netMsg->Execute((void*)&value);
 		RETURN_META(MRES_IGNORED);
 	};
 
 	functionTable->pfnWriteAngle = [](float value)
 	{
-		/*if (g_messageEnded)
-			RETURN_META(MRES_SUPERCEDE);*/
-
-		// if this message is for a bot, call the client message function...
 		g_netMsg->Execute((void*)&value);
 		RETURN_META(MRES_IGNORED);
 	};
 
 	functionTable->pfnWriteCoord = [](float value)
 	{
-		/*if (g_messageEnded)
-			RETURN_META(MRES_SUPERCEDE);*/
-
-		// if this message is for a bot, call the client message function...
 		g_netMsg->Execute((void*)&value);
 		RETURN_META(MRES_IGNORED);
 	};
 
 	functionTable->pfnWriteString = [](const char* sz)
 	{
-		/*if (g_messageEnded)
-			RETURN_META(MRES_SUPERCEDE);*/
-
-		// if this message is for a bot, call the client message function...
 		g_netMsg->Execute((void*)sz);
 		RETURN_META(MRES_IGNORED);
 	};
 
 	functionTable->pfnWriteEntity = [](int value)
 	{
-		/*if (g_messageEnded)
-			RETURN_META(MRES_SUPERCEDE);*/
-
-		// if this message is for a bot, call the client message function...
 		g_netMsg->Execute((void*)&value);
 		RETURN_META(MRES_IGNORED);
 	};
 
-	functionTable->pfnClientPrintf = pfnClientPrintf;
+	functionTable->pfnClientPrintf = [](edict_t* ent, PRINT_TYPE printType, const char* message)
+	{
+		// this function prints the text message string pointed to by message by the client side of
+		// the client entity pointed to by ent, in a manner depending of printType (print_console,
+		// print_center or print_chat). Be certain never to try to feed a bot with this function,
+		// as it will crash your server. Why would you, anyway ? bots have no client DLL as far as
+		// we know, right ? But since stupidity rules this world, we do a preventive check :)
+
+		if (IsValidBot(ent) || ent->v.flags & FL_FAKECLIENT || ent->v.flags & FL_DORMANT)
+			RETURN_META(MRES_SUPERCEDE);
+
+		RETURN_META(MRES_IGNORED);
+	};
+
 	functionTable->pfnCmd_Args = pfnCmd_Args;
 	functionTable->pfnCmd_Argv = pfnCmd_Argv;
-	functionTable->pfnCmd_Argc = pfnCmd_Argc;
-	functionTable->pfnSetClientMaxspeed = pfnSetClientMaxspeed;
-	functionTable->pfnGetPlayerAuthId = pfnGetPlayerAuthId;
-	functionTable->pfnGetPlayerWONId = pfnGetPlayerWONId;
+
+	functionTable->pfnCmd_Argc = [](void)
+	{
+		// this function returns the number of arguments the current client command string has. Since
+		// bots have no client DLL and we may want a bot to execute a client command, we had to
+		// implement a g_xgv string in the bot DLL for holding the bots' commands, and also keep
+		// track of the argument count. Hence this hook not to let the engine ask an unexistent client
+		// DLL for a command we are holding here. Of course, real clients commands are still retrieved
+		// the normal way, by asking the engine.
+
+		// is this a bot issuing that client command ?
+		if (g_isFakeCommand)
+			RETURN_META_VALUE(MRES_SUPERCEDE, g_fakeArgc);
+
+		RETURN_META_VALUE(MRES_IGNORED, 0);
+	};
+
+	functionTable->pfnSetClientMaxspeed = [](const edict_t* ent, float newMaxspeed)
+	{
+		bot = g_botManager->GetBot(const_cast<edict_t*>(ent));
+
+		// check wether it's not a bot, fair cheat :(
+		if (bot)
+		{
+			bot->pev->maxspeed = newMaxspeed * 1.05f;
+			(*g_engfuncs.pfnSetClientMaxspeed) (ent, bot->pev->maxspeed);
+			RETURN_META(MRES_SUPERCEDE);
+		}
+
+		RETURN_META(MRES_IGNORED);
+	};
+
+	functionTable->pfnGetPlayerAuthId = [](edict_t* e) -> const char* 
+	{
+		//if (IsValidBot(e))
+		RETURN_META_VALUE(MRES_SUPERCEDE, "EBOT");
+
+		//RETURN_META_VALUE(MRES_IGNORED, 0);
+	};
+
+	functionTable->pfnGetPlayerWONId = [](edict_t* e) -> unsigned int
+	{
+		if (IsValidBot(e))
+			RETURN_META_VALUE(MRES_SUPERCEDE, 0);
+
+		RETURN_META_VALUE(MRES_IGNORED, 0);
+	};
 
 	return true;
 }
@@ -3029,7 +3269,7 @@ DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* 
 	// such if necessary. Nothing really bot-related is done in this function. The actual bot
 	// initialization stuff will be done later, when we'll be certain to have a multilayer game.
 
-	static struct ModSupport_t
+	struct ModSupport
 	{
 		char name[32];
 		char linuxLib[32];
@@ -3052,13 +3292,14 @@ DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* 
 	cmemcpy(&g_engfuncs, functionTable, sizeof(enginefuncs_t));
 	g_pGlobals = pGlobals;
 
-	ModSupport_t* knownMod = nullptr;
+	ModSupport* knownMod = nullptr;
 	char gameDLLName[256];
 
-	for (int i = 0; s_supportedMods[i].name; i++)
+	// TODO: FIX HERE
+	int i;
+	for (i = 0; s_supportedMods[i].name; i++)
 	{
-		ModSupport_t* mod = &s_supportedMods[i];
-
+		ModSupport* mod = &s_supportedMods[i];
 		if (cstrcmp(mod->name, GetModName()) == 0)
 		{
 			knownMod = mod;
@@ -3066,10 +3307,16 @@ DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* 
 		}
 	}
 
-	if (knownMod != nullptr)
+	if (knownMod)
 		g_gameVersion = knownMod->modType;
 	else
+	{
+		g_gameVersion = Game::CStrike;
 		AddLogEntry(Log::Fatal, "Mod that you has started, not supported by this bot (gamedir: %s)", GetModName());
+	}
+
+	if (g_engfuncs.pfnCVarGetPointer("host_ver"))
+		g_gameVersion |= Game::Xash;
 }
 
 DLL_ENTRYPOINT

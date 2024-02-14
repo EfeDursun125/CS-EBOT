@@ -24,20 +24,18 @@
 
 #include <core.h>
 
-ConVar::ConVar(const char* name, const char* initval, VarType type)
+ConVar::ConVar(const char* name, const char* initval, const VarType type)
 {
     engine->RegisterVariable(name, initval, type, this);
 }
 
-void Engine::RegisterVariable(const char* variable, const char* value, VarType varType, ConVar* self)
+void Engine::RegisterVariable(const char* variable, const char* value, const VarType varType, ConVar* self)
 {
     VarPair newVariable;
-
     newVariable.reg.name = const_cast<char*>(variable);
     newVariable.reg.string = const_cast<char*>(value);
 
     int engineFlags = FCVAR_EXTDLL;
-
     if (varType == VARTYPE_NORMAL)
         engineFlags |= FCVAR_SERVER;
     else if (varType == VARTYPE_READONLY)
@@ -47,16 +45,16 @@ void Engine::RegisterVariable(const char* variable, const char* value, VarType v
 
     newVariable.reg.flags = engineFlags;
     newVariable.self = self;
-
-    cmemcpy(&m_regVars[m_regCount], &newVariable, sizeof(VarPair));
-    m_regCount++;
+    m_regVars.Push(&newVariable);
 }
 
 void Engine::PushRegisteredConVarsToEngine(void)
 {
-    for (int i = 0; i < m_regCount; i++)
+    int16_t i;
+    VarPair* ptr;
+    for (i = 0; i < m_regVars.Size(); i++)
     {
-        VarPair* ptr = &m_regVars[i];
+        ptr = &m_regVars[i];
         if (!ptr)
             break;
 
@@ -81,43 +79,52 @@ void Engine::GetGameConVarsPointers(void)
         m_gameVars[GVAR_BUYTIME] = m_gameVars[3];
 }
 
-const Vector& Engine::GetGlobalVector(GlobalVector id)
+const Vector& Engine::GetGlobalVector(const GlobalVector id)
 {
+    if (!g_pGlobals)
+        return nullvec;
+
     switch (id)
     {
     case GLOBALVECTOR_FORWARD:
         return g_pGlobals->v_forward;
-
     case GLOBALVECTOR_RIGHT:
         return g_pGlobals->v_right;
-
     case GLOBALVECTOR_UP:
         return g_pGlobals->v_up;
     }
     return nullvec;
 }
 
-void Engine::SetGlobalVector(GlobalVector id, const Vector& newVector)
+void Engine::SetGlobalVector(const GlobalVector id, const Vector& newVector)
 {
+    if (!g_pGlobals)
+        return;
+
     switch (id)
     {
     case GLOBALVECTOR_FORWARD:
+    {
         g_pGlobals->v_forward = newVector;
         break;
-
+    }
     case GLOBALVECTOR_RIGHT:
+    {
         g_pGlobals->v_right = newVector;
         break;
-
+    }
     case GLOBALVECTOR_UP:
+    {
         g_pGlobals->v_up = newVector;
         break;
+    }
     }
 }
 
 void Engine::BuildGlobalVectors(const Vector& on)
 {
-    on.BuildVectors(&g_pGlobals->v_forward, &g_pGlobals->v_right, &g_pGlobals->v_up);
+    if (g_pGlobals)
+        on.BuildVectors(&g_pGlobals->v_forward, &g_pGlobals->v_right, &g_pGlobals->v_up);
 }
 
 bool Engine::IsFootstepsOn(void)
@@ -187,36 +194,39 @@ bool Engine::IsFriendlyFireOn(void)
 
 void Engine::PrintServer(const char* format, ...)
 {
-    static char buffer[1024];
+    char buffer[1024];
     va_list ap;
-
     va_start(ap, format);
     vsprintf(buffer, format, ap);
     va_end(ap);
-
     cstrcat(buffer, "\n");
-
     g_engfuncs.pfnServerPrint(buffer);
 }
 
 int Engine::GetMaxClients(void)
 {
-    return g_pGlobals->maxClients;
+    if (g_pGlobals)
+        return g_pGlobals->maxClients;
+
+    return 32;
 }
 
 float Engine::GetTime(void)
 {
-    return g_pGlobals->time;
+    if (g_pGlobals)
+        return g_pGlobals->time;
+
+    return 1.0f;
 }
 
 #pragma warning (disable : 4172)
-const Entity& Engine::GetEntityByIndex(int index)
+const Entity& Engine::GetEntityByIndex(const int index)
 {
     return g_engfuncs.pfnPEntityOfEntIndex(index);
 }
 #pragma warning (default : 4172)
 
-const Client& Engine::GetClientByIndex(int index)
+const Client& Engine::GetClientByIndex(const int index)
 {
     return m_clients[index];
 }
@@ -237,7 +247,7 @@ void Engine::MaintainClients(void)
 
 void Engine::DrawLine(edict_t* client, const Vector& start, const Vector& end, const Color& color, const int width, const int noise, const int speed, const int life, const int lineType)
 {
-    if (!g_messageEnded || !IsValidPlayer(client) || IsValidBot(client))
+    if (!IsValidPlayer(client) || IsValidBot(client))
         return;
 
     MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, g_hostEntity);
@@ -267,25 +277,20 @@ void Engine::DrawLine(edict_t* client, const Vector& start, const Vector& end, c
 //////////////////////////////////////////////////////////////////////////
 // CLIENT
 //////////////////////////////////////////////////////////////////////////
-float Client::GetShootingConeDeviation(const Vector& pos) const
-{
-    engine->BuildGlobalVectors(GetViewAngles());
-    return g_pGlobals->v_forward | (pos - GetHeadOrigin()).Normalize();
-}
-
 bool Client::IsInViewCone(const Vector& pos) const
 {
     engine->BuildGlobalVectors(GetViewAngles());
-    return ((pos - GetHeadOrigin()).Normalize() | g_pGlobals->v_forward) >= ccosf(Math::DegreeToRadian((GetFOV() > 0.0f ? GetFOV() : 90.0f) * 0.5f));
+    return ((pos - GetHeadOrigin()).Normalize() | g_pGlobals->v_forward) > ccosf(Math::DegreeToRadian((GetFOV() > 0.0f ? GetFOV() : 91.0f) * 0.51f));
 }
 
 bool Client::IsVisible(const Vector& pos) const
 {
-    Tracer trace(GetHeadOrigin(), pos, NO_BOTH, m_ent);
-    return !(trace.Fire() != 1.0);
+    TraceResult tr{};
+    TraceLine(GetHeadOrigin(), pos, true, true, m_ent, &tr);
+    return tr.flFraction == 1.0f;
 }
 
-bool Client::HasFlag(int clientFlags)
+bool Client::HasFlag(const int clientFlags)
 {
     return (m_flags & clientFlags) == clientFlags;
 }
