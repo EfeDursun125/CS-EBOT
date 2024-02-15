@@ -16,7 +16,7 @@ void Bot::EscapeUpdate(void)
 		SetProcess(Process::Pause, "i have escaped from the bomb", true, engine->GetTime() + 99999999.0f);
 	else
 	{
-		if (!m_hasEntitiesNear && m_numEnemiesLeft <= 0)
+		if (!m_hasEntitiesNear && !m_numEnemiesLeft)
 			SelectKnife();
 
 		m_walkTime = 0.0f; // RUN FOR YOUR LIFE!
@@ -40,7 +40,7 @@ void Bot::EscapeUpdate(void)
 
 void Bot::EscapeEnd(void)
 {
-	if (m_numEnemiesLeft > 0)
+	if (m_numEnemiesLeft)
 	{
 		if (IsShieldDrawn())
 			pev->buttons |= IN_ATTACK2;

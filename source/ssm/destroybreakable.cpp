@@ -75,10 +75,10 @@ void Bot::DestroyBreakableUpdate(void)
 		{
 			if (selectIndex == WeaponHL::Snark || selectIndex == WeaponHL::Gauss || selectIndex == WeaponHL::Egon || (selectIndex == WeaponHL::HandGrenade && distance > squaredf(384.0f) && distance < squaredf(768.0f)) || (selectIndex == WeaponHL::Rpg && distance > squaredf(320.0f)) || (selectIndex == WeaponHL::Crossbow && distance > squaredf(320.0f)))
 				chosenWeaponIndex = selectIndex;
-			else if (selectIndex != WeaponHL::HandGrenade && selectIndex != WeaponHL::Rpg && selectIndex != WeaponHL::Crossbow && m_ammoInClip[id] > 0 && !IsWeaponBadInDistance(selectIndex, distance))
+			else if (selectIndex != WeaponHL::HandGrenade && selectIndex != WeaponHL::Rpg && selectIndex != WeaponHL::Crossbow && m_ammoInClip[id] && !IsWeaponBadInDistance(selectIndex, distance))
 				chosenWeaponIndex = selectIndex;
 		}
-		else if (m_ammoInClip[id] > 0 && !IsWeaponBadInDistance(selectIndex, distance))
+		else if (m_ammoInClip[id] && !IsWeaponBadInDistance(selectIndex, distance))
 			chosenWeaponIndex = selectIndex;
 
 		selectIndex++;
@@ -99,7 +99,7 @@ void Bot::DestroyBreakableUpdate(void)
 			// if (pev->waterlevel == 3 && g_weaponDefs[id].flags & ITEM_FLAG_NOFIREUNDERWATER)
 			//	continue;
 
-			if (m_ammo[g_weaponDefs[id].ammo1] > 0)
+			if (m_ammo[g_weaponDefs[id].ammo1])
 				chosenWeaponIndex = selectIndex;
 
 			selectIndex++;
@@ -127,7 +127,7 @@ void Bot::DestroyBreakableUpdate(void)
 		return;
 	}
 
-	if (GetAmmoInClip() == 0)
+	if (!GetAmmoInClip())
 	{
 		if (!(pev->oldbuttons & IN_RELOAD))
 			pev->buttons |= IN_RELOAD;

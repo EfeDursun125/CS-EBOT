@@ -219,7 +219,7 @@ void Bot::AttackUpdate(void)
 		}
 	}
 
-	if (m_fightStyle == 0 || (pev->buttons & IN_RELOAD || pev->oldbuttons & IN_RELOAD) || (UsesPistol() && distance < squaredf(768.0f)) || m_currentWeapon == melee)
+	if (!m_fightStyle || (pev->buttons & IN_RELOAD || pev->oldbuttons & IN_RELOAD) || (UsesPistol() && distance < squaredf(768.0f)) || m_currentWeapon == melee)
 	{
 		if (m_strafeSetTime < time)
 		{
@@ -236,7 +236,7 @@ void Bot::AttackUpdate(void)
 			m_strafeSetTime = time + crandomfloat(0.5f, 3.0f);
 		}
 
-		if (m_combatStrafeDir == 0)
+		if (!m_combatStrafeDir)
 		{
 			if (!CheckWallOnLeft())
 				m_strafeSpeed = -pev->maxspeed;

@@ -72,7 +72,7 @@ void Bot::PickupUpdate(void)
 						weaponID = i;
 				}
 
-				if (weaponID > 0)
+				if (weaponID)
 				{
 					SelectWeaponbyNumber(weaponID);
 					FakeClientCommand(GetEntity(), "drop");

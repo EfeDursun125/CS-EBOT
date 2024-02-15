@@ -10,12 +10,12 @@ float Bot::GetCurrentStateTime(void)
 	return m_currentProcessTime - engine->GetTime();
 }
 
-bool Bot::SetProcess(const Process process, const char* debugnote, const bool rememberProcess, const float time)
+bool Bot::SetProcess(const Process& process, const char* debugnote, const bool rememberProcess, const float time)
 {
 	if (m_currentProcess != process && IsReadyForTheProcess(process))
 	{
 		extern ConVar ebot_debug;
-		if (ebot_debug.GetInt() > 0)
+		if (ebot_debug.GetBool())
 			ServerPrint("%s has got a new process from %s to %s | process started -> %s", GetEntityName(GetEntity()), GetProcessName(m_currentProcess), GetProcessName(process), debugnote);
 
 		if (rememberProcess && m_currentProcess > Process::Default)
@@ -34,7 +34,7 @@ bool Bot::SetProcess(const Process process, const char* debugnote, const bool re
 	return false;
 }
 
-void Bot::StartProcess(const Process process)
+void Bot::StartProcess(const Process& process)
 {
 	switch (process)
 	{
@@ -111,7 +111,7 @@ void Bot::StartProcess(const Process process)
 	}
 }
 
-void Bot::EndProcess(const Process process)
+void Bot::EndProcess(const Process& process)
 {
 	switch (process)
 	{
@@ -190,7 +190,8 @@ void Bot::EndProcess(const Process process)
 
 void Bot::UpdateProcess(void)
 {
-	const float time = engine->GetTime();
+	static float time;
+	time = engine->GetTime();
 
 	switch (m_currentProcess)
 	{
@@ -271,7 +272,7 @@ void Bot::UpdateProcess(void)
 	if (m_currentProcess > Process::Default && m_currentProcessTime < time)
 	{
 		extern ConVar ebot_debug;
-		if (ebot_debug.GetInt() > 0)
+		if (ebot_debug.GetBool())
 			ServerPrint("%s is cancelled %s process -> timed out.", GetEntityName(GetEntity()), GetProcessName(m_currentProcess));
 
 		EndProcess(m_currentProcess);
@@ -296,7 +297,7 @@ void Bot::FinishCurrentProcess(const char* debugNote)
 	if (m_currentProcess > Process::Default)
 	{
 		extern ConVar ebot_debug;
-		if (ebot_debug.GetInt() > 0)
+		if (ebot_debug.GetBool())
 			ServerPrint("%s is cancelled %s process -> %s", GetEntityName(GetEntity()), GetProcessName(m_currentProcess), debugNote);
 
 		EndProcess(m_currentProcess);
@@ -315,7 +316,7 @@ void Bot::FinishCurrentProcess(const char* debugNote)
 	}
 }
 
-bool Bot::IsReadyForTheProcess(const Process process)
+bool Bot::IsReadyForTheProcess(const Process& process)
 {
 	switch (process)
 	{
@@ -352,7 +353,7 @@ bool Bot::IsReadyForTheProcess(const Process process)
 	return true;
 }
 
-char* Bot::GetProcessName(const Process process)
+char* Bot::GetProcessName(const Process& process)
 {
 	switch (process)
 	{
