@@ -2492,7 +2492,7 @@ public:
 
     inline bool IsValid(void) const
     {
-        if (!m_ent || g_engfuncs.pfnEntOffsetOfPEntity(m_ent) == 0 || m_ent->free || m_ent->v.flags & FL_KILLME)
+        if (!m_ent || !g_engfuncs.pfnEntOffsetOfPEntity(m_ent) || m_ent->free || m_ent->v.flags & FL_KILLME)
             return false;
 
         return true;
@@ -2500,7 +2500,7 @@ public:
 
     inline virtual bool IsAlive(void) const
     {
-        return m_ent->v.deadflag == DEAD_NO && m_ent->v.health > 0 && m_ent->v.movetype != MOVETYPE_NOCLIP;
+        return !m_ent->v.deadflag && m_ent->v.health > 0.0f && m_ent->v.movetype != MOVETYPE_NOCLIP;
     }
 
     inline bool IsRendered(void) const

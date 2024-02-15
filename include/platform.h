@@ -57,7 +57,7 @@
 #include <direct.h>
 
 #define DLL_ENTRYPOINT int STDCALL DllMain (void *, unsigned long dwReason, void *)
-#define DLL_DETACHING (dwReason == 0)
+#define DLL_DETACHING (!dwReason)
 #define DLL_RETENTRY return 1
 
 #if defined (COMPILER_VISUALC)

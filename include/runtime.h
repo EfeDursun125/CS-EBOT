@@ -1268,7 +1268,7 @@ public:
 
     bool GetLast(const T& item)
     {
-        if (m_itemCount <= 0)
+        if (!m_itemCount)
             return false;
 
         item = m_elements[m_itemCount - 1];
@@ -1883,7 +1883,7 @@ public:
 
     friend bool operator > (const String& s1, const String& s2)
     {
-        return s1.Compare(s2) > 0;
+        return s1.Compare(s2);
     }
 
     friend bool operator == (const char* s1, const String& s2)
@@ -2604,7 +2604,7 @@ public:
         if (index + count > m_stringLength)
             count = m_stringLength - index;
 
-        if (count > 0)
+        if (count)
         {
             MoveItems(index, index + count);
             m_stringLength -= count;
@@ -2690,11 +2690,11 @@ public:
             index += cstrspn(&m_bufferPtr[index], separator);
             tokenLength = cstrcspn(&m_bufferPtr[index], separator);
 
-            if (tokenLength > 0)
+            if (tokenLength)
                 holder.Push(Mid(index, tokenLength));
 
             index += tokenLength;
-        } while (tokenLength > 0);
+        } while (tokenLength);
 
         return holder;
     }

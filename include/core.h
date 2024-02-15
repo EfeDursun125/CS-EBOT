@@ -689,8 +689,8 @@ private:
 	void MoveAction(void);
 	void PerformWeaponPurchase(void);
 
-	bool CanJumpUp(const Vector normal);
-	bool CantMoveForward(const Vector normal);
+	bool CanJumpUp(const Vector& normal);
+	bool CantMoveForward(const Vector& normal);
 
 	void CheckMessageQueue(void);
 	void CheckRadioCommands(void);
@@ -714,13 +714,13 @@ private:
 
 	edict_t* FindNearestButton(const char* className);
 	edict_t* FindButton(void);
-	int FindDefendWaypoint(const Vector origin);
+	int FindDefendWaypoint(const Vector& origin);
 	int FindGoal(void);
 
 	int GetMessageQueue(void);
 	float InFieldOfView(const Vector& dest);
 
-	bool IsBombDefusing(const Vector bombOrigin);
+	bool IsBombDefusing(const Vector& bombOrigin);
 	bool IsWaypointOccupied(const int index);
 
 	bool IsNotAttackLab(edict_t* entity);
@@ -729,18 +729,18 @@ private:
 	inline bool IsOnFloor(void) { return !!(pev->flags & (FL_ONGROUND | FL_PARTIALGROUND)); }
 	inline bool IsInWater(void) { return pev->waterlevel == 3; }
 
-	bool ItemIsVisible(Vector dest, char* itemName);
+	bool ItemIsVisible(const Vector& dest, char* itemName);
 	bool IsBehindSmokeClouds(edict_t* ent);
 
 	bool RateGroundWeapon(edict_t* ent);
-	void SetStrafeSpeed(const Vector moveDir, const float strafeSpeed);
-	void SetStrafeSpeedNoCost(const Vector moveDir, const float strafeSpeed);
+	void SetStrafeSpeed(const Vector& moveDir, const float strafeSpeed);
+	void SetStrafeSpeedNoCost(const Vector& moveDir, const float strafeSpeed);
 	void StartGame(void);
 	int GetBestWeaponCarried(void);
 	int GetBestSecondaryWeaponCarried(void);
 
 	void ChangeWptIndex(const int waypointIndex);
-	bool IsDeadlyDrop(const Vector targetOriginPos);
+	bool IsDeadlyDrop(const Vector& targetOriginPos);
 	bool CampingAllowed(void);
 	bool OutOfBombTimer(void);
 	void SetWaypointOrigin(void);
@@ -750,8 +750,8 @@ private:
 	Vector GetEnemyPosition(void);
 	float GetZOffset(const float distance);
 
-	int GetNearbyFriendsNearPosition(const Vector origin, const float radius);
-	int GetNearbyEnemiesNearPosition(const Vector origin, const float radius);
+	int GetNearbyFriendsNearPosition(const Vector& origin, const float radius);
+	int GetNearbyEnemiesNearPosition(const Vector& origin, const float radius);
 
 	int CheckGrenades(void);
 	bool IsWeaponBadInDistance(const int weaponIndex, const float distance);
@@ -905,18 +905,18 @@ public:
 	Process GetCurrentState(void);
 	float GetCurrentStateTime(void);
 
-	bool SetProcess(const Process process, const char* debugNote = "clear", const bool rememberProcess = false, const float time = 9999999.0f);
-	void StartProcess(const Process process);
-	void EndProcess(const Process process);
+	bool SetProcess(const Process& process, const char* debugNote = "clear", const bool rememberProcess = false, const float time = 9999999.0f);
+	void StartProcess(const Process& process);
+	void EndProcess(const Process& process);
 	void FinishCurrentProcess(const char* debugNote = "finished by the system");
-	bool IsReadyForTheProcess(const Process process);
-	char* GetProcessName(const Process process);
+	bool IsReadyForTheProcess(const Process& process);
+	char* GetProcessName(const Process& process);
 
 	// FUNCTIONS
 	void LookAtEnemies(void);
 	void LookAtAround(void);
-	void MoveTo(const Vector targetPosition);
-	void MoveOut(const Vector targetPosition);
+	void MoveTo(const Vector& targetPosition);
+	void MoveOut(const Vector& targetPosition);
 	void FollowPath(void);
 	void FindFriendsAndEnemiens(void);
 	void FindEnemyEntities(void);
@@ -1017,20 +1017,20 @@ public:
 	inline Vector EyePosition(void) { return pev->origin + pev->view_ofs; };
 
 	void FacePosition(void);
-	void LookAt(const Vector origin);
+	void LookAt(const Vector& origin);
 	void NewRound(void);
 	void PushMessageQueue(const int message);
 	void PrepareChatMessage(char* text);
-	bool EntityIsVisible(Vector dest, const bool fromBody = false);
+	bool EntityIsVisible(const Vector& dest, const bool fromBody = false);
 
 	void CheckTouchEntity(edict_t* entity);
-	void TakeBlinded(const Vector fade, const int alpha);
+	void TakeBlinded(const Vector& fade, const int alpha);
 	void DiscardWeaponForUser(edict_t* user, const bool discardC4);
 
 	void ChatSay(const bool teamSay, const char* text, ...);
 	void ChatMessage(const int type, const bool isTeamSay = false);
 	void RadioMessage(const int message);
-	void PlayChatterMessage(const ChatterMessage message);
+	void PlayChatterMessage(const ChatterMessage& message);
 
 	void Kill(void);
 	void Kick(void);
@@ -1209,7 +1209,7 @@ public:
 	void DeleteFlags(void);
 	void TeleportWaypoint(void);
 
-	float GetTravelTime(const float maxSpeed, const Vector src, const Vector origin);
+	float GetTravelTime(const float maxSpeed, const Vector& src, const Vector& origin);
 	void CalculateWayzone(const int index);
 	Vector GetBottomOrigin(const Path* waypoint);
 
@@ -1218,8 +1218,8 @@ public:
 	void Save(void);
 
 	bool Reachable(edict_t* entity, const int index);
-	bool IsNodeReachable(const Vector src, const Vector destination);
-	bool IsNodeReachableWithJump(const Vector src, const Vector destination);
+	bool IsNodeReachable(const Vector& src, const Vector& destination);
+	bool IsNodeReachableWithJump(const Vector& src, const Vector& destination);
 	void Think(void);
 	void ShowWaypointMsg(void);
 	bool NodesValid(void);
@@ -1227,12 +1227,12 @@ public:
 
 	float GetPathDistance(const int srcIndex, const int destIndex);
 
-	Path* GetPath(const uint16_t id);
+	Path* GetPath(const int id);
 	char* GetWaypointInfo(const int id);
 	char* GetInfo(void) { return m_infoBuffer; }
 
-	void SetFindIndex(int index);
-	void SetLearnJumpWaypoint(int mod = -1);
+	void SetFindIndex(const int index);
+	void SetLearnJumpWaypoint(const int mod = -1);
 
 	Vector GetBombPosition(void) { return m_foundBombOrigin; }
 	void SetBombPosition(const bool shouldReset = false);
@@ -1259,11 +1259,11 @@ extern bool IsValidWaypoint(const T index);
 #endif
 extern ChatterMessage GetEqualChatter(const int message);
 extern char* GetVoice(const ChatterMessage message);
-extern float GetShootingConeDeviation(edict_t* ent, const Vector position);
+extern float GetShootingConeDeviation(edict_t* ent, const Vector& position);
 
 extern bool IsLinux(void);
 extern bool TryFileOpen(char* fileName);
-extern bool IsWalkableLineClear(const Vector from, const Vector to);
+extern bool IsWalkableLineClear(const Vector& from, const Vector& to);
 extern bool IsDedicatedServer(void);
 extern bool IsVisible(const Vector& origin, edict_t* ent);
 extern bool IsAlive(const edict_t* ent);
@@ -1309,15 +1309,14 @@ extern void AutoLoadGameMode(void);
 extern bool SetEntityAction(const int index, const int team, const int action);
 extern void SetEntityActionData(const int i, const int index = -1, const int team = -1, const int action = -1);
 
-extern void AddLogEntry(Log logLevel, const char* format, ...);
-
-extern void MOD_AddLogEntry(int mode, char* format);
+extern void AddLogEntry(const Log logLevel, const char* format, ...);
+extern void MOD_AddLogEntry(const int mode, char* format);
 
 extern void DisplayMenuToClient(edict_t* ent, MenuText* menu);
 
-extern void TraceLine(const Vector& start, const Vector& end, bool ignoreMonsters, bool ignoreGlass, edict_t* ignoreEntity, TraceResult* ptr);
-extern void TraceLine(const Vector& start, const Vector& end, bool ignoreMonsters, edict_t* ignoreEntity, TraceResult* ptr);
-extern void TraceHull(const Vector& start, const Vector& end, bool ignoreMonsters, int hullNumber, edict_t* ignoreEntity, TraceResult* ptr);
+extern void TraceLine(const Vector& start, const Vector& end, const bool ignoreMonsters, const bool ignoreGlass, edict_t* ignoreEntity, TraceResult* ptr);
+extern void TraceLine(const Vector& start, const Vector& end, const bool ignoreMonsters, edict_t* ignoreEntity, TraceResult* ptr);
+extern void TraceHull(const Vector& start, const Vector& end, const bool ignoreMonsters, const int hullNumber, edict_t* ignoreEntity, TraceResult* ptr);
 
 inline bool IsNullString(const char* input)
 {

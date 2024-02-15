@@ -9,20 +9,22 @@
 
 #pragma once
 
-static constexpr int MAXBUF = 4096, PADDING = 18, THRESHOLD = 2, NIL = MAXBUF;
+#define MAXBUF 4096
+#define PADDING 18
+#define THRESHOLD 2
+#define NIL MAXBUF
 class Compressor
 {
 protected:
-    unsigned long int m_csize;
+    unsigned long int m_csize{};
 
-    uint8_t m_buffer[MAXBUF + PADDING - 1];
-    int m_matchPos;
-    int m_matchLen;
+    uint8_t m_buffer[MAXBUF + PADDING - 1]{};
+    int m_matchPos{};
+    int m_matchLen{};
 
-    int m_left[MAXBUF + 1];
-    int m_right[MAXBUF + 257];
-    int m_parent[MAXBUF + 1];
-
+    int m_left[MAXBUF + 1]{};
+    int m_right[MAXBUF + 257]{};
+    int m_parent[MAXBUF + 1]{};
 private:
     void InitTrees(void)
     {
@@ -174,7 +176,7 @@ public:
             m_buffer[node + length] = bit;
         }
 
-        if (length == 0)
+        if (!length)
             return -1;
 
         for (i = 1; i <= PADDING; i++)
@@ -199,7 +201,7 @@ public:
                 cb[cbp++] = static_cast<uint8_t>(((m_matchPos >> 4) & 0xf0) | (m_matchLen - (THRESHOLD + 1)));
             }
 
-            if ((mask <<= 1) == 0)
+            if (!(mask <<= 1))
             {
                 for (i = 0; i < cbp; i++)
                     fp.PutCharacter(cb[i]);
@@ -236,7 +238,7 @@ public:
                 if (length--)
                     Insert(node);
             }
-        } while (length > 0);
+        } while (length);
 
         if (cbp > 1)
         {
@@ -271,7 +273,7 @@ public:
 
         for (;;)
         {
-            if (((flags >>= 1) & 256) == 0)
+            if (!((flags >>= 1) & 256))
             {
                 const int read = fp.GetCharacter();
                 if (read == EOF)

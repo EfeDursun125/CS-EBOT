@@ -375,11 +375,11 @@ inline void* cmemmove(void* dest, const void* src, int count)
 
 inline int cctz(unsigned int value)
 {
-	if (value == 0)
+	if (!value)
 		return sizeof(unsigned int) * 8;
 
 	int cache = 0;
-	while ((value & 1) == 0)
+	while (!(value & 1))
 	{
 		value >>= 1;
 		cache++;
@@ -695,7 +695,7 @@ inline int cvsnprintf(char* buf, const int size, const char* format, ...)
 			{
 				num[i++] = '0' + value % 10;
 				value /= 10;
-			} while (value > 0);
+			} while (value);
 
 			for (; i-- > 0;)
 				*ptr++ = num[i];
@@ -723,7 +723,7 @@ inline int cvsnprintf(char* buf, const int size, const char* format, ...)
 				{
 					num[i++] = '0' + (lval % 10);
 					lval /= 10;
-				} while (lval > 0);
+				} while (lval);
 
 				*ptr++ = '.';
 				len++;
@@ -734,7 +734,7 @@ inline int cvsnprintf(char* buf, const int size, const char* format, ...)
 				{
 					num[i++] = '0' + (lval % 10);
 					lval /= 10;
-				} while (lval > 0);
+				} while (lval);
 			}
 
 			for (; i-- > 0;)

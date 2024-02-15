@@ -44,14 +44,14 @@ public:
 	float direction[ENavDir::NumDir]{};
 	float dirHeight[ENavDir::NumDir]{};
 
-	Vector GetClosestPosition(const Vector origin);
-	Vector GetFarestPosition(const Vector origin);
+	Vector GetClosestPosition(const Vector& origin);
+	Vector GetFarestPosition(const Vector& origin);
 	Vector GetCenter(void);
 	Vector GetRandomPosition(void);
 	Vector GetCornerPosition(const uint_fast8_t corner);
 	Vector AreaDirectionAsVector(const uint_fast8_t corner);
 	bool IsAreaOverlapping(const ENavArea area);
-	bool IsPointOverlapping(const Vector origin);
+	bool IsPointOverlapping(const Vector& origin);
 
 	void MergeWith(const ENavArea area);
 	void ExpandNavArea(const uint_fast8_t radius = static_cast<uint_fast8_t>(50));
