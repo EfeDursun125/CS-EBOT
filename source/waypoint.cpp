@@ -92,7 +92,7 @@ void SetGoals(void)
     }
 }
 
-bool CheckCrouchRequirement(const Vector TargetPosition)
+bool CheckCrouchRequirement(const Vector& TargetPosition)
 {
     TraceResult upcheck{};
     const Vector TargetPosition2 = Vector(TargetPosition.x, TargetPosition.y, (TargetPosition.z + 36.0f));
@@ -100,7 +100,7 @@ bool CheckCrouchRequirement(const Vector TargetPosition)
     return upcheck.flFraction != 1.0f;
 }
 
-void CreateWaypoint(Vector Next, float range)
+void CreateWaypoint(Vector& Next, float range)
 {
     Next.z += 19.0f;
     TraceResult tr{};
@@ -262,7 +262,7 @@ void AnalyzeThread(void)
 
 void Waypoint::Analyze(void)
 {
-    if (g_numWaypoints <= 0)
+    if (!g_numWaypoints)
         return;
 
     AnalyzeThread();
@@ -289,7 +289,7 @@ void Waypoint::AnalyzeDeleteUselessWaypoints(void)
             }
         }
 
-        if (connections == 0)
+        if (!connections)
             DeleteByIndex(i);
     }
 
@@ -582,7 +582,7 @@ void Waypoint::Add(const int flags, const Vector& waypointOrigin)
         newOrigin = GetEntityOrigin(g_hostEntity);
     }
 
-    if (g_botManager->GetBotsNum() > 0)
+    if (g_botManager->GetBotsNum())
         g_botManager->RemoveAll();
 
     g_waypointsChanged = true;
@@ -608,7 +608,7 @@ void Waypoint::Add(const int flags, const Vector& waypointOrigin)
                 for (i = 0; i < Const_MaxPathIndex; i++)
                     accumFlags += path->connectionFlags[i];
 
-                if (accumFlags == 0)
+                if (!accumFlags)
                     path->origin = (path->origin + GetEntityOrigin(g_hostEntity)) * 0.5f;
             }
         }
@@ -825,7 +825,7 @@ void Waypoint::Add(const int flags, const Vector& waypointOrigin)
                     AddPath(index, i);
                     AddPath(i, index);
                 }
-                else if (ebot_analyze_disable_fall_connections.GetInt() == 0)
+                else if (!ebot_analyze_disable_fall_connections.GetBool())
                 {
                     if (IsNodeReachable(newOrigin, m_paths[i].origin) && newOrigin.z > m_paths[i].origin.z)
                         AddPath(index, i);
@@ -867,7 +867,7 @@ void Waypoint::DeleteByIndex(const int index)
     if (g_numWaypoints < 1)
         return;
 
-    if (g_botManager->GetBotsNum() > 0)
+    if (g_botManager->GetBotsNum())
         g_botManager->RemoveAll();
 
     if (!IsValidWaypoint(index))
@@ -1470,7 +1470,7 @@ bool Waypoint::Download(void)
         ServerPrint("Error: Could not find valid cURL version");
 #else
     // check if wget is installed
-    if (system("which wget") == 0)
+    if (!system("which wget"))
     {
         // wget is installed
         char downloadURL[512];
@@ -1483,7 +1483,7 @@ bool Waypoint::Download(void)
         printf("Executing wget command: %s", command);
         const int result = system(command);
 
-        if (result == 0)
+        if (!result)
         {
             ServerPrint("wget download successful");
             return true;
@@ -1662,7 +1662,7 @@ bool Waypoint::Load(void)
     }
 
     InitTypes();
-    if (g_numWaypoints > 0)
+    if (g_numWaypoints)
     {
         // only in lan game
         if (!IsDedicatedServer())
@@ -1759,7 +1759,7 @@ String Waypoint::CheckSubfolderFile(void)
 }
 
 // this function returns 2D traveltime to a position
-float Waypoint::GetTravelTime(const float maxSpeed, const Vector src, const Vector origin)
+float Waypoint::GetTravelTime(const float maxSpeed, const Vector& src, const Vector& origin)
 {
     return (origin - src).GetLength2D() / cabsf(maxSpeed);
 }
@@ -1792,7 +1792,7 @@ bool Waypoint::Reachable(edict_t* entity, const int index)
     return false;
 }
 
-bool Waypoint::IsNodeReachable(const Vector src, const Vector destination)
+bool Waypoint::IsNodeReachable(const Vector& src, const Vector& destination)
 {
     float distance = (destination - src).GetLengthSquared();
 
@@ -1879,7 +1879,7 @@ bool Waypoint::IsNodeReachable(const Vector src, const Vector destination)
     return false;
 }
 
-bool Waypoint::IsNodeReachableWithJump(const Vector src, const Vector destination)
+bool Waypoint::IsNodeReachableWithJump(const Vector& src, const Vector& destination)
 {
     float distance = (destination - src).GetLengthSquared();
 
@@ -1992,7 +1992,7 @@ char* Waypoint::GetWaypointInfo(const int id)
 
     char messageBuffer[1024];
     sprintf(messageBuffer, "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s", 
-        (path->flags == 0 && !jumpPoint) ? "(none)" : "", 
+        (!path->flags && !jumpPoint) ? "(none)" : "", 
         path->flags & WAYPOINT_LIFT ? "LIFT " : "", 
         path->flags & WAYPOINT_CROUCH ? "CROUCH " : "", 
         path->flags & WAYPOINT_CROSSING ? "CROSSING " : "", 
@@ -2447,7 +2447,7 @@ bool Waypoint::NodesValid(void)
             }
         }
 
-        if (connections == 0)
+        if (!connections)
         {
             if (!IsConnected(i))
             {
@@ -2499,24 +2499,24 @@ bool Waypoint::NodesValid(void)
 
     if (g_mapType == MAP_CS && GetGameMode() == GameMode::Original)
     {
-        if (rescuePoints == 0)
+        if (!rescuePoints)
         {
             AddLogEntry(Log::Warning, "You didn't set a Rescue Point!");
             haveError = true;
         }
     }
 
-    if (terrPoints == 0 && GetGameMode() == GameMode::Original)
+    if (!terrPoints && GetGameMode() == GameMode::Original)
     {
         AddLogEntry(Log::Warning, "You didn't set any Terrorist Important Point!");
         haveError = true;
     }
-    else if (ctPoints == 0 && GetGameMode() == GameMode::Original)
+    else if (!ctPoints && GetGameMode() == GameMode::Original)
     {
         AddLogEntry(Log::Warning, "You didn't set any CT Important Point!");
         haveError = true;
     }
-    else if (goalPoints == 0 && GetGameMode() == GameMode::Original)
+    else if (!goalPoints && GetGameMode() == GameMode::Original)
     {
         AddLogEntry(Log::Warning, "You didn't set any Goal Point!");
         haveError = true;
@@ -2681,10 +2681,10 @@ void Waypoint::CreateBasic(void)
     }
 }
 
-Path* Waypoint::GetPath(const uint16_t id)
+Path* Waypoint::GetPath(const int id)
 {
     // avoid crash
-    if (id > g_numWaypoints)
+    if (!IsValidWaypoint(id))
         return &m_paths[crandomint(0, g_numWaypoints - 1)];
 
     return &m_paths[id];

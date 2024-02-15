@@ -8,7 +8,7 @@ bool IsValidNavArea(const uint16_t index)
     return true;
 }
 
-Vector GetPositionOnGrid(const Vector origin)
+Vector GetPositionOnGrid(const Vector& origin)
 {
     return Vector(static_cast<int>(origin.x / GridSize) * GridSize, static_cast<int>(origin.y / GridSize) * GridSize, origin.z);
 }
@@ -138,7 +138,7 @@ void ENavMesh::CreateBasic(void)
         CreateArea(GetPositionOnGrid(GetWalkablePosition(GetEntityOrigin(ent))));
 }
 
-int16_t GetNearestNavAreaCenterID(const Vector origin, const float maxDist, const int ignore)
+int16_t GetNearestNavAreaCenterID(const Vector& origin, const float maxDist, const int ignore)
 {
     int16_t index = -1;
     uint16_t i;
@@ -254,7 +254,7 @@ bool IsReachable(const Vector& start, const Vector& end)
 
 void ENavMesh::Analyze(void)
 {
-    if (g_numNavAreas <= 0)
+    if (!g_numNavAreas)
         return;
 
     static bool* expanded{};
@@ -572,7 +572,7 @@ void ENavMesh::DeleteAreaByIndex(const int index)
     }
 
     m_area.RemoveAt(index);
-    if (g_numNavAreas > 0)
+    if (g_numNavAreas)
         g_numNavAreas--;
 
     PlaySound(g_hostEntity, "weapons/mine_activate.wav");

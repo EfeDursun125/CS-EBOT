@@ -2595,7 +2595,7 @@ void ClientCommand(edict_t* ent)
 				for (const auto& bot : g_botManager->m_bots)
 				{
 					// validate bot
-					if (bot && bot->m_team == g_clients[clientIndex].team && VARS(ent) != bot->pev && bot->m_radioOrder == 0)
+					if (bot && bot->m_team == g_clients[clientIndex].team && VARS(ent) != bot->pev && !bot->m_radioOrder)
 					{
 						bot->m_radioOrder = radioCommand;
 						bot->m_radioEntity = ent;

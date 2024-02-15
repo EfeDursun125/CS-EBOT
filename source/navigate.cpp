@@ -307,7 +307,7 @@ int Bot::FindGoal(void)
 	return crandomint(0, g_numWaypoints - 1);
 }
 
-void Bot::MoveTo(const Vector targetPosition)
+void Bot::MoveTo(const Vector& targetPosition)
 {
 	const Vector directionOld = (targetPosition + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval);
 	const Vector directionNormal = directionOld.Normalize2D();
@@ -318,7 +318,7 @@ void Bot::MoveTo(const Vector targetPosition)
 	m_moveSpeed = pev->maxspeed;
 }
 
-void Bot::MoveOut(const Vector targetPosition)
+void Bot::MoveOut(const Vector& targetPosition)
 {
 	const Vector directionOld = (targetPosition + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval);
 	const Vector directionNormal = directionOld.Normalize2D();
@@ -416,7 +416,7 @@ void Bot::DoWaypointNav(void)
 {
 	if (!IsValidWaypoint(m_currentWaypointIndex))
 	{
-		if (m_stuckWarn == 0 && IsValidWaypoint(m_navNode.First()))
+		if (!m_stuckWarn && IsValidWaypoint(m_navNode.First()))
 			ChangeWptIndex(m_navNode.First());
 		else
 			FindWaypoint();
@@ -685,7 +685,7 @@ void Bot::DoWaypointNav(void)
 
 	if (distance < squaredf(desiredDistance))
 	{
-		if (m_currentTravelFlags == 0)
+		if (!m_currentTravelFlags)
 			m_prevTravelFlags = 0;
 
 		m_currentTravelFlags = 0;
@@ -1326,7 +1326,7 @@ inline const float GF_CostHuman(const int16_t& index, const int16_t& parent, con
 		totalDistance += distance;
 	}
 
-	if (countCache > 0 && totalDistance > 0.0f)
+	if (countCache && totalDistance > 0.0f)
 		return (HF_Distance(index, parent) * static_cast<float>(countCache)) + totalDistance;
 
 	return HF_Distance(index, parent);
@@ -2328,7 +2328,7 @@ void Bot::CheckStuck(const float maxSpeed)
 			}
 		}
 	}
-	else if (m_stuckWarn > 0 && !(m_waypoint.flags & WAYPOINT_FALLRISK) && (pev->origin - m_waypoint.origin).GetLengthSquared2D() > squaredf(pev->maxspeed))
+	else if (m_stuckWarn && !(m_waypoint.flags & WAYPOINT_FALLRISK) && (pev->origin - m_waypoint.origin).GetLengthSquared2D() > squaredf(pev->maxspeed))
 	{
 		const bool left = CheckWallOnLeft();
 		const bool right = CheckWallOnRight();
@@ -2397,7 +2397,7 @@ void Bot::CheckStuck(const float maxSpeed)
 		const float rn = range * 4.0f;
 		if (distance > rn)
 		{
-			if (m_stuckWarn > 0)
+			if (m_stuckWarn)
 			{
 				if (m_stuckWarn < 5)
 					m_isStuck = false;
@@ -2477,7 +2477,7 @@ void Bot::ChangeWptIndex(const int waypointIndex)
 	SetWaypointOrigin();
 }
 
-int Bot::FindDefendWaypoint(const Vector origin)
+int Bot::FindDefendWaypoint(const Vector& origin)
 {
 	// no camp waypoints
 	if (g_waypoint->m_campPoints.IsEmpty())
@@ -2539,7 +2539,7 @@ int Bot::FindDefendWaypoint(const Vector origin)
 }
 
 // checks if bot is blocked in his movement direction (excluding doors)
-bool Bot::CantMoveForward(const Vector normal)
+bool Bot::CantMoveForward(const Vector& normal)
 {
 	// first do a trace from the bot's eyes forward...
 	const Vector eyePosition = EyePosition();
@@ -2632,7 +2632,7 @@ bool Bot::CantMoveForward(const Vector normal)
 	return false;  // bot can move forward, return false
 }
 
-bool Bot::CanJumpUp(const Vector normal)
+bool Bot::CanJumpUp(const Vector& normal)
 {
 	// this function check if bot can jump over some obstacle
 	TraceResult tr{};
@@ -2888,7 +2888,7 @@ bool Bot::CheckWallOnRight(void)
 }
 
 // this function eturns if given location would hurt Bot with falling damage
-bool Bot::IsDeadlyDrop(const Vector targetOriginPos)
+bool Bot::IsDeadlyDrop(const Vector& targetOriginPos)
 {
 	const Vector botPos = pev->origin;
 	TraceResult tr{};
@@ -2986,13 +2986,13 @@ void Bot::FacePosition(void)
 	pev->angles.y = pev->v_angle.y;
 }
 
-void Bot::LookAt(const Vector origin)
+void Bot::LookAt(const Vector& origin)
 {
 	m_lookAt = origin;
 	FacePosition();
 }
 
-void Bot::SetStrafeSpeed(const Vector moveDir, const float strafeSpeed)
+void Bot::SetStrafeSpeed(const Vector& moveDir, const float strafeSpeed)
 {
 	MakeVectors(pev->angles);
 	if (CheckWallOnBehind())
@@ -3013,7 +3013,7 @@ void Bot::SetStrafeSpeed(const Vector moveDir, const float strafeSpeed)
 		m_strafeSpeed = -strafeSpeed;
 }
 
-void Bot::SetStrafeSpeedNoCost(const Vector moveDir, const float strafeSpeed)
+void Bot::SetStrafeSpeedNoCost(const Vector& moveDir, const float strafeSpeed)
 {
 	MakeVectors(pev->angles);
 	if (((moveDir - pev->origin).Normalize2D() | g_pGlobals->v_forward.SkipZ()) > 0.0f)

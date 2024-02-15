@@ -132,7 +132,7 @@ bool Engine::IsFootstepsOn(void)
     if (!m_gameVars[GVAR_FOOTSTEPS])
         return true;
 
-    return m_gameVars[GVAR_FOOTSTEPS]->value > 0;
+    return m_gameVars[GVAR_FOOTSTEPS]->value > 0.0f;
 }
 
 float Engine::GetC4TimerTime(void)
@@ -189,7 +189,7 @@ bool Engine::IsFriendlyFireOn(void)
     if (!m_gameVars[GVAR_FRIENDLYFIRE])
         return false;
 
-    return m_gameVars[GVAR_FRIENDLYFIRE]->value > 0;
+    return m_gameVars[GVAR_FRIENDLYFIRE]->value > 0.0f;
 }
 
 void Engine::PrintServer(const char* format, ...)

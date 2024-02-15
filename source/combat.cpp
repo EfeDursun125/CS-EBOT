@@ -29,7 +29,7 @@ ConVar ebot_zp_use_grenade_percent("ebot_zm_use_grenade_percent", "10");
 ConVar ebot_zp_escape_distance("ebot_zm_escape_distance", "200");
 ConVar ebot_zombie_speed_factor("ebot_zombie_speed_factor", "0.54");
 
-int Bot::GetNearbyFriendsNearPosition(const Vector origin, const float radius)
+int Bot::GetNearbyFriendsNearPosition(const Vector& origin, const float radius)
 {
 	int count = 0;
 	for (const auto& client : g_clients)
@@ -44,7 +44,7 @@ int Bot::GetNearbyFriendsNearPosition(const Vector origin, const float radius)
 	return count;
 }
 
-int Bot::GetNearbyEnemiesNearPosition(const Vector origin, const float radius)
+int Bot::GetNearbyEnemiesNearPosition(const Vector& origin, const float radius)
 {
 	int count = 0;
 	for (const auto& client : g_clients)
@@ -197,8 +197,8 @@ void Bot::FindFriendsAndEnemiens(void)
 		}
 	}
 
-	m_hasEnemiesNear = m_enemiesNearCount > 0;
-	m_hasFriendsNear = m_friendsNearCount > 0;
+	m_hasEnemiesNear = m_enemiesNearCount;
+	m_hasFriendsNear = m_friendsNearCount;
 
 	// enemyOrigin will be added with IsEnemyViewable function unlike friendOrigin
 	if (m_hasEnemiesNear)
@@ -252,7 +252,7 @@ void Bot::FindEnemyEntities(void)
 		}
 	}
 
-	m_hasEntitiesNear = m_entitiesNearCount > 0;
+	m_hasEntitiesNear = m_entitiesNearCount;
 	if (m_hasEntitiesNear)
 	{
 		m_entityOrigin = GetEntityOrigin(m_nearestEntity);
@@ -484,10 +484,10 @@ void Bot::FireWeapon(void)
 		{
 			if (selectIndex == WeaponHL::Snark || selectIndex == WeaponHL::Gauss || selectIndex == WeaponHL::Egon || (selectIndex == WeaponHL::HandGrenade && distance > squaredf(384.0f) && distance < squaredf(768.0f)) || (selectIndex == WeaponHL::Rpg && distance > squaredf(320.0f)) || (selectIndex == WeaponHL::Crossbow && distance > squaredf(320.0f)))
 				chosenWeaponIndex = selectIndex;
-			else if (selectIndex != WeaponHL::HandGrenade && selectIndex != WeaponHL::Rpg && selectIndex != WeaponHL::Crossbow && m_ammoInClip[id] > 0 && !IsWeaponBadInDistance(selectIndex, distance))
+			else if (selectIndex != WeaponHL::HandGrenade && selectIndex != WeaponHL::Rpg && selectIndex != WeaponHL::Crossbow && m_ammoInClip[id] && !IsWeaponBadInDistance(selectIndex, distance))
 				chosenWeaponIndex = selectIndex;
 		}
-		else if (m_ammoInClip[id] > 0 && !IsWeaponBadInDistance(selectIndex, distance))
+		else if (m_ammoInClip[id] && !IsWeaponBadInDistance(selectIndex, distance))
 			chosenWeaponIndex = selectIndex;
 
 		selectIndex++;
@@ -508,7 +508,7 @@ void Bot::FireWeapon(void)
 			// if (pev->waterlevel == 3 && g_weaponDefs[id].flags & ITEM_FLAG_NOFIREUNDERWATER)
 			//	continue;
 
-			if (m_ammo[g_weaponDefs[id].ammo1] > 0)
+			if (m_ammo[g_weaponDefs[id].ammo1])
 				chosenWeaponIndex = selectIndex;
 
 			selectIndex++;
@@ -556,7 +556,7 @@ void Bot::FireWeapon(void)
 		m_zoomCheckTime = time;
 	}
 
-	if (GetAmmoInClip() == 0)
+	if (!GetAmmoInClip())
 	{
 		if (!(pev->oldbuttons & IN_RELOAD))
 			pev->buttons |= IN_RELOAD; // press reload button
@@ -693,7 +693,7 @@ bool Bot::KnifeAttack(const float attackDistance)
 	if (distance < kad2)
 		kaMode += 2;
 
-	if (kaMode > 0)
+	if (kaMode)
 	{
 		if (pev->origin.z > origin.z && (pev->origin - origin).GetLengthSquared2D() < squaredf(64.0f))
 		{
@@ -989,7 +989,7 @@ void Bot::SelectBestWeapon(void)
 			chosenWeaponIndex = selectIndex;
 		else
 		{
-			if (m_ammo[g_weaponDefs[id].ammo1] > 0)
+			if (m_ammo[g_weaponDefs[id].ammo1])
 				chosenWeaponIndex = selectIndex;
 		}
 

@@ -192,7 +192,7 @@ void Bot::PrepareChatMessage(char* text)
         if (pattern)
         {
             const int length = pattern - textStart;
-            if (length > 0)
+            if (length)
                 cstrncpy(m_tempStrings, textStart, length);
 
             pattern++;

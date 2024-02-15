@@ -1,6 +1,6 @@
 ﻿#include <core.h>
 
-Vector ENavArea::GetClosestPosition(const Vector origin)
+Vector ENavArea::GetClosestPosition(const Vector& origin)
 {
     Vector finalOrigin = origin;
 
@@ -27,7 +27,7 @@ Vector ENavArea::GetClosestPosition(const Vector origin)
     return finalOrigin;
 }
 
-Vector ENavArea::GetFarestPosition(const Vector origin)
+Vector ENavArea::GetFarestPosition(const Vector& origin)
 {
     Vector finalOrigin = origin;
 
@@ -122,7 +122,7 @@ bool ENavArea::IsAreaOverlapping(const ENavArea area)
     return true;
 }
 
-bool ENavArea::IsPointOverlapping(const Vector origin)
+bool ENavArea::IsPointOverlapping(const Vector& origin)
 {
     if (direction[ENavDir::Left] < origin.x)
         return false;
@@ -145,16 +145,14 @@ bool ENavArea::IsPointOverlapping(const Vector origin)
     return true;
 }
 
-ENavDir GetDirection(const Vector start, const Vector end)
+ENavDir GetDirection(const Vector& start, const Vector& end)
 {
     const Vector diff = end - start;
-    const float radian = catan2f(diff.y, diff.x);
-    float degree = (radian * 180.0f) * 0.318310155049f;
+    float degree = (catan2f(diff.y, diff.x) * 180.0f) * 0.318310155049f;
     if (degree < 0.0f)
         degree += 360.0f;
 
-    const int result = static_cast<int>((degree + 45.0f) * 0.0111111111111f) % ENavDir::NumDir;
-    return static_cast<ENavDir>(result);
+    return static_cast<ENavDir>(static_cast<int>((degree + 45.0f) * 0.0111111111111f) % ENavDir::NumDir);
 }
 
 void ENavArea::MergeWith(const ENavArea area)
@@ -219,7 +217,7 @@ void ENavArea::ExpandNavArea(const uint_fast8_t radius)
     uint16_t j;
     ENavArea area;
 
-    while (rad > 0)
+    while (rad)
     {
         for (i = 0; i < ENavDir::NumDir; i++)
         {

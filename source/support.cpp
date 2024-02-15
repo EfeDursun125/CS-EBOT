@@ -34,7 +34,7 @@ ConVar ebot_ignore_enemies("ebot_ignore_enemies", "0");
 ConVar ebot_zp_delay_custom("ebot_zp_delay_custom", "0.0");
 ConVar ebot_auto_gamemode("ebot_auto_gamemode", "1");
 
-void TraceLine(const Vector& start, const Vector& end, bool ignoreMonsters, bool ignoreGlass, edict_t* ignoreEntity, TraceResult* ptr)
+void TraceLine(const Vector& start, const Vector& end, const bool ignoreMonsters, const bool ignoreGlass, edict_t* ignoreEntity, TraceResult* ptr)
 {
 	// this function traces a line dot by dot, starting from vecStart in the direction of vecEnd,
 	// ignoring or not monsters (depending on the value of IGNORE_MONSTERS, true or false), and stops
@@ -48,7 +48,7 @@ void TraceLine(const Vector& start, const Vector& end, bool ignoreMonsters, bool
 	(*g_engfuncs.pfnTraceLine) (start, end, (ignoreMonsters ? 1 : 0) | (ignoreGlass ? 0x100 : 0), ignoreEntity, ptr);
 }
 
-void TraceLine(const Vector& start, const Vector& end, bool ignoreMonsters, edict_t* ignoreEntity, TraceResult* ptr)
+void TraceLine(const Vector& start, const Vector& end, const bool ignoreMonsters, edict_t* ignoreEntity, TraceResult* ptr)
 {
 	// this function traces a line dot by dot, starting from vecStart in the direction of vecEnd,
 	// ignoring or not monsters (depending on the value of IGNORE_MONSTERS, true or false), and stops
@@ -61,7 +61,7 @@ void TraceLine(const Vector& start, const Vector& end, bool ignoreMonsters, edic
 	(*g_engfuncs.pfnTraceLine) (start, end, ignoreMonsters ? 1 : 0, ignoreEntity, ptr);
 }
 
-void TraceHull(const Vector& start, const Vector& end, bool ignoreMonsters, int hullNumber, edict_t* ignoreEntity, TraceResult* ptr)
+void TraceHull(const Vector& start, const Vector& end, const bool ignoreMonsters, const int hullNumber, edict_t* ignoreEntity, TraceResult* ptr)
 {
 	// this function traces a hull dot by dot, starting from vecStart in the direction of vecEnd,
 	// ignoring or not monsters (depending on the value of IGNORE_MONSTERS, true or
@@ -92,19 +92,16 @@ bool IsAlive(const edict_t* ent)
 	if (FNullEnt(ent))
 		return false;
 
-	return (ent->v.deadflag == DEAD_NO) && (ent->v.health > 0.0f) && (ent->v.movetype != MOVETYPE_NOCLIP);
+	return !ent->v.deadflag && ent->v.health > 0.0f && ent->v.movetype != MOVETYPE_NOCLIP;
 }
 
-float GetShootingConeDeviation(edict_t* ent, const Vector position)
+float GetShootingConeDeviation(edict_t* ent, const Vector& position)
 {
 	if (FNullEnt(ent))
 		return 0.0f;
 
-	const Vector dir = (position - (GetEntityOrigin(ent) + ent->v.view_ofs)).Normalize();
 	MakeVectors(ent->v.v_angle);
-
-	// he's facing it, he meant it
-	return g_pGlobals->v_forward | dir;
+	return g_pGlobals->v_forward | (position - (GetEntityOrigin(ent) + ent->v.view_ofs)).Normalize();
 }
 
 bool IsInViewCone(const Vector& origin, edict_t* ent)
@@ -113,8 +110,7 @@ bool IsInViewCone(const Vector& origin, edict_t* ent)
 		return true;
 
 	MakeVectors(ent->v.v_angle);
-
-	if (((origin - (GetEntityOrigin(ent) + ent->v.view_ofs)).Normalize() | g_pGlobals->v_forward) >= ccosf(((ent->v.fov > 0 ? ent->v.fov : 91.0f) * 0.51f) * 0.0174532925f))
+	if (((origin - (GetEntityOrigin(ent) + ent->v.view_ofs)).Normalize() | g_pGlobals->v_forward) >= ccosf(((ent->v.fov > 0.0f ? ent->v.fov : 91.0f) * 0.51f) * 0.0174532925f))
 		return true;
 
 	return false;
@@ -500,11 +496,11 @@ char* GetModName(void)
 
 	// format the returned string to get the last directory name
 	int stop = length - 1;
-	while ((modName[stop] == '\\' || modName[stop] == '/') && stop > 0)
+	while (stop && (modName[stop] == '\\' || modName[stop] == '/'))
 		stop--; // shift back any trailing separator
 
 	int start = stop;
-	while (modName[start] != '\\' && modName[start] != '/' && start > 0)
+	while (start && modName[start] != '\\' && modName[start] != '/')
 		start--; // shift back to the start of the last subdirectory name
 
 	if (modName[start] == '\\' || modName[start] == '/')
@@ -897,7 +893,7 @@ bool IsBreakable(edict_t* ent)
 
 	if ((FClassnameIs(ent, "func_breakable") || (FClassnameIs(ent, "func_pushable") && (ent->v.spawnflags & SF_PUSH_BREAKABLE)) || FClassnameIs(ent, "func_wall")))
 	{
-		if (ent->v.takedamage != DAMAGE_NO && ent->v.impulse <= 0 && !(ent->v.flags & FL_WORLDBRUSH) && !(ent->v.spawnflags & SF_BREAK_TRIGGER_ONLY))
+		if (ent->v.takedamage != DAMAGE_NO && !ent->v.impulse && !(ent->v.flags & FL_WORLDBRUSH) && !(ent->v.spawnflags & SF_BREAK_TRIGGER_ONLY))
 			return (ent->v.movetype == MOVETYPE_PUSH || ent->v.movetype == MOVETYPE_PUSHSTEP);
 	}
 
@@ -1003,7 +999,7 @@ bool IsEntityWalkable(edict_t* ent)
 	return false;
 }
 
-bool IsWalkableLineClear(const Vector from, const Vector to)
+bool IsWalkableLineClear(const Vector& from, const Vector& to)
 {
 	TraceResult result{};
 	edict_t* pEntIgnore = g_hostEntity;
@@ -1319,7 +1315,7 @@ void PlaySound(edict_t* ent, const char* name)
 }
 
 // this function logs a message to the message log file root directory.
-void AddLogEntry(Log logLevel, const char* format, ...)
+void AddLogEntry(const Log logLevel, const char* format, ...)
 {
 	va_list ap;
 	char buffer[512] = { 0, }, levelString[32] = { 0, }, logLine[1024] = { 0, };
@@ -1362,10 +1358,10 @@ void AddLogEntry(Log logLevel, const char* format, ...)
 	MOD_AddLogEntry(-1, logLine);
 }
 
-void MOD_AddLogEntry(int mod, char* format)
+void MOD_AddLogEntry(const int mod, char* format)
 {
 	char modName[32], logLine[1024] = { 0, }, buildVersionName[64];
-	uint16 mod_bV16[4];
+	uint16_t mod_bV16[4];
 
 	if (mod == -1)
 	{
@@ -1373,7 +1369,7 @@ void MOD_AddLogEntry(int mod, char* format)
 		const int buildVersion[4] = {PRODUCT_VERSION_DWORD};
 		int i;
 		for (i = 0; i < 4; i++)
-			mod_bV16[i] = (uint16)buildVersion[i];
+			mod_bV16[i] = static_cast<uint16_t>(buildVersion[i]);
 	}
 
 	ServerPrintNoTag("[%s Log] %s", modName, format);

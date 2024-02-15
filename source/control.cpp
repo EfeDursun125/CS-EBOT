@@ -91,7 +91,7 @@ int BotControl::CreateBot(String name, int skill, int personality, const int tea
 		return -1;
 	}
 
-	if (skill <= 0 || skill > 100)
+	if (!skill || skill > 100)
 	{
 		if (ebot_difficulty.GetInt() >= 4)
 			skill = 100;
@@ -101,14 +101,14 @@ int BotControl::CreateBot(String name, int skill, int personality, const int tea
 			skill = crandomint(50, 79);
 		else if (ebot_difficulty.GetInt() == 1)
 			skill = crandomint(30, 50);
-		else if (ebot_difficulty.GetInt() == 0)
+		else if (!ebot_difficulty.GetInt())
 			skill = crandomint(1, 30);
 		else
 		{
 			const int maxSkill = ebot_maxskill.GetInt();
-			const int minSkill = (ebot_minskill.GetInt() == 0) ? 1 : ebot_minskill.GetInt();
+			const int minSkill = (!ebot_minskill.GetInt()) ? 1 : ebot_minskill.GetInt();
 
-			if (maxSkill <= 100 && minSkill > 0)
+			if (maxSkill <= 100 && minSkill)
 				skill = crandomint(minSkill, maxSkill);
 			else
 				skill = crandomint(0, 100);
@@ -135,7 +135,7 @@ int BotControl::CreateBot(String name, int skill, int personality, const int tea
 		sprintf(outputName, "%s", (char*)m_savedBotNames.Pop());
 		addTag = false;
 	}
-	else if (name.GetLength() <= 0)
+	else if (!name.GetLength())
 	{
 		bool getName = false;
 		if (!g_botNames.IsEmpty())
@@ -218,7 +218,7 @@ int BotControl::CreateBot(String name, int skill, int personality, const int tea
 			char line[255];
 			while (file.GetBuffer(line, 255))
 			{
-				if ((line[0] == '/') || (line[0] == '\r') || (line[0] == '\n') || (line[0] == 0) || (line[0] == ' ') || (line[0] == '\t'))
+				if ((line[0] == '/') || (line[0] == '\r') || (line[0] == '\n') || (!line[0]) || (line[0] == ' ') || (line[0] == '\t'))
 					continue;
 
 				Array <String> pair = String(line).Split('=');
@@ -805,7 +805,7 @@ void BotControl::SetWeaponMode(int selection)
 
 	selection--;
 
-	if (selection == 0)
+	if (!selection)
 		ebot_knifemode.SetInt(1);
 	else
 		ebot_knifemode.SetInt(0);

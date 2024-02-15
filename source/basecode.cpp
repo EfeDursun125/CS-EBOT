@@ -188,7 +188,7 @@ bool Bot::IsEnemyViewable(edict_t* player)
 	return CheckVisibility(player);
 }
 
-bool Bot::ItemIsVisible(const Vector destination, char* itemName)
+bool Bot::ItemIsVisible(const Vector& destination, char* itemName)
 {
 	TraceResult tr{};
 
@@ -219,7 +219,7 @@ bool Bot::ItemIsVisible(const Vector destination, char* itemName)
 	return true;
 }
 
-bool Bot::EntityIsVisible(const Vector dest, const bool fromBody)
+bool Bot::EntityIsVisible(const Vector& dest, const bool fromBody)
 {
 	TraceResult tr{};
 
@@ -615,7 +615,7 @@ void Bot::FindItem(void)
 		{
 			if (pickupType == PickupType::Hostage)
 			{
-				if (FNullEnt(ent) || ent->v.health <= 0 || ent->v.speed > 1.0f)
+				if (FNullEnt(ent) || ent->v.health <= 0.0f || ent->v.speed > 1.0f)
 					allowPickup = false; // never pickup dead/moving hostages
 				else
 				{
@@ -742,7 +742,7 @@ void Bot::RadioMessage(const int message)
 	if (m_numFriendsLeft < 1)
 		return;
 
-	if (m_numEnemiesLeft == 0)
+	if (!m_numEnemiesLeft)
 	{
 		PlayChatterMessage(ChatterMessage::Happy);
 		return;
@@ -767,7 +767,7 @@ void Bot::RadioMessage(const int message)
 }
 
 // this function inserts the voice message into the message queue (mostly same as above)
-void Bot::PlayChatterMessage(const ChatterMessage message)
+void Bot::PlayChatterMessage(const ChatterMessage& message)
 {
 	if (ebot_use_radio.GetInt() < 2)
 		return;
@@ -775,7 +775,7 @@ void Bot::PlayChatterMessage(const ChatterMessage message)
 	if (g_audioTime > engine->GetTime())
 		return;
 
-	if (m_numFriendsLeft == 0)
+	if (!m_numFriendsLeft)
 		return;
 
 	if (m_radiotimer > engine->GetTime())
@@ -1256,7 +1256,7 @@ void Bot::CheckGrenadeThrow(edict_t* targetEntity)
 				bool allowThrowing = true;
 
 				// check for teammates
-				if (engine->IsFriendlyFireOn() && (GetGameMode() == GameMode::Original || GetGameMode() == GameMode::TeamDeathmatch) && GetNearbyFriendsNearPosition(targetOrigin, squaredf(256.0f)) > 0)
+				if (engine->IsFriendlyFireOn() && (GetGameMode() == GameMode::Original || GetGameMode() == GameMode::TeamDeathmatch) && GetNearbyFriendsNearPosition(targetOrigin, squaredf(256.0f)))
 					allowThrowing = false;
 
 				if (allowThrowing && m_seeEnemyTime + 2.0f < engine->GetTime())
@@ -1273,7 +1273,7 @@ void Bot::CheckGrenadeThrow(edict_t* targetEntity)
 					// search waypoints
 					g_waypoint->FindInRadius(enemyPredict, searchRadius, searchTab, &count);
 
-					while (count > 0)
+					while (count)
 					{
 						allowThrowing = true;
 
@@ -1312,7 +1312,7 @@ void Bot::CheckGrenadeThrow(edict_t* targetEntity)
 		Vector wpOrigin, eyePosition, src;
 		for (i = 0; i < inRadius.Size(); i++)
 		{
-			if ((GetGameMode() == GameMode::Original || GetGameMode() == GameMode::TeamDeathmatch) && GetNearbyFriendsNearPosition(g_waypoint->GetPath(i)->origin, squaredf(256.0f)) > 0)
+			if ((GetGameMode() == GameMode::Original || GetGameMode() == GameMode::TeamDeathmatch) && GetNearbyFriendsNearPosition(g_waypoint->GetPath(i)->origin, squaredf(256.0f)))
 				continue;
 
 			wpOrigin = g_waypoint->GetPath(i)->origin;
@@ -1662,7 +1662,7 @@ void Bot::CheckRadioCommands(void)
 	if (m_isBomber)
 		return;
 
-	if (m_numFriendsLeft <= 0)
+	if (!m_numFriendsLeft)
 		return;
 
 	if (m_radioOrder == Radio::Affirmative || m_radioOrder != Radio::Negative)
@@ -1862,7 +1862,7 @@ void Bot::SetWalkTime(const float time)
 	if (IsZombieMode())
 		return;
 
-	if (m_numEnemiesLeft <= 0)
+	if (!m_numEnemiesLeft)
 		return;
 
 	if (!m_buyingFinished)
@@ -2211,7 +2211,7 @@ void Bot::CheckSlowThink(void)
 	}
 
 	// host wants the bots to vote for a map?
-	if (m_voteMap > 0)
+	if (m_voteMap)
 	{
 		FakeClientCommand(GetEntity(), "votemap %d", m_voteMap);
 		m_voteMap = 0;
@@ -2527,13 +2527,13 @@ void Bot::CalculatePing(void)
 		numHumans++;
 		PLAYER_CNX_STATS(client.ent, &ping, &loss);
 
-		if (ping <= 0 || ping > 150)
+		if (!ping || ping > 150)
 			ping = crandomint(5, 50);
 
 		averagePing += ping;
 	}
 
-	if (numHumans > 0)
+	if (numHumans)
 		averagePing /= numHumans;
 	else
 		averagePing = crandomint(30, 60);
@@ -2550,7 +2550,7 @@ void Bot::CalculatePing(void)
 	{
 		for (m_pingOffset[j] = 0; m_pingOffset[j] < 4; m_pingOffset[j]++)
 		{
-			if ((botPing - m_pingOffset[j]) % 4 == 0)
+			if (!((botPing - m_pingOffset[j]) % 4))
 			{
 				m_ping[j] = (botPing - m_pingOffset[j]) * 0.25f;
 				break;
@@ -2825,7 +2825,7 @@ int Bot::GetAmmo(void)
 
 // this function gets called by network message handler, when screenfade message get's send
 // it's used to make bot blind froumd the grenade
-void Bot::TakeBlinded(const Vector fade, const int alpha)
+void Bot::TakeBlinded(const Vector& fade, const int alpha)
 {
 	if (fade.x != 255 || fade.y != 255 || fade.z != 255 || alpha <= 170)
 		return;
@@ -3157,7 +3157,7 @@ bool Bot::OutOfBombTimer(void)
 
 	bool hasTeammatesWithDefuserKit = false;
 	// check if our teammates has defusal kit
-	if (m_numFriendsLeft > 0)
+	if (m_numFriendsLeft)
 	{
 		for (const auto& bot : g_botManager->m_bots)
 		{
@@ -3183,7 +3183,7 @@ bool Bot::OutOfBombTimer(void)
 	return false; // return false otherwise
 }
 
-bool Bot::IsBombDefusing(const Vector bombOrigin)
+bool Bot::IsBombDefusing(const Vector& bombOrigin)
 {
 	// this function finds if somebody currently defusing the bomb.
 	if (!g_bombPlanted)

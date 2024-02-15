@@ -65,7 +65,7 @@ void NetworkMsg::Execute(void* p)
     case NETMSG_VGUI:
     {
         // this message is sent when a VGUI menu is displayed
-        if (m_state == 0 && m_bot)
+        if (!m_state && m_bot)
         {
             switch (PTR_TO_INT(p))
             {
@@ -294,7 +294,7 @@ void NetworkMsg::Execute(void* p)
     case NETMSG_MONEY:
     {
         // this message gets sent when the bots money amount changes
-        if (m_state == 0 && m_bot)
+        if (!m_state && m_bot)
             m_bot->m_moneyAmount = PTR_TO_INT(p); // amount of money
         break;
     }
@@ -408,7 +408,7 @@ void NetworkMsg::Execute(void* p)
         }
         case 1:
         {
-            if (numPlayers == 0 && PTR_TO_INT(p) == 0)
+            if (!numPlayers && !PTR_TO_INT(p))
                 RoundInit();
             break;
         }
@@ -480,7 +480,7 @@ void NetworkMsg::Execute(void* p)
     }
     case NETMSG_BARTIME:
     {
-        if (m_state == 0 && m_bot)
+        if (!m_state && m_bot)
         {
             if (GetGameMode() == GameMode::Original)
             {
