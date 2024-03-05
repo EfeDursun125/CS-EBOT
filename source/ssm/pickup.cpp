@@ -31,7 +31,6 @@ void Bot::PickupUpdate(void)
 
 	FindEnemyEntities();
 	FindFriendsAndEnemiens();
-	UpdateLooking();
 	
 	m_destOrigin = destination;
 
@@ -168,7 +167,7 @@ void Bot::PickupUpdate(void)
 				}
 			}
 		}
-		break;
+		return;
 	}
 	case PickupType::DefuseKit:
 	{
@@ -206,9 +205,11 @@ void Bot::PickupUpdate(void)
 				FinishCurrentProcess("i have pushed the button");
 			}
 		}
-		break;
+		return;
 	}
 	}
+
+	UpdateLooking();
 }
 
 void Bot::PickupEnd(void)

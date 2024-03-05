@@ -34,7 +34,7 @@ void Bot::CampStart(void)
 
 void Bot::CampUpdate(void)
 {
-	if (!CampingAllowed())
+	if (!CampReq())
 	{
 		FinishCurrentProcess("camping is not allowed for me");
 		return;

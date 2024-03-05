@@ -7,7 +7,7 @@ void Bot::PlantStart(void)
 
 void Bot::PlantUpdate(void)
 {
-	if (!m_inBombZone)
+	if (!m_inBombZone && !(m_waypoint.flags & WAYPOINT_GOAL))
 	{
 		FinishCurrentProcess("i'm not at the plant area");
 		return;

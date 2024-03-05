@@ -25,7 +25,6 @@ void Bot::EscapeUpdate(void)
 			Vector bombOrigin = g_waypoint->GetBombPosition();
 			if (bombOrigin == nullvec)
 				bombOrigin = pev->origin;
-
 			
 			int index = g_waypoint->FindFarest(bombOrigin, 2048.0f);
 			if (IsValidWaypoint(index))
