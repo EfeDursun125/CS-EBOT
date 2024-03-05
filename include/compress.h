@@ -270,12 +270,12 @@ public:
             m_buffer[i] = ' ';
 
         flags = 0;
-
+        int read;
         for (;;)
         {
             if (!((flags >>= 1) & 256))
             {
-                const int read = fp.GetCharacter();
+                read = fp.GetCharacter();
                 if (read == EOF)
                     break;
 
@@ -285,7 +285,7 @@ public:
 
             if (flags & 1)
             {
-                const int read = fp.GetCharacter();
+                read = fp.GetCharacter();
                 if (read == EOF)
                     break;
 

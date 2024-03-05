@@ -151,7 +151,7 @@ typedef void* HINSTANCE;
 #endif
 
 #ifndef _WIN32
-#define FAKEFUNC (void *) 0
+#define FAKEFUNC reinterpret_cast<void*>(0)
 #else
 #define FAKEFUNC __noop
 #endif
@@ -1700,7 +1700,7 @@ struct edict_s
     short leafnums[MAX_ENT_LEAFS]{};
     float freetime{}; // sv.time when the object was freed
     void* pvPrivateData{}; // Alloced and freed by engine, used by DLLs
-    entvars_t v{}; // C exported fields from progs
+    entvars_t v; // C exported fields from progs
 };
 
 #define MAX_WEAPON_SLOTS   5    // hud item selection slots
@@ -1760,8 +1760,8 @@ extern meta_globals_t* gpMetaGlobals;
    }
 #define META_RESULT_STATUS gpMetaGlobals->status
 #define META_RESULT_PREVIOUS gpMetaGlobals->prev_mres
-#define META_RESULT_ORIG_RET(type) *(type *)gpMetaGlobals->orig_ret
-#define META_RESULT_OVERRIDE_RET(type) *(type *)gpMetaGlobals->override_ret
+#define META_RESULT_ORIG_RET(type) *reinterpret_cast<type*>(gpMetaGlobals->orig_ret)
+#define META_RESULT_OVERRIDE_RET(type) *reinterpret_cast<type*>(gpMetaGlobals->override_ret)
 
 typedef int (*GETENTITYAPI_FN) (DLL_FUNCTIONS* pFunctionTable, int interfaceVersion);
 typedef int (*GETENTITYAPI2_FN) (DLL_FUNCTIONS* pFunctionTable, int* interfaceVersion);
@@ -1997,7 +1997,7 @@ extern globalvars_t* g_pGlobals;
 
 extern DLL_GLOBAL const Vector g_vecZero;
 
-// Use this instead of ALLOC_STRING on constant strings
+// use this instead of ALLOC_STRING on constant strings
 #define STRING(offset) (const char *)(g_pGlobals->pStringBase + (int)offset)
 #define MAKE_STRING(str) ((int)str - (int)STRING(0))
 
@@ -2016,11 +2016,6 @@ inline edict_t* FIND_ENTITY_BY_TARGET(edict_t* entStart, const char* pszName)
 {
     return FIND_ENTITY_BY_STRING(entStart, "target", pszName);
 }
-
-// Keeps clutter down a bit, when using a float as a bit-Vector
-#define SetBits(flBitVector, bits)     ((flBitVector) = (int)(flBitVector) | (bits))
-#define ClearBits(flBitVector, bits)   ((flBitVector) = (int)(flBitVector) & ~(bits))
-#define FBitSet(flBitVector, bit)      ((int)(flBitVector) & (bit))
 
    // Makes these more explicit, and easier to find
 #define FILE_GLOBAL static
@@ -2635,7 +2630,7 @@ public:
 
     inline bool IsOnFloor(void) const
     {
-        return IsPlayer() ? (!!(m_ent->v.flags & (FL_ONGROUND | FL_PARTIALGROUND))) : g_engfuncs.pfnEntIsOnFloor(m_ent) != 0;
+        return IsPlayer() ? (!!(m_ent->v.flags & (FL_ONGROUND | FL_PARTIALGROUND))) : g_engfuncs.pfnEntIsOnFloor(m_ent);
     }
 
     inline bool IsInWater(void) const

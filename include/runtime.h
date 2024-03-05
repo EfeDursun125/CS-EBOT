@@ -31,7 +31,6 @@
 #include <float.h>
 #include <time.h>
 #include <stdarg.h>
-#include <vector>
 #include <list>
 #include <cstring>
 #include <cstdarg>
@@ -323,130 +322,27 @@ namespace Math
 //
 class Vector
 {
-    //
-    // Group: Variables.
-    //
 public:
-    //
-    // Variable: x,y,z
-    // X, Y and Z axis members.
-    //
-    float x = 0.0f;
-    float y = 0.0f;
-    float z = 0.0f;
-
-    //
-    // Group: (Con/De)structors.
-    //
-public:
-    //
-    // Function: Vector
-    //
-    // Constructs Vector from float, and assign it's value to all axises.
-    //
-    // Parameters:
-    //	  scaler - Value for axises.
-    //
+    float x;
+    float y;
+    float z;
     inline Vector(const float scaler = 0.0f) : x(scaler), y(scaler), z(scaler) {}
-
-    //
-    // Function: Vector
-    //
-    // Standard Vector Constructor.
-    //
-    // Parameters:
-    //	  inputX - Input X axis.
-    //	  inputY - Input Y axis.
-    //	  inputZ - Input Z axis.
-    //
     inline Vector(const float inputX, const float inputY, const float inputZ) : x(inputX), y(inputY), z(inputZ) {}
-
-    //
-    // Function: Vector
-    //
-    // Constructs Vector from float pointer.
-    //
-    // Parameters:
-    //	  other - Float pointer.
-    //
     inline Vector(float* other) : x(other[0]), y(other[1]), z(other[2]) {}
-
-    //
-    // Function: Vector
-    //
-    // Constructs Vector from another Vector.
-    //
-    // Parameters:
-    //   right - Other Vector, that should be assigned.
-    //
     inline Vector(const Vector& right) : x(right.x), y(right.y), z(right.z) {}
-
-    //
-    // Group: Operators.
-    //
 public:
-    inline operator float* (void)
-    {
-        return &x;
-    }
+    inline operator float* (void) { return &x; }
+    inline operator const float* (void) const { return &x; }
+    inline const Vector operator+ (const Vector& right) const { return Vector(x + right.x, y + right.y, z + right.z); }
+    inline const Vector operator- (const Vector& right) const { return Vector(x - right.x, y - right.y, z - right.z); }
+    inline const Vector operator- (void) const { return Vector(-x, -y, -z); }
+    friend inline const Vector operator* (const float vec, const Vector& right) { return Vector(right.x * vec, right.y * vec, right.z * vec); }
+    inline const Vector operator* (const float vec) const { return Vector(vec * x, vec * y, vec * z); }
+    inline const Vector operator/ (const float vec) const { const float inv = 1 / vec; return Vector(inv * x, inv * y, inv * z); }
+    inline const Vector operator^ (const Vector& right) const { return Vector(y * right.z - z * right.y, z * right.x - x * right.z, x * right.y - y * right.x); }
+    inline float operator| (const Vector& right) const { return x * right.x + y * right.y + z * right.z; }
 
-    inline operator const float* (void) const
-    {
-        return &x;
-    }
-
-    inline float& operator [] (int index)
-    {
-        return (&x)[index];
-    }
-
-    inline const float& operator [] (int index) const
-    {
-        return (&x)[index];
-    }
-
-    inline const Vector operator + (const Vector& right) const
-    {
-        return Vector(x + right.x, y + right.y, z + right.z);
-    }
-
-    inline const Vector operator - (const Vector& right) const
-    {
-        return Vector(x - right.x, y - right.y, z - right.z);
-    }
-
-    inline const Vector operator - (void) const
-    {
-        return Vector(-x, -y, -z);
-    }
-
-    friend inline const Vector operator * (const float vec, const Vector& right)
-    {
-        return Vector(right.x * vec, right.y * vec, right.z * vec);
-    }
-
-    inline const Vector operator * (const float vec) const
-    {
-        return Vector(vec * x, vec * y, vec * z);
-    }
-
-    inline const Vector operator / (const float vec) const
-    {
-        const float inv = 1.0f / vec;
-        return Vector(inv * x, inv * y, inv * z);
-    }
-
-    inline const Vector operator ^ (const Vector& right) const
-    {
-        return Vector(y * right.z - z * right.y, z * right.x - x * right.z, x * right.y - y * right.x);
-    }
-
-    inline float operator | (const Vector& right) const
-    {
-        return x * right.x + y * right.y + z * right.z;
-    }
-
-    inline const Vector& operator += (const Vector& right)
+    inline const Vector& operator+= (const Vector& right)
     {
         x += right.x;
         y += right.y;
@@ -454,7 +350,7 @@ public:
         return *this;
     }
 
-    inline const Vector& operator -= (const Vector& right)
+    inline const Vector& operator-= (const Vector& right)
     {
         x -= right.x;
         y -= right.y;
@@ -462,7 +358,7 @@ public:
         return *this;
     }
 
-    inline const Vector& operator *= (const float vec)
+    inline const Vector& operator*= (const float vec)
     {
         x *= vec;
         y *= vec;
@@ -470,7 +366,7 @@ public:
         return *this;
     }
 
-    inline const Vector& operator /= (const float vec)
+    inline const Vector& operator/= (const float vec)
     {
         const float inv = 1.0f / vec;
         x *= inv;
@@ -479,29 +375,17 @@ public:
         return *this;
     }
 
-    inline bool operator == (const Vector& right) const
-    {
-        return Math::FltEqual(x, right.x) && Math::FltEqual(y, right.y) && Math::FltEqual(z, right.z);
-    }
+    inline bool operator== (const Vector& right) const { return Math::FltEqual(x, right.x) && Math::FltEqual(y, right.y) && Math::FltEqual(z, right.z); }
+    inline bool operator!= (const Vector& right) const { return !Math::FltEqual(x, right.x) && !Math::FltEqual(y, right.y) && !Math::FltEqual(z, right.z); }
 
-    inline bool operator != (const Vector& right) const
-    {
-        return !Math::FltEqual(x, right.x) && !Math::FltEqual(y, right.y) && !Math::FltEqual(z, right.z);
-    }
-
-    inline const Vector& operator = (const Vector& right)
+    inline const Vector& operator= (const Vector& right)
     {
         x = right.x;
         y = right.y;
         z = right.z;
         return *this;
     }
-
-    //
-    // Group: Functions.
-    //
 public:
-
     //
     // Function: GetLength
     //

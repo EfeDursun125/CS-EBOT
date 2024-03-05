@@ -48,13 +48,13 @@ public:
 	Vector GetFarestPosition(const Vector& origin);
 	Vector GetCenter(void);
 	Vector GetRandomPosition(void);
-	Vector GetCornerPosition(const uint_fast8_t corner);
-	Vector AreaDirectionAsVector(const uint_fast8_t corner);
+	Vector GetCornerPosition(const uint8_t corner);
+	Vector AreaDirectionAsVector(const uint8_t corner);
 	bool IsAreaOverlapping(const ENavArea area);
 	bool IsPointOverlapping(const Vector& origin);
 
 	void MergeWith(const ENavArea area);
-	void ExpandNavArea(const uint_fast8_t radius = static_cast<uint_fast8_t>(50));
+	void ExpandNavArea(const uint8_t radius = static_cast<uint8_t>(50));
 };
 
 class ENavMesh : public Singleton <ENavMesh>
@@ -93,8 +93,8 @@ public:
 	ENavArea GetNavArea(const uint16_t id);
 	ENavArea* GetNavAreaP(const uint16_t id);
 	int GetNearestNavAreaID(const Vector origin);
-	Vector DirectionAsVector(const uint_fast8_t corner, const float size);
-	float DirectionAsFloat(const uint_fast8_t corner);
+	Vector DirectionAsVector(const uint8_t corner, const float size);
+	float DirectionAsFloat(const uint8_t corner);
 	Vector GetAimingPosition(void);
 };
 

@@ -600,7 +600,7 @@ struct WaypointHeader
 struct Path
 {
 	Vector origin{};
-	uint32 flags{};
+	uint32_t flags{};
 	uint8_t radius{};
 	uint8_t mesh{};
 	int16_t index[Const_MaxPathIndex]{};
@@ -642,6 +642,7 @@ private:
 	float m_timeDoorOpen{}; // time to next door open check
 	float m_lastChatTime{}; // time bot last chatted
 
+	int m_currentGoalIndex{}; // current goal index for default modes
 	int m_currentWaypointIndex{}; // current waypoint index
 	int m_prevWptIndex[3]{}; // previous waypoint indices from waypoint find
 	int m_loosedBombWptIndex{}; // nearest to loosed bomb waypoint
@@ -659,7 +660,7 @@ private:
 	Vector m_lastWallOrigin{}; // for better zombie avoiding
 
 	bool m_isStuck{}; // bot is stuck
-	uint_fast8_t m_stuckWarn{};
+	uint8_t m_stuckWarn{};
 	Vector m_stuckArea{};
 	float m_stuckTimer{};
 
@@ -1006,7 +1007,6 @@ public:
 	bool JumpReq(void);
 
 	int GetWeaponID(const char* weapon);
-	int GetAmmo(void);
 	inline int GetAmmoInClip(void) { return m_ammoInClip[m_currentWeapon]; }
 
 	inline edict_t* GetEntity(void) { return ENT(pev); };
@@ -1190,7 +1190,7 @@ public:
 	int GetFacingIndex(void);
 	int FindFarest(const Vector& origin, const float maxDistance = 99999.0f);
 	int FindNearestInCircle(const Vector& origin, const float maxDistance = 99999.0f);
-	int FindNearest(const Vector& origin, const float minDistance = 99999.0f, const int flags = -1, edict_t* entity = nullptr, int* findWaypointPoint = (int*)-2, const int mode = -1);
+	int FindNearest(const Vector& origin, const float minDistance = 99999.0f, const int flags = -1, edict_t* entity = nullptr, int* findWaypointPoint = reinterpret_cast<int*>(-2), const int mode = -1);
 	void FindInRadius(const Vector& origin, const float radius, int* holdTab, int* count);
 	void FindInRadius(MiniArray <int16_t>& queueID, const float& radius, const Vector& origin);
 
@@ -1213,6 +1213,7 @@ public:
 	void CalculateWayzone(const int index);
 	Vector GetBottomOrigin(const Path* waypoint);
 
+	void Sort(const int16_t self, int16_t index[], const int size = Const_MaxPathIndex);
 	bool Download(void);
 	bool Load(void);
 	void Save(void);
