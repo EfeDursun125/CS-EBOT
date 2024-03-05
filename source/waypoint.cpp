@@ -36,7 +36,7 @@ ConVar ebot_analyze_goal_check_distance("ebot_analyze_goal_check_distance", "200
 ConVar ebot_analyze_create_camp_waypoints("ebot_analyze_create_camp_waypoints", "1");
 ConVar ebot_analyzer_min_fps("ebot_analyzer_min_fps", "30.0");
 ConVar ebot_analyze_auto_start("ebot_analyze_auto_start", "1");
-ConVar ebot_download_waypoints("ebot_download_waypoints", "1");
+ConVar ebot_download_waypoints("ebot_download_waypoints", "0");
 ConVar ebot_download_waypoints_from("ebot_download_waypoints_from", "");
 ConVar ebot_waypoint_size("ebot_waypoint_size", "7");
 ConVar ebot_waypoint_r("ebot_waypoint_r", "0");
@@ -506,7 +506,7 @@ int Waypoint::FindNearest(const Vector& origin, const float minDistance, const i
             if (wpDistance[i] > squaredf(m_paths[wpIndex[i]].radius) && !Reachable(entity, wpIndex[i]))
                 continue;
 
-            if (findWaypointPoint == (int*)-2)
+            if (findWaypointPoint == reinterpret_cast<int*>(-2))
                 return wpIndex[i];
 
             if (firsIndex == -1)
@@ -515,7 +515,7 @@ int Waypoint::FindNearest(const Vector& origin, const float minDistance, const i
                 continue;
             }
 
-            if (findWaypointPoint && findWaypointPoint != (int*)-2)
+            if (findWaypointPoint && findWaypointPoint != reinterpret_cast<int*>(-2))
                 *findWaypointPoint = wpIndex[i];
 
             return firsIndex;
@@ -1329,14 +1329,6 @@ Vector Waypoint::GetBottomOrigin(const Path* waypoint)
 
 void Waypoint::InitTypes(void)
 {
-    m_terrorPoints.Destroy();
-    m_ctPoints.Destroy();
-    m_goalPoints.Destroy();
-    m_campPoints.Destroy();
-    m_rescuePoints.Destroy();
-    m_zmHmPoints.Destroy();
-    m_hmMeshPoints.Destroy();
-
     int16_t i;
     uint32_t flags;
     for (i = 0; i < g_numWaypoints; i++)
@@ -1356,6 +1348,46 @@ void Waypoint::InitTypes(void)
             m_terrorPoints.Push(i);
         else if (flags & WAYPOINT_COUNTER)
             m_ctPoints.Push(i);
+    }
+}
+
+float dsq(const float* start, const float* end)
+{
+    const float dx = start[0] - start[0];
+    const float dy = start[1] - start[1];
+    const float dz = start[2] - start[2];
+    return dx * dx + dy * dy + dz * dz;
+}
+
+void Waypoint::Sort(const int16_t self, int16_t index[], const int size)
+{
+    float pri_i, pri_j;
+    int i, j, min, temp;
+    for (i = 0; i < size - 1; i++)
+    {
+        min = i;
+        for (j = i + 1; j < size; j++)
+        {
+            if (IsValidWaypoint(index[i]))
+                pri_i = dsq(m_paths[self].origin, m_paths[index[i]].origin);
+            else
+                pri_i = 65355.0f;
+
+            if (IsValidWaypoint(index[j]))
+                pri_j = dsq(m_paths[self].origin, m_paths[index[j]].origin);
+            else
+                pri_j = 65355.0f;
+
+            if (pri_j < pri_i)
+                min = j;
+        }
+
+        if (min != i)
+        {
+            temp = index[i];
+            index[i] = index[min];
+            index[min] = temp;
+        }
     }
 }
 
@@ -1502,19 +1534,19 @@ bool Waypoint::Download(void)
     return false;
 }
 
+static int8_t tryLoad;
 bool Waypoint::Load(void)
 {
+    Initialize();
     safedel(m_waypointDisplayTime);
 
     int i;
-    const char* path = CheckSubfolderFile();
-    File fp(path, "rb");
+    const char* pathtofl = CheckSubfolderFile();
+    File fp(pathtofl, "rb");
     if (fp.IsValid())
     {
         WaypointHeader header;
         fp.Read(&header, sizeof(header));
-
-        Initialize();
 
         if (header.fileVersion > static_cast<int32_t>(FV_WAYPOINT))
         {
@@ -1526,23 +1558,24 @@ bool Waypoint::Load(void)
         {
             g_numWaypoints = header.pointNumber;
             Path paths[g_numWaypoints];
-            const int result = Compressor::Uncompress(path, sizeof(WaypointHeader), (uint8_t*)paths, g_numWaypoints * sizeof(Path));
-            if (result != -1)
+            if (Compressor::Uncompress(pathtofl, sizeof(WaypointHeader), reinterpret_cast<uint8_t*>(paths), g_numWaypoints * sizeof(Path)) != -1)
             {
                 for (i = 0; i < g_numWaypoints; i++)
+                {
+                    Sort(i, paths[i].index);
                     m_paths.Push(paths[i]);
+                }
             }
         }
         else if (header.fileVersion == static_cast<int32_t>(126))
         {
             g_numWaypoints = header.pointNumber;
-            Path paths[g_numWaypoints];
-
-            int C;
+            Path path;
             for (i = 0; i < g_numWaypoints; i++)
             {
-                fp.Read(&paths[i], sizeof(Path));
-                m_paths.Push(paths[i]);
+                fp.Read(&path, sizeof(Path));
+                Sort(i, path.index);
+                m_paths.Push(path);
             }
         }
         else if (header.fileVersion == static_cast<int32_t>(125))
@@ -1560,26 +1593,27 @@ bool Waypoint::Load(void)
                 float gravity{};
             };
 
-            PathOLD2 paths[g_numWaypoints];
+            PathOLD2 paths;
             Path path;
 
             int C;
             for (i = 0; i < g_numWaypoints; i++)
             {
-                fp.Read(&paths[i], sizeof(PathOLD2));
+                fp.Read(&paths, sizeof(PathOLD2));
 
-                path.origin = paths[i].origin;
-                path.radius = static_cast<uint8_t>(cclamp(paths[i].radius, 0, 255));
-                path.flags = static_cast<uint32>(cmax(0, paths[i].flags));
-                path.mesh = static_cast<uint8_t>(cclamp(paths[i].mesh, 0, 255));
-                path.gravity = paths[i].gravity;
+                path.origin = paths.origin;
+                path.radius = static_cast<uint8_t>(cclamp(paths.radius, 0, 255));
+                path.flags = static_cast<uint32>(cmax(0, paths.flags));
+                path.mesh = static_cast<uint8_t>(cclamp(paths.mesh, 0, 255));
+                path.gravity = paths.gravity;
 
                 for (C = 0; C < 8; C++)
                 {
-                    path.index[C] = static_cast<int16_t>(paths[i].index[C]);
-                    path.connectionFlags[C] = static_cast<uint16_t>(paths[i].connectionFlags[C]);
+                    path.index[C] = static_cast<int16_t>(paths.index[C]);
+                    path.connectionFlags[C] = static_cast<uint16_t>(paths.connectionFlags[C]);
                 }
 
+                Sort(i, path.index);
                 m_paths.Push(path);
             }
         }
@@ -1607,26 +1641,27 @@ bool Waypoint::Load(void)
                 struct Vis_t { uint16 stand{}, crouch{}; } vis;
             };
 
-            PathOLD paths[g_numWaypoints];
+            PathOLD paths;
             Path path;
 
             int C;
             for (i = 0; i < g_numWaypoints; i++)
             {
-                fp.Read(&paths[i], sizeof(PathOLD));
+                fp.Read(&paths, sizeof(PathOLD));
 
-                path.origin = paths[i].origin;
-                path.radius = static_cast<uint8_t>(cclampf(paths[i].radius, 0.0f, 255.0f));
-                path.flags = static_cast<uint32>(cmax(0, paths[i].flags));
-                path.mesh = static_cast<uint8_t>(cclampf(paths[i].campStartX, 0.0f, 255.0f));
-                path.gravity = paths[i].campStartY;
+                path.origin = paths.origin;
+                path.radius = static_cast<uint8_t>(cclampf(paths.radius, 0.0f, 255.0f));
+                path.flags = static_cast<uint32>(cmax(0, paths.flags));
+                path.mesh = static_cast<uint8_t>(cclampf(paths.campStartX, 0.0f, 255.0f));
+                path.gravity = 0.0f;
 
                 for (C = 0; C < 8; C++)
                 {
-                    path.index[C] = static_cast<int16_t>(paths[i].index[C]);
-                    path.connectionFlags[C] = static_cast<uint16_t>(paths[i].connectionFlags[C]);
+                    path.index[C] = static_cast<int16_t>(paths.index[C]);
+                    path.connectionFlags[C] = static_cast<uint16_t>(paths.connectionFlags[C]);
                 }
 
+                Sort(i, path.index);
                 m_paths.Push(path);
             }
 
@@ -1639,18 +1674,38 @@ bool Waypoint::Load(void)
             sprintf(m_infoBuffer, "Using Waypoint File By: %s", header.author);
 
         fp.Close();
+        tryLoad = 0;
     }
     else if (ebot_download_waypoints.GetBool() && Download())
     {
         Load();
         sprintf(m_infoBuffer, "%s.ewp is downloaded from the internet", GetMapName());
+        tryLoad = 0;
     }
     else
     {
-        if (ebot_analyze_auto_start.GetBool())
+        if (tryLoad < 5)
+        {
+            Load();
+            tryLoad++;
+        }
+        else
+        {
+            m_terrorPoints.Destroy();
+            m_ctPoints.Destroy();
+            m_goalPoints.Destroy();
+            m_campPoints.Destroy();
+            m_rescuePoints.Destroy();
+            m_zmHmPoints.Destroy();
+            m_hmMeshPoints.Destroy();
+            g_numWaypoints = 0;
+        }
+
+        if (tryLoad >= 5 && ebot_analyze_auto_start.GetBool())
         {
             g_waypoint->CreateBasic();
             g_analyzewaypoints = true;
+            tryLoad = 0;
         }
         else
         {
@@ -1661,21 +1716,27 @@ bool Waypoint::Load(void)
         return false;
     }
 
-    InitTypes();
-    if (g_numWaypoints)
+    m_terrorPoints.Destroy();
+    m_ctPoints.Destroy();
+    m_goalPoints.Destroy();
+    m_campPoints.Destroy();
+    m_rescuePoints.Destroy();
+    m_zmHmPoints.Destroy();
+    m_hmMeshPoints.Destroy();
+    
+    if (g_numWaypoints > 1)
     {
         // only in lan game
         if (!IsDedicatedServer())
             safeloc(m_waypointDisplayTime, g_numWaypoints);
+
+        InitTypes();
     }
 
     g_waypointsChanged = false;
-
     m_pathDisplayTime = 0.0f;
     m_arrowDisplayTime = 0.0f;
-
     g_botManager->InitQuota();
-
     return true;
 }
 
@@ -1722,9 +1783,12 @@ void Waypoint::Save(void)
         int i;
         Path paths[g_numWaypoints];
         for (i = 0; i < g_numWaypoints; i++)
+        {
             paths[i] = m_paths[i];
+            Sort(i, paths[i].index);
+        }
 
-        i = Compressor::Compress(path, (uint8_t*)&header, sizeof(WaypointHeader), (uint8_t*)paths, g_numWaypoints * sizeof(Path));
+        i = Compressor::Compress(path, reinterpret_cast<uint8_t*>(&header), sizeof(WaypointHeader), reinterpret_cast<uint8_t*>(paths), g_numWaypoints * sizeof(Path));
         if (i == 1)
         {
             ServerPrint("Error: Cannot Save Waypoints");
@@ -2174,7 +2238,7 @@ void Waypoint::ShowWaypointMsg(void)
                             nodeColor = Color(0, 0, 255, 255);
 
                         // colorize additional flags
-                        Color nodeFlagColor = Color(-1, -1, -1, 0);
+                        Color nodeFlagColor = Color(0, 0, 0, 0);
 
                         // check the colors
                         if (m_paths[i].flags & WAYPOINT_SNIPER)
@@ -2204,7 +2268,7 @@ void Waypoint::ShowWaypointMsg(void)
                         nodeFlagColor.alpha = 255;
 
                         // draw node without additional flags
-                        if (nodeFlagColor.red == -1)
+                        if (!nodeFlagColor.red && !nodeFlagColor.blue && !nodeFlagColor.green)
                             engine->DrawLine(g_hostEntity, m_paths[i].origin - Vector(0.0f, 0.0f, nodeHalfHeight), m_paths[i].origin + Vector(0.0f, 0.0f, nodeHalfHeight), nodeColor, ebot_waypoint_size.GetFloat(), 0, 0, 10);
                         else // draw node with flags
                         {
@@ -2293,8 +2357,7 @@ void Waypoint::ShowWaypointMsg(void)
             // jump connection
             if (path->connectionFlags[i] & PATHFLAG_JUMP)
                 engine->DrawLine(g_hostEntity, path->origin, m_paths[path->index[i]].origin, Color(255, 0, 0, 255), 5, 0, 0, 10);
-            // boosting friend connection
-            else if (path->connectionFlags[i] & PATHFLAG_DOUBLE)
+            else if (path->connectionFlags[i] & PATHFLAG_DOUBLE) // boosting friend connection
                 engine->DrawLine(g_hostEntity, path->origin, m_paths[path->index[i]].origin, Color(0, 0, 255, 255), 5, 0, 0, 10);
             else if (IsConnected(path->index[i], nearestIndex)) // twoway connection
                 engine->DrawLine(g_hostEntity, path->origin, m_paths[path->index[i]].origin, Color(255, 255, 0, 255), 5, 0, 0, 10);

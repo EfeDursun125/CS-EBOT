@@ -91,7 +91,7 @@ int BotControl::CreateBot(String name, int skill, int personality, const int tea
 		return -1;
 	}
 
-	if (!skill || skill > 100)
+	if (skill < 1 || skill > 100)
 	{
 		if (ebot_difficulty.GetInt() >= 4)
 			skill = 100;

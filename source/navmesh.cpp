@@ -13,7 +13,7 @@ Vector GetPositionOnGrid(const Vector& origin)
     return Vector(static_cast<int>(origin.x / GridSize) * GridSize, static_cast<int>(origin.y / GridSize) * GridSize, origin.z);
 }
 
-int_fast8_t GetNextCorner(const int_fast8_t corner)
+uint8_t GetNextCorner(const uint8_t corner)
 {
     switch (corner)
     {
@@ -421,7 +421,7 @@ void ENavMesh::ConnectArea(const int start, const int goal)
         return;
 
     // don't allow areas get connected twice
-    uint_fast8_t i;
+    uint8_t i;
     for (i = 0; i < newCount; i++)
     {
         if (area->connection[i] == goal)
@@ -429,7 +429,7 @@ void ENavMesh::ConnectArea(const int start, const int goal)
     }
 
     newCount++;
-    uint16_t* newCons = new(std::nothrow) uint16_t[newCount];
+    uint16_t* newCons = new(std::nothrow) uint16_t[newCount]{};
     if (!newCons)
         return;
 
@@ -471,7 +471,7 @@ void ENavMesh::DisconnectArea(const int start, const int goal)
             cswap(area->connection[i], area->connection[area->connectionCount - 1]);
             --area->connectionCount;
 
-            uint16_t* tempArray = new(std::nothrow) uint16_t[area->connectionCount];
+            uint16_t* tempArray = new(std::nothrow) uint16_t[area->connectionCount]{};
             if (!tempArray)
                 break;
 
@@ -515,9 +515,9 @@ ENavArea* ENavMesh::CreateArea(const Vector origin, const bool expand)
     area->dirHeight[ENavDir::Backward] = origin.z + height;
 
     if (expand)
-        area->ExpandNavArea(static_cast<uint_fast8_t>(100));
+        area->ExpandNavArea(static_cast<uint8_t>(100));
     //else
-    //    area->ExpandNavArea(static_cast<uint_fast8_t>(croundf(GridSize * 0.25f)));
+    //    area->ExpandNavArea(static_cast<uint8_t>(croundf(GridSize * 0.25f)));
 
     PlaySound(g_hostEntity, "weapons/xbow_hit1.wav");
     return area;
@@ -602,7 +602,7 @@ int ENavMesh::GetNearestNavAreaID(const Vector origin)
     return index;
 }
 
-Vector ENavMesh::DirectionAsVector(const uint_fast8_t corner, const float size)
+Vector ENavMesh::DirectionAsVector(const uint8_t corner, const float size)
 {
     switch (corner)
     {
@@ -619,7 +619,7 @@ Vector ENavMesh::DirectionAsVector(const uint_fast8_t corner, const float size)
     return Vector(0.0f, 0.0f, 0.0f);
 }
 
-float ENavMesh::DirectionAsFloat(const uint_fast8_t corner)
+float ENavMesh::DirectionAsFloat(const uint8_t corner)
 {
     switch (corner)
     {
@@ -690,7 +690,7 @@ void ENavMesh::DrawNavArea(void)
     ENavArea nearestArea = m_area[areaIndex];
 
     uint16_t k;
-    uint_fast8_t i, j, link;
+    uint8_t i, j, link;
     for (i = 0; i < ENavDir::NumDir; i++)
     {
         if (IsValidNavArea(m_selectedNavIndex))
@@ -704,12 +704,13 @@ void ENavMesh::DrawNavArea(void)
             engine->DrawLine(g_hostEntity, nearestArea.GetCornerPosition(i), nearestArea.GetCornerPosition(GetNextCorner(i)), Color(0, 255, 0, 255), 5, 0, 5, 1, LINE_SIMPLE);
     }
 
+    ENavArea neighbor, more;
     for (link = 0; link < nearestArea.connectionCount; link++)
     {
         if (!IsValidNavArea(nearestArea.connection[link]))
             continue;
 
-        ENavArea neighbor = m_area[nearestArea.connection[link]];
+        neighbor = m_area[nearestArea.connection[link]];
         if (neighbor.index == nearestArea.index)
             continue;
 
@@ -723,7 +724,7 @@ void ENavMesh::DrawNavArea(void)
             if (!IsValidNavArea(neighbor.connection[i]))
                 continue;
 
-            ENavArea more = m_area[neighbor.connection[i]];
+            more = m_area[neighbor.connection[i]];
             if (more.index == neighbor.index)
                 continue;
 
@@ -742,7 +743,7 @@ bool ENavMesh::IsConnected(const int start, const int goal)
 {
     const ENavArea area = m_area[start];
 
-    uint_fast8_t i;
+    uint8_t i;
     for (i = 0; i < area.connectionCount; i++)
     {
         if (area.connection[i] == goal)
@@ -763,10 +764,8 @@ String CheckSubfolderFile(void)
 
 bool ENavMesh::LoadNav(void)
 {
-    const char* path = CheckSubfolderFile();
-
     ENavHeader header;
-    File fp(path, "rb");
+    File fp(CheckSubfolderFile(), "rb");
 
     if (fp.IsValid())
     {
@@ -778,13 +777,13 @@ bool ENavMesh::LoadNav(void)
         for (i = 0; i < g_numNavAreas; i++)
         {
             m_area.Push(ENavArea{});
-            fp.Read(&m_area[i].index, sizeof(m_area[i].index));
-            fp.Read(&m_area[i].flags, sizeof(m_area[i].flags));
-            fp.Read(&m_area[i].connectionCount, sizeof(m_area[i].connectionCount));
+            fp.Read(&m_area[i].index, sizeof(uint16_t));
+            fp.Read(&m_area[i].flags, sizeof(uint32_t));
+            fp.Read(&m_area[i].connectionCount, sizeof(uint8_t));
             safeloc(m_area[i].connection, m_area[i].connectionCount);
-            fp.Read(m_area[i].connection, m_area[i].connectionCount * sizeof(m_area[i].connection));
-            fp.Read(&m_area[i].direction, sizeof(m_area[i].direction));
-            fp.Read(&m_area[i].dirHeight, sizeof(m_area[i].dirHeight));
+            fp.Read(m_area[i].connection, m_area[i].connectionCount * sizeof(uint16_t));
+            fp.Read(&m_area[i].direction, 4 * sizeof(float));
+            fp.Read(&m_area[i].dirHeight, 4 * sizeof(float));
         }
 
         fp.Close();
@@ -798,9 +797,7 @@ void ENavMesh::SaveNav(void)
     ENavHeader header;
     header.fileVersion = 1;
     header.navNumber = g_numNavAreas;
-
-    const char* path = CheckSubfolderFile();
-    File fp(path, "wb");
+    File fp(CheckSubfolderFile(), "wb");
 
     // file was opened
     if (fp.IsValid())
@@ -811,12 +808,12 @@ void ENavMesh::SaveNav(void)
         uint16_t i;
         for (i = 0; i < g_numNavAreas; i++)
         {
-            fp.Write(&m_area[i].index, sizeof(m_area[i].index));
-            fp.Write(&m_area[i].flags, sizeof(m_area[i].flags));
-            fp.Write(&m_area[i].connectionCount, sizeof(m_area[i].connectionCount));
-            fp.Write(&m_area[i].connection, m_area[i].connectionCount * sizeof(m_area[i].connection));
-            fp.Write(&m_area[i].direction, sizeof(m_area[i].direction));
-            fp.Write(&m_area[i].dirHeight, sizeof(m_area[i].dirHeight));
+            fp.Write(&m_area[i].index, sizeof(uint16_t));
+            fp.Write(&m_area[i].flags, sizeof(uint32_t));
+            fp.Write(&m_area[i].connectionCount, sizeof(uint8_t));
+            fp.Write(&m_area[i].connection, m_area[i].connectionCount * sizeof(uint16_t));
+            fp.Write(&m_area[i].direction, 4 * sizeof(float));
+            fp.Write(&m_area[i].dirHeight, 4 * sizeof(float));
         }
 
         fp.Close();

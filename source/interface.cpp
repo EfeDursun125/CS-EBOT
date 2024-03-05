@@ -3052,49 +3052,49 @@ exportc int GetEngineFunctions(enginefuncs_t* functionTable, int* /*interfaceVer
 
 	functionTable->pfnWriteByte = [](int value)
 	{
-		g_netMsg->Execute((void*)&value);
+		g_netMsg->Execute(reinterpret_cast<void*>(&value));
 		RETURN_META(MRES_IGNORED);
 	};
 
 	functionTable->pfnWriteChar = [](int value)
 	{
-		g_netMsg->Execute((void*)&value);
+		g_netMsg->Execute(reinterpret_cast<void*>(&value));
 		RETURN_META(MRES_IGNORED);
 	};
 
 	functionTable->pfnWriteShort = [](int value)
 	{
-		g_netMsg->Execute((void*)&value);
+		g_netMsg->Execute(reinterpret_cast<void*>(&value));
 		RETURN_META(MRES_IGNORED);
 	};
 
 	functionTable->pfnWriteLong = [](int value)
 	{
-		g_netMsg->Execute((void*)&value);
+		g_netMsg->Execute(reinterpret_cast<void*>(&value));
 		RETURN_META(MRES_IGNORED);
 	};
 
 	functionTable->pfnWriteAngle = [](float value)
 	{
-		g_netMsg->Execute((void*)&value);
+		g_netMsg->Execute(reinterpret_cast<void*>(&value));
 		RETURN_META(MRES_IGNORED);
 	};
 
 	functionTable->pfnWriteCoord = [](float value)
 	{
-		g_netMsg->Execute((void*)&value);
+		g_netMsg->Execute(reinterpret_cast<void*>(&value));
 		RETURN_META(MRES_IGNORED);
 	};
 
 	functionTable->pfnWriteString = [](const char* sz)
 	{
-		g_netMsg->Execute((void*)sz);
+		g_netMsg->Execute(reinterpret_cast<void*>(&sz));
 		RETURN_META(MRES_IGNORED);
 	};
 
 	functionTable->pfnWriteEntity = [](int value)
 	{
-		g_netMsg->Execute((void*)&value);
+		g_netMsg->Execute(reinterpret_cast<void*>(&value));
 		RETURN_META(MRES_IGNORED);
 	};
 

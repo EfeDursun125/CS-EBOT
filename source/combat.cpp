@@ -82,6 +82,12 @@ void Bot::FindFriendsAndEnemiens(void)
 			if (client.ent == pev->pContainingEntity)
 				continue;
 
+			if (!(client.flags & CFLAG_USED))
+				continue;
+
+			if (!(client.flags & CFLAG_ALIVE))
+				continue;
+
 			if (!IsAlive(client.ent))
 				continue;
 
@@ -137,6 +143,12 @@ void Bot::FindFriendsAndEnemiens(void)
 		for (const auto& client : g_clients)
 		{
 			if (client.ent == pev->pContainingEntity)
+				continue;
+
+			if (!(client.flags & CFLAG_USED))
+				continue;
+
+			if (!(client.flags & CFLAG_ALIVE))
 				continue;
 
 			if (!IsAlive(client.ent))
@@ -477,17 +489,17 @@ void Bot::FireWeapon(void)
 		}
 
 		// cannot be used in water...
-		// if (pev->waterlevel == 3 && g_weaponDefs[id].flags & ITEM_FLAG_NOFIREUNDERWATER)
+		//if (pev->waterlevel == 3 && g_weaponDefs[id].flags & ITEM_FLAG_NOFIREUNDERWATER)
 		//	continue;
 
 		if (g_gameVersion & Game::HalfLife)
 		{
 			if (selectIndex == WeaponHL::Snark || selectIndex == WeaponHL::Gauss || selectIndex == WeaponHL::Egon || (selectIndex == WeaponHL::HandGrenade && distance > squaredf(384.0f) && distance < squaredf(768.0f)) || (selectIndex == WeaponHL::Rpg && distance > squaredf(320.0f)) || (selectIndex == WeaponHL::Crossbow && distance > squaredf(320.0f)))
 				chosenWeaponIndex = selectIndex;
-			else if (selectIndex != WeaponHL::HandGrenade && selectIndex != WeaponHL::Rpg && selectIndex != WeaponHL::Crossbow && m_ammoInClip[id] && !IsWeaponBadInDistance(selectIndex, distance))
+			else if (selectIndex != WeaponHL::HandGrenade && selectIndex != WeaponHL::Rpg && selectIndex != WeaponHL::Crossbow && m_ammoInClip[id] > 0 && !IsWeaponBadInDistance(selectIndex, distance))
 				chosenWeaponIndex = selectIndex;
 		}
-		else if (m_ammoInClip[id] && !IsWeaponBadInDistance(selectIndex, distance))
+		else if (m_ammoInClip[id] > 0 && !IsWeaponBadInDistance(selectIndex, distance))
 			chosenWeaponIndex = selectIndex;
 
 		selectIndex++;
@@ -505,10 +517,10 @@ void Bot::FireWeapon(void)
 			}
 
 			// cannot be used in water...
-			// if (pev->waterlevel == 3 && g_weaponDefs[id].flags & ITEM_FLAG_NOFIREUNDERWATER)
+			//if (pev->waterlevel == 3 && g_weaponDefs[id].flags & ITEM_FLAG_NOFIREUNDERWATER)
 			//	continue;
 
-			if (m_ammo[g_weaponDefs[id].ammo1])
+			if (m_ammo[g_weaponDefs[id].ammo1] > 0)
 				chosenWeaponIndex = selectIndex;
 
 			selectIndex++;
@@ -556,7 +568,7 @@ void Bot::FireWeapon(void)
 		m_zoomCheckTime = time;
 	}
 
-	if (!GetAmmoInClip())
+	if (GetAmmoInClip() == 0)
 	{
 		if (!(pev->oldbuttons & IN_RELOAD))
 			pev->buttons |= IN_RELOAD; // press reload button
@@ -762,10 +774,6 @@ bool Bot::IsWeaponBadInDistance(const int weaponIndex, const float distance)
 				return true;
 		}
 	}
-
-	// check is ammo available for secondary weapon
-	if (m_ammoInClip[g_weaponSelect[GetBestSecondaryWeaponCarried()].id] >= 1)
-		return false;
 
 	return false;
 }
@@ -982,14 +990,14 @@ void Bot::SelectBestWeapon(void)
 		}
 
 		// cannot be used in water...
-		// if (pev->waterlevel == 3 && g_weaponDefs[id].flags & ITEM_FLAG_NOFIREUNDERWATER)
+		//if (pev->waterlevel == 3 && g_weaponDefs[id].flags & ITEM_FLAG_NOFIREUNDERWATER)
 		//	continue;
 
 		if (g_gameVersion & Game::HalfLife)
 			chosenWeaponIndex = selectIndex;
 		else
 		{
-			if (m_ammo[g_weaponDefs[id].ammo1])
+			if (m_ammo[g_weaponDefs[id].ammo1] != 0)
 				chosenWeaponIndex = selectIndex;
 		}
 
@@ -1030,7 +1038,7 @@ int Bot::GetHighestWeapon(void)
 	while (selectTab->id)
 	{
 		// cannot be used in water...
-		// if (pev->waterlevel == 3 && g_weaponDefs[selectTab->id].flags & ITEM_FLAG_NOFIREUNDERWATER)
+		//if (pev->waterlevel == 3 && g_weaponDefs[selectTab->id].flags & ITEM_FLAG_NOFIREUNDERWATER)
 		//	continue;
 
 		// is the bot carrying this weapon?

@@ -545,9 +545,9 @@ void Bot::FindItem(void)
 			const int weaponCarried = GetBestWeaponCarried();
 			const int secondaryWeaponCarried = GetBestSecondaryWeaponCarried();
 
-			if (secondaryWeaponCarried < 7 && (m_ammo[g_weaponSelect[secondaryWeaponCarried].id] > 0.3 * g_weaponDefs[g_weaponSelect[secondaryWeaponCarried].id].ammo1Max) && cstrcmp(STRING(ent->v.model) + 9, "w_357ammobox.mdl") == 0)
+			if (secondaryWeaponCarried < 7 && (m_ammo[g_weaponSelect[secondaryWeaponCarried].id] > 0.3f * g_weaponDefs[g_weaponSelect[secondaryWeaponCarried].id].ammo1Max) && cstrcmp(STRING(ent->v.model) + 9, "w_357ammobox.mdl") == 0)
 				allowPickup = false;
-			else if (!m_isVIP && weaponCarried >= 7 && (m_ammo[g_weaponSelect[weaponCarried].id] > 0.3 * g_weaponDefs[g_weaponSelect[weaponCarried].id].ammo1Max) && cstrncmp(STRING(ent->v.model) + 9, "w_", 2) == 0)
+			else if (!m_isVIP && weaponCarried >= 7 && (m_ammo[g_weaponSelect[weaponCarried].id] > 0.3f * g_weaponDefs[g_weaponSelect[weaponCarried].id].ammo1Max) && cstrncmp(STRING(ent->v.model) + 9, "w_", 2) == 0)
 			{
 				if (cstrcmp(STRING(ent->v.model) + 9, "w_9mmarclip.mdl") == 0 && !(weaponCarried == Weapon::Famas || weaponCarried == Weapon::Ak47 || weaponCarried == Weapon::M4A1 || weaponCarried == Weapon::Galil || weaponCarried == Weapon::Aug || weaponCarried == Weapon::Sg552))
 					allowPickup = false;
@@ -1967,7 +1967,7 @@ void Bot::BaseUpdate(void)
 	// i'm really tired of getting random pev is nullptr debug logs...
 	// might seems ugly and useless, but... i have made some experiments with it,
 	// still not sure exactly why, but bad third party server plugins can cause this
-	if (!pev)
+	if (pev == nullptr)
 		return;
 
 	// run playermovement
@@ -2111,6 +2111,8 @@ void Bot::CheckSlowThink(void)
 		if (!m_hasEnemiesNear && !m_hasEntitiesNear && GetCurrentState() != Process::ThrowHE && GetCurrentState() != Process::ThrowFB && GetCurrentState() != Process::ThrowSM && !(pev->buttons & IN_ATTACK) && !(pev->oldbuttons & IN_ATTACK))
 		{
 			m_isEnemyReachable = false;
+
+			// check reloadable weapons
 			WeaponSelect* selectTab = (g_gameVersion & Game::HalfLife) ? &g_weaponSelectHL[0] : &g_weaponSelect[0];
 			int id;
 			int chosenWeaponIndex = -1;
@@ -2384,12 +2386,112 @@ void Bot::LookAtAround(void)
 	if (m_pauseTime > time)
 		return;
 
-	if (m_isSlowThink && chanceof(m_senseChance)) // who's footsteps is this or fire sounds?
+	if (m_isSlowThink)
 	{
-		if (!m_isZombieBot || !IsAlive(m_nearestEnemy) || GetTeam(m_nearestEnemy) == m_team)
+		if (m_isZombieBot)
+		{
+			if (GetGameMode() == GameMode::ZombieHell)
+			{
+				if (!IsAlive(m_nearestEnemy) || GetTeam(m_nearestEnemy) == m_team)
+				{
+					int goal;
+					for (const auto& client : g_clients)
+					{
+						if (FNullEnt(client.ent))
+							continue;
+
+						// we can see our friends in radar... let bots act like that.
+						if (client.team == m_team)
+							continue;
+
+						if (!(client.flags & CFLAG_USED))
+							continue;
+
+						if (!(client.flags & CFLAG_ALIVE))
+							continue;
+
+						if (client.ent->v.flags & FL_NOTARGET)
+							continue;
+
+						if (!m_hasEnemiesNear && (FNullEnt(m_nearestEnemy) || GetTeam(m_nearestEnemy) == m_team))
+						{
+							m_nearestEnemy = client.ent;
+							if (!m_navNode.IsEmpty())
+							{
+								goal = g_waypoint->FindNearest(m_nearestEnemy->v.origin, 9999999999.0f, -1, m_nearestEnemy);
+								if (IsValidWaypoint(goal) && m_navNode.Last() != goal)
+									m_navNode.Clear();
+							}
+						}
+
+						m_pauseTime = time + crandomfloat(2.0f, 5.0f);
+						m_lookAt = client.ent->v.origin + client.ent->v.view_ofs;
+						CheckGrenadeThrow(client.ent);
+						return;
+					}
+				}
+			}
+			else if (!IsAlive(m_nearestEnemy) || GetTeam(m_nearestEnemy) == m_team)
+			{
+				float maxDist;
+				int goal;
+				for (const auto& client : g_clients)
+				{
+					if (FNullEnt(client.ent))
+						continue;
+
+					// we can see our friends in radar... let bots act like that.
+					if (client.team == m_team)
+						continue;
+
+					if (!(client.flags & CFLAG_USED))
+						continue;
+
+					if (!(client.flags & CFLAG_ALIVE))
+						continue;
+
+					if (client.ent->v.flags & FL_NOTARGET)
+						continue;
+
+					maxDist = 1280.0f;
+					if (!IsAttacking(client.ent))
+					{
+						if ((client.ent->v.flags & FL_DUCKING))
+							continue;
+
+						if (client.ent->v.speed < client.ent->v.maxspeed * 0.66f)
+							continue;
+
+						if (chanceof(m_senseChance))
+							maxDist = 768.0f;
+						else
+							maxDist = 256.0f;
+					}
+
+					if (((pev->origin + pev->velocity) - (client.ent->v.origin + client.ent->v.velocity)).GetLengthSquared() > squaredf(maxDist))
+						continue;
+
+					if (!m_hasEnemiesNear && (FNullEnt(m_nearestEnemy) || GetTeam(m_nearestEnemy) == m_team))
+					{
+						m_nearestEnemy = client.ent;
+						if (!m_navNode.IsEmpty())
+						{
+							goal = g_waypoint->FindNearest(m_nearestEnemy->v.origin, 9999999999.0f, -1, m_nearestEnemy);
+							if (IsValidWaypoint(goal) && m_navNode.Last() != goal)
+								m_navNode.Clear();
+						}
+					}
+
+					m_pauseTime = time + crandomfloat(2.0f, 5.0f);
+					m_lookAt = client.ent->v.origin + client.ent->v.view_ofs;
+					CheckGrenadeThrow(client.ent);
+					return;
+				}
+			}
+		}
+		if (chanceof(m_senseChance)) // who's footsteps is this or fire sounds?
 		{
 			float maxDist;
-			int goal;
 			for (const auto& client : g_clients)
 			{
 				if (FNullEnt(client.ent))
@@ -2403,6 +2505,9 @@ void Bot::LookAtAround(void)
 					continue;
 
 				if (!(client.flags & CFLAG_ALIVE))
+					continue;
+
+				if (client.ent->v.flags & FL_NOTARGET)
 					continue;
 
 				maxDist = 1280.0f;
@@ -2420,22 +2525,7 @@ void Bot::LookAtAround(void)
 				if (((pev->origin + pev->velocity) - (client.ent->v.origin + client.ent->v.velocity)).GetLengthSquared() > squaredf(maxDist))
 					continue;
 
-				if (m_isZombieBot)
-				{
-					if (!m_hasEnemiesNear && (FNullEnt(m_nearestEnemy) || GetTeam(m_nearestEnemy) == m_team))
-					{
-						m_nearestEnemy = client.ent;
-						if (!m_navNode.IsEmpty())
-						{
-							goal = g_waypoint->FindNearest(m_nearestEnemy->v.origin, 9999999999.0f, -1, m_nearestEnemy);
-							if (IsValidWaypoint(goal) && m_navNode.Last() != goal)
-								m_navNode.Clear();
-						}
-					}
-				}
-
-				goal = m_personality == Personality::Rusher ? 30 : 10;
-				if (m_skill > goal)
+				if (m_skill > (m_personality == Personality::Rusher ? 30 : 10))
 				{
 					SetWalkTime(7.0f);
 					SelectBestWeapon();
@@ -2539,8 +2629,7 @@ void Bot::CalculatePing(void)
 		averagePing = crandomint(30, 60);
 
 	int botPing = m_basePingLevel + crandomint(averagePing - averagePing * 0.2f, averagePing + averagePing * 0.2f) + crandomint(m_difficulty + 3, m_difficulty + 6);
-
-	if (botPing <= 9)
+	if (botPing < 9)
 		botPing = crandomint(9, 19);
 	else if (botPing > 133)
 		botPing = crandomint(99, 119);
@@ -2570,7 +2659,10 @@ void Bot::MoveAction(void)
 	if (m_jumpTime + 2.0f > time)
 	{
 		if (!IsOnFloor() && !IsInWater() && !IsOnLadder())
+		{
+			pev->flags |= FL_DUCKING;
 			pev->buttons |= IN_DUCK;
+		}
 	}
 	else
 	{
@@ -2729,7 +2821,7 @@ void Bot::DebugModeMsg(void)
 			"Stuck Warnings: %d  Stuck: %s \n",
 			gamemodName,
 			GetEntityName(GetEntity()), processName, rememberedProcessName,
-			&weaponName[7], GetAmmoInClip(), GetAmmo(),
+			&weaponName[7], GetAmmoInClip(), m_ammo[g_weaponDefs[m_currentWeapon].ammo1],
 			botType, m_moneyAmount, m_navNode.Length(),
 			enemyName, friendName,
 
@@ -2799,6 +2891,9 @@ bool Bot::HasHostage(void)
 	if (g_mapType != MAP_CS)
 		return false;
 
+	if (m_team != Team::Counter)
+		return false;
+
 	Vector origin;
 	for (auto& hostage : m_hostages)
 	{
@@ -2813,14 +2908,6 @@ bool Bot::HasHostage(void)
 	}
 
 	return false;
-}
-
-int Bot::GetAmmo(void)
-{
-	if (g_weaponDefs[m_currentWeapon].ammo1 < 0)
-		return 0;
-
-	return m_ammo[g_weaponDefs[m_currentWeapon].ammo1];
 }
 
 // this function gets called by network message handler, when screenfade message get's send
@@ -3150,9 +3237,11 @@ bool Bot::OutOfBombTimer(void)
 		return true;
 
 	const Vector& bombOrigin = g_waypoint->GetBombPosition();
+	if (bombOrigin == nullvec)
+		return true;
 
 	// bot will belive still had a chance
-	if ((m_hasDefuser && IsVisible(bombOrigin, GetEntity())) || (bombOrigin - pev->origin).GetLengthSquared() <= squaredf(512.0f))
+	if ((m_hasDefuser && IsVisible(bombOrigin, GetEntity())) || (bombOrigin - pev->origin).GetLengthSquared() < squaredf(512.0f))
 		return false;
 
 	bool hasTeammatesWithDefuserKit = false;

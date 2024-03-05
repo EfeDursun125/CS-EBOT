@@ -127,6 +127,16 @@ int Bot::FindGoal(void)
 	}
 	else if (!IsDeathmatchMode())
 	{
+		if (IsValidWaypoint(m_currentGoalIndex))
+		{
+			if (m_currentWaypointIndex == m_currentGoalIndex)
+				m_currentGoalIndex = -1;
+			else if (m_navNode.First() == m_currentGoalIndex)
+				m_currentGoalIndex = -1;
+			else
+				return m_currentGoalIndex;
+		}
+
 		if (g_mapType == MAP_DE)
 		{
 			if (g_bombPlanted)
@@ -145,6 +155,7 @@ int Bot::FindGoal(void)
 							const int index = FindDefendWaypoint(bombOrigin);
 							if (IsValidWaypoint(index))
 							{
+								m_currentGoalIndex = index;
 								m_campIndex = index;
 								SetProcess(Process::Camp, "i will protect my teammate", true, engine->GetTime() + GetBombTimeleft());
 								return index;
@@ -160,7 +171,7 @@ int Bot::FindGoal(void)
 
 							const int index = g_waypoint->FindNearest(bombOrigin, 999999.0f);
 							if (IsValidWaypoint(index))
-								return index;
+								return m_currentGoalIndex = index;
 						}
 					}
 				}
@@ -173,13 +184,14 @@ int Bot::FindGoal(void)
 						{
 							const int index = g_waypoint->FindNearest(bombOrigin, 999999.0f);
 							if (IsValidWaypoint(index))
-								return index;
+								return m_currentGoalIndex = index;
 						}
 						else
 						{
 							const int index = FindDefendWaypoint(bombOrigin);
 							if (IsValidWaypoint(index))
 							{
+								m_currentGoalIndex = index;
 								m_campIndex = index;
 								SetProcess(Process::Camp, "i will defend the bomb", true, engine->GetTime() + GetBombTimeleft());
 								return index;
@@ -202,12 +214,13 @@ int Bot::FindGoal(void)
 						{
 							extern ConVar ebot_camp_max;
 							m_campIndex = index;
+							m_currentGoalIndex = index;
 							SetProcess(Process::Camp, "i will defend the dropped bomb", true, engine->GetTime() + ebot_camp_max.GetFloat());
 							return index;
 						}
 					}
 					else
-						return m_loosedBombWptIndex;
+						return m_currentGoalIndex = m_loosedBombWptIndex;
 				}
 				else
 				{
@@ -217,7 +230,7 @@ int Bot::FindGoal(void)
 						{
 							const int index = g_waypoint->m_ctPoints.Random();
 							if (IsValidWaypoint(index))
-								return index;
+								return m_currentGoalIndex = index;
 						}
 					}
 					else
@@ -226,15 +239,15 @@ int Bot::FindGoal(void)
 						{
 							m_loosedBombWptIndex = -1;
 							if (IsValidWaypoint(m_navNode.Last()) && g_waypoint->GetPath(m_navNode.Last())->flags & WAYPOINT_GOAL)
-								return m_navNode.Last();
+								return m_currentGoalIndex = m_navNode.Last();
 							else if (!g_waypoint->m_goalPoints.IsEmpty())
-								return g_waypoint->m_goalPoints.Random();
+								return m_currentGoalIndex = g_waypoint->m_goalPoints.Random();
 						}
 						else if (!g_waypoint->m_terrorPoints.IsEmpty())
 						{
 							const int index = g_waypoint->m_terrorPoints.Random();
 							if (IsValidWaypoint(index))
-								return index;
+								return m_currentGoalIndex = index;
 						}
 					}
 				}
@@ -247,26 +260,26 @@ int Bot::FindGoal(void)
 				if (!g_waypoint->m_rescuePoints.IsEmpty() && HasHostage())
 				{
 					if (IsValidWaypoint(m_navNode.Last()) && g_waypoint->GetPath(m_navNode.Last())->flags & WAYPOINT_RESCUE)
-						return m_navNode.Last();
+						return m_currentGoalIndex = m_navNode.Last();
 					else
-						return g_waypoint->m_rescuePoints.Random();
+						return m_currentGoalIndex = g_waypoint->m_rescuePoints.Random();
 				}
 				else
 				{
 					if (!g_waypoint->m_goalPoints.IsEmpty() && (g_timeRoundMid < engine->GetTime() || crandomint(1, 3) <= 2))
-						return g_waypoint->m_goalPoints.Random();
+						return m_currentGoalIndex = g_waypoint->m_goalPoints.Random();
 					else if (!g_waypoint->m_ctPoints.IsEmpty())
-						return g_waypoint->m_ctPoints.Random();
+						return m_currentGoalIndex = g_waypoint->m_ctPoints.Random();
 				}
 			}
 			else
 			{
 				if (!g_waypoint->m_rescuePoints.IsEmpty() && crandomint(1, 11) == 1)
-					return g_waypoint->m_rescuePoints.Random();
+					return m_currentGoalIndex = g_waypoint->m_rescuePoints.Random();
 				else if (!g_waypoint->m_goalPoints.IsEmpty() && crandomint(1, 3) == 1)
-					return g_waypoint->m_goalPoints.Random();
+					return m_currentGoalIndex = g_waypoint->m_goalPoints.Random();
 				else if (!g_waypoint->m_terrorPoints.IsEmpty())
-					return g_waypoint->m_terrorPoints.Random();
+					return m_currentGoalIndex = g_waypoint->m_terrorPoints.Random();
 			}
 		}
 		else if (g_mapType == MAP_AS)
@@ -274,21 +287,21 @@ int Bot::FindGoal(void)
 			if (m_team == Team::Counter)
 			{
 				if (m_isVIP && !g_waypoint->m_goalPoints.IsEmpty())
-					return g_waypoint->m_goalPoints.Random();
+					return m_currentGoalIndex = g_waypoint->m_goalPoints.Random();
 				else
 				{
 					if (!g_waypoint->m_goalPoints.IsEmpty() && crandomint(1, 2) == 1)
-						return g_waypoint->m_goalPoints.Random();
+						return m_currentGoalIndex = g_waypoint->m_goalPoints.Random();
 					else if (!g_waypoint->m_ctPoints.IsEmpty())
-						return g_waypoint->m_ctPoints.Random();
+						return m_currentGoalIndex = g_waypoint->m_ctPoints.Random();
 				}
 			}
 			else
 			{
 				if (!g_waypoint->m_goalPoints.IsEmpty() && crandomint(1, 11) == 1)
-					return g_waypoint->m_goalPoints.Random();
+					return m_currentGoalIndex = g_waypoint->m_goalPoints.Random();
 				else if (!g_waypoint->m_terrorPoints.IsEmpty())
-					return g_waypoint->m_terrorPoints.Random();
+					return m_currentGoalIndex = g_waypoint->m_terrorPoints.Random();
 			}
 		}
 	}
@@ -300,11 +313,11 @@ int Bot::FindGoal(void)
 		{
 			const int index = g_waypoint->FindNearest(origin, 9999999.0f, -1, m_nearestEnemy);
 			if (IsValidWaypoint(index))
-				return index;
+				return m_currentGoalIndex = index;
 		}
 	}
 
-	return crandomint(0, g_numWaypoints - 1);
+	return m_currentGoalIndex = crandomint(0, g_numWaypoints - 1);
 }
 
 void Bot::MoveTo(const Vector& targetPosition)
@@ -335,7 +348,7 @@ void Bot::FollowPath(void)
 	m_moveSpeed = GetMaxSpeed();
 	DoWaypointNav();
 	CheckStuck(m_moveSpeed + cabsf(m_strafeSpeed));
-	m_moveAngles = (m_destOrigin - (pev->origin + pev->velocity * m_frameInterval)).ToAngles();
+	m_moveAngles = ((m_destOrigin + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval)).ToAngles();
 	m_moveAngles.ClampAngles();
 	m_moveAngles.x = -m_moveAngles.x; // invert for engine
 }
@@ -406,8 +419,10 @@ void Bot::AutoJump(void)
 			pev->velocity.z = ((waypointOrigin.z - myOrigin.z) * pev->gravity * squaredf(timeToReachWaypoint)) / timeToReachWaypoint;
 		};
 
+	m_duckTime = engine->GetTime() + 1.0f;
+	pev->buttons |= IN_DUCK;
 	jump();
-	pev->buttons |= (IN_DUCK | IN_JUMP);
+	pev->buttons |= IN_JUMP;
 	jump();
 }
 
@@ -558,8 +573,7 @@ void Bot::DoWaypointNav(void)
 		}
 	}
 
-	float distance;
-	float desiredDistance;
+	bool next = false;
 
 	if (IsOnLadder() || m_waypoint.flags & WAYPOINT_LADDER)
 	{
@@ -658,32 +672,27 @@ void Bot::DoWaypointNav(void)
 			}
 		}
 
-		distance = (pev->origin - m_destOrigin).GetLengthSquared();
-		desiredDistance = 24.0f + static_cast<float>(m_stuckWarn) + m_frameInterval;
+		if ((pev->origin - m_destOrigin).GetLengthSquared() < squaredf(24.0f + static_cast<float>(m_stuckWarn) + m_frameInterval))
+			next = true;
 	}
 	else
 	{
-		distance = ((pev->origin + pev->velocity * m_frameInterval) - m_destOrigin).GetLengthSquared2D();
-
+		float desiredDistance;
 		if (m_currentTravelFlags & PATHFLAG_JUMP)
-			desiredDistance = 0.0f;
+			desiredDistance = 4.0f;
 		else
 		{
-			if (m_waypoint.flags & WAYPOINT_LIFT)
-				desiredDistance = 54.0f + m_frameInterval;
-			else if ((pev->flags & FL_DUCKING) || m_waypoint.flags & WAYPOINT_GOAL)
-				desiredDistance = 24.0f + m_frameInterval;
-			else if (m_waypoint.radius > 5)
-				desiredDistance = static_cast<float>(m_waypoint.radius + static_cast<int>(m_stuckWarn)) + m_frameInterval;
-			else
-				desiredDistance = 5.0f + static_cast<float>(m_stuckWarn) + m_frameInterval;
+			desiredDistance = (cabsf(m_moveSpeed) * m_frameInterval) + 4.0f + static_cast<float>(m_stuckWarn) + m_frameInterval;
+			if (m_waypoint.radius > 4)
+				desiredDistance += static_cast<float>(m_waypoint.radius + m_stuckWarn);
 		}
+
+		desiredDistance = squaredf(desiredDistance);
+		if ((pev->origin - m_destOrigin).GetLengthSquared2D() < desiredDistance)
+			next = true;
 	}
 
-	if (desiredDistance < 22.0f && distance < squaredf(30.0f) && (m_destOrigin - (pev->origin + pev->velocity * m_frameInterval)).GetLengthSquared() > distance)
-		desiredDistance += distance;
-
-	if (distance < squaredf(desiredDistance))
+	if (next)
 	{
 		if (!m_currentTravelFlags)
 			m_prevTravelFlags = 0;
@@ -1506,29 +1515,6 @@ inline const float GF_CostRusher(const int16_t& index, const int16_t& parent, co
 	return HF_Distance(index, parent);
 }
 
-inline const float GF_CostNoHostage(const int16_t& index, const int16_t& parent, const uint32_t& parentFlags, const int8_t& team, const float& gravity, const bool& isZombie)
-{
-	if (parentFlags & WAYPOINT_CROUCH)
-		return 65355.0f;
-
-	if (parentFlags & WAYPOINT_LADDER)
-		return 65355.0f;
-
-	int16_t neighbour;
-	pathCache = g_waypoint->m_paths[index];
-	for (countCache = 0; countCache < Const_MaxPathIndex; countCache++)
-	{
-		neighbour = pathCache.index[countCache];
-		if (neighbour == parent)
-		{
-			if (pathCache.connectionFlags[countCache] & PATHFLAG_JUMP || pathCache.connectionFlags[countCache] & PATHFLAG_DOUBLE)
-				return 65355.0f;
-		}
-	}
-
-	return HF_Distance2D(index, parent);
-}
-
 // this function finds a path from srcIndex to destIndex
 void Bot::FindPath(int& srcIndex, int& destIndex, edict_t* enemy)
 {
@@ -1569,8 +1555,6 @@ void Bot::FindPath(int& srcIndex, int& destIndex, edict_t* enemy)
 		gcalc = GF_CostHuman;
 	else if (g_bombPlanted && m_team == Team::Counter)
 		gcalc = GF_CostRusher;
-	else if (m_team == Team::Counter && (HasHostage() || m_pickupType == PickupType::Hostage))
-		gcalc = GF_CostNoHostage;
 	else if (m_isBomber || m_isVIP || (g_bombPlanted && m_inBombZone))
 	{
 		// move faster...
@@ -1585,6 +1569,12 @@ void Bot::FindPath(int& srcIndex, int& destIndex, edict_t* enemy)
 		gcalc = GF_CostRusher;
 	else
 		gcalc = GF_CostNormal;
+
+	bool hasHostage;
+	if (HasHostage())
+		hasHostage = true;
+	else
+		hasHostage = false;
 
 	if (!gcalc)
 		return;
@@ -1722,7 +1712,7 @@ void Bot::FindPath(int& srcIndex, int& destIndex, edict_t* enemy)
 								continue;
 						}
 					}
-					/*else if (hasHostage)
+					else if (hasHostage)
 					{
 						if (flags & WAYPOINT_CROUCH)
 							continue;
@@ -1743,7 +1733,7 @@ void Bot::FindPath(int& srcIndex, int& destIndex, edict_t* enemy)
 									continue;
 							}
 						}
-					}*/
+					}
 				}
 			}
 
@@ -1867,7 +1857,7 @@ void Bot::FindShortestPath(int& srcIndex, int& destIndex)
 		{
 			self = currPath.index[i];
 			if (!IsValidWaypoint(self))
-				continue;
+				break;
 
 			if (flags = g_waypoint->m_paths[self].flags)
 			{
@@ -1978,7 +1968,7 @@ void Bot::FindEscapePath(int& srcIndex, const Vector& dangerOrigin)
 		{
 			self = currPath.index[i];
 			if (!IsValidWaypoint(self))
-				continue;
+				break;
 
 			if (flags = g_waypoint->m_paths[self].flags)
 			{
@@ -2422,7 +2412,7 @@ void Bot::CheckStuck(const float maxSpeed)
 void Bot::SetWaypointOrigin(void)
 {
 	m_waypointOrigin = m_waypoint.origin;
-	if (m_waypoint.radius > 5)
+	if (m_waypoint.radius)
 	{
 		const float radius = static_cast<float>(m_waypoint.radius);
 		MakeVectors(Vector(pev->angles.x, AngleNormalize(pev->angles.y + crandomfloat(-90.0f, 90.0f)), 0.0f));
@@ -2948,9 +2938,9 @@ void Bot::FacePosition(void)
 
 	const float angleDiffPitch = AngleNormalize(direction.x - pev->v_angle.x);
 	const float angleDiffYaw = AngleNormalize(direction.y - pev->v_angle.y);
-	const float lockn = 0.125f / delta;
+	const float lockn = 0.128f / delta;
 
-	if (angleDiffYaw < lockn && angleDiffYaw > -lockn)
+	if (cabsf(angleDiffYaw) < lockn)
 	{
 		m_lookYawVel = 0.0f;
 		pev->v_angle.y = direction.y;
@@ -2963,7 +2953,7 @@ void Bot::FacePosition(void)
 		pev->v_angle.y += delta * m_lookYawVel;
 	}
 
-	if (angleDiffPitch < lockn && angleDiffPitch > -lockn)
+	if (cabsf(angleDiffPitch) < lockn)
 	{
 		m_lookPitchVel = 0.0f;
 		pev->v_angle.x = direction.x;
@@ -2972,7 +2962,7 @@ void Bot::FacePosition(void)
 	{
 		const float fskill = static_cast<float>(m_skill);
 		const float accelerate = fskill * 40.0f;
-		m_lookPitchVel += delta * cclampf(2.0f * fskill * 4.0f * angleDiffPitch - (fskill * 0.4f * m_lookPitchVel), -accelerate, accelerate);
+		m_lookPitchVel += delta * cclampf(fskill * 8.0f * angleDiffPitch - (fskill * 0.4f * m_lookPitchVel), -accelerate, accelerate);
 		pev->v_angle.x += delta * m_lookPitchVel;
 	}
 
@@ -3106,7 +3096,7 @@ bool Bot::IsWaypointOccupied(const int index)
 			continue;
 
 		bot = g_botManager->GetBot(client.index);
-		if (bot)
+		if (bot && bot->m_isAlive)
 		{
 			if (bot->m_currentWaypointIndex == index)
 				return true;

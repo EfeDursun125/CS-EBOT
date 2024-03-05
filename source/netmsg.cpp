@@ -241,7 +241,7 @@ void NetworkMsg::Execute(void* p)
         }
         case 2:
         {
-            if (id > -1 && id < Const_MaxWeapons)
+            if (m_bot && id > -1 && id < Const_MaxWeapons)
             {
                 if (state != 0)
                     m_bot->m_currentWeapon = id;
@@ -264,7 +264,7 @@ void NetworkMsg::Execute(void* p)
         case 1:
         {
             if (m_bot && index > -1 && index < Const_MaxWeapons)
-                m_bot->m_ammo[index] = PTR_TO_INT(p); // store it away
+                m_bot->m_ammo[index] = PTR_TO_INT(p);
             break;
         }
         }

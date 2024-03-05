@@ -65,7 +65,7 @@ Vector ENavArea::GetRandomPosition(void)
     return Vector(crandomfloat(direction[0], direction[1]), crandomfloat(direction[2], direction[3]), (dirHeight[0] + dirHeight[1] + dirHeight[2] + dirHeight[3]) * 0.25f);
 }
 
-Vector ENavArea::GetCornerPosition(const uint_fast8_t corner)
+Vector ENavArea::GetCornerPosition(const uint8_t corner)
 {
     switch (corner)
     {
@@ -82,7 +82,7 @@ Vector ENavArea::GetCornerPosition(const uint_fast8_t corner)
     return Vector(0.0f, 0.0f, 0.0f);
 }
 
-Vector ENavArea::AreaDirectionAsVector(const uint_fast8_t corner)
+Vector ENavArea::AreaDirectionAsVector(const uint8_t corner)
 {
     switch (corner)
     {
@@ -210,10 +210,10 @@ void ENavArea::MergeWith(const ENavArea area)
     g_navmesh->DeleteArea(area);
 }
 
-void ENavArea::ExpandNavArea(const uint_fast8_t radius)
+void ENavArea::ExpandNavArea(const uint8_t radius)
 {
     Vector temp, temp2;
-    uint_fast8_t i, rad = radius;
+    uint8_t i, rad = radius;
     uint16_t j;
     ENavArea area;
 

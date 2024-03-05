@@ -934,15 +934,15 @@ int GetTeam(edict_t* ent)
 		else if (g_roundEnded)
 			player_team = Team::Terrorist;
 		else
-			player_team = *((int*)ent->pvPrivateData + OFFSET_TEAM) - 1;
+			player_team = *(reinterpret_cast<int*>(ent->pvPrivateData) + OFFSET_TEAM) - 1;
 	}
 	else if (GetGameMode() == GameMode::Deathmatch || GetGameMode() == GameMode::NoTeam)
 	{
-		int client = ENTINDEX(ent);
+		const int client = ENTINDEX(ent);
 		player_team = client * client;
 	}
 	else
-		player_team = *((int*)ent->pvPrivateData + OFFSET_TEAM) - 1;
+		player_team = *(reinterpret_cast<int*>(ent->pvPrivateData) + OFFSET_TEAM) - 1;
 
 	return player_team;
 }
