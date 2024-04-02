@@ -1225,8 +1225,8 @@ void Bot::NewRound(void)
 	m_isStuck = false;
 
 	m_sayTextBuffer.timeNextChat = time;
-	m_sayTextBuffer.entityIndex = -1;
-	m_sayTextBuffer.sayText[0] = 0x0;
+	m_sayTextBuffer.entityIndex = 0;
+	m_sayTextBuffer.sayText[0] = 0;
 
 	m_nextBuyTime = time + crandomfloat(0.6f, 1.2f);
 	m_inBombZone = false;

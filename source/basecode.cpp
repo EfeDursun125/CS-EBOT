@@ -222,11 +222,7 @@ bool Bot::ItemIsVisible(const Vector& destination, char* itemName)
 bool Bot::EntityIsVisible(const Vector& dest, const bool fromBody)
 {
 	TraceResult tr{};
-
-	// trace a line from bot's eyes to destination...
 	TraceLine(fromBody ? pev->origin - Vector(0.0f, 0.0f, 1.0f) : EyePosition(), dest, true, true, GetEntity(), &tr);
-
-	// check if line of sight to object is not blocked (i.e. visible)
 	return tr.flFraction >= 1.0f;
 }
 
@@ -423,8 +419,11 @@ void Bot::FindItem(void)
 	ent = nullptr;
 	pickupItem = nullptr;
 
+	bool allowPickup = false;
 	PickupType pickupType = PickupType::None;
-	float minDistance = squaredf(512.0f);
+	float distance, minDistance = squaredf(512.0f);
+	Vector entityOrigin;
+	int i, i2;
 
 	while (!FNullEnt(ent = FIND_ENTITY_IN_SPHERE(ent, pev->origin, 512.0f)))
 	{
@@ -436,8 +435,8 @@ void Bot::FindItem(void)
 			pickupType = PickupType::GetEntity;
 		else if (pev->health < pev->max_health && cstrncmp("func_healthcharger", STRING(ent->v.classname), 18) == 0 && ent->v.frame == 0)
 		{
-			const auto origin = GetEntityOrigin(ent);
-			if ((pev->origin - origin).GetLengthSquared() < squaredf(128.0f))
+			entityOrigin = GetEntityOrigin(ent);
+			if ((pev->origin - entityOrigin).GetLengthSquared() < squaredf(128.0f))
 			{
 				if (g_gameVersion & Game::Xash)
 					pev->buttons |= IN_USE;
@@ -445,7 +444,7 @@ void Bot::FindItem(void)
 					MDLL_Use(ent, GetEntity());
 			}
 
-			m_lookAt = origin;
+			m_lookAt = entityOrigin;
 			pickupType = PickupType::GetEntity;
 			m_moveSpeed = pev->maxspeed;
 			m_strafeSpeed = 0.0f;
@@ -454,8 +453,8 @@ void Bot::FindItem(void)
 			pickupType = PickupType::GetEntity;
 		else if (pev->armorvalue < 100 && cstrncmp("func_recharge", STRING(ent->v.classname), 13) == 0 && ent->v.frame == 0)
 		{
-			const auto origin = GetEntityOrigin(ent);
-			if ((pev->origin - origin).GetLengthSquared() < squaredf(128.0f))
+			entityOrigin = GetEntityOrigin(ent);
+			if ((pev->origin - entityOrigin).GetLengthSquared() < squaredf(128.0f))
 			{
 				if (g_gameVersion & Game::Xash)
 					pev->buttons |= IN_USE;
@@ -463,7 +462,7 @@ void Bot::FindItem(void)
 					MDLL_Use(ent, GetEntity());
 			}
 
-			m_lookAt = origin;
+			m_lookAt = entityOrigin;
 			pickupType = PickupType::GetEntity;
 			m_moveSpeed = pev->maxspeed;
 			m_strafeSpeed = 0.0f;
@@ -504,7 +503,6 @@ void Bot::FindItem(void)
 			pickupType = PickupType::PlantedC4;
 		else
 		{
-			int i;
 			for (i = 0; (i < entityNum && pickupType == PickupType::None); i++)
 			{
 				if (g_entityId[i] == -1 || g_entityAction[i] != 3)
@@ -523,8 +521,8 @@ void Bot::FindItem(void)
 		if (pickupType == PickupType::None)
 			continue;
 
-		const Vector entityOrigin = GetEntityOrigin(ent);
-		const float distance = (pev->origin - entityOrigin).GetLengthSquared();
+		entityOrigin = GetEntityOrigin(ent);
+		distance = (pev->origin - entityOrigin).GetLengthSquared();
 		if (distance > minDistance)
 			continue;
 
@@ -537,27 +535,27 @@ void Bot::FindItem(void)
 				continue;
 		}
 
-		bool allowPickup = true;
+		allowPickup = true;
 		if (pickupType == PickupType::GetEntity)
 			allowPickup = true;
 		else if (pickupType == PickupType::Weapon)
 		{
-			const int weaponCarried = GetBestWeaponCarried();
-			const int secondaryWeaponCarried = GetBestSecondaryWeaponCarried();
+			i = GetBestWeaponCarried();
+			i2 = GetBestSecondaryWeaponCarried();
 
-			if (secondaryWeaponCarried < 7 && (m_ammo[g_weaponSelect[secondaryWeaponCarried].id] > 0.3f * g_weaponDefs[g_weaponSelect[secondaryWeaponCarried].id].ammo1Max) && cstrcmp(STRING(ent->v.model) + 9, "w_357ammobox.mdl") == 0)
+			if (i2 < 7 && (m_ammo[g_weaponSelect[i2].id] > 0.3f * g_weaponDefs[g_weaponSelect[i2].id].ammo1Max) && cstrcmp(STRING(ent->v.model) + 9, "w_357ammobox.mdl") == 0)
 				allowPickup = false;
-			else if (!m_isVIP && weaponCarried >= 7 && (m_ammo[g_weaponSelect[weaponCarried].id] > 0.3f * g_weaponDefs[g_weaponSelect[weaponCarried].id].ammo1Max) && cstrncmp(STRING(ent->v.model) + 9, "w_", 2) == 0)
+			else if (!m_isVIP && i >= 7 && (m_ammo[g_weaponSelect[i].id] > 0.3f * g_weaponDefs[g_weaponSelect[i].id].ammo1Max) && cstrncmp(STRING(ent->v.model) + 9, "w_", 2) == 0)
 			{
-				if (cstrcmp(STRING(ent->v.model) + 9, "w_9mmarclip.mdl") == 0 && !(weaponCarried == Weapon::Famas || weaponCarried == Weapon::Ak47 || weaponCarried == Weapon::M4A1 || weaponCarried == Weapon::Galil || weaponCarried == Weapon::Aug || weaponCarried == Weapon::Sg552))
+				if (cstrcmp(STRING(ent->v.model) + 9, "w_9mmarclip.mdl") == 0 && !(i == Weapon::Famas || i == Weapon::Ak47 || i == Weapon::M4A1 || i == Weapon::Galil || i == Weapon::Aug || i == Weapon::Sg552))
 					allowPickup = false;
-				else if (cstrcmp(STRING(ent->v.model) + 9, "w_shotbox.mdl") == 0 && !(weaponCarried == Weapon::M3 || weaponCarried == Weapon::Xm1014))
+				else if (cstrcmp(STRING(ent->v.model) + 9, "w_shotbox.mdl") == 0 && !(i == Weapon::M3 || i == Weapon::Xm1014))
 					allowPickup = false;
-				else if (cstrcmp(STRING(ent->v.model) + 9, "w_9mmclip.mdl") == 0 && !(weaponCarried == Weapon::Mp5 || weaponCarried == Weapon::Tmp || weaponCarried == Weapon::P90 || weaponCarried == Weapon::Mac10 || weaponCarried == Weapon::Ump45))
+				else if (cstrcmp(STRING(ent->v.model) + 9, "w_9mmclip.mdl") == 0 && !(i == Weapon::Mp5 || i == Weapon::Tmp || i == Weapon::P90 || i == Weapon::Mac10 || i == Weapon::Ump45))
 					allowPickup = false;
-				else if (cstrcmp(STRING(ent->v.model) + 9, "w_crossbow_clip.mdl") == 0 && !(weaponCarried == Weapon::Awp || weaponCarried == Weapon::G3SG1 || weaponCarried == Weapon::Scout || weaponCarried == Weapon::Sg550))
+				else if (cstrcmp(STRING(ent->v.model) + 9, "w_crossbow_clip.mdl") == 0 && !(i == Weapon::Awp || i == Weapon::G3SG1 || i == Weapon::Scout || i == Weapon::Sg550))
 					allowPickup = false;
-				else if (cstrcmp(STRING(ent->v.model) + 9, "w_chainammo.mdl") == 0 && weaponCarried == Weapon::M249)
+				else if (cstrcmp(STRING(ent->v.model) + 9, "w_chainammo.mdl") == 0 && i == Weapon::M249)
 					allowPickup = false;
 			}
 			else if (pev->health >= pev->max_health && cstrcmp(STRING(ent->v.model) + 9, "medkit.mdl") == 0)
@@ -596,14 +594,13 @@ void Bot::FindItem(void)
 			{
 				allowPickup = false;
 
-				const int index = FindDefendWaypoint(entityOrigin);
-				if (IsValidWaypoint(index))
+				i = FindDefendWaypoint(entityOrigin);
+				if (IsValidWaypoint(i))
 				{
-					const float timeMidBlowup = g_timeBombPlanted + ((engine->GetC4TimerTime() * 0.5f) + engine->GetC4TimerTime() * 0.25f) - g_waypoint->GetTravelTime(m_moveSpeed, pev->origin, g_waypoint->GetPath(index)->origin);
-
+					const float timeMidBlowup = g_timeBombPlanted + ((engine->GetC4TimerTime() * 0.5f) + engine->GetC4TimerTime() * 0.25f) - g_waypoint->GetTravelTime(m_moveSpeed, pev->origin, g_waypoint->GetPath(i)->origin);
 					if (timeMidBlowup > engine->GetTime())
 					{
-						m_campIndex = index;
+						m_campIndex = i;
 						SetProcess(Process::Camp, "i will defend the bomb", true, engine->GetTime() + timeMidBlowup);
 					}
 					else
@@ -645,10 +642,10 @@ void Bot::FindItem(void)
 
 				if (m_personality != Personality::Rusher && (m_personality != Personality::Normal || m_skill > 49))
 				{
-					const int index = FindDefendWaypoint(entityOrigin);
-					if (IsValidWaypoint(index))
+					i = FindDefendWaypoint(entityOrigin);
+					if (IsValidWaypoint(i))
 					{
-						m_campIndex = index;
+						m_campIndex = i;
 						SetProcess(Process::Camp, "i will defend the dropped bomb", true, engine->GetTime() + ebot_camp_max.GetFloat());
 					}
 				}
@@ -656,19 +653,18 @@ void Bot::FindItem(void)
 			else if (pickupType == PickupType::PlantedC4)
 			{
 				if (OutOfBombTimer())
-				{
 					allowPickup = false;
-					return;
-				}
-
-				allowPickup = !IsBombDefusing(g_waypoint->GetBombPosition());
-				if (!allowPickup)
+				else
 				{
-					const int index = FindDefendWaypoint(entityOrigin);
-					if (IsValidWaypoint(index))
+					allowPickup = !IsBombDefusing(g_waypoint->GetBombPosition());
+					if (!allowPickup)
 					{
-						m_campIndex = index;
-						SetProcess(Process::Camp, "i will protect my teammate", true, engine->GetTime() + ebot_camp_max.GetFloat());
+						i = FindDefendWaypoint(entityOrigin);
+						if (IsValidWaypoint(i))
+						{
+							m_campIndex = i;
+							SetProcess(Process::Camp, "i will protect my teammate", true, engine->GetTime() + ebot_camp_max.GetFloat());
+						}
 					}
 				}
 			}
@@ -697,8 +693,8 @@ void Bot::FindItem(void)
 			}
 		}
 
-		const Vector pickupOrigin = GetEntityOrigin(pickupItem);
-		if (pickupOrigin == nullvec || pickupOrigin.z > EyePosition().z + 12.0f || IsDeadlyDrop(pickupOrigin))
+		entityOrigin = GetEntityOrigin(pickupItem);
+		if (entityOrigin == nullvec || entityOrigin.z > EyePosition().z + 12.0f || IsDeadlyDrop(entityOrigin))
 		{
 			m_pickupItem = nullptr;
 			m_pickupType = PickupType::None;
@@ -739,7 +735,7 @@ void Bot::RadioMessage(const int message)
 	if (m_radiotimer > engine->GetTime())
 		return;
 
-	if (m_numFriendsLeft < 1)
+	if (!m_numFriendsLeft)
 		return;
 
 	if (!m_numEnemiesLeft)
@@ -845,32 +841,10 @@ void Bot::CheckMessageQueue(void)
 		return;
 
 	// get message from stack
-	const int state = GetMessageQueue();
-
-	// nothing to do?
-	if (state == CMENU_IDLE)
-		return;
-
-	if (state == CMENU_TEAMSAY)
+	switch (GetMessageQueue())
 	{
-		if (GetGameMode() == GameMode::Original || g_gameVersion & Game::CStrike)
-			return;
-	}
-
-	if (state == CMENU_RADIO)
-	{
-		if (GetGameMode() == GameMode::Original || g_gameVersion & Game::CStrike)
-			return;
-
-		if (g_audioTime + 1.0f > engine->GetTime())
-			return;
-
-		if (m_chatterTimer + 1.0f > engine->GetTime())
-			return;
-	}
-
-	switch (state)
-	{
+	case CMENU_IDLE:
+		break;
 	case CMENU_BUY: // general buy message
 	{
 		// if fun-mode no need to buy
@@ -954,6 +928,15 @@ void Bot::CheckMessageQueue(void)
 		if (!m_isAlive)
 			break;
 
+		if (GetGameMode() == GameMode::Original || g_gameVersion & Game::CStrike)
+			break;
+
+		if (g_audioTime + 1.0f > engine->GetTime())
+			break;
+
+		if (m_chatterTimer + 1.0f > engine->GetTime())
+			break;
+
 		// if last bot radio command (global) happened just a 3 seconds ago, delay response
 		if ((m_team == Team::Terrorist || m_team == Team::Counter) && (g_lastRadioTime[m_team] + 3.0f < engine->GetTime()))
 		{
@@ -1016,6 +999,9 @@ void Bot::CheckMessageQueue(void)
 	} // team dependent saytext
 	case CMENU_TEAMSAY:
 	{
+		if (GetGameMode() == GameMode::Original || g_gameVersion & Game::CStrike)
+			break;
+
 		ChatSay(true, m_tempStrings);
 		break;
 	}
@@ -1032,13 +1018,10 @@ bool Bot::IsRestricted(const int weaponIndex)
 		return false;
 
 	Array <String> bannedWeapons = String(ebot_restrictweapons.GetString()).Split(';');
-
 	ITERATE_ARRAY(bannedWeapons, i)
 	{
-		const char* banned = STRING(GetWeaponReturn(true, nullptr, weaponIndex));
-
 		// check is this weapon is banned
-		if (cstrncmp(bannedWeapons[i], banned, bannedWeapons[i].GetLength()) == 0)
+		if (cstrncmp(bannedWeapons[i], STRING(GetWeaponReturn(true, nullptr, weaponIndex)), bannedWeapons[i].GetLength()) == 0)
 			return true;
 	}
 
@@ -1665,7 +1648,7 @@ void Bot::CheckRadioCommands(void)
 	if (!m_numFriendsLeft)
 		return;
 
-	if (m_radioOrder == Radio::Affirmative || m_radioOrder != Radio::Negative)
+	if (m_radioOrder == Radio::Affirmative || m_radioOrder == Radio::Negative)
 		return;
 
 	if (!IsAlive(m_radioEntity))
@@ -1950,10 +1933,10 @@ bool Bot::IsNotAttackLab(edict_t* entity)
 			return false;
 
 		const float renderamt = entity->v.renderamt;
-		if (renderamt <= 30.0f)
+		if (renderamt < 32.0f)
 			return true;
 
-		if (renderamt > 160.0f)
+		if (renderamt > 168.0f)
 			return false;
 
 		return (squaredf(renderamt) < (entity->v.origin - pev->origin).GetLengthSquared2D());
@@ -1967,12 +1950,13 @@ void Bot::BaseUpdate(void)
 	// i'm really tired of getting random pev is nullptr debug logs...
 	// might seems ugly and useless, but... i have made some experiments with it,
 	// still not sure exactly why, but bad third party server plugins can cause this
-	if (pev == nullptr)
+	// always use quality check on this...
+	if (!pev)
 		return;
 
 	// run playermovement
 	const float time = engine->GetTime();
-	PLAYER_RUN_MOVE(pev->pContainingEntity, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, static_cast<uint16_t>(pev->buttons), static_cast<uint16_t>(pev->impulse), static_cast<uint8_t>(cclampf((time - m_msecInterval) * 1000.0f, 0.0f, 255.0f)));
+	PLAYER_RUN_MOVE(pev->pContainingEntity, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, static_cast<uint16_t>(pev->buttons), static_cast<uint16_t>(pev->impulse), static_cast<uint8_t>(cclampf(((time - m_msecInterval) * 1000.0f), 0.0f, 255.0f)));
 	m_msecInterval = time;
 
 	// reset
@@ -3159,7 +3143,7 @@ bool Bot::CampingAllowed(void)
 		if (g_mapType != MAP_DE)
 		{
 			// never camp on 1v1
-			if (m_numEnemiesLeft < 2 || m_numFriendsLeft < 1)
+			if (m_numEnemiesLeft < 2 || !m_numFriendsLeft)
 				return false;
 		}
 		else if (OutOfBombTimer())
@@ -3172,7 +3156,7 @@ bool Bot::CampingAllowed(void)
 				if (g_timeRoundMid < engine->GetTime() || HasHostage())
 					return false;
 			}
-			else if (g_bombPlanted && g_mapType == MAP_DE)
+			else if (g_bombPlanted)
 			{
 				const Vector bomb = g_waypoint->GetBombPosition();
 				if (bomb != nullvec && !IsBombDefusing(bomb))

@@ -2571,7 +2571,6 @@ void ClientCommand(edict_t* ent)
 				continue;
 
 			bot->m_sayTextBuffer.entityIndex = ENTINDEX(ent);
-
 			if (IsNullString(CMD_ARGS()))
 				continue;
 
@@ -2828,16 +2827,10 @@ void StartFrame(void)
 	// for example if a new player joins the server, we should disconnect a bot, and if the
 	// player population decreases, we should fill the server with other bots.
 
-	if (secondTimer < engine->GetTime())
-		FrameThread();
-	else
+	if (updateTimer < engine->GetTime())
 	{
-		if (g_analyzenavmesh)
-			g_navmesh->Analyze();
-		else if (g_analyzewaypoints)
-			g_waypoint->Analyze();
-		else // keep bot number up to date
-			g_botManager->MaintainBotQuota();
+		g_botManager->Think();
+		updateTimer = engine->GetTime() + (1.0f / ebot_think_fps.GetFloat());
 	}
 
 	RETURN_META(MRES_IGNORED);
@@ -2851,13 +2844,14 @@ void StartFrame_Post(void)
 	// during the game, for example making the bots think (yes, because no Think() function exists
 	// for the bots by the MOD side, remember).  Post version called only by metamod.
 
-	// **** AI EXECUTION STARTS ****
-	if (updateTimer < engine->GetTime())
-	{
-		g_botManager->Think();
-		updateTimer = engine->GetTime() + (1.0f / ebot_think_fps.GetFloat());
-	}
-	// **** AI EXECUTION FINISH ****
+	if (secondTimer < engine->GetTime())
+		FrameThread();
+	else if (g_analyzenavmesh)
+		g_navmesh->Analyze();
+	else if (g_analyzewaypoints)
+		g_waypoint->Analyze();
+	else
+		g_botManager->MaintainBotQuota();
 
 	RETURN_META(MRES_IGNORED);
 }

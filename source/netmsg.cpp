@@ -319,7 +319,7 @@ void NetworkMsg::Execute(void* p)
                 case 'b':
                 {
                     if (x[1] == 'u' && charToInt(x) == 565)
-                        m_bot->m_hasDefuser = (enabled != 0);
+                        m_bot->m_inBuyZone = (enabled != 0);
                     break;
                 }
                 case 'd':
@@ -331,7 +331,7 @@ void NetworkMsg::Execute(void* p)
                 case 'v':
                 {
                     if (x[1] == 'i' && charToInt(x) == 764)
-                        m_bot->m_hasDefuser = (enabled != 0);
+                        m_bot->m_inVIPZone = (enabled != 0);
                     break;
                 }
                 case 'c':

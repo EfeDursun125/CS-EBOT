@@ -473,26 +473,26 @@ bool Bot::ParseChat(char* reply)
 // this function sends reply to a player
 bool Bot::RepliesToPlayer(void)
 {
-    if (m_sayTextBuffer.entityIndex != -1 && !IsNullString(m_sayTextBuffer.sayText))
+    if (m_sayTextBuffer.entityIndex && m_sayTextBuffer.entityIndex != m_index && !IsNullString(m_sayTextBuffer.sayText))
     {
-        char text[256];
-
         // check is time to chat is good
         if (m_sayTextBuffer.timeNextChat < engine->GetTime())
         {
-            if (crandomint(1, 100) < m_sayTextBuffer.chatProbability + crandomint(2, 10) && ParseChat(text))
+            if (crandomint(1, 100) < (m_sayTextBuffer.chatProbability + crandomint(2, 10)))
             {
-                PrepareChatMessage(text);
-                PushMessageQueue(CMENU_SAY);
-
-                m_sayTextBuffer.entityIndex = -1;
-                m_sayTextBuffer.sayText[0] = 0;
-                m_sayTextBuffer.timeNextChat = engine->GetTime() + m_sayTextBuffer.chatDelay;
-
-                return true;
+                char text[256];
+                if (ParseChat(text))
+                {
+                    PrepareChatMessage(text);
+                    PushMessageQueue(CMENU_SAY);
+                    m_sayTextBuffer.entityIndex = 0;
+                    m_sayTextBuffer.sayText[0] = 0;
+                    m_sayTextBuffer.timeNextChat = engine->GetTime() + m_sayTextBuffer.chatDelay;
+                    return true;
+                }
             }
 
-            m_sayTextBuffer.entityIndex = -1;
+            m_sayTextBuffer.entityIndex = 0;
             m_sayTextBuffer.sayText[0] = 0;
         }
     }

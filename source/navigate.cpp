@@ -354,8 +354,11 @@ void Bot::FollowPath(void)
 }
 
 // this function used after jump action to track real path
-bool Bot::GetNextBestNode(void)
+bool Bot::GetNextBestWaypoint(void)
 {
+	if (IsOnLadder() || m_waypoint.flags & WAYPOINT_LADDER)
+		return false;
+
 	int16_t i, link;
 	const int16_t nextWaypointIndex = m_navNode.Next();
 	const int16_t currentWaypointIndex = m_navNode.First();
@@ -684,7 +687,7 @@ void Bot::DoWaypointNav(void)
 		{
 			desiredDistance = (cabsf(m_moveSpeed) * m_frameInterval) + 4.0f + static_cast<float>(m_stuckWarn) + m_frameInterval;
 			if (m_waypoint.radius > 4)
-				desiredDistance += static_cast<float>(m_waypoint.radius + m_stuckWarn);
+				desiredDistance += static_cast<float>(m_waypoint.radius);
 		}
 
 		desiredDistance = squaredf(desiredDistance);
@@ -1155,7 +1158,7 @@ void PriorityQueue::InsertHighest(const int16_t value, const float priority)
 			m_heap = static_cast<HeapNode*>(malloc(sizeof(HeapNode) * m_heapSize));
 		else
 		{
-			HeapNode* hp = static_cast<HeapNode*>(realloc(m_heap, m_size));
+			HeapNode* hp = static_cast<HeapNode*>(realloc(m_heap, sizeof(HeapNode) * m_size));
 			m_heap = hp;
 			hp = nullptr;
 		}
@@ -1267,19 +1270,27 @@ int16_t PriorityQueue::RemoveHighest(void)
 	return retID;
 }
 
+static int16_t temp;
+static int16_t temp2;
 inline const float HF_Distance(const int16_t& start, const int16_t& goal)
 {
-	return (g_waypoint->m_paths[start].origin - g_waypoint->m_paths[goal].origin).GetLength();
+	temp = start;
+	temp2 = goal;
+	return (g_waypoint->m_paths[temp].origin - g_waypoint->m_paths[temp2].origin).GetLength();
 }
 
 inline const float HF_Distance2D(const int16_t& start, const int16_t& goal)
 {
-	return (g_waypoint->m_paths[start].origin - g_waypoint->m_paths[goal].origin).GetLength2D();
+	temp = start;
+	temp2 = goal;
+	return (g_waypoint->m_paths[temp].origin - g_waypoint->m_paths[temp2].origin).GetLength2D();
 }
 
 inline const float HF_DistanceSquared(const int16_t& start, const int16_t& goal)
 {
-	return (g_waypoint->m_paths[start].origin - g_waypoint->m_paths[goal].origin).GetLengthSquared();
+	temp = start;
+	temp2 = goal;
+	return (g_waypoint->m_paths[temp].origin - g_waypoint->m_paths[temp2].origin).GetLengthSquared();
 }
 
 static Path pathCache{};
@@ -1608,19 +1619,11 @@ void Bot::FindPath(int& srcIndex, int& destIndex, edict_t* enemy)
 
 	struct AStar
 	{
-		float g{};
-		float f{};
-		int16_t parent{};
-		bool is_closed{};
+		float g = 0.0f;
+		float f = 0.0f;
+		int16_t parent = -1;
+		bool is_closed = false;
 	} waypoints[g_numWaypoints];
-
-	for (i = 0; i < g_numWaypoints; i++)
-	{
-		waypoints[i].g = 0.0f;
-		waypoints[i].f = 0.0f;
-		waypoints[i].parent = -1;
-		waypoints[i].is_closed = false;
-	}
 
 	// put start waypoint into open list
 	AStar& srcWaypoint = waypoints[srcIndex];
@@ -1789,19 +1792,11 @@ void Bot::FindShortestPath(int& srcIndex, int& destIndex)
 
 	struct AStar
 	{
-		float g{};
-		float f{};
-		int16_t parent{};
-		bool is_closed{};
+		float g = 0.0f;
+		float f = 0.0f;
+		int16_t parent = -1;
+		bool is_closed = false;
 	} waypoints[g_numWaypoints];
-
-	for (i = 0; i < g_numWaypoints; i++)
-	{
-		waypoints[i].g = 0.0f;
-		waypoints[i].f = 0.0f;
-		waypoints[i].parent = -1;
-		waypoints[i].is_closed = false;
-	}
 
 	AStar& srcWaypoint = waypoints[srcIndex];
 	srcWaypoint.f = HF_DistanceSquared(srcIndex, destIndex);
@@ -1901,19 +1896,11 @@ void Bot::FindEscapePath(int& srcIndex, const Vector& dangerOrigin)
 
 	struct AStar
 	{
-		float g{};
-		float f{};
-		int16_t parent{};
-		bool is_closed{};
+		float g = 0.0f;
+		float f = 0.0f;
+		int16_t parent = -1;
+		bool is_closed = false;
 	} waypoints[g_numWaypoints];
-
-	for (i = 0; i < g_numWaypoints; i++)
-	{
-		waypoints[i].g = 0.0f;
-		waypoints[i].f = 0.0f;
-		waypoints[i].parent = -1;
-		waypoints[i].is_closed = false;
-	}
 
 	AStar& srcWaypoint = waypoints[srcIndex];
 	srcWaypoint.f = (g_waypoint->m_paths[srcIndex].origin - dangerOrigin).GetLengthSquared();
@@ -2399,7 +2386,7 @@ void Bot::CheckStuck(const float maxSpeed)
 			if (!IsOnLadder() && distance > ((rn * 4.0f) - m_friendsNearCount) && !g_waypoint->IsNodeReachable(pev->origin, m_destOrigin))
 			{
 				// try to get new waypoint
-				if (!IsValidWaypoint(m_currentWaypointIndex) || !GetNextBestNode())
+				if (!IsValidWaypoint(m_currentWaypointIndex) || !GetNextBestWaypoint())
 				{
 					m_currentWaypointIndex = -1;
 					FindWaypoint();

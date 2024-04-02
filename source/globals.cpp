@@ -45,7 +45,7 @@ float g_timeRoundStart = 0.0f;
 float g_timeRoundEnd = 0.0f;
 float g_timeRoundMid = 0.0f;
 float g_timeBombPlanted = 0.0f;
-float g_lastRadioTime[2] = { 0.0f, 0.0f };
+float g_lastRadioTime[2] = {0.0f, 0.0f};
 float g_autoPathDistance = 250.0f;
 float g_fakePingUpdate = 0.0f;
 float g_randomJoinTime = 0.0f;
@@ -53,9 +53,9 @@ float g_DelayTimer = 0.0f;
 float g_pathTimer = 0.0f;
 float g_audioTime = 0.0f;
 
-int g_lastRadio[2];
-int g_storeAddbotVars[4];
-int g_radioSelect[32];
+int g_lastRadio[2]{};
+int g_storeAddbotVars[4]{};
+int g_radioSelect[32]{};
 int g_fakeArgc = 0;
 int g_gameVersion = Game::CStrike;
 int g_numWaypoints = 0;
@@ -64,27 +64,25 @@ int g_mapType = 0;
 
 int g_modelIndexLaser = 0;
 int g_modelIndexArrow = 0;
-char g_fakeArgv[256];
+char g_fakeArgv[256]{};
 
 // Entity Data
-int g_entityId[entityNum];
-int g_entityTeam[entityNum];
-int g_entityAction[entityNum];
+int g_entityId[entityNum]{};
+int g_entityTeam[entityNum]{};
+int g_entityAction[entityNum]{};
 //******
 
-Array <Array <String>> g_chatFactory;
-MiniArray <NameItem> g_botNames;
-Array <KwChat> g_replyFactory;
+Array <Array <String>> g_chatFactory{};
+MiniArray <NameItem> g_botNames{};
+Array <KwChat> g_replyFactory{};
 
 meta_globals_t* gpMetaGlobals = nullptr;
 gamedll_funcs_t* gpGamedllFuncs = nullptr;
 mutil_funcs_t* gpMetaUtilFuncs = nullptr;
 
-enginefuncs_t g_engfuncs;
-WeaponProperty g_weaponDefs[Const_MaxWeapons + 1];
-
-// max players is 32
-Clients g_clients[32];
+enginefuncs_t g_engfuncs{};
+WeaponProperty g_weaponDefs[Const_MaxWeapons + 1]{};
+Clients g_clients[32]{};
 
 edict_t* g_worldEdict = nullptr;
 edict_t* g_hostEntity = nullptr;

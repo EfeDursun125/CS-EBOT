@@ -1557,6 +1557,8 @@ bool Waypoint::Load(void)
         else if (header.fileVersion == static_cast<int32_t>(FV_WAYPOINT))
         {
             g_numWaypoints = header.pointNumber;
+            m_paths.Resize(g_numWaypoints, true);
+
             Path paths[g_numWaypoints];
             if (Compressor::Uncompress(pathtofl, sizeof(WaypointHeader), reinterpret_cast<uint8_t*>(paths), g_numWaypoints * sizeof(Path)) != -1)
             {
@@ -1570,6 +1572,8 @@ bool Waypoint::Load(void)
         else if (header.fileVersion == static_cast<int32_t>(126))
         {
             g_numWaypoints = header.pointNumber;
+            m_paths.Resize(g_numWaypoints, true);
+
             Path path;
             for (i = 0; i < g_numWaypoints; i++)
             {
@@ -1581,6 +1585,7 @@ bool Waypoint::Load(void)
         else if (header.fileVersion == static_cast<int32_t>(125))
         {
             g_numWaypoints = header.pointNumber;
+            m_paths.Resize(g_numWaypoints, true);
 
             struct PathOLD2
             {
@@ -1620,6 +1625,7 @@ bool Waypoint::Load(void)
         else
         {
             g_numWaypoints = header.pointNumber;
+            m_paths.Resize(g_numWaypoints, true);
 
             struct PathOLD
             {
@@ -1723,8 +1729,13 @@ bool Waypoint::Load(void)
     m_rescuePoints.Destroy();
     m_zmHmPoints.Destroy();
     m_hmMeshPoints.Destroy();
-    
-    if (g_numWaypoints > 1)
+
+    g_waypointsChanged = false;
+    m_pathDisplayTime = 0.0f;
+    m_arrowDisplayTime = 0.0f;
+    g_botManager->InitQuota();
+
+    if (g_numWaypoints > 2)
     {
         // only in lan game
         if (!IsDedicatedServer())
@@ -1733,10 +1744,6 @@ bool Waypoint::Load(void)
         InitTypes();
     }
 
-    g_waypointsChanged = false;
-    m_pathDisplayTime = 0.0f;
-    m_arrowDisplayTime = 0.0f;
-    g_botManager->InitQuota();
     return true;
 }
 
