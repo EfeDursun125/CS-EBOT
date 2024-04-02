@@ -3,6 +3,7 @@
 void Bot::DefuseStart(void)
 {
 	RadioMessage(Radio::CoverMe);
+	g_bombDefusing = true;
 }
 
 void Bot::DefuseUpdate(void)

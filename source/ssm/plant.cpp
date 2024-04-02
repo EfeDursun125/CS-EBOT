@@ -7,7 +7,7 @@ void Bot::PlantStart(void)
 
 void Bot::PlantUpdate(void)
 {
-	if (!m_inBombZone && !(m_waypoint.flags & WAYPOINT_GOAL))
+	if (!m_hasProgressBar && !m_inBombZone)
 	{
 		FinishCurrentProcess("i'm not at the plant area");
 		return;
@@ -20,14 +20,18 @@ void Bot::PlantUpdate(void)
 	m_moveSpeed = 0.0f;
 	m_strafeSpeed = 0.0f;
 
-	if (g_bombPlanted)
+	if (g_bombPlanted || !(pev->weapons & (1 << Weapon::C4)))
+	{
+		g_bombPlanted = true;
+		ResetStuck();
 		FinishCurrentProcess("succsesfully planted the bomb");
+		m_isBomber = false;
+	}
 }
 
 void Bot::PlantEnd(void)
 {
-	const int random = crandomint(1, 4);
-	switch (random)
+	switch (crandomint(1, 4))
 	{
 	case 1:
 	{
@@ -51,7 +55,8 @@ void Bot::PlantEnd(void)
 	}
 	}
 
-	m_isBomber = false;
+	m_navNode.Clear();
+	FindWaypoint();
 }
 
 bool Bot::PlantReq(void)
@@ -66,6 +71,9 @@ bool Bot::PlantReq(void)
 		return false;
 
 	if (!m_isBomber)
+		return false;
+
+	if (!m_hasProgressBar && !m_inBombZone)
 		return false;
 
 	if (!IsOnFloor())
