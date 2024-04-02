@@ -928,7 +928,7 @@ public:
 	void CheckStuck(const float maxSpeed);
 	void ResetStuck(void);
 	void FindItem(void);
-	bool GetNextBestNode(void);
+	bool GetNextBestWaypoint(void);
 	void AutoJump(void);
 	void DoWaypointNav(void);
 
