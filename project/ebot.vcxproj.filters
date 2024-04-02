@@ -75,6 +75,7 @@
     <ClInclude Include="..\include\sse_mathfun.h" />
     <ClInclude Include="..\include\sse_mathfun_extension.h" />
     <ClInclude Include="..\include\nav.h" />
+    <ClInclude Include="..\include\compress.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\include\ebot.rc" />
