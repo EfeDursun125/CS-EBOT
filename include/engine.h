@@ -1770,33 +1770,33 @@ typedef int (*GET_ENGINE_FUNCTIONS_FN) (enginefuncs_t* pengfuncsFromEngine, int*
 
 typedef struct
 {
-    GETENTITYAPI_FN pfnGetEntityAPI{};
-    GETENTITYAPI_FN pfnGetEntityAPI_Post{};
-    GETENTITYAPI2_FN pfnGetEntityAPI2{};
-    GETENTITYAPI2_FN pfnGetEntityAPI2_Post{};
-    GETNEWDLLFUNCTIONS_FN pfnGetNewDLLFunctions{};
-    GETNEWDLLFUNCTIONS_FN pfnGetNewDLLFunctions_Post{};
-    GET_ENGINE_FUNCTIONS_FN pfnGetEngineFunctions{};
-    GET_ENGINE_FUNCTIONS_FN pfnGetEngineFunctions_Post{};
+    GETENTITYAPI_FN pfnGetEntityAPI;
+    GETENTITYAPI_FN pfnGetEntityAPI_Post;
+    GETENTITYAPI2_FN pfnGetEntityAPI2;
+    GETENTITYAPI2_FN pfnGetEntityAPI2_Post;
+    GETNEWDLLFUNCTIONS_FN pfnGetNewDLLFunctions;
+    GETNEWDLLFUNCTIONS_FN pfnGetNewDLLFunctions_Post;
+    GET_ENGINE_FUNCTIONS_FN pfnGetEngineFunctions;
+    GET_ENGINE_FUNCTIONS_FN pfnGetEngineFunctions_Post;
 } metamod_funcs_t;
 
 typedef struct
 {
-    DLL_FUNCTIONS* dllapi_table{};
-    NEW_DLL_FUNCTIONS* newapi_table{};
+    DLL_FUNCTIONS* dllapi_table;
+    NEW_DLL_FUNCTIONS* newapi_table;
 } gamedll_funcs_t;
 
 typedef struct
 {
-    char* ifvers{};
-    char* name{};
-    char* version{};
-    char* date{};
-    char* author{};
-    char* url{};
-    char* logtag{};
-    PLUG_LOADTIME loadable{};
-    PLUG_LOADTIME unloadable{};
+    char* ifvers;
+    char* name;
+    char* version;
+    char* date;
+    char* author;
+    char* url;
+    char* logtag;
+    PLUG_LOADTIME loadable;
+    PLUG_LOADTIME unloadable;
 } plugin_info_t;
 extern plugin_info_t Plugin_info;
 

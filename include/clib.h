@@ -17,16 +17,17 @@
 #ifndef SIZE_MAX
 #define SIZE_MAX (~(size_t)0)
 #endif
-#else
+#include <new>
+#endif
+extern int g_numWaypoints;
 template <typename T>
 inline bool IsValidWaypoint(const T index)
 {
-	if (index < 0 || index >= static_cast<T>(g_numWaypoints))
-		return false;
+    if (index < 0 || index >= static_cast<T>(g_numWaypoints))
+        return false;
 
-	return true;
+    return true;
 }
-#endif
 #include <stdarg.h>
 
 inline int crandomint(const int min, const int max)

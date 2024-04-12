@@ -509,37 +509,37 @@ struct NameItem
 
 struct WeaponSelect
 {
-	int id{}; // the weapon id value
-	char* weaponName{}; // name of the weapon when selecting it
-	char* modelName{}; // model name to separate cs weapons
-	int price{}; // price when buying
-	int minPrimaryAmmo{}; // minimum primary ammo
-	int buyGroup{}; // group in buy menu (standard map)
-	int buySelect{}; // select item in buy menu (standard map)
-	int newBuySelectT{}; // for counter-strike v1.6
-	int newBuySelectCT{}; // for counter-strike v1.6
-	bool primaryFireHold{}; // hold down primary fire button to use?
+	int id; // the weapon id value
+	char* weaponName; // name of the weapon when selecting it
+	char* modelName; // model name to separate cs weapons
+	int price; // price when buying
+	int minPrimaryAmmo; // minimum primary ammo
+	int buyGroup; // group in buy menu (standard map)
+	int buySelect; // select item in buy menu (standard map)
+	int newBuySelectT; // for counter-strike v1.6
+	int newBuySelectCT; // for counter-strike v1.6
+	bool primaryFireHold; // hold down primary fire button to use?
 };
 
 // fire delay definiton
 struct FireDelay
 {
-	int weaponIndex{};
-	int maxFireBullets{};
-	float minBurstPauseFactor{};
-	float primaryBaseDelay{};
-	float primaryMinDelay[6]{};
-	float primaryMaxDelay[6]{};
-	float secondaryBaseDelay{};
-	float secondaryMinDelay[5]{};
-	float secondaryMaxDelay[5]{};
+	int weaponIndex;
+	int maxFireBullets;
+	float minBurstPauseFactor;
+	float primaryBaseDelay;
+	float primaryMinDelay[6];
+	float primaryMaxDelay[6];
+	float secondaryBaseDelay;
+	float secondaryMinDelay[5];
+	float secondaryMaxDelay[5];
 };
 
 // struct for menus
 struct MenuText
 {
-	int validSlots{}; // ored together bits for valid keys
-	char* menuText{}; // ptr to actual string
+	int validSlots; // ored together bits for valid keys
+	char* menuText; // ptr to actual string
 };
 
 // array of clients struct
@@ -1254,10 +1254,6 @@ extern bool IsZombieEntity(edict_t* ent);
 extern void SetGameMode(const GameMode gamemode);
 extern bool IsZombieMode(void);
 extern bool IsDeathmatchMode(void);
-#ifndef WIN32
-template <typename T>
-extern bool IsValidWaypoint(const T index);
-#endif
 extern ChatterMessage GetEqualChatter(const int message);
 extern char* GetVoice(const ChatterMessage message);
 extern float GetShootingConeDeviation(edict_t* ent, const Vector& position);
