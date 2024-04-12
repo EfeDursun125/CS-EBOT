@@ -294,7 +294,7 @@ void ENavMesh::Analyze(void)
 
         for (dir = 0; dir < ENavDir::NumDir; dir++)
         {
-            temp = GetWalkablePosition(m_area[i].GetCenter(), false, 100.0f);
+            temp = GetWalkablePosition(m_area[i].GetCenter(), nullptr, 100.0f);
             temp.z += GridSize;
             temp2 = temp + Vector(0.0f, 0.0f, GridSize) + DirectionAsVector(dir, GridSize);
             temp2 = GetWalkablePosition(temp2, g_hostEntity, true, 200.0f);

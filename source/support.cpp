@@ -870,17 +870,6 @@ bool IsDeathmatchMode(void)
 	return (gamemode == GameMode::Deathmatch || gamemode == GameMode::TeamDeathmatch);
 }
 
-#ifndef WIN32
-template <typename T>
-bool IsValidWaypoint(const T index)
-{
-	if (index < 0 || index >= static_cast<T>(g_numWaypoints))
-		return false;
-
-	return true;
-}
-#endif
-
 GameMode GetGameMode(void)
 {
 	return static_cast<GameMode>(ebot_gamemod.GetInt());
@@ -1457,8 +1446,8 @@ int GetWeaponReturn(const bool needString, const char* weaponAlias, const int we
 	// structure definition for weapon tab
 	struct WeaponTab_t
 	{
-		int weaponID{}; // weapon id
-		const char* alias{}; // weapon alias
+		int weaponID; // weapon id
+		const char* alias; // weapon alias
 	};
 
 	// weapon enumeration
