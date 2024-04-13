@@ -15,8 +15,15 @@ set(CMAKE_SHARED_LIBRARY_SUFFIX ".so")
 
 # Set compiler flags
 set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32 -O2")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m32 -w -mmmx -msse -msse2 -mfpmath=sse -ldl -lm -O2 -fvisibility=hidden -fno-exceptions -fno-rtti -Wno-parentheses -fno-pie -pipe -mtune=generic -fomit-frame-pointer -fvisibility-inlines-hidden -floop-nest-optimize -fgraphite-identity -funroll-loops -fno-stack-protector -ffunction-sections -fdata-sections -fcf-protection=none")
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Og")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Og")
+else()
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+endif()
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m32 -w -mmmx -msse -msse2 -mfpmath=sse -ldl -lm -fvisibility=hidden -fno-exceptions -fno-rtti -Wno-parentheses -fno-pie -pipe -mtune=generic -fomit-frame-pointer -fvisibility-inlines-hidden -floop-nest-optimize -fgraphite-identity -funroll-loops -fno-stack-protector -ffunction-sections -fdata-sections -fcf-protection=none")
 
 # Set output directory for the library
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/ebot)
@@ -29,7 +36,6 @@ file(GLOB_RECURSE EBOT_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/../source/*.cpp 
     ${CMAKE_CURRENT_SOURCE_DIR}/../source/ssm/*.cpp
 )
-
 
 # Create the library
 add_library(${PROJECT_NAME} SHARED ${EBOT_SRC})
@@ -62,3 +68,6 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 # Set installation directories
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../include/ DESTINATION include)
+
+# Give some detail about the build
+message(STATUS "Current Build Flags:${CMAKE_CXX_FLAGS}")
