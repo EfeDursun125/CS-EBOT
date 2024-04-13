@@ -75,10 +75,10 @@ enum class Process : int8_t
 enum Game : int8_t
 {
 	CStrike = (1 << 1), // Counter-Strike 1.6 and Above
-	CZero, // Counter-Strike: Condition Zero
-	Xash, // Xash3D
-	HalfLife, // Half-Life
-	DMC // Deathmatch Classic
+	CZero = (1 << 2), // Counter-Strike: Condition Zero
+	Xash = (1 << 3), // Xash3D
+	HalfLife = (1 << 4), // Half-Life
+	DMC = (1 << 5) // Deathmatch Classic
 };
 
 // log levels
