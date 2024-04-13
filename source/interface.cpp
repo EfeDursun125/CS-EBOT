@@ -883,7 +883,7 @@ void AddBot_CT(void)
 void InitConfig(void)
 {
 	File fp;
-	char command[80], line[256];
+	char command[256], line[256];
 
 	KwChat replyKey;
 	int chatType = -1;
@@ -919,6 +919,7 @@ void InitConfig(void)
 	}
 
 	// CHAT SYSTEM CONFIG INITIALIZATION
+	char* field;
 	if (g_chatFactory.IsEmpty())
 	{
 		if (OpenConfig("chat.cfg", "Chat file not found.", &fp))
@@ -929,8 +930,12 @@ void InitConfig(void)
 			while (fp.GetBuffer(line, 255))
 			{
 				SKIP_COMMENTS();
-				cstrcpy(command, GetField(line, 0, 1));
 
+				field = GetField(line, 0, 1);
+				if (!field)
+					continue;
+
+				cstrcpy(command, field);
 				if (cstrcmp(command, "[KILLED]") == 0)
 				{
 					chatType = 0;

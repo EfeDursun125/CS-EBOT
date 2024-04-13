@@ -427,7 +427,7 @@ char* GetField(const char* string, const int fieldId, const bool endLine)
 	// either to the actual engine functions (when the caller is a real client), either on
 	// our function here, which does the same thing, when the caller is a bot.
 
-	char field[256];
+	static char field[256];
 
 	// reset the string
 	cmemset(field, 0, sizeof(field));
@@ -482,7 +482,7 @@ char* GetField(const char* string, const int fieldId, const bool endLine)
 		field[cstrlen(field) - 1] = 0;
 
 	cstrtrim(field);
-	return field; // returns the wanted field
+	return &field[0]; // returns the wanted field
 }
 
 char* GetModName(void)
@@ -1206,7 +1206,7 @@ void ServerCommand(const char* format, ...)
 
 char* GetEntityName(edict_t* entity)
 {
-	static char entityName[256]{};
+	static char entityName[32]{};
 	if (FNullEnt(entity))
 		cstrcpy(entityName, "nullptr");
 	else if (IsValidPlayer(entity))
@@ -1220,7 +1220,7 @@ char* GetEntityName(edict_t* entity)
 // this function gets the map name and store it in the map_name global string variable.
 char* GetMapName(void)
 {
-	static char mapName[256]{};
+	static char mapName[32]{};
 	cstrncpy(mapName, STRING(g_pGlobals->mapname), sizeof(mapName));
 	return &mapName[0]; // and return a pointer to it
 }
@@ -1231,7 +1231,6 @@ bool OpenConfig(const char* fileName, char* errorIfNotExists, File* outFile)
 		outFile->Close();
 
 	outFile->Open(FormatBuffer("%s/addons/ebot/%s", GetModName(), fileName), "rt");
-
 	if (!outFile->IsValid())
 	{
 		AddLogEntry(Log::Error, errorIfNotExists);
@@ -1243,7 +1242,9 @@ bool OpenConfig(const char* fileName, char* errorIfNotExists, File* outFile)
 
 char* GetWaypointDir(void)
 {
-	return FormatBuffer("%s/addons/ebot/waypoints/", GetModName());
+	static char wpDir[256]{};
+    sprintf(wpDir, "%s/addons/ebot/waypoints/", GetModName());
+	return &wpDir[0];
 }
 
 // this function tells the engine that a new server command is being declared, in addition
