@@ -427,7 +427,7 @@ char* GetField(const char* string, const int fieldId, const bool endLine)
 	// either to the actual engine functions (when the caller is a real client), either on
 	// our function here, which does the same thing, when the caller is a bot.
 
-	char field[256];
+	static char field[256];
 
 	// reset the string
 	cmemset(field, 0, sizeof(field));
@@ -485,7 +485,7 @@ char* GetField(const char* string, const int fieldId, const bool endLine)
 	return field; // returns the wanted field
 }
 
-char* GetModName(void)
+const char* GetModName(void)
 {
 	static char modName[256]{};
 
@@ -1218,7 +1218,7 @@ char* GetEntityName(edict_t* entity)
 }
 
 // this function gets the map name and store it in the map_name global string variable.
-char* GetMapName(void)
+const char* GetMapName(void)
 {
 	static char mapName[256]{};
 	cstrncpy(mapName, STRING(g_pGlobals->mapname), sizeof(mapName));
@@ -1241,9 +1241,11 @@ bool OpenConfig(const char* fileName, char* errorIfNotExists, File* outFile)
 	return true;
 }
 
-char* GetWaypointDir(void)
+const char* GetWaypointDir(void)
 {
-	return FormatBuffer("%s/addons/ebot/waypoints/", GetModName());
+	static char waypointDir[256]{};
+	sprintf(waypointDir, "%s/addons/ebot/waypoints/", GetModName());
+	return waypointDir;
 }
 
 // this function tells the engine that a new server command is being declared, in addition
