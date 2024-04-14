@@ -485,7 +485,7 @@ char* GetField(const char* string, const int fieldId, const bool endLine)
 	return &field[0]; // returns the wanted field
 }
 
-char* GetModName(void)
+const char* GetModName(void)
 {
 	static char modName[256]{};
 
@@ -1218,7 +1218,7 @@ char* GetEntityName(edict_t* entity)
 }
 
 // this function gets the map name and store it in the map_name global string variable.
-char* GetMapName(void)
+const char* GetMapName(void)
 {
 	static char mapName[32]{};
 	cstrncpy(mapName, STRING(g_pGlobals->mapname), sizeof(mapName));
@@ -1240,7 +1240,7 @@ bool OpenConfig(const char* fileName, char* errorIfNotExists, File* outFile)
 	return true;
 }
 
-char* GetWaypointDir(void)
+const char* GetWaypointDir(void)
 {
 	static char wpDir[256]{};
     sprintf(wpDir, "%s/addons/ebot/waypoints/", GetModName());

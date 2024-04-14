@@ -75,10 +75,10 @@ enum class Process : int8_t
 enum Game : int8_t
 {
 	CStrike = (1 << 1), // Counter-Strike 1.6 and Above
-	CZero, // Counter-Strike: Condition Zero
-	Xash, // Xash3D
-	HalfLife, // Half-Life
-	DMC // Deathmatch Classic
+	CZero = (1 << 2), // Counter-Strike: Condition Zero
+	Xash = (1 << 3), // Xash3D
+	HalfLife = (1 << 4), // Half-Life
+	DMC = (1 << 5) // Deathmatch Classic
 };
 
 // log levels
@@ -1237,7 +1237,7 @@ public:
 
 	Vector GetBombPosition(void) { return m_foundBombOrigin; }
 	void SetBombPosition(const bool shouldReset = false);
-	String CheckSubfolderFile(void);
+	const char* CheckSubfolderFile(void);
 };
 
 #define g_netMsg NetworkMsg::GetObjectPtr()
@@ -1272,9 +1272,9 @@ extern bool OpenConfig(const char* fileName, char* errorIfNotExists, File* outFi
 extern bool FindNearestPlayer(void** holder, edict_t* to, const float searchDistance = 4096.0f, const bool sameTeam = false, const bool needBot = false, const bool needAlive = false, const bool needDrawn = false);
 
 extern char* GetEntityName(edict_t* entity);
-extern char* GetMapName(void);
-extern char* GetWaypointDir(void);
-extern char* GetModName(void);
+extern const char* GetMapName(void);
+extern const char* GetWaypointDir(void);
+extern const char* GetModName(void);
 extern char* GetField(const char* string, const int fieldId, const bool endLine = false);
 
 extern Vector GetWalkablePosition(const Vector& origin, edict_t* ent = nullptr, const bool returnNullVec = false, const float height = 1000.0f);
