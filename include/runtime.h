@@ -94,14 +94,12 @@ typedef unsigned short uint16_t;
 // Returns:
 //   Formatted buffer.
 //
-inline char* FormatBuffer(char* format, ...)
+inline void FormatBuffer(char buffer[], char* format, ...)
 {
-    static char buffer[1024]{};
     va_list ap;
     va_start(ap, format);
     vsprintf(buffer, format, ap);
     va_end(ap);
-    return &buffer[0];
 }
 
 //
