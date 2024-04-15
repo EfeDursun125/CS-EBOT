@@ -1932,7 +1932,9 @@ void ClientCommand(edict_t* ent)
 								bot->ResetDoubleJumpState();
 								bot->m_doubleJumpOrigin = GetEntityOrigin(client->ent);
 								bot->m_doubleJumpEntity = client->ent;
-								bot->ChatSay(true, FormatBuffer("Ok %s, i will help you!", GetEntityName(ent)));
+								char buffer[512];
+								FormatBuffer(buffer, "Okay %s, i will help you!", GetEntityName(ent));
+								bot->ChatSay(true, buffer);
 							}
 							else if (selection == 2)
 								bot->ResetDoubleJumpState();
@@ -2637,7 +2639,9 @@ void ServerActivate(edict_t* pentEdictList, int edictCount, int clientMax)
 	// execute main config
 	ServerCommand("exec addons/ebot/ebot.cfg");
 
-	if (TryFileOpen(FormatBuffer("%s/maps/%s_ebot.cfg", GetModName(), GetMapName())))
+	char buffer[1024];
+	FormatBuffer(buffer, "%s/maps/%s_ebot.cfg", GetModName(), GetMapName());
+	if (TryFileOpen(buffer))
 	{
 		ServerCommand("exec maps/%s_ebot.cfg", GetMapName());
 		ServerPrint("Executing Map-Specific config file");

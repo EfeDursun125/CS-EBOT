@@ -753,13 +753,21 @@ bool ENavMesh::IsConnected(const int start, const int goal)
     return false;
 }
 
-String CheckSubfolderFile(void)
+const char* CheckSubfolderFile(void)
 {
-    String returnFile = FormatBuffer("%s/%s.nav", FormatBuffer("%s/addons/ebot/navigations/", GetModName()), GetMapName());
-    if (TryFileOpen(returnFile))
-        return returnFile;
+    static char navFilePath[1024]{};
+    const char* modName = GetModName();
+    const char* mapName = GetMapName();
+    
+    char tempBuffer[1024];
+    FormatBuffer(tempBuffer, "%s/addons/ebot/navigations/", modName);
+    FormatBuffer(navFilePath, "%s/%s.nav", tempBuffer, mapName);
+    if (TryFileOpen(navFilePath))
+        return &navFilePath[0];
 
-    return FormatBuffer("%s%s.nav", FormatBuffer("%s/addons/ebot/navigations/", GetModName()), GetMapName());
+    FormatBuffer(tempBuffer, "%s/addons/ebot/navigations/", modName);
+    FormatBuffer(navFilePath, "%s%s.nav", tempBuffer, mapName);
+    return &navFilePath[0];
 }
 
 bool ENavMesh::LoadNav(void)

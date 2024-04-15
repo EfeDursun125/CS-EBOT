@@ -78,6 +78,7 @@ void Bot::PushMessageQueue(const int message)
 	}
 	else if (message == CMENU_BUY && g_gameVersion & Game::HalfLife)
 	{
+		m_inBuyZone = false;
 		m_buyingFinished = true;
 		m_isVIP = false;
 		m_buyState = 7;
@@ -784,8 +785,9 @@ void Bot::PlayChatterMessage(const ChatterMessage& message)
 	if (!voice)
 		return;
 
-	// storing FormatBuffer returns in a char* resulting weird paths for some reason...
-	File fp(FormatBuffer("%s/sound/%s/%s.wav", GetModName(), ebot_chatter_path.GetString(), voice), "rb");
+	char buffer[1024];
+	FormatBuffer(buffer, "%s/sound/%s/%s.wav", GetModName(), ebot_chatter_path.GetString(), voice);
+	File fp(buffer, "rb");
 	if (!fp.IsValid())
 		return;
 
@@ -816,6 +818,8 @@ void Bot::PlayChatterMessage(const ChatterMessage& message)
 	m_chatterTimer = engine->GetTime() + dur;
 	SwitchChatterIcon(true);
 
+	FormatBuffer(buffer, "%s/%s.wav", ebot_chatter_path.GetString(), voice);
+
 	for (const auto& client : g_clients)
 	{
 		if (client.team != m_team || IsValidBot(client.ent) || FNullEnt(client.ent))
@@ -823,7 +827,7 @@ void Bot::PlayChatterMessage(const ChatterMessage& message)
 
 		MESSAGE_BEGIN(MSG_ONE, g_netMsg->GetId(NETMSG_SENDAUDIO), nullptr, client.ent); // begin message
 		WRITE_BYTE(m_index);
-		WRITE_STRING(FormatBuffer("%s/%s.wav", ebot_chatter_path.GetString(), voice));
+		WRITE_STRING(buffer);
 		WRITE_SHORT(m_voicePitch);
 		MESSAGE_END();
 	}
@@ -867,6 +871,7 @@ void Bot::CheckMessageQueue(void)
 		{
 			m_buyState = 7;
 			m_buyingFinished = true;
+			m_inBuyZone = false;
 
 			if (chanceof(m_skill) && !m_isBomber && !m_isVIP)
 				SelectWeaponByName("weapon_knife");
@@ -909,6 +914,7 @@ void Bot::CheckMessageQueue(void)
 		if (m_buyState > 6)
 		{
 			m_buyingFinished = true;
+			m_inBuyZone = false;
 
 			if (chanceof(m_skill) && !m_isBomber && !m_isVIP)
 				SelectWeaponByName("weapon_knife");
@@ -2941,8 +2947,10 @@ void Bot::DiscardWeaponForUser(edict_t* user, const bool discardC4)
 	}
 	else
 	{
+		char buffer[512];
+		FormatBuffer(buffer, "Sorry %s, but i don't want discard my %s to you!", GetEntityName(user), discardC4 ? "bomb" : "weapon");
+		ChatSay(false, buffer);
 		RadioMessage(Radio::Negative);
-		ChatSay(false, FormatBuffer("Sorry %s, i don't want discard my %s to you!", GetEntityName(user), discardC4 ? "bomb" : "weapon"));
 	}
 }
 
@@ -2956,17 +2964,13 @@ void Bot::ResetDoubleJumpState(void)
 
 Vector Bot::CheckToss(const Vector& start, const Vector& stop)
 {
-	// this function returns the velocity at which an object should looped from start to land near end.
-	// returns nullvec if toss is not feasible
-	TraceResult tr{};
-	const float gravity = engine->GetGravity() * 0.55f;
-
 	Vector end = stop - pev->velocity;
 	end.z -= 15.0f;
 
 	if (cabsf(end.z - start.z) > 500.0f)
 		return nullvec;
 
+	TraceResult tr{};
 	Vector midPoint = start + (end - start) * 0.5f;
 	TraceHull(midPoint, midPoint + Vector(0.0f, 0.0f, 500.0f), true, head_hull, pev->pContainingEntity, &tr);
 
@@ -2979,13 +2983,12 @@ Vector Bot::CheckToss(const Vector& start, const Vector& stop)
 	if (midPoint.z < start.z || midPoint.z < end.z)
 		return nullvec;
 
+	const float gravity = engine->GetGravity() * 0.55f;
 	const float timeOne = csqrtf((midPoint.z - start.z) / (0.5f * gravity));
-	const float timeTwo = csqrtf((midPoint.z - end.z) / (0.5f * gravity));
-
 	if (timeOne < 0.1f)
 		return nullvec;
 
-	Vector velocity = (end - start) / (timeOne + timeTwo);
+	Vector velocity = (end - start) / (timeOne + csqrtf((midPoint.z - end.z) / (0.5f * gravity)));
 	velocity.z = gravity * timeOne;
 
 	Vector apex = start + velocity * timeOne;
@@ -3000,8 +3003,7 @@ Vector Bot::CheckToss(const Vector& start, const Vector& stop)
 
 	if (tr.flFraction != 1.0f)
 	{
-		const float dot = -(tr.vecPlaneNormal | (apex - end).Normalize());
-		if (dot > 0.75f || tr.flFraction < 0.8f)
+		if (-(tr.vecPlaneNormal | (apex - end).Normalize()) > 0.75f || tr.flFraction < 0.8f)
 			return nullvec;
 	}
 
@@ -3010,20 +3012,15 @@ Vector Bot::CheckToss(const Vector& start, const Vector& stop)
 
 Vector Bot::CheckThrow(const Vector& start, const Vector& end)
 {
-	// this function returns the velocity vector at which an object should be thrown from start to hit end.
-	// returns nullvec if throw is not feasible.
 	Vector velocity = end - start;
-	TraceResult tr{};
-
-	const float gravity = engine->GetGravity() * 0.55f;
 	float time = velocity.GetLength() * 0.00512820512f;
-
 	if (time < 0.01f)
 		return nullvec;
 
 	if (time > 2.0f)
 		time = 1.2f;
 
+	const float gravity = engine->GetGravity() * 0.55f;
 	const float half = time * 0.5f;
 
 	velocity = velocity * (1.0f / time);
@@ -3032,6 +3029,7 @@ Vector Bot::CheckThrow(const Vector& start, const Vector& end)
 	Vector apex = start + (end - start) * 0.5f;
 	apex.z += 0.5f * gravity * half;
 
+	TraceResult tr{};
 	TraceHull(start, apex, false, head_hull, pev->pContainingEntity, &tr);
 
 	if (tr.flFraction != 1.0f)
@@ -3097,15 +3095,11 @@ float Bot::GetBombTimeleft(void)
 
 float Bot::GetEstimatedReachTime(void)
 {
-	float estimatedTime = 6.0f; // time to reach next waypoint
-
 	// calculate 'real' time that we need to get from one waypoint to another
 	if (IsValidWaypoint(m_currentWaypointIndex) && IsValidWaypoint(m_prevWptIndex[0]))
 	{
-		const float distance = (g_waypoint->GetPath(m_prevWptIndex[0])->origin - m_destOrigin).GetLengthSquared();
-
 		// caclulate estimated time
-		estimatedTime = 5.0f * (distance / squaredf(pev->maxspeed));
+		float estimatedTime = 5.0f * ((g_waypoint->GetPath(m_prevWptIndex[0])->origin - m_destOrigin).GetLengthSquared() / squaredf(pev->maxspeed));
 
 		// check for special waypoints, that can slowdown our movement
 		if ((m_waypoint.flags & WAYPOINT_CROUCH) || (m_waypoint.flags & WAYPOINT_LADDER) || (pev->buttons & IN_DUCK))
@@ -3120,7 +3114,7 @@ float Bot::GetEstimatedReachTime(void)
 			estimatedTime = 8.0f;
 	}
 
-	return estimatedTime;
+	return 6.0f;
 }
 
 bool Bot::CampingAllowed(void)

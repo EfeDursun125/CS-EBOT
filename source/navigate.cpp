@@ -1581,14 +1581,18 @@ void Bot::FindPath(int& srcIndex, int& destIndex, edict_t* enemy)
 	else
 		gcalc = GF_CostNormal;
 
+	if (!gcalc)
+		return;
+
 	bool hasHostage;
 	if (HasHostage())
 		hasHostage = true;
 	else
 		hasHostage = false;
 
-	if (!gcalc)
-		return;
+	int seed = m_index + m_numSpawns + m_currentWeapon;
+	float min = ebot_pathfinder_seed_min.GetFloat();
+	float max = ebot_pathfinder_seed_max.GetFloat();
 
 	int16_t i;
 	int16_t stuckIndex;
@@ -1613,6 +1617,10 @@ void Bot::FindPath(int& srcIndex, int& destIndex, edict_t* enemy)
 				}
 			}
 		}
+
+		// if we stuck always randomize paths to better unstuck
+		seed += static_cast<int>(engine->GetTime() * 0.1f);
+		seed += m_stuckWarn;
 	}
 	else
 		stuckIndex = -1;
@@ -1627,8 +1635,8 @@ void Bot::FindPath(int& srcIndex, int& destIndex, edict_t* enemy)
 
 	// put start waypoint into open list
 	AStar& srcWaypoint = waypoints[srcIndex];
-	srcWaypoint.g = gcalc(srcIndex, destIndex, 0, m_team, pev->gravity, m_isZombieBot);
-	srcWaypoint.f = srcWaypoint.g + HF_DistanceSquared(srcIndex, destIndex);
+	srcWaypoint.g = gcalc(srcIndex, destIndex, 0, m_team, pev->gravity, m_isZombieBot) * crandomfloatfast(seed, min, max);
+	srcWaypoint.f = srcWaypoint.g + HF_Distance(srcIndex, destIndex);
 
 	// loop cache
 	AStar* currWaypoint;
@@ -1652,6 +1660,8 @@ void Bot::FindPath(int& srcIndex, int& destIndex, edict_t* enemy)
 	{
 		// remove the first waypoint from the open list
 		currentIndex = openList.RemoveLowest();
+		if (stuckIndex == currentIndex)
+			continue;
 
 		// is the current waypoint the goal waypoint?
 		if (currentIndex == destIndex || openList.Size() > limit)
@@ -1686,11 +1696,11 @@ void Bot::FindPath(int& srcIndex, int& destIndex, edict_t* enemy)
 			if (!IsValidWaypoint(self))
 				continue;
 
+			if (stuckIndex == self)
+				continue;
+
 			if (self != destIndex)
 			{
-				if (stuckIndex == self)
-					continue;
-
 				if (flags = g_waypoint->m_paths[self].flags)
 				{
 					if (flags & WAYPOINT_FALLCHECK)
@@ -1740,7 +1750,7 @@ void Bot::FindPath(int& srcIndex, int& destIndex, edict_t* enemy)
 				}
 			}
 
-			g = currWaypoint->g + gcalc(currentIndex, self, flags, m_team, pev->gravity, m_isZombieBot);
+			g = currWaypoint->g + (gcalc(currentIndex, self, flags, m_team, pev->gravity, m_isZombieBot) * crandomfloatfast(seed, min, max));
 			f = g + HF_Distance(self, destIndex);
 
 			childWaypoint = &waypoints[self];

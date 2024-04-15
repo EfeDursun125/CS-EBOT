@@ -230,7 +230,9 @@ void Bot::PrepareChatMessage(char* text)
             else if (*pattern == 'r')
             {
                 const int time = static_cast<int>(g_timeRoundEnd - engine->GetTime());
-                cstrcat(m_tempStrings, FormatBuffer("%02d:%02d", time / 60, time % 60));
+                char buffer[32];
+                FormatBuffer(buffer, "%02d:%02d", time / 60, time % 60);
+                cstrcat(m_tempStrings, buffer);
             }
             // chat reply?
             else if (*pattern == 's')

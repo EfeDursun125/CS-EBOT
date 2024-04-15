@@ -1391,9 +1391,10 @@ void Waypoint::Sort(const int16_t self, int16_t index[], const int size)
     }
 }
 
+static int8_t tryDownload;
 #ifdef PLATFORM_LINUX
-// The WriteCallback function is called by cURL when there is data to be written.
-// This is necessary for compatibility with older versions of cURL, which do not
+// the WriteCallback function is called by cURL when there is data to be written.
+// this is necessary for compatibility with older versions of cURL, which do not
 // support the CURLOPT_WRITEDATA option directly (linux)
 size_t WriteCallback(void* contents, size_t size, size_t nmemb, FILE* stream)
 {
@@ -1406,6 +1407,7 @@ size_t WriteCallback(void* contents, size_t size, size_t nmemb, FILE* stream)
 
 bool Waypoint::Download(void)
 {
+    tryDownload++;
 #ifdef PLATFORM_WIN32
     // could be missing or corrupted? then avoid crash...
     const HMODULE hUrlMon = LoadLibrary("urlmon.dll");
@@ -1419,7 +1421,9 @@ bool Waypoint::Download(void)
         if (pURLDownloadToFile)
         {
             ServerPrint("UrlMon loaded successfully");
-            if (SUCCEEDED(pURLDownloadToFile(nullptr, FormatBuffer("%s/%s.ewp", ebot_download_waypoints_from.GetString(), GetMapName()), CheckSubfolderFile().GetBuffer(), 0, nullptr)))
+            char tpath[1024];
+            FormatBuffer(tpath, "%s/%s.ewp", ebot_download_waypoints_from.GetString(), GetMapName());
+            if (SUCCEEDED(pURLDownloadToFile(nullptr, tpath, CheckSubfolderFile(), 0, nullptr)))
             {
                 ServerPrint("UrlMon download successful");
                 FreeLibrary(hUrlMon);
@@ -1448,14 +1452,17 @@ bool Waypoint::Download(void)
 
         if (curl)
         {
-            const char* downloadURL = FormatBuffer("%s/%s.ewp", ebot_download_waypoints_from.GetString(), GetMapName());
+            char tpath[1024];
+            FormatBuffer(tpath, "%s/%s.ewp", ebot_download_waypoints_from.GetString(), GetMapName());
+            const char* downloadURL = &tpath;
             curl_easy_setopt(curl, CURLOPT_URL, downloadURL);
             curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
             curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
             ServerPrint("Downloading from cURL: %s", downloadURL);
 
             // path to the 'cstrike/maps' directory
-            const char* filepath = FormatBuffer("%s/%s.ewp", GetWaypointDir(), GetMapName());
+            FormatBuffer(tpath, "%s/%s.ewp", GetWaypointDir(), GetMapName());
+            const char* filepath = &tpath;
             FILE* fp = fopen(filepath, "wb");
             if (!fp)
             {
@@ -1505,12 +1512,14 @@ bool Waypoint::Download(void)
     if (!system("which wget"))
     {
         // wget is installed
-        char downloadURL[512];
+        char downloadURL[1024];
         snprintf(downloadURL, sizeof(downloadURL), "%s/%s.ewp", ebot_download_waypoints_from.GetString(), GetMapName());
 
-        const char* filepath = FormatBuffer("%s/%s.ewp", GetWaypointDir(), GetMapName());
+        char tpath[1024];
+        FormatBuffer(tpath, "%s/%s.ewp", GetWaypointDir(), GetMapName());
+        const char* filepath = tpath;
 
-        char command[512];
+        char command[1024];
         snprintf(command, sizeof(command), "wget -O %s %s", filepath, downloadURL);
         printf("Executing wget command: %s", command);
         const int result = system(command);
@@ -1681,12 +1690,14 @@ bool Waypoint::Load(void)
 
         fp.Close();
         tryLoad = 0;
+        tryDownload = 0;
     }
-    else if (ebot_download_waypoints.GetBool() && Download())
+    else if (tryDownload < 5 && ebot_download_waypoints.GetBool() && Download())
     {
         Load();
         sprintf(m_infoBuffer, "%s.ewp is downloaded from the internet", GetMapName());
         tryLoad = 0;
+        tryDownload = 0;
     }
     else
     {
@@ -1712,6 +1723,7 @@ bool Waypoint::Load(void)
             g_waypoint->CreateBasic();
             g_analyzewaypoints = true;
             tryLoad = 0;
+            tryDownload = 0;
         }
         else
         {
@@ -1816,24 +1828,22 @@ void Waypoint::Save(void)
 
 const char* Waypoint::CheckSubfolderFile(void)
 {
-    static char waypointFilePath[256]{};
-
+    static char waypointFilePath[1024]{};
     const char* waypointDir = GetWaypointDir();
     const char* mapName = GetMapName();
 
-    sprintf(waypointFilePath, "%s%s.ewp", waypointDir, mapName);
-
+    FormatBuffer(waypointFilePath, "%s%s.ewp", waypointDir, mapName);
     if (TryFileOpen(waypointFilePath))
-        return waypointFilePath;
+        return &waypointFilePath[0];
     else
     {
-        sprintf(waypointFilePath, "%s%s.pwf", waypointDir, mapName);
+        FormatBuffer(waypointFilePath, "%s%s.ewp", waypointDir, mapName);
         if (TryFileOpen(waypointFilePath))
-            return waypointFilePath;
+            return &waypointFilePath[0];
     }
 
-    sprintf(waypointFilePath, "%s%s.ewp", waypointDir, mapName);
-    return waypointFilePath;
+    FormatBuffer(waypointFilePath, "%s%s.ewp", waypointDir, mapName);
+    return &waypointFilePath[0];
 }
 
 // this function returns 2D traveltime to a position

@@ -232,12 +232,17 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 		tempText = String(text);
 
 		// make menu looks best
+		char buffer[64];
+		char buffer2[64];
 		int i;
 		for (i = 0; i <= 9; i++)
-			tempText.Replace(FormatBuffer("%d.", i), FormatBuffer("\\r%d.\\w", i));
+		{
+			FormatBuffer(buffer, "%d.", i);
+			FormatBuffer(buffer2, "\\r%d.\\w", i);
+			tempText.Replace(buffer, buffer2);
+		}
 
 		text = tempText;
-
 		while (cstrlen(text) >= 64)
 		{
 			MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent);
@@ -249,7 +254,6 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 				WRITE_CHAR(text[i]);
 
 			MESSAGE_END();
-
 			text += 64;
 		}
 
@@ -259,7 +263,6 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 		WRITE_BYTE(0);
 		WRITE_STRING(text);
 		MESSAGE_END();
-
 		g_clients[clientIndex].menu = menu;
 	}
 	else
@@ -270,7 +273,6 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 		WRITE_BYTE(0);
 		WRITE_STRING("");
 		MESSAGE_END();
-
 		g_clients[clientIndex].menu = nullptr;
 	}
 
@@ -601,13 +603,16 @@ void RoundInit(void)
 
 void AutoLoadGameMode(void)
 {
+	char buffer[1024];
+	char buffer2[1024];
 	const char* getModeName = GetModName();
 	static int8_t checkShowTextTime = 0;
 	checkShowTextTime++;
 
-	// CS:BTE Support 
-	char* Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/bte_player.ini", getModeName);
-	if (TryFileOpen(Plugin_INI) || TryFileOpen(FormatBuffer("%s/addons/amxmodx/configs/bte_config/bte_blockresource.txt", getModeName)))
+	// CS:BTE Support
+	FormatBuffer(buffer, "%s/addons/amxmodx/configs/bte_player.ini", getModeName);
+	FormatBuffer(buffer2, "%s/addons/amxmodx/configs/bte_config/bte_blockresource.txt", getModeName);
+	if (TryFileOpen(buffer) || TryFileOpen(buffer2))
 	{
 		const int Const_GameModes = 13;
 		GameMode bteGameModAi[Const_GameModes] =
@@ -647,7 +652,8 @@ void AutoLoadGameMode(void)
 		int i;
 		for (i = 0; i < Const_GameModes; i++)
 		{
-			if (TryFileOpen(FormatBuffer("%s/addons/amxmodx/configs/%s.ini", getModeName, bteGameINI[i])))
+			FormatBuffer(buffer, "%s/addons/amxmodx/configs/%s.ini", getModeName, bteGameINI[i]);
+			if (TryFileOpen(buffer))
 			{
 				if (bteGameModAi[i] == GameMode(2) && i != 5)
 					g_DelayTimer = engine->GetTime() + 20.0f + CVAR_GET_FLOAT("mp_freezetime");
@@ -763,8 +769,8 @@ void AutoLoadGameMode(void)
 	}
 
 	// DM:KD
-	Plugin_INI = FormatBuffer("%s/addons/amxmodx/configs/plugins-dmkd.ini", GetModName());
-	if (TryFileOpen(Plugin_INI))
+	FormatBuffer(buffer, "%s/addons/amxmodx/configs/plugins-dmkd.ini", GetModName());
+	if (TryFileOpen(buffer))
 	{
 		if (CVAR_GET_FLOAT("DMKD_DMMODE") == 1)
 		{
@@ -1084,33 +1090,37 @@ void HudMessage(edict_t* ent, const bool toCenter, const Color& rgb, char* forma
 
 void ServerPrint(const char* format, ...)
 {
-	va_list ap;
 	char string[3072];
+	char string2[3072];
 
+	va_list ap;
 	va_start(ap, format);
 	vsprintf(string, format, ap);
 	va_end(ap);
 
-	SERVER_PRINT(FormatBuffer("[%s] %s\n", PRODUCT_LOGTAG, string));
+	FormatBuffer(string2, "[%s] %s\n", PRODUCT_LOGTAG, string);
+	SERVER_PRINT(string2);
 }
 
 void ServerPrintNoTag(const char* format, ...)
 {
-	va_list ap;
 	char string[3072];
+	char string2[3072];
 
+	va_list ap;
 	va_start(ap, format);
 	vsprintf(string, format, ap);
 	va_end(ap);
 
-	SERVER_PRINT(FormatBuffer("%s\n", string));
+	FormatBuffer(string2, "%s\n", string);
+	SERVER_PRINT(string2);
 }
 
 void CenterPrint(const char* format, ...)
 {
-	va_list ap;
 	char string[2048];
 
+	va_list ap;
 	va_start(ap, format);
 	vsprintf(string, format, ap);
 	va_end(ap);
@@ -1121,17 +1131,19 @@ void CenterPrint(const char* format, ...)
 		return;
 	}
 
+	char string2[2048];
+	FormatBuffer(string2, "%s\n", string);
 	MESSAGE_BEGIN(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG));
 	WRITE_BYTE(HUD_PRINTCENTER);
-	WRITE_STRING(FormatBuffer("%s\n", string));
+	WRITE_STRING(string2);
 	MESSAGE_END();
 }
 
 void ChatPrint(const char* format, ...)
 {
-	va_list ap;
 	char string[2048];
 
+	va_list ap;
 	va_start(ap, format);
 	vsprintf(string, format, ap);
 	va_end(ap);
@@ -1155,9 +1167,9 @@ void ClientPrint(edict_t* ent, int dest, const char* format, ...)
 	if (!IsValidPlayer(ent) || IsValidBot(ent))
 		return;
 
-	va_list ap;
 	char string[2048];
 
+	va_list ap;
 	va_start(ap, format);
 	vsprintf(string, format, ap);
 	va_end(ap);
@@ -1175,7 +1187,11 @@ void ClientPrint(edict_t* ent, int dest, const char* format, ...)
 	cstrcat(string, "\n");
 
 	if (dest & 0x3ff)
-		(*g_engfuncs.pfnClientPrintf) (ent, static_cast<PRINT_TYPE>(dest &= ~0x3ff), FormatBuffer("[E-BOT] %s", string));
+	{
+		char string2[2048];
+		FormatBuffer(string2, "[E-BOT] %s", string);
+		(*g_engfuncs.pfnClientPrintf) (ent, static_cast<PRINT_TYPE>(dest &= ~0x3ff), string2);
+	}
 	else
 		(*g_engfuncs.pfnClientPrintf) (ent, static_cast<PRINT_TYPE>(dest), string);
 }
@@ -1193,15 +1209,17 @@ bool IsLinux(void)
 // this function asks the engine to execute a server command
 void ServerCommand(const char* format, ...)
 {
-	va_list ap;
 	char string[1024];
+	char string2[1024];
 
 	// concatenate all the arguments in one string
+	va_list ap;
 	va_start(ap, format);
 	vsprintf(string, format, ap);
 	va_end(ap);
 
-	SERVER_COMMAND(FormatBuffer("%s\n", string)); // execute command
+	FormatBuffer(string2, "%s\n", string);
+	SERVER_COMMAND(string2); // execute command
 }
 
 char* GetEntityName(edict_t* entity)
@@ -1230,7 +1248,9 @@ bool OpenConfig(const char* fileName, char* errorIfNotExists, File* outFile)
 	if (outFile->IsValid())
 		outFile->Close();
 
-	outFile->Open(FormatBuffer("%s/addons/ebot/%s", GetModName(), fileName), "rt");
+	char buffer[1024];
+	FormatBuffer(buffer, "%s/addons/ebot/%s", GetModName(), fileName);
+	outFile->Open(buffer, "rt");
 	if (!outFile->IsValid())
 	{
 		AddLogEntry(Log::Error, errorIfNotExists);
@@ -1242,7 +1262,7 @@ bool OpenConfig(const char* fileName, char* errorIfNotExists, File* outFile)
 
 const char* GetWaypointDir(void)
 {
-	static char wpDir[256]{};
+	static char wpDir[1024]{};
     sprintf(wpDir, "%s/addons/ebot/waypoints/", GetModName());
 	return &wpDir[0];
 }
@@ -1280,17 +1300,30 @@ void CheckWelcomeMessage(void)
 
 void DetectCSVersion(void)
 {
-	const char* const infoBuffer = "Game Registered: %s (0x%d)";
+	const char* infoBuffer = "Game Registered: %s (0x%d)";
 
 	// switch version returned by dll loader
 	if (g_gameVersion & Game::Xash)
-		ServerPrint(infoBuffer, "Xash Engine", sizeof(Bot));
+	{
+		if (g_gameVersion & Game::CZero)
+			ServerPrint(infoBuffer, "CS: CZ (Xash Engine)", sizeof(Bot));
+		else if (g_gameVersion & Game::HalfLife)
+			ServerPrint(infoBuffer, "Half-Life (Xash Engine)", sizeof(Bot));
+		else
+		{
+			g_gameVersion = (Game::Xash | Game::CStrike);
+			ServerPrint(infoBuffer, "CS 1.6 (Xash Engine)", sizeof(Bot));
+		}
+	}
 	else if (g_gameVersion & Game::CZero)
 		ServerPrint(infoBuffer, "CS: CZ", sizeof(Bot));
 	else if (g_gameVersion & Game::HalfLife)
 		ServerPrint(infoBuffer, "Half-Life", sizeof(Bot));
 	else
+	{
+		g_gameVersion = Game::CStrike;
 		ServerPrint(infoBuffer, "CS 1.6", sizeof(Bot));
+	}
 
 	engine->GetGameConVarsPointers(); // !!! TODO !!!
 }
@@ -1307,9 +1340,9 @@ void PlaySound(edict_t* ent, const char* name)
 // this function logs a message to the message log file root directory.
 void AddLogEntry(const Log logLevel, const char* format, ...)
 {
-	va_list ap;
 	char buffer[512] = { 0, }, levelString[32] = { 0, }, logLine[1024] = { 0, };
 
+	va_list ap;
 	va_start(ap, format);
 	vsprintf(buffer, format, ap);
 	va_end(ap);
@@ -1363,15 +1396,18 @@ void MOD_AddLogEntry(const int mod, char* format)
 	}
 
 	ServerPrintNoTag("[%s Log] %s", modName, format);
-
-	sprintf(buildVersionName, "%s_build_%u_%u_%u_%u.txt", modName,
-		mod_bV16[0], mod_bV16[1], mod_bV16[2], mod_bV16[3]);
+	sprintf(buildVersionName, "%s_build_%u_%u_%u_%u.txt", modName, mod_bV16[0], mod_bV16[1], mod_bV16[2], mod_bV16[3]);
 
 	// if logs folder deleted, it will result a crash... so create it again before writing logs...
-	CreatePath(FormatBuffer("%s/addons/ebot/logs", GetModName()));
+	char buffer[1024];
+	FormatBuffer(buffer, "%s/addons/ebot/logs", GetModName());
+	CreatePath(buffer);
 
-	File checkLogFP(FormatBuffer("%s/addons/ebot/logs/%s", GetModName(), buildVersionName), "rb");
-	File fp(FormatBuffer("%s/addons/ebot/logs/%s", GetModName(), buildVersionName), "at");
+	FormatBuffer(buffer, "%s/addons/ebot/logs/%s", GetModName(), buildVersionName);
+	File checkLogFP(buffer, "rb");
+
+	FormatBuffer(buffer, "%s/addons/ebot/logs/%s", GetModName(), buildVersionName);
+	File fp(buffer, "at");
 
 	if (!checkLogFP.IsValid())
 	{
@@ -1382,7 +1418,6 @@ void MOD_AddLogEntry(const int mod, char* format)
 	}
 
 	checkLogFP.Close();
-
 	if (!fp.IsValid())
 		return;
 
@@ -1544,8 +1579,7 @@ char* GetVoice(const ChatterMessage message)
 	{
 	case ChatterMessage::Yes:
 	{
-		const int rV = crandomint(1, 17);
-		switch (rV)
+		switch (crandomint(1, 17))
 		{
 		case 1:
 			return "affirmative";
@@ -1586,8 +1620,7 @@ char* GetVoice(const ChatterMessage message)
 	}
 	case ChatterMessage::No:
 	{
-		const int rV = crandomint(1, 13);
-		switch (rV)
+		switch (crandomint(1, 13))
 		{
 		case 1:
 			return "ahh_negative";
@@ -1620,8 +1653,7 @@ char* GetVoice(const ChatterMessage message)
 	}
 	case ChatterMessage::SeeksEnemy:
 	{
-		const int rV = crandomint(1, 19);
-		switch (rV)
+		switch (crandomint(1, 19))
 		{
 		case 1:
 			return "help";
@@ -1666,8 +1698,7 @@ char* GetVoice(const ChatterMessage message)
 	}
 	case ChatterMessage::Clear:
 	{
-		const int rV = crandomint(1, 24);
-		switch (rV)
+		switch (crandomint(1, 24))
 		{
 		case 1:
 			return "clear";
@@ -1757,8 +1788,7 @@ char* GetVoice(const ChatterMessage message)
 	}
 	case ChatterMessage::CoverMe:
 	{
-		const int rV = crandomint(1, 2);
-		switch (rV)
+		switch (crandomint(1, 2))
 		{
 		case 1:
 			return "cover_me";
@@ -1769,8 +1799,7 @@ char* GetVoice(const ChatterMessage message)
 	}
 	case ChatterMessage::Happy:
 	{
-		const int rV = crandomint(1, 21);
-		switch (rV)
+		switch (crandomint(1, 21))
 		{
 		case 1:
 			return "yea_baby";
@@ -1819,8 +1848,7 @@ char* GetVoice(const ChatterMessage message)
 	}
 	case ChatterMessage::Camp:
 	{
-		const int rV = crandomint(1, 4);
-		switch (rV)
+		switch (crandomint(1, 4))
 		{
 		case 1:
 			return "im_going_to_camp";
@@ -1835,8 +1863,7 @@ char* GetVoice(const ChatterMessage message)
 	}
 	case ChatterMessage::EnemyDown:
 	{
-		const int rV = crandomint(1, 19);
-		switch (rV)
+		switch (crandomint(1, 19))
 		{
 		case 1:
 			return "took_him_down";
@@ -1883,8 +1910,7 @@ char* GetVoice(const ChatterMessage message)
 		return "reporting_in";
 	case ChatterMessage::FallBack:
 	{
-		const int rV = crandomint(1, 4);
-		switch (rV)
+		switch (crandomint(1, 4))
 		{
 		case 1:
 			return "im_gonna_hang_back";
@@ -1899,8 +1925,7 @@ char* GetVoice(const ChatterMessage message)
 	}
 	case ChatterMessage::ReportTeam:
 	{
-		const int rV = crandomint(1, 5);
-		switch (rV)
+		switch (crandomint(1, 5))
 		{
 		case 1:
 			return "report_in_team";

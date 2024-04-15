@@ -209,9 +209,11 @@ int BotControl::CreateBot(String name, int skill, int personality, const int tea
 	if (g_gameVersion & Game::CStrike || g_gameVersion & Game::CZero)
 	{
 		int i;
-		char* folder = FormatBuffer("%s/addons/ebot/profiles", GetModName());
+		char folder[1024];
+		FormatBuffer(folder, "%s/addons/ebot/profiles", GetModName());
 		CreatePath(folder);
-		const char* filePath = FormatBuffer("%s/%s.ep", folder, ebotName);
+		char filePath[1024];
+		FormatBuffer(filePath, "%s/%s.ep", folder, ebotName);
 		File file(filePath, "rt+");
 		if (file.IsValid())
 		{
@@ -1033,8 +1035,10 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 	if (!ebot_ping.GetBool())
 		SET_CLIENT_KEYVALUE(clientIndex, buffer, "*bot", "1");
 
-	rejectReason[0] = 0; // reset the reject reason template string
-	MDLL_ClientConnect(bot, "E-BOT", FormatBuffer("%d.%d.%d.%d", crandomint(1, 255), crandomint(1, 255), crandomint(1, 255), crandomint(1, 255)), rejectReason);
+	rejectReason[0] = 0;
+	char buffi[32];
+	FormatBuffer(buffi, "%d.%d.%d.%d", crandomint(1, 255), crandomint(1, 255), crandomint(1, 255), crandomint(1, 255));
+	MDLL_ClientConnect(bot, "E-BOT", buffi, rejectReason);
 
 	// should be set after client connect
 	if (ebot_display_avatar.GetBool() && !g_botManager->m_avatars.IsEmpty())
@@ -1254,12 +1258,15 @@ void Bot::NewRound(void)
 	// and put buying into its message queue
 	if (g_gameVersion & Game::HalfLife)
 	{
+		m_inBuyZone = false;
 		m_buyState = 7;
 		m_buyingFinished = true;
 		m_startAction = CMENU_IDLE;
 	}
 	else
 	{
+		// we always spawn in buyzone in cs
+		m_inBuyZone = true;
 		m_buyingFinished = false;
 		m_buyState = 0;
 		PushMessageQueue(CMENU_BUY);
@@ -1300,7 +1307,9 @@ void Bot::Kill(void)
 	KeyValueData kv;
 	kv.szClassName = const_cast<char*>(g_weaponDefs[m_currentWeapon].className);
 	kv.szKeyName = "damagetype";
-	kv.szValue = FormatBuffer("%d", (1 << 4));
+	char buffer[32];
+	FormatBuffer(buffer, "%d", (1 << 4));
+	kv.szValue = buffer;
 	kv.fHandled = false;
 
 	MDLL_KeyValue(hurtEntity, &kv);
