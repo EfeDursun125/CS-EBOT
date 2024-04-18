@@ -634,6 +634,7 @@ public:
 	float m_itemCheckTime{}; // time next search for items needs to be done
 	PickupType m_pickupType{}; // type of entity which needs to be used/picked up
 	Vector m_breakable{}; // origin of breakable
+	Vector m_avgDeathOrigin{}; // average death origin
 
 	edict_t* m_pickupItem{}; // pointer to entity of item to use/pickup
 	edict_t* m_itemIgnore{}; // pointer to entity to ignore for pickup
