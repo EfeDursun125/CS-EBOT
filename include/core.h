@@ -612,7 +612,7 @@ struct Path
 class Bot
 {
 	friend class BotControl;
-private:
+public:
 	float m_moveSpeed{}; // current speed forward/backward
 	float m_strafeSpeed{}; // current speed sideways
 	float m_tempstrafeSpeed{}; // temp speed sideways
@@ -710,8 +710,7 @@ private:
 
 	bool IsInViewCone(const Vector& origin);
 	bool CheckVisibility(edict_t* targetEntity);
-
-	void CheckGrenadeThrow(edict_t* targetEntity);
+	bool CheckGrenadeThrow(edict_t* targetEntity);
 
 	edict_t* FindNearestButton(const char* className);
 	edict_t* FindButton(void);
