@@ -491,15 +491,6 @@ void Bot::DoWaypointNav(void)
 		}
 	}
 
-	if (m_waypoint.flags & WAYPOINT_CROUCH && (!(m_waypoint.flags & WAYPOINT_CAMP) || m_stuckWarn > 1))
-	{
-		// we need to cheat here...
-		if (m_moveSpeed != 0.0f)
-			pev->speed = m_moveSpeed;
-
-		m_duckTime = engine->GetTime() + 1.0f;
-	}
-
 	if (m_waypoint.flags & WAYPOINT_LIFT)
 	{
 		if (!UpdateLiftHandling())
@@ -507,6 +498,15 @@ void Bot::DoWaypointNav(void)
 
 		if (!UpdateLiftStates())
 			return;
+	}
+
+	if (m_waypoint.flags & WAYPOINT_CROUCH && (!(m_waypoint.flags & WAYPOINT_CAMP) || m_stuckWarn > 1))
+	{
+		// we need to cheat here...
+		if (m_moveSpeed != 0.0f && !IsOnLadder())
+			pev->speed = m_moveSpeed;
+
+		m_duckTime = engine->GetTime() + 1.0f;
 	}
 
 	// check if we are going through a door...
@@ -566,7 +566,6 @@ void Bot::DoWaypointNav(void)
 						SetProcess(Process::Pause, "waiting for door open", false, time + 1.25f);
 						m_moveSpeed = 0.0f;
 						m_strafeSpeed = 0.0f;
-						pev->speed = 0.0f;
 						return;
 					}
 
@@ -2230,28 +2229,20 @@ void Bot::CheckStuck(const float maxSpeed)
 					if (CheckWallOnBehind())
 					{
 						m_moveSpeed = maxSpeed;
-						pev->speed = maxSpeed;
 						doorStuck = true;
 					}
 					else
-					{
 						m_moveSpeed = -maxSpeed;
-						pev->speed = -maxSpeed;
-					}
 				}
 				else
 				{
 					if (CheckWallOnForward())
 					{
 						m_moveSpeed = -maxSpeed;
-						pev->speed = -maxSpeed;
 						doorStuck = true;
 					}
 					else
-					{
 						m_moveSpeed = maxSpeed;
-						pev->speed = maxSpeed;
-					}
 				}
 			}
 
@@ -2323,10 +2314,7 @@ void Bot::CheckStuck(const float maxSpeed)
 		if (left && right)
 		{
 			if (CheckWallOnForward())
-			{
 				m_moveSpeed = -maxSpeed;
-				pev->speed = -maxSpeed;
-			}
 		}
 		else if (left)
 			m_strafeSpeed = maxSpeed;
@@ -2940,7 +2928,7 @@ void Bot::FacePosition(void)
 	if (cabsf(angleDiffYaw) < lockn)
 	{
 		m_lookYawVel = 0.0f;
-		pev->v_angle.y = direction.y;
+		pev->v_angle.y = AngleNormalize(direction.y);
 	}
 	else
 	{
@@ -2953,7 +2941,7 @@ void Bot::FacePosition(void)
 	if (cabsf(angleDiffPitch) < lockn)
 	{
 		m_lookPitchVel = 0.0f;
-		pev->v_angle.x = direction.x;
+		pev->v_angle.x = AngleNormalize(direction.x);
 	}
 	else
 	{

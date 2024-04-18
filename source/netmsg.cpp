@@ -56,6 +56,7 @@ void NetworkMsg::Execute(void* p)
 
     static int index{}, numPlayers{};
     static int state{}, id{};
+    //static int killerIndex{}, victimIndex{};
 
     static WeaponProperty weaponProp{};
 
@@ -368,6 +369,150 @@ void NetworkMsg::Execute(void* p)
             }
         }
         break;
+
+        // causing to message not has been sent bug...
+        /*switch (m_state)
+        {
+        case 0:
+        {
+            killerIndex = PTR_TO_INT(p);
+            break;
+        }
+        case 1:
+        {
+            victimIndex = PTR_TO_INT(p);
+            break;
+        }
+        case 2: // this one is heavy...
+        {
+            edict_t* victim = INDEXENT(victimIndex);
+            if (!IsValidPlayer(victim))
+                break;
+
+            Bot* bot = g_botManager->GetBot(victimIndex);
+            if (bot)
+            {
+                bot->m_isAlive = false;
+                bot->m_navNode.Clear();
+            }
+
+            edict_t* killer = INDEXENT(killerIndex);
+            if (!IsValidPlayer(killer))
+                break;
+
+            bot = g_botManager->GetBot(killerIndex);
+            int index, teamValue = GetTeam(killer);
+            float timeCache = engine->GetTime();
+            extern ConVar ebot_camp_max;
+            if ((bot && bot->GetCurrentState() == Process::Camp) || (!bot && killer->v.flags & FL_DUCKING))
+            {
+                for (const auto& teammate : g_botManager->m_bots)
+                {
+                    if (!teammate)
+                        continue;
+
+                    if (teammate->m_team == teamValue)
+                        continue;
+
+                    if (!teammate->m_isAlive)
+                        continue;
+
+                    if ((teammate->pev->origin - killer->v.origin).GetLengthSquared() > squaredf(1280.0f))
+                        continue;
+
+                    if (teammate->m_isBomber || teammate->m_isVIP)
+                    {
+                        if (teammate->CheckGrenadeThrow(killer))
+                            teammate->RadioMessage(Radio::Fallback);
+                        else
+                        {
+                            index = teammate->m_navNode.Last();
+                            teammate->FindPath(teammate->m_currentWaypointIndex, index, killer);
+                        }
+                    }
+                    else
+                    {
+                        teammate->m_pauseTime = timeCache + crandomfloat(2.0f, 5.0f);
+                        teammate->m_lookAt = killer->v.origin + killer->v.view_ofs;
+
+                        if (teammate->CheckGrenadeThrow(killer))
+                            teammate->RadioMessage(Radio::Fallback);
+                        else if ((bot && bot->m_friendsNearCount > teammate->m_friendsNearCount) && (!bot && teammate->pev->health < killer->v.health))
+                        {
+                            index = teammate->FindDefendWaypoint(teammate->EyePosition());
+                            if (IsValidWaypoint(index))
+                            {
+                                teammate->m_campIndex = index;
+                                teammate->SetProcess(Process::Camp, "there's too many... i must camp", true, timeCache + ebot_camp_max.GetFloat());
+                            }
+                            else // hell no...
+                            {
+                                index = teammate->m_navNode.Last();
+                                teammate->FindPath(teammate->m_currentWaypointIndex, index, killer);
+                                teammate->RadioMessage(Radio::RegroupTeam);
+                            }
+                        }
+                        else
+                        {
+                            index = teammate->m_navNode.Last();
+                            teammate->FindPath(teammate->m_currentWaypointIndex, index, killer);
+                        }
+                    }
+                }
+            }
+            else // not camping (act different, but idk what can i do else ???)
+            {
+                for (const auto& teammate : g_botManager->m_bots)
+                {
+                    if (!teammate)
+                        continue;
+
+                    if (teammate->m_team == teamValue)
+                        continue;
+
+                    if (!teammate->m_isAlive)
+                        continue;
+
+                    if ((teammate->pev->origin - killer->v.origin).GetLengthSquared() > squaredf(1280.0f))
+                        continue;
+
+                    if (teammate->m_isBomber || teammate->m_isVIP)
+                    {
+                        index = teammate->m_navNode.Last();
+                        teammate->FindPath(teammate->m_currentWaypointIndex, index, killer);
+                    }
+                    else
+                    {
+                        teammate->m_pauseTime = timeCache + crandomfloat(2.0f, 5.0f);
+                        teammate->m_lookAt = killer->v.origin + killer->v.view_ofs;
+
+                        if ((bot && bot->m_friendsNearCount > teammate->m_friendsNearCount) && (!bot && teammate->pev->health < killer->v.health))
+                        {
+                            index = teammate->FindDefendWaypoint(teammate->EyePosition());
+                            if (IsValidWaypoint(index))
+                            {
+                                teammate->m_campIndex = index;
+                                teammate->SetProcess(Process::Camp, "there's too many... i must camp", true, timeCache + ebot_camp_max.GetFloat());
+                            }
+                            else // hell no...
+                            {
+                                index = teammate->m_navNode.Last();
+                                teammate->FindPath(teammate->m_currentWaypointIndex, index, killer);
+                                teammate->RadioMessage(Radio::RegroupTeam);
+                            }
+                        }
+                        else
+                        {
+                            index = teammate->m_navNode.Last();
+                            teammate->FindPath(teammate->m_currentWaypointIndex, index, killer);
+                        }
+                    }
+                }
+            }
+            break;
+        }
+        }
+        break;*/
     }
     case NETMSG_SCREENFADE: // this message gets sent when the screen fades (flashbang)
     {

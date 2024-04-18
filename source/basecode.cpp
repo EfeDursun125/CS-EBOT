@@ -613,7 +613,7 @@ void Bot::FindItem(void)
 		{
 			if (pickupType == PickupType::Hostage)
 			{
-				if (FNullEnt(ent) || ent->v.health <= 0.0f || ent->v.speed > 1.0f)
+				if (GetEntityOrigin(ent) == nullvec || ent->v.health <= 0.0f || ent->v.speed > 1.0f || ent->v.effects & EF_NODRAW)
 					allowPickup = false; // never pickup dead/moving hostages
 				else
 				{
@@ -1213,17 +1213,17 @@ void Bot::PerformWeaponPurchase(void)
 	PushMessageQueue(CMENU_BUY);
 }
 
-void Bot::CheckGrenadeThrow(edict_t* targetEntity)
+bool Bot::CheckGrenadeThrow(edict_t* targetEntity)
 {
 	if (IsZombieMode())
-		return;
+		return false;
 
 	if (FNullEnt(targetEntity))
-		return;
+		return false;
 
 	const int grenadeToThrow = CheckGrenades();
 	if (grenadeToThrow == -1)
-		return;
+		return false;
 
 	m_throw = nullvec;
 	int th = -1;
@@ -1325,26 +1325,28 @@ void Bot::CheckGrenadeThrow(edict_t* targetEntity)
 	}
 
 	if (m_throw == nullvec)
-		return;
+		return false;
 
 	switch (th)
 	{
 	case 1:
 	{
-		SetProcess(Process::ThrowHE, "throwing HE grenade", false, engine->GetTime() + 10.0f);
+		SetProcess(Process::ThrowHE, "throwing HE grenade", false, engine->GetTime() + 5.0f);
 		break;
 	}
 	case 2:
 	{
-		SetProcess(Process::ThrowSM, "throwing SM grenade", false, engine->GetTime() + 10.0f);
+		SetProcess(Process::ThrowSM, "throwing SM grenade", false, engine->GetTime() + 5.0f);
 		break;
 	}
 	case 3:
 	{
-		SetProcess(Process::ThrowFB, "throwing FB grenade", false, engine->GetTime() + 10.0f);
+		SetProcess(Process::ThrowFB, "throwing FB grenade", false, engine->GetTime() + 5.0f);
 		break;
 	}
 	}
+
+	return true;
 }
 
 bool Bot::IsEnemyReachable(void)
@@ -1873,22 +1875,19 @@ float Bot::GetMaxSpeed(void)
 			float maxSpeed = (pev->origin - m_destOrigin).GetLength();
 			if (maxSpeed > pev->maxspeed)
 				maxSpeed = pev->maxspeed;
-			else if (!IsOnLadder())
+			else
 			{
 				const float minSpeed = pev->maxspeed * 0.502f;
 				if (maxSpeed < minSpeed)
 					maxSpeed = minSpeed;
 			}
 
-			// never stop on ladders
-			pev->speed = maxSpeed;
 			m_moveSpeed = maxSpeed;
 			return maxSpeed;
 		}
 		else
 		{
 			float minSpeed = pev->maxspeed * 0.502f;
-			pev->speed = minSpeed;
 			m_moveSpeed = minSpeed;
 
 			if (CheckWallOnRight())
@@ -1911,7 +1910,8 @@ float Bot::GetMaxSpeed(void)
 
 	if (pev->flags & FL_DUCKING)
 	{
-		pev->speed = pev->maxspeed;
+		if (!IsOnLadder())
+			pev->speed = pev->maxspeed;
 		return pev->maxspeed;
 	}
 
@@ -2479,8 +2479,9 @@ void Bot::LookAtAround(void)
 				}
 			}
 		}
-		if (chanceof(m_senseChance)) // who's footsteps is this or fire sounds?
+		else if (chanceof(m_senseChance)) // who's footsteps is this or fire sounds?
 		{
+			int index;
 			float maxDist;
 			for (const auto& client : g_clients)
 			{
@@ -2523,7 +2524,26 @@ void Bot::LookAtAround(void)
 
 				m_pauseTime = time + crandomfloat(2.0f, 5.0f);
 				m_lookAt = client.ent->v.origin + client.ent->v.view_ofs;
-				CheckGrenadeThrow(client.ent);
+				if (!CheckGrenadeThrow(client.ent) && !IsZombieMode())
+				{
+					if (pev->health > client.ent->v.health || m_currentWeapon == Weapon::M3 || m_currentWeapon == Weapon::Xm1014 || m_currentWeapon == Weapon::M249)
+					{
+						index = m_navNode.Last();
+                        FindPath(m_currentWaypointIndex, index, client.ent);
+					}
+					else
+					{
+						index = FindDefendWaypoint(EyePosition());
+                        if (IsValidWaypoint(index))
+                        {
+                            m_campIndex = index;
+                            SetProcess(Process::Camp, "i'm waiting my enemy", true, time + ebot_camp_max.GetFloat());
+                        }
+						else if (chanceof(m_skill))
+							m_duckTime = m_pauseTime;
+					}
+				}
+
 				return;
 			}
 		}
@@ -2888,7 +2908,7 @@ bool Bot::HasHostage(void)
 	for (auto& hostage : m_hostages)
 	{
 		origin = GetEntityOrigin(hostage);
-		if (origin == nullvec || hostage->v.health <= 0.0f || (pev->origin - origin).GetLengthSquared() > squaredf(600.0f))
+		if (origin == nullvec || hostage->v.effects & EF_NODRAW || hostage->v.health <= 0.0f || (pev->origin - origin).GetLengthSquared() > squaredf(600.0f))
 		{
 			hostage = nullptr;
 			continue;
