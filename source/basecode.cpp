@@ -851,14 +851,6 @@ void Bot::CheckMessageQueue(void)
 		break;
 	case CMENU_BUY: // general buy message
 	{
-		// if fun-mode no need to buy
-		if (!ebot_buy_weapons.GetBool() || (ebot_knifemode.GetBool() && (ebot_eco_rounds.GetInt() != 1 || HasPrimaryWeapon())))
-		{
-			m_buyState = 6;
-			if (chanceof(m_skill))
-				SelectKnife();
-		}
-
 		// buy weapon
 		if (m_nextBuyTime > engine->GetTime())
 		{
@@ -867,11 +859,22 @@ void Bot::CheckMessageQueue(void)
 			return;
 		}
 
-		if (!m_inBuyZone)
+		// if fun-mode no need to buy
+		if (!ebot_buy_weapons.GetBool() || (ebot_knifemode.GetBool() && (ebot_eco_rounds.GetInt() != 1 || HasPrimaryWeapon())))
 		{
 			m_buyState = 7;
 			m_buyingFinished = true;
 			m_inBuyZone = false;
+			if (chanceof(m_skill) && !m_isBomber && !m_isVIP)
+				SelectWeaponByName("weapon_knife");
+
+			return;
+		}
+
+		if (!m_inBuyZone)
+		{
+			m_buyState = 7;
+			m_buyingFinished = true;
 
 			if (chanceof(m_skill) && !m_isBomber && !m_isVIP)
 				SelectWeaponByName("weapon_knife");
@@ -883,9 +886,9 @@ void Bot::CheckMessageQueue(void)
 
 		// if freezetime is very low do not delay the buy process
 		if (engine->GetFreezeTime() < 2.0f)
-			m_nextBuyTime = engine->GetTime() + crandomfloat(0.2f, 0.4f);
+			m_nextBuyTime = engine->GetTime() + crandomfloat(0.16f, 0.32f);
 		else
-			m_nextBuyTime = engine->GetTime() + crandomfloat(0.6f, 1.2f);
+			m_nextBuyTime = engine->GetTime() + crandomfloat(0.25f, 1.25f);
 
 		// prevent vip from buying
 		if (g_mapType == MAP_AS)
@@ -894,25 +897,36 @@ void Bot::CheckMessageQueue(void)
 			{
 				m_isVIP = true;
 				m_buyState = 7;
+				m_inBuyZone = false;
 			}
 			else
 				m_isVIP = false;
 		}
 		else
+		{
 			m_isVIP = false;
 
-		// prevent terrorists from buying on es maps
-		if (g_mapType == MAP_ES && m_team == Team::Terrorist)
-			m_buyState = 76;
-
-		// prevent teams from buying on fun maps
-		if (g_mapType == MAP_KA)
-			ebot_knifemode.SetInt(1);
-		else if (g_mapType == MAP_KA || g_mapType ==  MAP_FY || g_mapType == MAP_AWP)
-			m_buyState = 7;
+			// prevent teams from buying on fun maps
+			if (g_mapType == MAP_KA)
+			{
+				ebot_knifemode.SetInt(1);
+				m_buyState = 7;
+				m_buyingFinished = true;
+				m_inBuyZone = false;
+				return;
+			}
+			else if (g_mapType == MAP_KA || g_mapType ==  MAP_FY || g_mapType == MAP_AWP || (g_mapType == MAP_ES && m_team == Team::Terrorist))
+			{
+				m_buyState = 7;
+				m_buyingFinished = true;
+				m_inBuyZone = false;
+				return;
+			}
+		}
 
 		if (m_buyState > 6)
 		{
+			m_buyState = 7;
 			m_buyingFinished = true;
 			m_inBuyZone = false;
 
@@ -920,6 +934,8 @@ void Bot::CheckMessageQueue(void)
 				SelectWeaponByName("weapon_knife");
 			else
 				SelectBestWeapon();
+
+			// TODO: if we are the most rich on the team, drop a weapon for the most poor ebot on the team...
 
 			return;
 		}
@@ -2546,6 +2562,13 @@ void Bot::LookAtAround(void)
 
 				return;
 			}
+
+			// be careful
+			if (!IsZombieMode() && (pev->origin - m_avgDeathOrigin).GetLengthSquared() < squaredf(512.0f))
+			{
+				SetWalkTime(7.0f);
+				SelectBestWeapon();
+			}
 		}
 	}
 	
@@ -2570,17 +2593,20 @@ void Bot::LookAtAround(void)
 	if (IsValidWaypoint(index) && m_knownWaypointIndex[0] != index && m_knownWaypointIndex[1] != index && m_knownWaypointIndex[2] != index && m_knownWaypointIndex[3] != index && m_knownWaypointIndex[4] != index && m_knownWaypointIndex[5] != index)
 	{
 		const Path* pointer = g_waypoint->GetPath(index);
-		const Vector waypointOrigin = pointer->origin;
-		const float waypointRadius = static_cast<float>(pointer->radius);
-		selectRandom.x = waypointOrigin.x + crandomfloat(-waypointRadius, waypointRadius);
-		selectRandom.y = waypointOrigin.y + crandomfloat(-waypointRadius, waypointRadius);
-		selectRandom.z = waypointOrigin.z + pev->view_ofs.z;
-		m_knownWaypointIndex[0] = index;
-		m_knownWaypointIndex[1] = m_knownWaypointIndex[0];
-		m_knownWaypointIndex[2] = m_knownWaypointIndex[1];
-		m_knownWaypointIndex[3] = m_knownWaypointIndex[2];
-		m_knownWaypointIndex[4] = m_knownWaypointIndex[3];
-		m_knownWaypointIndex[5] = m_knownWaypointIndex[4];
+		if (pointer)
+		{
+			const Vector waypointOrigin = pointer->origin;
+			const float waypointRadius = static_cast<float>(pointer->radius);
+			selectRandom.x = waypointOrigin.x + crandomfloat(-waypointRadius, waypointRadius);
+			selectRandom.y = waypointOrigin.y + crandomfloat(-waypointRadius, waypointRadius);
+			selectRandom.z = waypointOrigin.z + pev->view_ofs.z;
+			m_knownWaypointIndex[0] = index;
+			m_knownWaypointIndex[1] = m_knownWaypointIndex[0];
+			m_knownWaypointIndex[2] = m_knownWaypointIndex[1];
+			m_knownWaypointIndex[3] = m_knownWaypointIndex[2];
+			m_knownWaypointIndex[4] = m_knownWaypointIndex[3];
+			m_knownWaypointIndex[5] = m_knownWaypointIndex[4];
+		}
 	}
 
 	auto isVisible = [&](void)
@@ -2596,7 +2622,7 @@ void Bot::LookAtAround(void)
 	if ((pev->origin - selectRandom).GetLengthSquared() > squaredf(512.0f) && isVisible())
 	{
 		m_lookAt = selectRandom;
-		m_pauseTime = time + crandomfloat(1.0f, 1.5f);
+		m_pauseTime = time + crandomfloat(1.05f, 1.45f);
 	}
 
 	m_searchTime = time + 0.25f;
@@ -2927,7 +2953,7 @@ void Bot::TakeBlinded(const Vector& fade, const int alpha)
 	if (fade.x != 255 || fade.y != 255 || fade.z != 255 || alpha <= 170)
 		return;
 
-	SetProcess(Process::Blind, "i'm blind", false, engine->GetTime() + crandomfloat(3.0f, 6.0f));
+	SetProcess(Process::Blind, "i'm blind", false, engine->GetTime() + crandomfloat(3.2f, 6.4f));
 }
 
 // this function, asks bot to discard his current primary weapon (or c4) to the user that requsted it with /drop*

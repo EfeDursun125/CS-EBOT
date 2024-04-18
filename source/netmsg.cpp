@@ -366,6 +366,8 @@ void NetworkMsg::Execute(void* p)
             {
                 victimer->m_isAlive = false;
                 victimer->m_navNode.Clear();
+                victimer->m_avgDeathOrigin += victimer->pev->origin;
+                victimer->m_avgDeathOrigin *= 0.5f;
             }
         }
         break;
@@ -394,6 +396,8 @@ void NetworkMsg::Execute(void* p)
             {
                 bot->m_isAlive = false;
                 bot->m_navNode.Clear();
+                bot->m_avgDeathOrigin += bot->pev->origin;
+                bot->m_avgDeathOrigin *= 0.5f;
             }
 
             edict_t* killer = INDEXENT(killerIndex);
@@ -562,7 +566,7 @@ void NetworkMsg::Execute(void* p)
     }
     case NETMSG_TEXTMSG:
     {
-        if (m_state == 1)
+        if (m_state)
         {
             const char* x = PTR_TO_STR(p);
             if (cstrncmp(x, "#CTs_Win", 9) == 0 ||

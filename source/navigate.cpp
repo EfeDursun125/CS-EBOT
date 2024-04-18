@@ -322,7 +322,7 @@ int Bot::FindGoal(void)
 
 void Bot::MoveTo(const Vector& targetPosition)
 {
-	const Vector directionOld = (targetPosition + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval);
+	const Vector directionOld = (targetPosition + m_moveAngles * -m_frameInterval) - (pev->origin + m_moveAngles * m_frameInterval);
 	const Vector directionNormal = directionOld.Normalize2D();
 	SetStrafeSpeed(directionNormal, pev->maxspeed);
 	m_moveAngles = directionOld.ToAngles();
@@ -333,7 +333,7 @@ void Bot::MoveTo(const Vector& targetPosition)
 
 void Bot::MoveOut(const Vector& targetPosition)
 {
-	const Vector directionOld = (targetPosition + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval);
+	const Vector directionOld = (targetPosition + m_moveAngles * -m_frameInterval) - (pev->origin + m_moveAngles * m_frameInterval);
 	const Vector directionNormal = directionOld.Normalize2D();
 	SetStrafeSpeed(directionNormal, pev->maxspeed);
 	m_moveAngles = directionOld.ToAngles();
@@ -348,7 +348,7 @@ void Bot::FollowPath(void)
 	m_moveSpeed = GetMaxSpeed();
 	DoWaypointNav();
 	CheckStuck(m_moveSpeed + cabsf(m_strafeSpeed));
-	m_moveAngles = ((m_destOrigin + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval)).ToAngles();
+	m_moveAngles = ((m_destOrigin - m_moveAngles * -m_frameInterval) - (pev->origin + m_moveAngles * m_frameInterval)).ToAngles();
 	m_moveAngles.ClampAngles();
 	m_moveAngles.x = -m_moveAngles.x; // invert for engine
 }
@@ -400,7 +400,7 @@ void Bot::AutoJump(void)
 		{
 			const Vector myOrigin = GetBottomOrigin(GetEntity());
 			Vector waypointOrigin = m_destOrigin;
-			Vector walkableOrigin = GetWalkablePosition(waypointOrigin + pev->velocity * m_frameInterval, GetEntity(), true);
+			Vector walkableOrigin = GetWalkablePosition(waypointOrigin + m_moveAngles * m_frameInterval, GetEntity(), true);
 
 			if (m_waypoint.flags & WAYPOINT_CROUCH)
 				waypointOrigin.z -= 18.0f;
@@ -411,15 +411,15 @@ void Bot::AutoJump(void)
 				waypointOrigin = walkableOrigin;
 			else
 			{
-				walkableOrigin = GetWalkablePosition(waypointOrigin + pev->velocity * -m_frameInterval, GetEntity(), true);
+				walkableOrigin = GetWalkablePosition(waypointOrigin + m_moveAngles * -m_frameInterval, GetEntity(), true);
 				if (walkableOrigin != nullvec && (waypointOrigin - walkableOrigin).GetLengthSquared() < squaredf(8.0f))
 					waypointOrigin = walkableOrigin;
 			}
 
 			const float timeToReachWaypoint = csqrtf(squaredf(waypointOrigin.x - myOrigin.x) + squaredf(waypointOrigin.y - myOrigin.y) + squaredf(waypointOrigin.z - myOrigin.z)) / pev->maxspeed;
-			pev->velocity.x = (waypointOrigin.x - myOrigin.x) / timeToReachWaypoint;
-			pev->velocity.y = (waypointOrigin.y - myOrigin.y) / timeToReachWaypoint;
-			pev->velocity.z = ((waypointOrigin.z - myOrigin.z) * pev->gravity * squaredf(timeToReachWaypoint)) / timeToReachWaypoint;
+			m_moveAngles.x = pev->velocity.x = (waypointOrigin.x - myOrigin.x) / timeToReachWaypoint;
+			m_moveAngles.y = pev->velocity.y = (waypointOrigin.y - myOrigin.y) / timeToReachWaypoint;
+			m_moveAngles.z = pev->velocity.z = ((waypointOrigin.z - myOrigin.z) * pev->gravity * squaredf(timeToReachWaypoint)) / timeToReachWaypoint;
 		};
 
 	m_duckTime = engine->GetTime() + 1.0f;
@@ -1634,7 +1634,7 @@ void Bot::FindPath(int& srcIndex, int& destIndex, edict_t* enemy)
 
 	// put start waypoint into open list
 	AStar& srcWaypoint = waypoints[srcIndex];
-	srcWaypoint.g = gcalc(srcIndex, destIndex, 0, m_team, pev->gravity, m_isZombieBot) * crandomfloatfast(seed, min, max);
+	srcWaypoint.g = ((gcalc(srcIndex, destIndex, 0, m_team, pev->gravity, m_isZombieBot) * crandomfloatfast(seed, min, max)) / (pev->origin - m_avgDeathOrigin).GetLength());
 	srcWaypoint.f = srcWaypoint.g + HF_Distance(srcIndex, destIndex);
 
 	// loop cache
@@ -1749,7 +1749,7 @@ void Bot::FindPath(int& srcIndex, int& destIndex, edict_t* enemy)
 				}
 			}
 
-			g = currWaypoint->g + (gcalc(currentIndex, self, flags, m_team, pev->gravity, m_isZombieBot) * crandomfloatfast(seed, min, max));
+			g = currWaypoint->g + ((gcalc(currentIndex, self, flags, m_team, pev->gravity, m_isZombieBot) * crandomfloatfast(seed, min, max)) / (pev->origin - m_avgDeathOrigin).GetLength());
 			f = g + HF_Distance(self, destIndex);
 
 			childWaypoint = &waypoints[self];
@@ -2364,7 +2364,7 @@ void Bot::CheckStuck(const float maxSpeed)
 			m_prevTravelFlags = 0;
 			m_isStuck = true;
 		}
-		else if (m_stuckWarn == 10)
+		else if (m_stuckWarn == 10 || m_stuckWarn == 5)
 			pev->buttons |= IN_JUMP;
 	}
 	else
