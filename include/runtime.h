@@ -529,7 +529,6 @@ public:
         x = Math::AngleNormalize(x);
         y = Math::AngleNormalize(y);
         z = 0.0f;
-
         return *this;
     }
 
@@ -543,9 +542,6 @@ public:
     //
     inline float ToPitch(void) const
     {
-        if (Math::FltZero(x) && Math::FltZero(y))
-            return 0.0f;
-
         return Math::RadianToDegree(catan2f(z, GetLength2D()));
     }
 
@@ -559,9 +555,6 @@ public:
     //
     inline float ToYaw(void) const
     {
-        if (Math::FltZero(x) && Math::FltZero(y))
-            return 0.0f;
-
         return Math::RadianToDegree(catan2f(y, x));
     }
 
@@ -575,11 +568,7 @@ public:
     //
     inline Vector ToAngles(void) const
     {
-        // is the input vector absolutely vertical?
-        if (Math::FltZero(x) && Math::FltZero(y))
-            return Vector(z > 0.0f ? 90.0f : 270.0f, 0.0, 0.0f);
-
-        // else it's another sort of vector compute individually the pitch and yaw corresponding to this vector.
+        // it's another sort of vector compute individually the pitch and yaw corresponding to this vector.
         return Vector(Math::RadianToDegree(catan2f(z, GetLength2D())), Math::RadianToDegree(catan2f(y, x)), 0.0f);
     }
 
