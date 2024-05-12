@@ -1110,6 +1110,11 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 	m_index = GetIndex();
 
 	NewRound();
+
+	const float way = static_cast<float>(g_numWaypoints);
+	m_avgDeathOrigin.x = crandomfloat(-way, way);
+	m_avgDeathOrigin.y = crandomfloat(-way, way);
+	m_avgDeathOrigin.z = crandomfloat(-way, way);
 }
 
 Bot::~Bot(void)

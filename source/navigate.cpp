@@ -322,7 +322,7 @@ int Bot::FindGoal(void)
 
 void Bot::MoveTo(const Vector& targetPosition)
 {
-	const Vector directionOld = (targetPosition + m_moveAngles * -m_frameInterval) - (pev->origin + m_moveAngles * m_frameInterval);
+	const Vector directionOld = (targetPosition + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval);
 	const Vector directionNormal = directionOld.Normalize2D();
 	SetStrafeSpeed(directionNormal, pev->maxspeed);
 	m_moveAngles = directionOld.ToAngles();
@@ -333,7 +333,7 @@ void Bot::MoveTo(const Vector& targetPosition)
 
 void Bot::MoveOut(const Vector& targetPosition)
 {
-	const Vector directionOld = (targetPosition + m_moveAngles * -m_frameInterval) - (pev->origin + m_moveAngles * m_frameInterval);
+	const Vector directionOld = (targetPosition + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval);
 	const Vector directionNormal = directionOld.Normalize2D();
 	SetStrafeSpeed(directionNormal, pev->maxspeed);
 	m_moveAngles = directionOld.ToAngles();
@@ -348,7 +348,7 @@ void Bot::FollowPath(void)
 	m_moveSpeed = GetMaxSpeed();
 	DoWaypointNav();
 	CheckStuck(m_moveSpeed + cabsf(m_strafeSpeed));
-	m_moveAngles = ((m_destOrigin - m_moveAngles * -m_frameInterval) - (pev->origin + m_moveAngles * m_frameInterval)).ToAngles();
+	m_moveAngles = ((m_destOrigin - pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval)).ToAngles();
 	m_moveAngles.ClampAngles();
 	m_moveAngles.x = -m_moveAngles.x; // invert for engine
 }
@@ -681,7 +681,7 @@ void Bot::DoWaypointNav(void)
 	{
 		float desiredDistance;
 		if (m_currentTravelFlags & PATHFLAG_JUMP)
-			desiredDistance = 4.0f;
+			desiredDistance = (cabsf(m_moveSpeed) * m_frameInterval) + m_frameInterval;
 		else
 		{
 			desiredDistance = (cabsf(m_moveSpeed) * m_frameInterval) + 4.0f + static_cast<float>(m_stuckWarn) + m_frameInterval;
@@ -689,8 +689,7 @@ void Bot::DoWaypointNav(void)
 				desiredDistance += static_cast<float>(m_waypoint.radius);
 		}
 
-		desiredDistance = squaredf(desiredDistance);
-		if ((pev->origin - m_destOrigin).GetLengthSquared2D() < desiredDistance)
+		if ((pev->origin - m_destOrigin).GetLengthSquared2D() < squaredf(desiredDistance))
 			next = true;
 	}
 
@@ -1094,7 +1093,7 @@ private:
 PriorityQueue::PriorityQueue(void)
 {
 	m_size = 0;
-	m_heapSize = static_cast<int16_t>((g_numWaypoints / 2) + 32);
+	m_heapSize = static_cast<int16_t>((g_numWaypoints / 2) + 48);
 	m_heap = static_cast<HeapNode*>(malloc(sizeof(HeapNode) * m_heapSize));
 }
 
@@ -1528,7 +1527,7 @@ inline const float GF_CostRusher(const int16_t& index, const int16_t& parent, co
 // this function finds a path from srcIndex to destIndex
 void Bot::FindPath(int& srcIndex, int& destIndex, edict_t* enemy)
 {
-	if (g_pathTimer > engine->GetTime() && !m_navNode.IsEmpty())
+	if (g_pathTimer > engine->GetTime())
 		return;
 
 	if (g_gameVersion & Game::HalfLife || ebot_force_shortest_path.GetBool())
@@ -1676,7 +1675,7 @@ void Bot::FindPath(int& srcIndex, int& destIndex, edict_t* enemy)
 
 			m_navNode.Reverse();
 			ChangeWptIndex(m_navNode.First());
-			g_pathTimer = engine->GetTime() + 0.2f;
+			g_pathTimer = engine->GetTime() + 0.1f;
 			return;
 		}
 
@@ -1785,6 +1784,9 @@ void Bot::FindPath(int& srcIndex, int& destIndex, edict_t* enemy)
 
 void Bot::FindShortestPath(int& srcIndex, int& destIndex)
 {
+	if (g_pathTimer > engine->GetTime())
+		return;
+
 	int16_t i;
 	if (!IsValidWaypoint(srcIndex))
 	{
@@ -1844,7 +1846,7 @@ void Bot::FindShortestPath(int& srcIndex, int& destIndex)
 
 			m_navNode.Reverse();
 			ChangeWptIndex(m_navNode.First());
-			g_pathTimer = engine->GetTime() + 0.2f;
+			g_pathTimer = engine->GetTime() + 0.1f;
 			return;
 		}
 
@@ -1891,10 +1893,15 @@ void Bot::FindShortestPath(int& srcIndex, int& destIndex)
 			}
 		}
 	}
+
+	g_pathTimer = engine->GetTime() + 0.1f;
 }
 
 void Bot::FindEscapePath(int& srcIndex, const Vector& dangerOrigin)
 {
+	if (g_pathTimer > engine->GetTime())
+		return;
+
 	int16_t i;
 	if (!IsValidWaypoint(srcIndex))
 	{
@@ -1951,6 +1958,7 @@ void Bot::FindEscapePath(int& srcIndex, const Vector& dangerOrigin)
 
 			m_navNode.Reverse();
 			ChangeWptIndex(m_navNode.First());
+			g_pathTimer = engine->GetTime() + 0.1f;
 			return;
 		}
 
@@ -1994,6 +2002,8 @@ void Bot::FindEscapePath(int& srcIndex, const Vector& dangerOrigin)
 			}
 		}
 	}
+
+	g_pathTimer = engine->GetTime() + 0.1f;
 }
 
 void Bot::CheckTouchEntity(edict_t* entity)
@@ -2130,6 +2140,33 @@ int Bot::FindWaypoint(void)
 	return index;
 }
 
+// return priority of player (0 = max pri)
+int GetPlayerPriority(edict_t* player)
+{
+	// human players have highest priority
+	auto bot = g_botManager->GetBot(player);
+	if (bot != nullptr)
+	{
+		// bots doing something important for the current scenario have high priority
+		if (GetGameMode() == GameMode::Original)
+		{
+			if (bot->m_isBomber)
+				return 2;
+
+			if (bot->m_isVIP)
+				return 2;
+
+			if (bot->HasHostage())
+				return 2;
+		}
+
+		// everyone else is ranked by their unique ID (which cannot be zero)
+		return bot->m_index + 3;
+	}
+
+	return 1;
+}
+
 void Bot::ResetStuck(void)
 {
 	m_isStuck = false;
@@ -2139,11 +2176,23 @@ void Bot::ResetStuck(void)
 
 void Bot::CheckStuck(const float maxSpeed)
 {
-	if (!ebot_has_semiclip.GetBool() && m_hasFriendsNear && !(m_waypoint.flags & WAYPOINT_FALLRISK) && !FNullEnt(m_nearestFriend))
+	if (m_hasFriendsNear && !ebot_has_semiclip.GetBool() && !(m_waypoint.flags & WAYPOINT_FALLRISK) && !FNullEnt(m_nearestFriend) && GetPlayerPriority(pev->pContainingEntity) > GetPlayerPriority(m_nearestFriend))
 	{
-		const Vector myOrigin = pev->origin + pev->velocity * m_frameInterval;
-		const Vector friendOrigin = m_friendOrigin + m_nearestFriend->v.velocity * m_frameInterval;
-		if ((myOrigin - friendOrigin).GetLengthSquared() < squaredf((m_nearestFriend->v.maxspeed + pev->maxspeed) * 0.17f))
+		const float interval = (m_frameInterval * 4.0f) + g_pGlobals->frametime;
+
+		// use our movement angles, try to predict where we should be next frame
+		Vector right, forward;
+		m_moveAngles.BuildVectors(&forward, &right, nullptr);
+
+		Vector predict = pev->origin + forward * m_moveSpeed * interval;
+		predict += right * m_strafeSpeed * interval;
+		predict += pev->velocity * interval;
+
+		const float nearest = (predict - m_nearestFriend->v.origin).GetLengthSquared();
+		const float maxSpeed = (pev->origin - (m_nearestFriend->v.origin + m_nearestFriend->v.velocity * interval)).GetLengthSquared();
+
+		// is player that near now or in future that we need to steer away?
+		if (nearest < squaredf(72.0f) || maxSpeed < squaredf(96.0f))
 		{
 			if (!m_isSlowThink && !IsOnLadder() && m_navNode.HasNext() && IsWaypointOccupied(m_navNode.First()))
 			{
@@ -2190,39 +2239,15 @@ void Bot::CheckStuck(const float maxSpeed)
 				}
 			}
 
-			// use our movement angles, try to predict where we should be next frame
-			Vector right, forward;
-			m_moveAngles.BuildVectors(&forward, &right, nullptr);
-
-			const Vector dir = (myOrigin - friendOrigin).Normalize2D();
-			bool moveBack = false;
-
 			// to start strafing, we have to first figure out if the target is on the left side or right side
+			const Vector dir = (pev->origin - m_nearestFriend->v.origin).Normalize2D();
 			if ((dir | right.Normalize2D()) > 0.0f)
-			{
-				if (!CheckWallOnRight())
-					m_strafeSpeed = maxSpeed;
-				else
-				{
-					moveBack = true;
-					if (!CheckWallOnLeft())
-						m_strafeSpeed = -maxSpeed;
-				}
-			}
+				SetStrafeSpeed(forward.Normalize2D(), pev->maxspeed);
 			else
-			{
-				if (!CheckWallOnLeft())
-					m_strafeSpeed = -maxSpeed;
-				else
-				{
-					moveBack = true;
-					if (!CheckWallOnRight())
-						m_strafeSpeed = maxSpeed;
-				}
-			}
+				SetStrafeSpeed(forward.Normalize2D(), -pev->maxspeed);
 
 			bool doorStuck = false;
-			if (cabsf(m_nearestFriend->v.speed) > 54.0f && ((moveBack && m_stuckWarn > 5) || m_stuckWarn > 9))
+			if (nearest < squaredf(72.0f))
 			{
 				if ((dir | forward.Normalize2D()) < 0.0f)
 				{
@@ -2268,7 +2293,7 @@ void Bot::CheckStuck(const float maxSpeed)
 					const bool friendlyFire = engine->IsFriendlyFireOn();
 					if ((!friendlyFire && m_currentWeapon == Weapon::Knife) || (friendlyFire && !IsValidBot(m_nearestFriend))) // DOOR STUCK! || DIE HUMAN!
 					{
-						m_lookAt = friendOrigin + (m_nearestFriend->v.view_ofs * 0.9f);
+						m_lookAt = m_nearestFriend->v.origin + (m_nearestFriend->v.view_ofs * 0.9f);
 						m_pauseTime = 0.0f;
 						if (!(pev->buttons & IN_ATTACK) && !(pev->oldbuttons & IN_ATTACK))
 							pev->buttons |= IN_ATTACK;

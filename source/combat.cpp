@@ -607,84 +607,67 @@ void Bot::FireWeapon(void)
 			m_shieldCheckTime = time + 0.5f;
 		}
 
-		switch (m_currentWeapon)
+		if (distance < squaredf(384.0f))
 		{
-			case Weapon::P228:
-			case Weapon::Elite:
-			case Weapon::FiveSeven:
-			case Weapon::Usp:
-			case Weapon::Glock18:
-			case Weapon::Deagle:
+			if (selectTab[chosenWeaponIndex].primaryFireHold) // if automatic weapon, just press attack
+				pev->buttons |= IN_ATTACK;
+			else // if not, toggle buttons
 			{
 				if (!(pev->buttons & IN_ATTACK) && !(pev->oldbuttons & IN_ATTACK))
 					pev->buttons |= IN_ATTACK;
-				break;
 			}
-			default:
+
+			return;
+		}
+
+		if (DoFirePause(distance))
+			return;
+
+		float delayTime = 0.0f;
+		if (selectTab[chosenWeaponIndex].primaryFireHold)
+		{
+			m_zoomCheckTime = time;
+			pev->buttons |= IN_ATTACK; // use primary attack
+		}
+		else
+		{
+			if (!(pev->buttons & IN_ATTACK) && !(pev->oldbuttons & IN_ATTACK))
+				pev->buttons |= IN_ATTACK;
+
+			const int fireDelay = cclamp(cabs((m_skill / 20) - 5), 0, 6);
+			FireDelay* delay = &g_fireDelay[0];
+			delayTime = delay[chosenWeaponIndex].primaryBaseDelay + crandomfloat(delay[chosenWeaponIndex].primaryMinDelay[fireDelay], delay[chosenWeaponIndex].primaryMaxDelay[fireDelay]);
+			m_zoomCheckTime = time;
+		}
+
+		if (distance > squaredf(1200.0f))
+		{
+			if (m_visibility & (Visibility::Head | Visibility::Body))
+				delayTime -= (delayTime == 0.0f) ? 0.0f : 0.02f;
+			else if (m_visibility & Visibility::Head)
 			{
-				if (distance < squaredf(384.0f))
-				{
-					if (selectTab[chosenWeaponIndex].primaryFireHold) // if automatic weapon, just press attack
-						pev->buttons |= IN_ATTACK;
-					else // if not, toggle buttons
-					{
-						if (!(pev->oldbuttons & IN_ATTACK))
-							pev->buttons |= IN_ATTACK;
-					}
-
-					return;
-				}
-
-				if (DoFirePause(distance))
-					return;
-
-				float delayTime = 0.0f;
-				if (selectTab[chosenWeaponIndex].primaryFireHold)
-				{
-					m_zoomCheckTime = time;
-					pev->buttons |= IN_ATTACK; // use primary attack
-				}
+				if (distance > squaredf(2400.0f))
+					delayTime += (delayTime == 0.0f) ? 0.15f : 0.10f;
 				else
-				{
-					if (!(pev->oldbuttons & IN_ATTACK))
-						pev->buttons |= IN_ATTACK;
-
-					const int fireDelay = cclamp(cabs((m_skill / 20) - 5), 0, 6);
-					FireDelay* delay = &g_fireDelay[0];
-					delayTime = delay[chosenWeaponIndex].primaryBaseDelay + crandomfloat(delay[chosenWeaponIndex].primaryMinDelay[fireDelay], delay[chosenWeaponIndex].primaryMaxDelay[fireDelay]);
-					m_zoomCheckTime = time;
-				}
-
-				if (distance > squaredf(1200.0f))
-				{
-					if (m_visibility & (Visibility::Head | Visibility::Body))
-						delayTime -= (delayTime == 0.0f) ? 0.0f : 0.02f;
-					else if (m_visibility & Visibility::Head)
-					{
-						if (distance > squaredf(2400.0f))
-							delayTime += (delayTime == 0.0f) ? 0.15f : 0.10f;
-						else
-							delayTime += (delayTime == 0.0f) ? 0.10f : 0.05f;
-					}
-					else if (m_visibility & Visibility::Body)
-					{
-						if (distance > squaredf(2400.0f))
-							delayTime += (delayTime == 0.0f) ? 0.12f : 0.08f;
-						else
-							delayTime += (delayTime == 0.0f) ? 0.08f : 0.0f;
-					}
-					else
-					{
-						if (distance > squaredf(2400.0f))
-							delayTime += (delayTime == 0.0f) ? 0.18f : 0.15f;
-						else
-							delayTime += (delayTime == 0.0f) ? 0.15f : 0.10f;
-					}
-				}
-
-				m_firePause = time + delayTime;
+					delayTime += (delayTime == 0.0f) ? 0.10f : 0.05f;
+			}
+			else if (m_visibility & Visibility::Body)
+			{
+				if (distance > squaredf(2400.0f))
+					delayTime += (delayTime == 0.0f) ? 0.12f : 0.08f;
+				else
+					delayTime += (delayTime == 0.0f) ? 0.08f : 0.0f;
+			}
+			else
+			{
+				if (distance > squaredf(2400.0f))
+					delayTime += (delayTime == 0.0f) ? 0.18f : 0.15f;
+				else
+					delayTime += (delayTime == 0.0f) ? 0.15f : 0.10f;
 			}
 		}
+
+		m_firePause = time + delayTime;
 	}
 }
 

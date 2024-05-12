@@ -51,14 +51,15 @@ void NetworkMsg::Execute(void* p)
         return; // no message or not for bot, return
 
     // some needed variables
-    static uint8_t r{}, g{}, b{};
-    static uint8_t enabled{};
+    static uint8_t r = 0, g = 0, b = 0;
+    static uint8_t enabled = 0;
 
-    static int index{}, numPlayers{};
-    static int state{}, id{};
-    //static int killerIndex{}, victimIndex{};
+    static int index = 0, numPlayers = 0;
+    static int state = 0, id = 0;
+    static int killerIndex = 0, victimIndex = 0;
 
     static WeaponProperty weaponProp{};
+    static char* x;
 
     // now starts of netmessage execution
     switch (m_message)
@@ -93,7 +94,10 @@ void NetworkMsg::Execute(void* p)
 
         if (m_bot)
         {
-            const char* x = PTR_TO_STR(p);
+            x = PTR_TO_STR(p);
+            if (!x)
+                break;
+
             switch (x[1])
             {
             case 'T':
@@ -312,7 +316,9 @@ void NetworkMsg::Execute(void* p)
         {
             if (!(g_gameVersion & Game::HalfLife) && m_bot)
             {
-                const char* x = PTR_TO_STR(p);
+                x = PTR_TO_STR(p);
+                if (!x)
+                    break;
 
                 // this is around up to 3-5 times faster than cstrncmp one
                 switch (x[0])
@@ -359,7 +365,7 @@ void NetworkMsg::Execute(void* p)
     }
     case NETMSG_DEATH: // this message sends on death
     {
-        if (m_state == 1)
+        /*if (m_state == 1)
         {
             Bot* victimer = g_botManager->GetBot(PTR_TO_INT(p));
             if (victimer)
@@ -370,10 +376,10 @@ void NetworkMsg::Execute(void* p)
                 victimer->m_avgDeathOrigin *= 0.5f;
             }
         }
-        break;
+        break;*/
 
-        // causing to message not has been sent bug...
-        /*switch (m_state)
+        // this can cause to message not has been sent bug...
+        switch (m_state)
         {
         case 0:
         {
@@ -516,7 +522,7 @@ void NetworkMsg::Execute(void* p)
             break;
         }
         }
-        break;*/
+        break;
     }
     case NETMSG_SCREENFADE: // this message gets sent when the screen fades (flashbang)
     {
@@ -568,7 +574,10 @@ void NetworkMsg::Execute(void* p)
     {
         if (m_state)
         {
-            const char* x = PTR_TO_STR(p);
+            x = PTR_TO_STR(p);
+            if (!x)
+                break;
+
             if (cstrncmp(x, "#CTs_Win", 9) == 0 ||
                 cstrncmp(x, "#Bomb_Defused", 14) == 0 ||
                 cstrncmp(x, "#Terrorists_Win", 16) == 0 ||

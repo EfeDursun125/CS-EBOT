@@ -32,7 +32,6 @@ ConVar ebot_version("ebot_version", PRODUCT_VERSION, VARTYPE_READONLY);
 ConVar ebot_showwp("ebot_show_waypoints", "0");
 
 ConVar ebot_analyze_create_goal_waypoints("ebot_analyze_starter_waypoints", "1");
-ConVar ebot_think_fps("ebot_think_fps", "30");
 
 float secondTimer;
 float updateTimer;
@@ -2839,7 +2838,7 @@ void StartFrame(void)
 	if (updateTimer < engine->GetTime())
 	{
 		g_botManager->Think();
-		updateTimer = engine->GetTime() + (1.0f / ebot_think_fps.GetFloat());
+		updateTimer = engine->GetTime() + 0.05f;
 	}
 
 	RETURN_META(MRES_IGNORED);
