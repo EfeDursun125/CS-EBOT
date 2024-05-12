@@ -137,11 +137,11 @@ void Bot::PickupUpdate(void)
 	}
 	case PickupType::Hostage:
 	{
-		if (m_team != Team::Counter || !IsAlive(m_pickupItem))
+		if (m_team != Team::Counter || !IsAlive(m_pickupItem) || m_pickupItem->v.speed > 1.0f)
 		{
 			// don't pickup dead hostages
 			m_pickupItem = nullptr;
-			FinishCurrentProcess("hostage is dead");
+			FinishCurrentProcess("hostage is dead or moving");
 			break;
 		}
 

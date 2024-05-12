@@ -7,12 +7,6 @@ void Bot::PlantStart(void)
 
 void Bot::PlantUpdate(void)
 {
-	if (!m_hasProgressBar && !m_inBombZone)
-	{
-		FinishCurrentProcess("i'm not at the plant area");
-		return;
-	}
-
 	SelectWeaponByName("weapon_c4");
 
 	pev->buttons |= (IN_ATTACK | IN_DUCK);
@@ -26,7 +20,14 @@ void Bot::PlantUpdate(void)
 		ResetStuck();
 		FinishCurrentProcess("succsesfully planted the bomb");
 		m_isBomber = false;
+		return;
 	}
+
+	/*if (!m_hasProgressBar && !m_inBombZone)
+	{
+		FinishCurrentProcess("i'm not at the plant area");
+		return;
+	}*/
 }
 
 void Bot::PlantEnd(void)
@@ -73,8 +74,8 @@ bool Bot::PlantReq(void)
 	if (!m_isBomber)
 		return false;
 
-	if (!m_hasProgressBar && !m_inBombZone)
-		return false;
+	//if (!m_hasProgressBar && !m_inBombZone) trust the waypointer
+	//	return false;
 
 	if (!IsOnFloor())
 		return false;
