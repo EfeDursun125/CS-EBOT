@@ -155,59 +155,104 @@ ENavDir GetDirection(const Vector& start, const Vector& end)
     return static_cast<ENavDir>(static_cast<int>((degree + 45.0f) * 0.0111111111111f) % ENavDir::NumDir);
 }
 
-void ENavArea::MergeWith(const ENavArea area)
+void ENavMesh::MergeNavAreas(const uint16_t area1, const uint16_t area2)
 {
-    if (direction[ENavDir::Left] > area.direction[ENavDir::Left])
-    {
-        direction[ENavDir::Left] = area.direction[ENavDir::Left];
-        dirHeight[ENavDir::Left] = area.dirHeight[ENavDir::Left];
-    }
+    ENavArea* a1 = &m_area[area1];
+    ENavArea* a2 = &m_area[area2];
 
-    if (direction[ENavDir::Right] < area.direction[ENavDir::Right])
-    {
-        direction[ENavDir::Right] = area.direction[ENavDir::Right];
-        dirHeight[ENavDir::Right] = area.dirHeight[ENavDir::Right];
-    }
+    // try to allocate memory, otherwise don't merge
+    uint16_t* newConnections = new(std::nothrow) uint16_t[a1->connectionCount + a2->connectionCount];
+    if (!newConnections)
+        return;
 
-    if (direction[ENavDir::Backward] > area.direction[ENavDir::Backward])
-    {
-        direction[ENavDir::Backward] = area.direction[ENavDir::Backward];
-        dirHeight[ENavDir::Backward] = area.dirHeight[ENavDir::Backward];
-    }
+    uint8_t newConnectionCount = 0;
 
-    if (direction[ENavDir::Forward] < area.direction[ENavDir::Forward])
+    // add connections from a1
+    uint8_t i, j;
+    bool exists;
+    for (i = 0; i < a1->connectionCount; i++)
     {
-        direction[ENavDir::Forward] = area.direction[ENavDir::Forward];
-        dirHeight[ENavDir::Forward] = area.dirHeight[ENavDir::Forward];
-    }
-
-    ENavArea temp;
-    uint16_t i, j;
-    for (i = 0; i < g_numNavAreas; i++)
-    {
-        temp = g_navmesh->GetNavArea(i);
-        if (area.index == temp.index)
+        exists = false;
+        for (j = 0; j < newConnectionCount; j++)
         {
-            for (j = 0; j < area.connectionCount; j++)
+            if (newConnections[j] == a1->connection[i])
             {
-                g_navmesh->ConnectArea(index, area.connection[j]);
-                if (area.connection[j] == area.index)
-                    g_navmesh->ConnectArea(area.connection[j], index);
+                exists = true;
+                break;
             }
         }
-        else
+
+        if (!exists)
+            newConnections[newConnectionCount++] = a1->connection[i];
+    }
+
+    // add other connections from a2
+    for (i = 0; i < a2->connectionCount; i++)
+    {
+        if (a2->connection[i] == area1)
+            continue;
+
+        exists = false;
+        for (j = 0; j < newConnectionCount; j++)
         {
-            for (j = 0; j < temp.connectionCount; j++)
+            if (newConnections[j] == a2->connection[i])
             {
-                if (temp.connection[j] != area.index)
-                    continue;
-                
-                g_navmesh->ConnectArea(temp.connection[j], index);
+                exists = true;
+                break;
             }
+        }
+
+        if (!exists)
+            newConnections[newConnectionCount++] = a2->connection[i];
+    }
+
+    // increase size and height of the area to make it look like merged
+    if (a1->direction[ENavDir::Left] > a2->direction[ENavDir::Left])
+    {
+        a1->direction[ENavDir::Left] = a2->direction[ENavDir::Left];
+        a1->dirHeight[ENavDir::Left] = a2->dirHeight[ENavDir::Left];
+    }
+
+    if (a1->direction[ENavDir::Right] < a2->direction[ENavDir::Right])
+    {
+        a1->direction[ENavDir::Right] = a2->direction[ENavDir::Right];
+        a1->dirHeight[ENavDir::Right] = a2->dirHeight[ENavDir::Right];
+    }
+
+    if (a1->direction[ENavDir::Backward] > a2->direction[ENavDir::Backward])
+    {
+        a1->direction[ENavDir::Backward] = a2->direction[ENavDir::Backward];
+        a1->dirHeight[ENavDir::Backward] = a2->dirHeight[ENavDir::Backward];
+    }
+
+    if (a1->direction[ENavDir::Forward] < a2->direction[ENavDir::Forward])
+    {
+        a1->direction[ENavDir::Forward] = a2->direction[ENavDir::Forward];
+        a1->dirHeight[ENavDir::Forward] = a2->dirHeight[ENavDir::Forward];
+    }
+
+    // update connections for other areas
+    uint16_t k;
+    for (k = 0; k < g_numNavAreas; k++)
+    {
+        a2 = &m_area[k];
+        for (j = 0; j < a2->connectionCount; j++)
+        {
+            if (a2->connection[j] == area2)
+                a2->connection[j] = area1;
         }
     }
 
-    g_navmesh->DeleteArea(area);
+    // update connections
+    delete[] a1->connection;
+    a1->connection = newConnections;
+    a1->connectionCount = newConnectionCount;
+
+    // remove merged area
+    DeleteAreaByIndex(area2);
+
+    // notify that it was merged
+    PlaySound(g_hostEntity, "weapons/mine_activate.wav");
 }
 
 void ENavArea::ExpandNavArea(const uint8_t radius)
