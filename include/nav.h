@@ -53,7 +53,6 @@ public:
 	bool IsAreaOverlapping(const ENavArea area);
 	bool IsPointOverlapping(const Vector& origin);
 
-	void MergeWith(const ENavArea area);
 	void ExpandNavArea(const uint8_t radius = static_cast<uint8_t>(50));
 };
 
@@ -88,6 +87,7 @@ public:
 	void DeleteAreaByIndex(const int index);
 	void ConnectArea(const int start, const int end);
 	void DisconnectArea(const int start, const int end);
+	void MergeNavAreas(const uint16_t area1, const uint16_t area2);
 	void OptimizeNavMesh(void);
 
 	ENavArea GetNavArea(const uint16_t id);
