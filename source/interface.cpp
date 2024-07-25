@@ -433,7 +433,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 					if (index != -1 && index != selected)
 					{
 						g_navmeshOn = true;
-						g_navmesh->GetNavAreaP(selected)->MergeWith(g_navmesh->GetNavArea(index));
+						g_navmesh->MergeNavAreas(selected, index);
 						ServerCommand("ebot wp mdl on");
 						g_navmesh->UnselectNavArea();
 					}
