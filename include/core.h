@@ -54,7 +54,7 @@ using namespace Math;
 
 enum class Process : int8_t
 {
-	Default,
+	Default = 0,
 	Attack,
 	Hide,
 	Camp,
@@ -133,7 +133,7 @@ enum ClientFlags
 // radio messages
 enum Radio
 {
-	Nothin = -1,
+	Nothin = 0,
 	CoverMe = 1,
 	YouTakePoint = 2,
 	HoldPosition = 3,
@@ -157,10 +157,9 @@ enum Radio
 	EnemyDown = 29
 };
 
-// voice system (extending enum above, messages 30-39 is reserved)
 enum class ChatterMessage
 {
-	Nothing = 1,
+	Nothing = 0,
 	Yes,
 	No,
 	Happy,
@@ -235,7 +234,7 @@ enum WeaponHL
 // defines for pickup items
 enum class PickupType
 {
-	None,
+	None = 0,
 	Weapon,
 	DroppedC4,
 	PlantedC4,
@@ -376,7 +375,7 @@ enum class LiftState : int8_t
 	Leaving
 };
 
-// bot known file 
+// bot known file
 #define FH_WAYPOINT_NEW "EBOTWP!"
 #define FV_WAYPOINT 127
 
