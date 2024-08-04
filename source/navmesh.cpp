@@ -258,7 +258,7 @@ void ENavMesh::Analyze(void)
         return;
 
     static bool* expanded{};
-    static float magicTimer{};
+    float magicTimer{};
     if (!FNullEnt(g_hostEntity))
     {
         char message[] =
@@ -281,7 +281,6 @@ void ENavMesh::Analyze(void)
 
     ENavArea* area;
     int what, nav;
-    TraceResult tr{};
     Vector temp, temp2;
     int8_t dir;
     for (i = 0; i < g_numNavAreas; i++)
@@ -289,8 +288,7 @@ void ENavMesh::Analyze(void)
         if (expanded[i])
             continue;
 
-        if (magicTimer > engine->GetTime())
-            return;
+        
 
         for (dir = 0; dir < ENavDir::NumDir; dir++)
         {
@@ -371,13 +369,13 @@ void ENavMesh::Analyze(void)
                     ConnectArea(i, area->index);
             }
 
-            magicTimer = engine->GetTime() + 0.005f;
+            magicTimer = engine->GetTime();
         }
 
         expanded[i] = true;
     }
 
-    if (magicTimer + 2.0f < engine->GetTime()) // set to 2.0f
+    if (magicTimer + 2.0f < engine->GetTime()) // set to 2
     {
         g_analyzewaypoints = false;
         g_analyzenavmesh = false;
@@ -391,13 +389,35 @@ void ENavMesh::Analyze(void)
 
 void ENavMesh::FinishAnalyze(void)
 {
+    ENavArea* temp;
+    ENavArea* conA;
     uint16_t i;
+    uint8_t C, A, N;
 
-    // try to merge nav areas, first try to merge if their z axis is equal
-    MiniArray <int> mergeList;
+    // try to merge nav areas
+    MiniArray <uint16_t> mergeList;
     for (i = 0; i < g_numNavAreas; i++)
     {
+        temp = &m_area[i];
+        if (!temp)
+            continue;
 
+        for (C = 0; C < temp->connectionCount; C++)
+        {
+            conA = &m_area[temp->connection[C]];
+            if (!conA)
+                continue;
+
+            N = 0;
+            for (A = 0; A < 4; A++)
+            {
+                if (IsWalkableLineClear(temp->direction[A], conA->direction[A]))
+                    N++;
+            }
+
+            if (N == 3)
+                MergeNavAreas(temp->index, conA->index);
+        }
     }
 }
 

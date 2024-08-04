@@ -443,7 +443,7 @@ void NetworkMsg::Execute(void* p)
                     else
                     {
                         teammate->m_pauseTime = timeCache + crandomfloat(2.0f, 5.0f);
-                        teammate->m_lookAt = killer->v.origin + killer->v.view_ofs;
+                        teammate->LookAt(killer->v.origin + killer->v.view_ofs, killer->v.velocity);
 
                         if (teammate->CheckGrenadeThrow(killer))
                             teammate->RadioMessage(Radio::Fallback);
@@ -494,7 +494,7 @@ void NetworkMsg::Execute(void* p)
                     else
                     {
                         teammate->m_pauseTime = timeCache + crandomfloat(2.0f, 5.0f);
-                        teammate->m_lookAt = killer->v.origin + killer->v.view_ofs;
+                        teammate->LookAt(killer->v.origin + killer->v.view_ofs, killer->v.velocity);
 
                         if ((bot && bot->m_friendsNearCount > teammate->m_friendsNearCount) && (!bot && teammate->pev->health < killer->v.health))
                         {

@@ -355,7 +355,7 @@ void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
 		return;
 
 	va_list ap;
-	char command[256];
+	static char command[256]{};
 	int stop, i, stringIndex = 0;
 
 	va_start(ap, format);
@@ -429,7 +429,7 @@ char* GetField(const char* string, const int fieldId, const bool endLine)
 	// either to the actual engine functions (when the caller is a real client), either on
 	// our function here, which does the same thing, when the caller is a bot.
 
-	static char field[256];
+	static char field[256]{};
 
 	// reset the string
 	cmemset(field, 0, sizeof(field));
@@ -513,7 +513,6 @@ const char* GetModName(void)
 		modName[length - start] = modName[length];
 
 	modName[length - start] = 0; // terminate the string
-
 	return &modName[0];
 }
 
@@ -603,8 +602,8 @@ void RoundInit(void)
 
 void AutoLoadGameMode(void)
 {
-	char buffer[1024];
-	char buffer2[1024];
+	char buffer[1024]{};
+	char buffer2[1024]{};
 	const char* getModeName = GetModName();
 	static int8_t checkShowTextTime = 0;
 	checkShowTextTime++;
@@ -642,7 +641,7 @@ void AutoLoadGameMode(void)
 			"plugins-ghost",//6
 			"plugins-zb1",  //7
 			"plugins-zb3",  //8
-			"plugins-zb4",  //9 
+			"plugins-zb4",  //9
 			"plugins-ze",   //10
 			"plugins-zse",  //11
 			"plugins-npc",  //12
@@ -1058,7 +1057,7 @@ void HudMessage(edict_t* ent, const bool toCenter, const Color& rgb, char* forma
 {
 	if (!IsValidPlayer(ent) || IsValidBot(ent))
 		return;
-	
+
 	va_list ap;
 	char buffer[1024];
 
@@ -1225,9 +1224,9 @@ void ServerCommand(const char* format, ...)
 char* GetEntityName(edict_t* entity)
 {
 	static char entityName[32]{};
-	if (FNullEnt(entity))
+	if (!g_pGlobals || FNullEnt(entity))
 		cstrcpy(entityName, "nullptr");
-	else if (IsValidPlayer(entity))
+	else if (entity->v.flags & FL_CLIENT || entity->v.flags & FL_FAKECLIENT)
 		cstrncpy(entityName, STRING(entity->v.netname), sizeof(entityName));
 	else
 		cstrncpy(entityName, STRING(entity->v.classname), sizeof(entityName));

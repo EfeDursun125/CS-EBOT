@@ -195,7 +195,7 @@ int BotControl::CreateBot(String name, int skill, int personality, const int tea
 		return -1;
 	}
 
-	auto ebotName = GetEntityName(bot);
+	const char* ebotName = GetEntityName(bot);
 	ServerPrint("Connecting E-Bot - %s | Skill %d", ebotName, skill);
 
 	// set values
@@ -968,7 +968,7 @@ void BotControl::Free(void)
 			continue;
 
 		if (ebot_save_bot_names.GetBool())
-			m_savedBotNames.Push(STRING(bot->GetEntity()->v.netname));
+			m_savedBotNames.Push(GetEntityName(bot->GetEntity()));
 
 		delete bot;
 		bot = nullptr;
@@ -997,11 +997,9 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 	char rejectReason[128];
 	const int clientIndex = ENTINDEX(bot);
 	const float time = engine->GetTime();
-
 	cmemset(reinterpret_cast<void*>(this), 0, sizeof(*this));
 
 	pev = &bot->v;
-
 	if (bot->pvPrivateData)
 		FREE_PRIVATE(bot);
 
@@ -1047,8 +1045,11 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 	if (!IsNullString(rejectReason))
 	{
 		const char* name = GetEntityName(bot);
-		AddLogEntry(Log::Warning, "Server refused '%s' connection (%s)", name, rejectReason);
-		ServerCommand("kick \"%s\"", name); // kick the bot player if the server refused it
+		if (!IsNullString(name))
+		{
+			AddLogEntry(Log::Warning, "Server refused '%s' connection (%s)", name, rejectReason);
+			ServerCommand("kick \"%s\"", name); // kick the bot player if the server refused it
+		}
 		bot->v.flags |= FL_KILLME;
 	}
 

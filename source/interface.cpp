@@ -1323,7 +1323,7 @@ void ClientUserInfoChanged(edict_t* ent, char* infobuffer)
 	// change their player model). But most commonly, this function is in charge of handling
 	// team changes, recounting the teams population, etc...
 
-	if (IsValidBot(ent))
+	if (!ent || IsValidBot(ent))
 		RETURN_META(MRES_IGNORED);
 
 	const char* passwordField = ebot_password_key.GetString();
@@ -1355,6 +1355,9 @@ void ClientCommand(edict_t* ent)
 	// could type in his game console, or real new client commands, but we wouldn't want to do
 	// so as this is just a bot DLL, not a MOD. The purpose is not to add functionality to
 	// clients. Hence it can lack of commenting a bit, since this code is very subject to change.
+
+	if (!ent)
+		RETURN_META(MRES_SUPERCEDE);
 
 	const char* command = CMD_ARGV(0);
 	const char* arg1 = CMD_ARGV(1);
@@ -2049,7 +2052,7 @@ void ClientCommand(edict_t* ent)
 				case 6:
 				{
 					DisplayMenuToClient(ent, &g_menus[21]);
-					g_waypoint->Delete(); // Delete Waypoint 
+					g_waypoint->Delete(); // Delete Waypoint
 					break;
 				}
 				case 9:
@@ -2838,7 +2841,7 @@ void StartFrame(void)
 	if (updateTimer < engine->GetTime())
 	{
 		g_botManager->Think();
-		updateTimer = engine->GetTime() + 0.05f;
+		updateTimer = engine->GetTime() + 0.025f;
 	}
 
 	RETURN_META(MRES_IGNORED);
@@ -3140,7 +3143,7 @@ exportc int GetEngineFunctions(enginefuncs_t* functionTable, int* /*interfaceVer
 		// check wether it's not a bot, fair cheat :(
 		if (bot)
 		{
-			bot->pev->maxspeed = newMaxspeed * 1.05f;
+			bot->pev->maxspeed = newMaxspeed * 1.06f;
 			(*g_engfuncs.pfnSetClientMaxspeed) (ent, bot->pev->maxspeed);
 			RETURN_META(MRES_SUPERCEDE);
 		}
@@ -3148,12 +3151,12 @@ exportc int GetEngineFunctions(enginefuncs_t* functionTable, int* /*interfaceVer
 		RETURN_META(MRES_IGNORED);
 	};
 
-	functionTable->pfnGetPlayerAuthId = [](edict_t* e) -> const char* 
+	functionTable->pfnGetPlayerAuthId = [](edict_t* e) -> const char*
 	{
-		//if (IsValidBot(e))
-		RETURN_META_VALUE(MRES_SUPERCEDE, "EBOT");
+		if (IsValidBot(e))
+			RETURN_META_VALUE(MRES_SUPERCEDE, "BOT");
 
-		//RETURN_META_VALUE(MRES_IGNORED, 0);
+		RETURN_META_VALUE(MRES_IGNORED, 0);
 	};
 
 	functionTable->pfnGetPlayerWONId = [](edict_t* e) -> unsigned int

@@ -65,7 +65,7 @@ void Bot::PushMessageQueue(const int message)
 		{
 			if (!bot)
 				continue;
-			
+
 			if (bot == this)
 				continue;
 
@@ -122,7 +122,6 @@ bool Bot::CheckVisibility(edict_t* targetEntity)
 		ignoreGlass = false;
 
 	TraceLine(eyes, spot, true, ignoreGlass, self, &tr);
-
 	if (tr.flFraction > vis || tr.pHit == targetEntity)
 	{
 		m_visibility |= Visibility::Body;
@@ -150,7 +149,6 @@ bool Bot::CheckVisibility(edict_t* targetEntity)
 		spot.z = targetEntity->v.origin.z - 34.0f;
 
 	TraceLine(eyes, spot, true, ignoreGlass, self, &tr);
-
 	if (tr.flFraction > vis || tr.pHit == targetEntity)
 	{
 		m_visibility |= Visibility::Other;
@@ -163,7 +161,6 @@ bool Bot::CheckVisibility(edict_t* targetEntity)
 	spot = targetEntity->v.origin + Vector(perp.x * edgeOffset, perp.y * edgeOffset, 0);
 
 	TraceLine(eyes, spot, true, ignoreGlass, self, &tr);
-
 	if (tr.flFraction > vis || tr.pHit == targetEntity)
 	{
 		m_visibility |= Visibility::Other;
@@ -445,7 +442,7 @@ void Bot::FindItem(void)
 					MDLL_Use(ent, GetEntity());
 			}
 
-			m_lookAt = entityOrigin;
+			LookAt(entityOrigin);
 			pickupType = PickupType::GetEntity;
 			m_moveSpeed = pev->maxspeed;
 			m_strafeSpeed = 0.0f;
@@ -463,7 +460,7 @@ void Bot::FindItem(void)
 					MDLL_Use(ent, GetEntity());
 			}
 
-			m_lookAt = entityOrigin;
+			LookAt(entityOrigin);
 			pickupType = PickupType::GetEntity;
 			m_moveSpeed = pev->maxspeed;
 			m_strafeSpeed = 0.0f;
@@ -474,7 +471,7 @@ void Bot::FindItem(void)
 			{
 				m_hasEntitiesNear = true;
 				m_nearestEntity = ent;
-				m_lookAt = GetEntityOrigin(ent);
+				LookAt(GetEntityOrigin(ent));
 				m_moveSpeed = -pev->maxspeed;
 				m_strafeSpeed = 0.0f;
 
@@ -709,6 +706,9 @@ void Bot::FindItem(void)
 // this function depending on show boolen, shows/remove chatter, icon, on the head of bot
 void Bot::SwitchChatterIcon(const bool show)
 {
+	if (ebot_use_radio.GetInt() != 2)
+		return;
+
 	if (!(g_gameVersion & Game::CStrike))
 		return;
 
@@ -1395,7 +1395,7 @@ bool Bot::IsEnemyReachable(void)
 	// be smart
 	if (POINT_CONTENTS(m_nearestEnemy->v.origin) == CONTENTS_LAVA)
 		return m_isEnemyReachable = false;
-	
+
 	TraceResult tr{};
 	TraceHull(pev->origin , m_nearestEnemy->v.origin, true, head_hull, pev->pContainingEntity, &tr);
 
@@ -1967,128 +1967,193 @@ bool Bot::IsNotAttackLab(edict_t* entity)
 	return false;
 }
 
+static float tempTimer;
 void Bot::BaseUpdate(void)
 {
 	// i'm really tired of getting random pev is nullptr debug logs...
 	// might seems ugly and useless, but... i have made some experiments with it,
 	// still not sure exactly why, but bad third party server plugins can cause this
 	// always use quality check on this...
-	if (!pev)
+	if (!pev || !pev->pContainingEntity)
 		return;
 
-	// run playermovement
-	const float time = engine->GetTime();
-	PLAYER_RUN_MOVE(pev->pContainingEntity, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, static_cast<uint16_t>(pev->buttons), static_cast<uint16_t>(pev->impulse), static_cast<uint8_t>(cclampf(((time - m_msecInterval) * 1000.0f), 0.0f, 255.0f)));
-	m_msecInterval = time;
-
-	// reset
-	pev->impulse = 0;
-	pev->buttons = 0;
-	m_moveSpeed = 0.0f;
-	m_strafeSpeed = 0.0f;
-
-	// if the bot hasn't selected stuff to start the game yet, go do that...
-	if (m_notStarted)
-		StartGame();
-	else
+	tempTimer = engine->GetTime();
+	if (m_baseUpdate < tempTimer)
 	{
-		if (m_slowthinktimer > time)
-			m_isSlowThink = false;
+		// reset
+		m_updateLooking = false;
+		pev->impulse = 0;
+		pev->buttons = 0;
+		m_moveSpeed = 0.0f;
+		m_strafeSpeed = 0.0f;
+
+		// if the bot hasn't selected stuff to start the game yet, go do that...
+		if (m_notStarted)
+			StartGame();
 		else
 		{
-			m_isSlowThink = true;
-			CheckSlowThink();
-			m_slowthinktimer = time + crandomfloat(0.9f, 1.1f);
-
-			if (!m_isAlive)
-			{
-				if (!g_isFakeCommand)
-				{
-					extern ConVar ebot_random_join_quit;
-					if (ebot_random_join_quit.GetBool() && m_stayTime > 0.0f && m_stayTime < time)
-					{
-						Kick();
-						return;
-					}
-
-					extern ConVar ebot_chat;
-					if (ebot_chat.GetBool() && m_lastChatTime + 10.0f < time && g_lastChatTime + 5.0f < time && !RepliesToPlayer()) // bot chatting turned on?
-					{
-						m_lastChatTime = time;
-						if (!g_chatFactory[CHAT_DEAD].IsEmpty())
-						{
-							g_lastChatTime = time;
-
-							char* pickedPhrase = g_chatFactory[CHAT_DEAD].GetRandomElement();
-							bool sayBufferExists = false;
-
-							// search for last messages, sayed
-							ITERATE_ARRAY(m_sayTextBuffer.lastUsedSentences, i)
-							{
-								if (cstrncmp(m_sayTextBuffer.lastUsedSentences[i], pickedPhrase, m_sayTextBuffer.lastUsedSentences[i].GetLength()) == 0)
-									sayBufferExists = true;
-							}
-
-							if (!sayBufferExists)
-							{
-								PrepareChatMessage(pickedPhrase);
-								PushMessageQueue(CMENU_SAY);
-
-								// add to ignore list
-								m_sayTextBuffer.lastUsedSentences.Push(pickedPhrase);
-							}
-
-							// clear the used line buffer every now and then
-							if (m_sayTextBuffer.lastUsedSentences.GetElementNumber() > crandomint(4, 6))
-								m_sayTextBuffer.lastUsedSentences.Destroy();
-						}
-					}
-
-					if (g_gameVersion & Game::HalfLife && !(pev->buttons & IN_ATTACK) && !(pev->oldbuttons & IN_ATTACK))
-						pev->buttons |= IN_ATTACK;
-				}
-			}
-		}
-
-		if (m_isAlive)
-		{
-			if (g_gameVersion & Game::HalfLife)
-			{
-				// idk why ???
-				if (pev->maxspeed < 11.0f)
-				{
-					const cvar_t* maxSpeed = g_engfuncs.pfnCVarGetPointer("sv_maxspeed");
-					if (maxSpeed)
-						pev->maxspeed = maxSpeed->value;
-					else // default is 270
-						pev->maxspeed = 270.0f;
-				}
-			}
-
-			if (m_buyingFinished && !ebot_stopbots.GetBool())
-			{
-				UpdateProcess();
-				MoveAction();
-				DebugModeMsg();
-			}
+			if (m_slowthinktimer > tempTimer)
+				m_isSlowThink = false;
 			else
-				ResetStuck();
+			{
+				m_isSlowThink = true;
+				CheckSlowThink();
+				m_slowthinktimer = tempTimer + crandomfloat(0.9f, 1.1f);
+
+				if (!m_isAlive)
+				{
+					if (!g_isFakeCommand)
+					{
+						extern ConVar ebot_random_join_quit;
+						if (ebot_random_join_quit.GetBool() && m_stayTime > 0.0f && m_stayTime < tempTimer)
+						{
+							Kick();
+							return;
+						}
+
+						extern ConVar ebot_chat;
+						if (ebot_chat.GetBool() && m_lastChatTime + 10.0f < tempTimer && g_lastChatTime + 5.0f < tempTimer && !RepliesToPlayer()) // bot chatting turned on?
+						{
+							m_lastChatTime = tempTimer;
+							if (!g_chatFactory[CHAT_DEAD].IsEmpty())
+							{
+								g_lastChatTime = tempTimer;
+
+								char* pickedPhrase = g_chatFactory[CHAT_DEAD].GetRandomElement();
+								bool sayBufferExists = false;
+
+								// search for last messages, sayed
+								ITERATE_ARRAY(m_sayTextBuffer.lastUsedSentences, i)
+								{
+									if (cstrncmp(m_sayTextBuffer.lastUsedSentences[i], pickedPhrase, m_sayTextBuffer.lastUsedSentences[i].GetLength()) == 0)
+										sayBufferExists = true;
+								}
+
+								if (!sayBufferExists)
+								{
+									PrepareChatMessage(pickedPhrase);
+									PushMessageQueue(CMENU_SAY);
+
+									// add to ignore list
+									m_sayTextBuffer.lastUsedSentences.Push(pickedPhrase);
+								}
+
+								// clear the used line buffer every now and then
+								if (m_sayTextBuffer.lastUsedSentences.GetElementNumber() > crandomint(4, 6))
+									m_sayTextBuffer.lastUsedSentences.Destroy();
+							}
+						}
+
+						if (g_gameVersion & Game::HalfLife && !(pev->buttons & IN_ATTACK) && !(pev->oldbuttons & IN_ATTACK))
+							pev->buttons |= IN_ATTACK;
+					}
+				}
+			}
+
+			if (m_isAlive)
+			{
+				if (g_gameVersion & Game::HalfLife)
+				{
+					// idk why ???
+					if (pev->maxspeed < 11.0f)
+					{
+						const cvar_t* maxSpeed = g_engfuncs.pfnCVarGetPointer("sv_maxspeed");
+						if (maxSpeed)
+							pev->maxspeed = maxSpeed->value;
+						else // default is 270
+							pev->maxspeed = 270.0f;
+					}
+				}
+
+				if (m_buyingFinished && !ebot_stopbots.GetBool())
+				{
+					UpdateProcess();
+					MoveAction();
+					DebugModeMsg();
+				}
+				else
+					ResetStuck();
+			}
 		}
+
+		// check for pending messages
+		CheckMessageQueue();
+
+		// avoid frame drops
+		m_frameInterval = tempTimer - m_frameDelay;
+		m_frameDelay = tempTimer;
+		m_baseUpdate = tempTimer + 0.1f;
 	}
+	else
+	{
+		// face position
+		float delta = tempTimer - m_aimInterval;
+		m_aimInterval += delta;
 
-	// check for pending messages
-	CheckMessageQueue();
+		if (delta > 0.05f)
+			delta = 0.05f;
 
-	// avoid frame drops
-	m_frameInterval = time - m_frameDelay;
-	m_frameDelay = time;
+		if (m_lookVelocity != nullvec)
+		{
+			m_lookAt.x += m_lookVelocity.x * delta;
+			m_lookAt.y += m_lookVelocity.y * delta;
+			m_lookAt.z += m_lookVelocity.z * delta;
+		}
+
+		// adjust all body and view angles to face an absolute vector
+		Vector direction = (m_lookAt - EyePosition()).ToAngles() + pev->punchangle;
+		direction.x = -direction.x; // invert for engine
+
+		const float angleDiffPitch = AngleNormalize(direction.x - pev->v_angle.x);
+		const float angleDiffYaw = AngleNormalize(direction.y - pev->v_angle.y);
+		const float lockn = 0.128f / delta;
+
+		if (cabsf(angleDiffYaw) < lockn)
+		{
+			m_lookYawVel = 0.0f;
+			pev->v_angle.y = AngleNormalize(direction.y);
+		}
+		else
+		{
+			const float fskill = static_cast<float>(m_skill);
+			const float accelerate = fskill * 40.0f;
+			m_lookYawVel += delta * cclampf((fskill * 4.0f * angleDiffYaw) - (fskill * 0.4f * m_lookYawVel), -accelerate, accelerate);
+			pev->v_angle.y += delta * m_lookYawVel;
+		}
+
+		if (cabsf(angleDiffPitch) < lockn)
+		{
+			m_lookPitchVel = 0.0f;
+			pev->v_angle.x = AngleNormalize(direction.x);
+		}
+		else
+		{
+			const float fskill = static_cast<float>(m_skill);
+			const float accelerate = fskill * 40.0f;
+			m_lookPitchVel += delta * cclampf(fskill * 8.0f * angleDiffPitch - (fskill * 0.4f * m_lookPitchVel), -accelerate, accelerate);
+			pev->v_angle.x += delta * m_lookPitchVel;
+		}
+
+		if (pev->v_angle.x < -89.0f)
+			pev->v_angle.x = -89.0f;
+		else if (pev->v_angle.x > 89.0f)
+			pev->v_angle.x = 89.0f;
+
+		// set the body angles to point the gun correctly
+		pev->angles.x = -pev->v_angle.x * 0.33333333333f;
+		pev->angles.y = pev->v_angle.y;
+
+		// run playermovement
+		PLAYER_RUN_MOVE(pev->pContainingEntity, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, static_cast<uint16_t>(pev->buttons), static_cast<uint16_t>(pev->impulse), static_cast<uint8_t>(cclampf(((tempTimer - m_msecInterval) * 1000.0f), 0.0f, 255.0f)));
+		m_msecInterval = tempTimer;
+	}
 }
 
 void Bot::CheckSlowThink(void)
 {
 	CalculatePing();
 
-	const float time = engine->GetTime();
+	tempTimer = engine->GetTime();
 	if (m_stayTime < 0.0f)
 	{
 		extern ConVar ebot_random_join_quit;
@@ -2096,10 +2161,10 @@ void Bot::CheckSlowThink(void)
 		{
 			extern ConVar ebot_stay_min;
 			extern ConVar ebot_stay_max;
-			m_stayTime = time + crandomfloat(ebot_stay_min.GetFloat(), ebot_stay_max.GetFloat());
+			m_stayTime = tempTimer + crandomfloat(ebot_stay_min.GetFloat(), ebot_stay_max.GetFloat());
 		}
 		else
-			m_stayTime = time + 999999.0f;
+			m_stayTime = tempTimer + 999999.0f;
 	}
 
 	if (m_isZombieBot)
@@ -2148,21 +2213,21 @@ void Bot::CheckSlowThink(void)
 	}
 
 	extern ConVar ebot_ignore_enemies;
-	if (!ebot_ignore_enemies.GetBool() && m_randomattacktimer < time && !engine->IsFriendlyFireOn() && !HasHostage()) // simulate players with random knife attacks
+	if (!ebot_ignore_enemies.GetBool() && m_randomattacktimer < tempTimer && !engine->IsFriendlyFireOn() && !HasHostage()) // simulate players with random knife attacks
 	{
 		if (m_isStuck && m_personality != Personality::Careful)
 		{
 			if (m_personality == Personality::Rusher)
 				m_randomattacktimer = 0.0f;
 			else
-				m_randomattacktimer = time + crandomfloat(0.1f, 10.0f);
+				m_randomattacktimer = tempTimer + crandomfloat(0.1f, 10.0f);
 		}
 		else if (m_personality == Personality::Rusher)
-			m_randomattacktimer = time + crandomfloat(0.1f, 30.0f);
+			m_randomattacktimer = tempTimer + crandomfloat(0.1f, 30.0f);
 		else if (m_personality == Personality::Careful)
-			m_randomattacktimer = time + crandomfloat(10.0f, 100.0f);
+			m_randomattacktimer = tempTimer + crandomfloat(10.0f, 100.0f);
 		else
-			m_randomattacktimer = time + crandomfloat(0.15f, 75.0f);
+			m_randomattacktimer = tempTimer + crandomfloat(0.15f, 75.0f);
 
 		if (m_currentWeapon == Weapon::Knife)
 		{
@@ -2210,7 +2275,7 @@ void Bot::CheckSlowThink(void)
 			if (pev->effects & EF_DIMLIGHT && pev->impulse != 100)
 				pev->impulse = 100;
 		}
-		
+
 	}
 	else
 	{
@@ -2233,13 +2298,23 @@ bool Bot::IsAttacking(const edict_t* player)
 
 void Bot::UpdateLooking(void)
 {
-	FacePosition();
-
 	if (m_hasEnemiesNear || m_hasEntitiesNear)
 	{
-		LookAtEnemies();
-		FireWeapon();
-		return;
+		if (m_entityDistance < m_enemyDistance)
+		{
+			if (!FNullEnt(m_nearestEntity))
+			{
+				LookAt(m_entityOrigin, m_nearestEntity->v.velocity);
+				FireWeapon();
+				return;
+			}
+		}
+		else if (IsAlive(m_nearestEnemy))
+		{
+			LookAt(m_enemyOrigin, m_nearestEnemy->v.velocity);
+			FireWeapon();
+			return;
+		}
 	}
 	else
 	{
@@ -2247,23 +2322,15 @@ void Bot::UpdateLooking(void)
 		if (m_enemySeeTime + val > engine->GetTime() && m_team != GetTeam(m_nearestEnemy))
 		{
 			if (IsAlive(m_nearestEnemy))
-				m_lookAt = m_nearestEnemy->v.origin + m_nearestEnemy->v.view_ofs;
+				LookAt(m_nearestEnemy->v.origin + m_nearestEnemy->v.view_ofs);
 			else
-				m_lookAt = m_enemyOrigin;
+				LookAt(m_enemyOrigin);
 
 			return;
 		}
 	}
 
 	LookAtAround();
-}
-
-void Bot::LookAtEnemies(void)
-{
-	if (m_entityDistance < m_enemyDistance)
-		m_lookAt = m_entityOrigin;
-	else
-		m_lookAt = m_enemyOrigin;
 }
 
 float Bot::GetTargetDistance(void)
@@ -2276,6 +2343,7 @@ float Bot::GetTargetDistance(void)
 
 void Bot::LookAtAround(void)
 {
+	m_updateLooking = true;
 	if (m_waypoint.flags & WAYPOINT_LADDER || IsOnLadder())
 	{
 		m_lookAt = m_destOrigin + pev->view_ofs;
@@ -2571,16 +2639,18 @@ void Bot::LookAtAround(void)
 			}
 		}
 	}
-	
-	if (m_navNode.HasNext())
-	{
-		const Path* next = g_waypoint->GetPath(m_navNode.Next());
-		if (next)
-			m_lookAt = next->origin + pev->view_ofs;
-	}
 
 	if (m_isZombieBot || m_searchTime > time)
+	{
+		if (m_navNode.HasNext())
+		{
+			const Path* next = g_waypoint->GetPath(m_navNode.Next());
+			if (next)
+				m_lookAt = next->origin + pev->view_ofs;
+		}
+
 		return;
+	}
 
 	const Vector nextFrame = EyePosition() + pev->velocity;
 	Vector selectRandom;
@@ -2963,41 +3033,45 @@ void Bot::DiscardWeaponForUser(edict_t* user, const bool discardC4)
 	if (!m_buyingFinished)
 		return;
 
-	const Vector userOrigin = GetEntityOrigin(user);
-	if (IsAlive(user) && m_moneyAmount >= 2000 && HasPrimaryWeapon() && (userOrigin - pev->origin).GetLengthSquared() < squaredf(240.0f))
+	if (!IsAlive(user))
+		return;
+
+	if (m_moneyAmount > 2000 && HasPrimaryWeapon())
 	{
-		m_lookAt = userOrigin;
-
-		if (discardC4)
+		const Vector userOrigin = GetPlayerHeadOrigin(user);
+		if ((userOrigin - pev->origin).GetLengthSquared() < squaredf(240.0f))
 		{
-			SelectWeaponByName("weapon_c4");
-			FakeClientCommand(GetEntity(), "drop");
-		}
-		else
-		{
-			SelectBestWeapon();
-			FakeClientCommand(GetEntity(), "drop");
-		}
+			LookAt(userOrigin, user->v.velocity);
 
-		m_pickupItem = nullptr;
-		m_pickupType = PickupType::None;
-		m_itemCheckTime = engine->GetTime() + 5.0f;
+			if (discardC4)
+			{
+				SelectWeaponByName("weapon_c4");
+				FakeClientCommand(GetEntity(), "drop");
+			}
+			else
+			{
+				SelectBestWeapon();
+				FakeClientCommand(GetEntity(), "drop");
+			}
 
-		if (m_inBuyZone)
-		{
-			m_buyingFinished = false;
-			m_buyState = 0;
-			PushMessageQueue(CMENU_BUY);
-			m_nextBuyTime = engine->GetTime();
+			m_pickupItem = nullptr;
+			m_pickupType = PickupType::None;
+			m_itemCheckTime = engine->GetTime() + 5.0f;
+
+			if (m_inBuyZone)
+			{
+				m_buyingFinished = false;
+				m_buyState = 0;
+				PushMessageQueue(CMENU_BUY);
+				m_nextBuyTime = engine->GetTime();
+			}
 		}
 	}
-	else
-	{
-		char buffer[512];
-		FormatBuffer(buffer, "Sorry %s, but i don't want discard my %s to you!", GetEntityName(user), discardC4 ? "bomb" : "weapon");
-		ChatSay(false, buffer);
-		RadioMessage(Radio::Negative);
-	}
+
+	char buffer[512];
+	FormatBuffer(buffer, "Sorry %s, but i don't want discard my %s to you!", GetEntityName(user), discardC4 ? "bomb" : "weapon");
+	ChatSay(false, buffer);
+	RadioMessage(Radio::Negative);
 }
 
 void Bot::ResetDoubleJumpState(void)

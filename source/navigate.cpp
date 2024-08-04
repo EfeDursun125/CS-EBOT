@@ -322,22 +322,20 @@ int Bot::FindGoal(void)
 
 void Bot::MoveTo(const Vector& targetPosition)
 {
-	const Vector directionOld = (targetPosition + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval);
+	const Vector directionOld = targetPosition - pev->origin;
 	const Vector directionNormal = directionOld.Normalize2D();
 	SetStrafeSpeed(directionNormal, pev->maxspeed);
 	m_moveAngles = directionOld.ToAngles();
-	m_moveAngles.ClampAngles();
 	m_moveAngles.x = -m_moveAngles.x; // invert for engine
 	m_moveSpeed = pev->maxspeed;
 }
 
 void Bot::MoveOut(const Vector& targetPosition)
 {
-	const Vector directionOld = (targetPosition + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval);
+	const Vector directionOld = targetPosition - pev->origin;
 	const Vector directionNormal = directionOld.Normalize2D();
 	SetStrafeSpeed(directionNormal, pev->maxspeed);
 	m_moveAngles = directionOld.ToAngles();
-	m_moveAngles.ClampAngles();
 	m_moveAngles.x = -m_moveAngles.x; // invert for engine
 	m_moveSpeed = -pev->maxspeed;
 }
@@ -348,8 +346,7 @@ void Bot::FollowPath(void)
 	m_moveSpeed = GetMaxSpeed();
 	DoWaypointNav();
 	CheckStuck(m_moveSpeed + cabsf(m_strafeSpeed));
-	m_moveAngles = ((m_destOrigin - pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval)).ToAngles();
-	m_moveAngles.ClampAngles();
+	m_moveAngles = (m_destOrigin - pev->origin).ToAngles();
 	m_moveAngles.x = -m_moveAngles.x; // invert for engine
 }
 
@@ -526,7 +523,8 @@ void Bot::DoWaypointNav(void)
 
 				if (!(pev->oldbuttons & IN_USE) && !(pev->buttons & IN_USE))
 				{
-					m_lookAt = origin;
+					LookAt(origin);
+
 					// do not use door directrly under xash, or we will get failed assert in gamedll code
 					if (g_gameVersion & Game::Xash)
 						pev->buttons |= IN_USE;
@@ -674,22 +672,22 @@ void Bot::DoWaypointNav(void)
 			}
 		}
 
-		if ((pev->origin - m_destOrigin).GetLengthSquared() < squaredf(24.0f + static_cast<float>(m_stuckWarn) + m_frameInterval))
+		if ((pev->origin - m_destOrigin).GetLength() < (pev->velocity.GetLength2D() * m_frameInterval))
 			next = true;
 	}
 	else
 	{
 		float desiredDistance;
 		if (m_currentTravelFlags & PATHFLAG_JUMP)
-			desiredDistance = (cabsf(m_moveSpeed) * m_frameInterval) + m_frameInterval;
+			desiredDistance = m_frameInterval;
 		else
 		{
-			desiredDistance = (cabsf(m_moveSpeed) * m_frameInterval) + 4.0f + static_cast<float>(m_stuckWarn) + m_frameInterval;
+			desiredDistance = m_frameInterval;
 			if (m_waypoint.radius > 4)
-				desiredDistance += static_cast<float>(m_waypoint.radius);
+				desiredDistance += static_cast<float>(m_waypoint.radius + m_stuckWarn);
 		}
 
-		if ((pev->origin - m_destOrigin).GetLengthSquared2D() < squaredf(desiredDistance))
+		if ((pev->origin - m_destOrigin).GetLength2D() < (desiredDistance + (pev->velocity.GetLength2D() * m_frameInterval)))
 			next = true;
 	}
 
@@ -2293,7 +2291,7 @@ void Bot::CheckStuck(const float maxSpeed)
 					const bool friendlyFire = engine->IsFriendlyFireOn();
 					if ((!friendlyFire && m_currentWeapon == Weapon::Knife) || (friendlyFire && !IsValidBot(m_nearestFriend))) // DOOR STUCK! || DIE HUMAN!
 					{
-						m_lookAt = m_nearestFriend->v.origin + (m_nearestFriend->v.view_ofs * 0.9f);
+						LookAt(m_nearestFriend->v.origin + (m_nearestFriend->v.view_ofs * 0.9f), m_nearestFriend->v.velocity);
 						m_pauseTime = 0.0f;
 						if (!(pev->buttons & IN_ATTACK) && !(pev->oldbuttons & IN_ATTACK))
 							pev->buttons |= IN_ATTACK;
@@ -2456,6 +2454,20 @@ void Bot::SetWaypointOrigin(void)
 
 		if (sPoint == -1)
 			m_waypointOrigin += g_pGlobals->v_forward;
+	}
+
+	// hack, let bot turn instantly to next waypoint. useful for parkours
+	if (m_waypoint.flags & WAYPOINT_JUMP)
+	{
+		const Vector vel = (m_waypointOrigin - pev->origin).Normalize2D();
+		pev->velocity.x = vel.x * pev->maxspeed;
+		pev->velocity.y = vel.y * pev->maxspeed;
+		pev->avelocity.x = pev->velocity.x;
+		pev->avelocity.y = pev->velocity.y;
+		pev->basevelocity.x = pev->velocity.x;
+		pev->basevelocity.y = pev->velocity.y;
+		pev->clbasevelocity.x = pev->velocity.x;
+		pev->clbasevelocity.y = pev->velocity.y;
 	}
 }
 
@@ -2934,62 +2946,11 @@ bool Bot::IsDeadlyDrop(const Vector& targetOriginPos)
 	return false;
 }
 
-void Bot::FacePosition(void)
+void Bot::LookAt(const Vector& origin, const Vector& velocity)
 {
-	float delta = engine->GetTime() - m_aimInterval;
-	m_aimInterval += delta;
-
-	if (delta > 0.05f)
-		delta = 0.05f;
-
-	// adjust all body and view angles to face an absolute vector
-	Vector direction = (m_lookAt - EyePosition()).ToAngles() + pev->punchangle;
-	direction.x = -direction.x; // invert for engine
-
-	const float angleDiffPitch = AngleNormalize(direction.x - pev->v_angle.x);
-	const float angleDiffYaw = AngleNormalize(direction.y - pev->v_angle.y);
-	const float lockn = 0.128f / delta;
-
-	if (cabsf(angleDiffYaw) < lockn)
-	{
-		m_lookYawVel = 0.0f;
-		pev->v_angle.y = AngleNormalize(direction.y);
-	}
-	else
-	{
-		const float fskill = static_cast<float>(m_skill);
-		const float accelerate = fskill * 40.0f;
-		m_lookYawVel += delta * cclampf((fskill * 4.0f * angleDiffYaw) - (fskill * 0.4f * m_lookYawVel), -accelerate, accelerate);
-		pev->v_angle.y += delta * m_lookYawVel;
-	}
-
-	if (cabsf(angleDiffPitch) < lockn)
-	{
-		m_lookPitchVel = 0.0f;
-		pev->v_angle.x = AngleNormalize(direction.x);
-	}
-	else
-	{
-		const float fskill = static_cast<float>(m_skill);
-		const float accelerate = fskill * 40.0f;
-		m_lookPitchVel += delta * cclampf(fskill * 8.0f * angleDiffPitch - (fskill * 0.4f * m_lookPitchVel), -accelerate, accelerate);
-		pev->v_angle.x += delta * m_lookPitchVel;
-	}
-
-	if (pev->v_angle.x < -89.0f)
-		pev->v_angle.x = -89.0f;
-	else if (pev->v_angle.x > 89.0f)
-		pev->v_angle.x = 89.0f;
-
-	// set the body angles to point the gun correctly
-	pev->angles.x = -pev->v_angle.x * 0.33333333333f;
-	pev->angles.y = pev->v_angle.y;
-}
-
-void Bot::LookAt(const Vector& origin)
-{
+	m_updateLooking = true;
 	m_lookAt = origin;
-	FacePosition();
+	m_lookVelocity = velocity;
 }
 
 void Bot::SetStrafeSpeed(const Vector& moveDir, const float strafeSpeed)
