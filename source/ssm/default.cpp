@@ -22,7 +22,7 @@ void Bot::DefaultUpdate(void)
 				m_currentWaypointIndex = -1;
 				m_navNode.Clear();
 				MoveTo(m_enemyOrigin);
-				LookAt(m_enemyOrigin);
+				LookAt(m_enemyOrigin, m_nearestEnemy->v.velocity);
 
 				if (crandomint(1, 3) == 1)
 					pev->buttons |= IN_ATTACK2;

@@ -22,12 +22,6 @@ void Bot::PlantUpdate(void)
 		m_isBomber = false;
 		return;
 	}
-
-	/*if (!m_hasProgressBar && !m_inBombZone)
-	{
-		FinishCurrentProcess("i'm not at the plant area");
-		return;
-	}*/
 }
 
 void Bot::PlantEnd(void)
@@ -74,10 +68,10 @@ bool Bot::PlantReq(void)
 	if (!m_isBomber)
 		return false;
 
-	//if (!m_hasProgressBar && !m_inBombZone) trust the waypointer
-	//	return false;
-
 	if (!IsOnFloor())
+		return false;
+
+	if (pev->velocity.GetLength2D() > 1.25f)
 		return false;
 
 	return true;

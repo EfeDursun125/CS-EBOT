@@ -17,8 +17,6 @@ void Bot::AttackUpdate(void)
 
 	FindFriendsAndEnemiens();
 	FindEnemyEntities();
-	LookAtEnemies();
-	FacePosition();
 
 	if (!m_hasEnemiesNear && !m_hasEntitiesNear)
 	{
@@ -95,7 +93,23 @@ void Bot::AttackUpdate(void)
 		return;
 	}
 	else
-		FireWeapon();
+	{
+		if (m_entityDistance < m_enemyDistance)
+		{
+			if (!FNullEnt(m_nearestEntity))
+			{
+				LookAt(m_entityOrigin, m_nearestEntity->v.velocity);
+				FireWeapon();
+				return;
+			}
+		}
+		else if (IsAlive(m_nearestEnemy))
+		{
+			LookAt(m_enemyOrigin, m_nearestEnemy->v.velocity);
+			FireWeapon();
+			return;
+		}
+	}
 
 	const float distance = GetTargetDistance();
 	int melee = (g_gameVersion & Game::HalfLife) ? WeaponHL::Crowbar : Weapon::Knife;
