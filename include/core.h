@@ -651,10 +651,12 @@ public:
 	uint16_t m_prevTravelFlags{}; // prev of it
 	uint16_t m_currentTravelFlags{}; // connection flags like jumping
 
-	Vector m_lookAt{}; // vector bot should look at
 	Vector m_throw{}; // origin of waypoint to throw grenades
+	Vector m_lookAt{}; // vector bot should look at
+	Vector m_lookVelocity{}; // interpolate velocity
 	float m_lookYawVel{}; // look yaw velocity
 	float m_lookPitchVel{}; // look pich velocity
+	bool m_updateLooking{}; // should bot update where to look?
 
 	edict_t* m_hostages[Const_MaxHostages]{}; // pointer to used hostage entities
 	Vector m_lastWallOrigin{}; // for better zombie avoiding
@@ -884,6 +886,7 @@ public:
 	float m_spawnTime{};
 
 	float m_frameDelay{};
+	float m_baseUpdate{};
 	bool m_hasProfile{};
 
 	int m_campIndex{};
@@ -913,7 +916,6 @@ public:
 	char* GetProcessName(const Process& process);
 
 	// FUNCTIONS
-	void LookAtEnemies(void);
 	void LookAtAround(void);
 	void MoveTo(const Vector& targetPosition);
 	void MoveOut(const Vector& targetPosition);
@@ -1008,15 +1010,21 @@ public:
 	int GetWeaponID(const char* weapon);
 	inline int GetAmmoInClip(void) { return m_ammoInClip[m_currentWeapon]; }
 
-	inline edict_t* GetEntity(void) { return ENT(pev); };
+	inline edict_t* GetEntity(void)
+	{
+		if (!pev)
+			return nullptr;
+
+		return pev->pContainingEntity;
+	}
+
 	inline EOFFSET GetOffset(void) { return OFFSET(pev); };
 	inline int GetIndex(void) { return ENTINDEX(GetEntity()); };
 
 	inline Vector Center(void) { return (pev->absmax + pev->absmin) * 0.5f; };
 	inline Vector EyePosition(void) { return pev->origin + pev->view_ofs; };
 
-	void FacePosition(void);
-	void LookAt(const Vector& origin);
+	void LookAt(const Vector& origin, const Vector& velocity = nullvec);
 	void NewRound(void);
 	void PushMessageQueue(const int message);
 	void PrepareChatMessage(char* text);

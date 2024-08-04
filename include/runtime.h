@@ -690,7 +690,7 @@ public:
     // Function: Destroy
     //  Destroys array object, and all elements.
     //
-    void Destroy(void)
+    inline void Destroy(void)
     {
         if (m_elements)
         {
@@ -714,7 +714,7 @@ public:
     // Returns:
     //  True if operation succeeded, false otherwise.
     //
-    bool SetSize(const int newSize, const bool keepData = true)
+    inline bool SetSize(const int newSize, const bool keepData = true)
     {
         if (!newSize)
         {
@@ -767,7 +767,7 @@ public:
     // Returns:
     //  Number of allocated items.
     //
-    int GetSize(void) const
+    inline int GetSize(void) const
     {
         return m_itemSize;
     }
@@ -779,7 +779,7 @@ public:
     // Returns:
     //  Number of elements.
     //
-    int GetElementNumber(void) const
+    inline int GetElementNumber(void) const
     {
         return m_itemCount;
     }
@@ -791,7 +791,7 @@ public:
     // Parameters:
     //  resizeStep - Step that should be set.
     //  
-    void SetEnlargeStep(const int resizeStep = 0)
+    inline void SetEnlargeStep(const int resizeStep = 0)
     {
         m_resizeStep = resizeStep;
     }
@@ -803,7 +803,7 @@ public:
     // Returns:
     //  Current resize step.
     //
-    int GetEnlargeStep(void)
+    inline int GetEnlargeStep(void)
     {
         return m_resizeStep;
     }
@@ -820,7 +820,7 @@ public:
     // Returns:
     //  True if operation succeeded, false otherwise.
     //
-    bool SetAt(const int index, const T object, const bool enlarge = true)
+    inline bool SetAt(const int index, const T object, const bool enlarge = true)
     {
         if (index >= m_itemSize)
         {
@@ -846,7 +846,7 @@ public:
     // Returns:
     //  Element object.
     //
-    T& GetAt(const int index)
+    inline T& GetAt(const int index)
     {
         if (index < 0 || index >= m_itemCount)
             return m_elements[crandomint(0, m_itemCount - 1)];
@@ -865,7 +865,7 @@ public:
     // Returns:
     //  True if operation succeeded, false otherwise.
     //
-    bool GetAt(const int index, T& object)
+    inline bool GetAt(const int index, T& object)
     {
         if (index < 0 || index >= m_itemCount)
             return false;
@@ -886,7 +886,7 @@ public:
     // Returns:
     //  True if operation succeeded, false otherwise.
     //
-    bool InsertAt(const int index, const T object, const bool enlarge = true)
+    inline bool InsertAt(const int index, const T object, const bool enlarge = true)
     {
         return InsertAt(index, &object, 1, enlarge);
     }
@@ -904,7 +904,7 @@ public:
     // Returns:
     //  True if operation succeeded, false otherwise.
     //
-    bool InsertAt(const int index, const T* objects, const int count = 1, const bool enlarge = true)
+    inline bool InsertAt(const int index, const T* objects, const int count = 1, const bool enlarge = true)
     {
         if (!objects || count < 1)
             return false;
@@ -958,7 +958,7 @@ public:
     // Returns:
     //  True if operation succeeded, false otherwise.
     //
-    bool InsertAt(const int index, const Array <T>& other, const bool enlarge = true)
+    inline bool InsertAt(const int index, const Array <T>& other, const bool enlarge = true)
     {
         if (&other == this)
             return false;
@@ -977,7 +977,7 @@ public:
     // Returns:
     //  True if operation succeeded, false otherwise.
     //
-    bool RemoveAt(const int index, const int count = 1)
+    inline bool RemoveAt(const int index, const int count = 1)
     {
         if (index + count > m_itemCount)
             return false;
@@ -1005,7 +1005,7 @@ public:
     // Returns:
     //  True if operation succeeded, false otherwise.
     //
-    bool Push(const T object, const bool enlarge = true)
+    inline bool Push(const T object, const bool enlarge = true)
     {
         return InsertAt(m_itemCount, &object, 1, enlarge);
     }
@@ -1022,7 +1022,7 @@ public:
     // Returns:
     //  True if operation succeeded, false otherwise.
     //
-    bool Push(const T* objects, const int count = 1, const bool enlarge = true)
+    inline bool Push(const T* objects, const int count = 1, const bool enlarge = true)
     {
         return InsertAt(m_itemCount, objects, count, enlarge);
     }
@@ -1039,7 +1039,7 @@ public:
     // Returns:
     //  True if operation succeeded, false otherwise.
     //
-    bool Push(const Array <T>& other, const bool enlarge = true)
+    inline bool Push(const Array <T>& other, const bool enlarge = true)
     {
         if (&other == this)
             return false;
@@ -1054,7 +1054,7 @@ public:
     // Returns:
     //  Pointer to object list.
     //
-    T* GetData(void)
+    inline T* GetData(void)
     {
         return m_elements;
     }
@@ -1063,7 +1063,7 @@ public:
     // Function: RemoveAll
     //  Resets array, and removes all elements out of it.
     // 
-    void RemoveAll(void)
+    inline void RemoveAll(void)
     {
         m_itemCount = 0;
         SetSize(m_itemCount);
@@ -1085,7 +1085,7 @@ public:
     // Function: FreeExtra
     //  Frees unused space.
     //
-    void FreeSpace(const bool destroyIfEmpty = true)
+    inline void FreeSpace(const bool destroyIfEmpty = true)
     {
         if (!m_itemCount)
         {
@@ -1116,7 +1116,7 @@ public:
     // Returns:
     //  Object popped from the end of array.
     //
-    T Pop(void)
+    inline T Pop(void)
     {
         const T element = m_elements[m_itemCount - 1];
         RemoveAt(m_itemCount - 1);
@@ -1127,17 +1127,17 @@ public:
     // Function: PopNoReturn
     //  Pops element from array.
     //
-    T PopNoReturn(void)
+    inline T PopNoReturn(void)
     {
         RemoveAt(m_itemCount - 1);
     }
 
-    T& Last(void)
+    inline T& Last(void)
     {
         return m_elements[m_itemCount - 1];
     }
 
-    bool GetLast(const T& item)
+    inline bool GetLast(const T& item)
     {
         if (!m_itemCount)
             return false;
@@ -1156,7 +1156,7 @@ public:
     // Returns:
     //  True if operation succeeded, false otherwise.
     //
-    bool AssignFrom(const Array <T>& other)
+    inline bool AssignFrom(const Array <T>& other)
     {
         if (&other == this)
             return true;
@@ -1183,18 +1183,18 @@ public:
     // Returns:
     //  Random element reference.
     //
-    T& GetRandomElement(void) const
+    inline T& GetRandomElement(void) const
     {
         return m_elements[crandomint(0, m_itemCount - 1)];
     }
 
-    Array <T>& operator = (const Array <T>& other)
+    inline Array <T>& operator = (const Array <T>& other)
     {
         AssignFrom(other);
         return *this;
     }
 
-    T& operator [] (const int index)
+    inline T& operator [] (const int index)
     {
         if (index < m_itemSize && index >= m_itemCount)
             m_itemCount = index + 1;
@@ -1237,7 +1237,7 @@ private:
     // Parameters:
     //  size - New size of buffer.
     //
-    void UpdateBufferSize(const int size)
+    inline void UpdateBufferSize(const int size)
     {
         if (size <= m_allocatedSize)
             return;
@@ -1263,7 +1263,7 @@ private:
     //  destIndex - Destination index.
     //  sourceIndex - Source index.
     //
-    void MoveItems(const int destIndex, const int sourceIndex)
+    inline void MoveItems(const int destIndex, const int sourceIndex)
     {
         cmemmove(m_bufferPtr + destIndex, m_bufferPtr + sourceIndex, sizeof(char) * (m_stringLength - sourceIndex + 1));
     }
@@ -1275,7 +1275,7 @@ private:
     // Parameters:
     //  length - Initial length of string.
     //
-    void Initialize(const int length)
+    inline void Initialize(const int length)
     {
         const int freeSize = m_allocatedSize - m_stringLength - 1;
         if (length <= freeSize)
@@ -1300,7 +1300,7 @@ private:
     // Parameters:
     //  index - Holder for index.
     //
-    void CorrectIndex(int& index) const
+    inline void CorrectIndex(int& index) const
     {
         if (index > m_stringLength)
             index = m_stringLength;
@@ -1314,7 +1314,7 @@ private:
     //  index - Location to insert space.
     //  size - Size of space insert.
     //
-    void InsertSpace(int& index, const int size)
+    inline void InsertSpace(int& index, const int size)
     {
         CorrectIndex(index);
         Initialize(size);
@@ -1331,7 +1331,7 @@ private:
     // Returns:
     //  True if it's a trim char, false otherwise.
     //
-    bool IsTrimChar(const char input)
+    inline bool IsTrimChar(const char input)
     {
         return input == ' ' || input == '\t' || input == '\n';
     }
@@ -1389,7 +1389,7 @@ public:
     // Returns:
     //  Pointer to buffer.
     //
-    const char* GetBuffer(void)
+    inline const char* GetBuffer(void)
     {
         if (!m_bufferPtr || *m_bufferPtr == 0x0)
             return "";
@@ -1404,7 +1404,7 @@ public:
     // Returns:
     //  Pointer to constant buffer.
     //
-    const char* GetBuffer(void) const
+    inline const char* GetBuffer(void) const
     {
         if (!m_bufferPtr || *m_bufferPtr == 0x0)
             return "";
@@ -1419,7 +1419,7 @@ public:
     // Returns:
     //  Float value of string.
     //
-    float ToFloat(void)
+    inline float ToFloat(void)
     {
         return catof(m_bufferPtr);
     }
@@ -1431,7 +1431,7 @@ public:
     // Returns:
     //  Integer value of string.
     //
-    int ToInt(void) const
+    inline int ToInt(void) const
     {
         return catoi(m_bufferPtr);
     }
@@ -1440,7 +1440,7 @@ public:
     // Function: ReleaseBuffer
     //  Terminates the string with null character.
     //
-    void ReleaseBuffer(void)
+    inline void ReleaseBuffer(void)
     {
         ReleaseBuffer(cstrlen(m_bufferPtr));
     }
@@ -1452,7 +1452,7 @@ public:
     // Parameters:
     //  newLength - End of buffer.
     //
-    void ReleaseBuffer(const int newLength)
+    inline void ReleaseBuffer(const int newLength)
     {
         m_bufferPtr[newLength] = 0;
         m_stringLength = newLength;
@@ -1468,7 +1468,7 @@ public:
     // Returns:
     //  Pointer to string buffer.
     //
-    char* GetBuffer(const int minLength)
+    inline char* GetBuffer(const int minLength)
     {
         if (minLength >= m_allocatedSize)
             UpdateBufferSize(minLength + 1);
@@ -1486,7 +1486,7 @@ public:
     // Returns:
     //  Pointer to string buffer.
     //
-    char* GetBufferSetLength(const int length)
+    inline char* GetBufferSetLength(const int length)
     {
         char* buffer = GetBuffer(length);
 
@@ -1503,7 +1503,7 @@ public:
     // Parameters:
     //  bufferPtr - String buffer to append.
     //
-    void Append(const char* bufferPtr)
+    inline void Append(const char* bufferPtr)
     {
         UpdateBufferSize(m_stringLength + cstrlen(bufferPtr) + 1);
         cstrcat(m_bufferPtr, bufferPtr);
@@ -1517,7 +1517,7 @@ public:
     // Parameters:
     //  input - Character to append.
     //
-    void Append(const char input)
+    inline  void Append(const char input)
     {
         UpdateBufferSize(m_stringLength + 2);
         m_bufferPtr[m_stringLength] = input;
@@ -1531,7 +1531,7 @@ public:
     // Parameters:
     //  inputString - String buffer to append.
     //
-    void Append(const String& inputString)
+    inline void Append(const String& inputString)
     {
         const char* bufferPtr = inputString.GetBuffer();
         UpdateBufferSize(m_stringLength + cstrlen(bufferPtr));
@@ -1546,7 +1546,7 @@ public:
     // Parameters:
     //  fmt - Formatted, tring buffer to append.
     //
-    void AppendFormat(const char* fmt, ...)
+    inline void AppendFormat(const char* fmt, ...)
     {
         va_list ap;
         char buffer[1024];
@@ -1565,7 +1565,7 @@ public:
     // Parameters:
     //  inputString - String buffer to assign.
     //
-    void Assign(const String& inputString)
+    inline void Assign(const String& inputString)
     {
         Assign(inputString.GetBuffer());
     }
@@ -1577,7 +1577,7 @@ public:
     // Parameters:
     //  input - Character to assign.
     //
-    void Assign(char input)
+    inline void Assign(char input)
     {
         char psz[2] = { input, 0 };
         Assign(psz);
@@ -1590,7 +1590,7 @@ public:
     // Parameters:
     //  bufferPtr - String buffer to assign.
     //
-    void Assign(const char* bufferPtr)
+    inline void Assign(const char* bufferPtr)
     {
         if (!bufferPtr)
         {
@@ -1617,7 +1617,7 @@ public:
     // Parameters:
     //  fmt - Formatted string buffer to assign.
     //
-    void AssignFormat(const char* fmt, ...)
+    inline void AssignFormat(const char* fmt, ...)
     {
         va_list ap;
         char buffer[1024];
@@ -1633,7 +1633,7 @@ public:
     // Function: Empty
     //  Empties the string.
     //
-    void Empty(void)
+    inline void Empty(void)
     {
         if (m_bufferPtr)
         {
@@ -1649,7 +1649,7 @@ public:
     // Returns:
     //  True if string is empty, false otherwise.
     //
-    bool IsEmpty(void) const
+    inline bool IsEmpty(void) const
     {
         if (!m_bufferPtr || !m_stringLength)
             return true;
@@ -1664,7 +1664,7 @@ public:
     // Returns:
     //  Length of string, 0 in case of error.
     //
-    int GetLength(void)
+    inline int GetLength(void)
     {
         if (!m_bufferPtr)
             return 0;
@@ -1831,7 +1831,7 @@ public:
     // Returns:
     //  Tokenized string.
     //
-    String Mid(const int startIndex, int count = -1)
+    inline String Mid(const int startIndex, int count = -1)
     {
         if (startIndex >= m_stringLength || !m_bufferPtr)
             return nullptr;
@@ -1864,7 +1864,7 @@ public:
     // Returns:
     //  Tokenized string.
     //
-    String Mid(const int startIndex)
+    inline String Mid(const int startIndex)
     {
         return Mid(startIndex, m_stringLength - startIndex);
     }
@@ -1879,7 +1879,7 @@ public:
     // Returns:
     //  Tokenized string.
     //
-    String Left(const int count)
+    inline String Left(const int count)
     {
         return Mid(0, count);
     }
@@ -1894,7 +1894,7 @@ public:
     // Returns:
     //  Tokenized string.
     //
-    String Right(int count)
+    inline String Right(int count)
     {
         if (count > m_stringLength)
             count = m_stringLength;
@@ -1909,7 +1909,7 @@ public:
     // Returns:
     //  Upped sting.
     //
-    String ToUpper(void)
+    inline String ToUpper(void)
     {
         String result;
 
@@ -1928,7 +1928,7 @@ public:
     // Returns:
     //  Lowered sting.
     //
-    String ToLower(void)
+    inline String ToLower(void)
     {
         String result;
 
@@ -1947,7 +1947,7 @@ public:
     // Returns:
     //  Reversed string.
     //
-    String ToReverse(void)
+    inline String ToReverse(void)
     {
         char* source = m_bufferPtr + GetLength() - 1;
         char* dest = m_bufferPtr;
@@ -1974,7 +1974,7 @@ public:
     // Function: MakeUpper
     //  Converts string to upper case.
     //
-    void MakeUpper(void)
+    inline void MakeUpper(void)
     {
         *this = ToUpper();
     }
@@ -1983,7 +1983,7 @@ public:
     // Function: MakeLower
     //  Converts string to lower case.
     //
-    void MakeLower(void)
+    inline void MakeLower(void)
     {
         *this = ToLower();
     }
@@ -1992,7 +1992,7 @@ public:
     // Function: MakeReverse
     //  Converts string into reverse order.
     //
-    void MakeReverse(void)
+    inline void MakeReverse(void)
     {
         *this = ToReverse();
     }
@@ -2007,7 +2007,7 @@ public:
     // Returns:
     //  Zero if they are equal.
     //
-    int Compare(const String& string) const
+    inline int Compare(const String& string) const
     {
         return cstrcmp(m_bufferPtr, string.m_bufferPtr);
     }
@@ -2022,7 +2022,7 @@ public:
     // Returns:
     //  Zero if they are equal.
     //
-    int CompareI(String& string) const
+    inline int CompareI(String& string) const
     {
         return cstricmp(m_bufferPtr, string.m_bufferPtr);
     }
@@ -2037,7 +2037,7 @@ public:
     // Returns:
     //  Zero if they are equal.
     //
-    int Compare(const char* str) const
+    inline int Compare(const char* str) const
     {
         return cstrcmp(m_bufferPtr, str);
     }
@@ -2052,7 +2052,7 @@ public:
     // Returns:
     //  Zero if they are equal.
     //
-    int CompareI(const char* str) const
+    inline int CompareI(const char* str) const
     {
         return cstricmp(m_bufferPtr, str);
     }
@@ -2067,7 +2067,7 @@ public:
     // Returns:
     //  One on success.
     //
-    int Collate(const String& string) const
+    inline int Collate(const String& string) const
     {
         return cstrcoll(m_bufferPtr, string.m_bufferPtr);
     }
@@ -2082,7 +2082,7 @@ public:
     // Returns:
     //  Index of character.
     //
-    int Find(const char input) const
+    inline int Find(const char input) const
     {
         return Find(input, 0);
     }
@@ -2098,7 +2098,7 @@ public:
     // Returns:
     //  Index of character.
     //
-    int Find(const char input, const int startIndex) const
+    inline int Find(const char input, const int startIndex) const
     {
         char* str = m_bufferPtr + startIndex;
 
@@ -2124,7 +2124,7 @@ public:
     // Returns:
     //  Position of found string.
     //
-    int Find(const String& string) const
+    inline int Find(const String& string) const
     {
         return Find(string, 0);
     }
@@ -2140,7 +2140,7 @@ public:
     // Returns:
     //  Position of found string.
     //
-    int Find(const String& string, int startIndex) const
+    inline int Find(const String& string, int startIndex) const
     {
         if (!string.m_stringLength)
             return startIndex;
@@ -2171,7 +2171,7 @@ public:
     // Returns:
     //  Position of found character.
     //
-    int ReverseFind(const char ch)
+    inline int ReverseFind(const char ch)
     {
         if (!m_stringLength)
             return -1;
@@ -2199,7 +2199,7 @@ public:
     // Returns:
     //  -1 in case of nothing is found, start of string in buffer otherwise.
     //
-    int FindOneOf(const String& string)
+    inline int FindOneOf(const String& string)
     {
         int i;
         for (i = 0; i < m_stringLength; i++)
@@ -2218,7 +2218,7 @@ public:
     // Returns:
     //  Trimmed string.
     //
-    String& TrimRight(void)
+    inline String& TrimRight(void)
     {
         char* str = m_bufferPtr;
         char* last = nullptr;
@@ -2249,7 +2249,7 @@ public:
     // Returns:
     //  Trimmed string.
     //
-    String& TrimLeft(void)
+    inline String& TrimLeft(void)
     {
         char* str = m_bufferPtr;
 
@@ -2278,7 +2278,7 @@ public:
     // Returns:
     //  Trimmed string.
     //
-    String& Trim(void)
+    inline String& Trim(void)
     {
         return TrimRight().TrimLeft();
     }
@@ -2290,7 +2290,7 @@ public:
     // Parameters:
     //  ch - Character to trim.
     //
-    void TrimRight(const char ch)
+    inline void TrimRight(const char ch)
     {
         const char* str = m_bufferPtr;
         const char* last = nullptr;
@@ -2322,7 +2322,7 @@ public:
     // Parameters:
     //  ch - Character to trim.
     //
-    void TrimLeft(const char ch)
+    inline void TrimLeft(const char ch)
     {
         char* str = m_bufferPtr;
 
@@ -2343,7 +2343,7 @@ public:
     // Returns:
     //  New string length.
     //
-    int Insert(int index, const char ch)
+    inline int Insert(int index, const char ch)
     {
         InsertSpace(index, 1);
 
@@ -2364,7 +2364,7 @@ public:
     // Returns:
     //  New string length.
     //
-    int Insert(int index, const String& string)
+    inline int Insert(int index, const String& string)
     {
         CorrectIndex(index);
 
@@ -2393,7 +2393,7 @@ public:
     // Returns:
     //  Number of occurrences replaced.
     //
-    int Replace(const char oldCharacter, const char newCharacter)
+    inline int Replace(const char oldCharacter, const char newCharacter)
     {
         if (oldCharacter == newCharacter)
             return 0;
@@ -2428,7 +2428,7 @@ public:
     // Returns:
     //  Number of characters replaced.
     //
-    int Replace(const String& oldString, const String& newString)
+    inline int Replace(const String& oldString, const String& newString)
     {
         if (!oldString.m_stringLength)
             return 0;
@@ -2470,7 +2470,7 @@ public:
     // Returns:
     //  New string length.
     //
-    int Delete(const int index, int count = 1)
+    inline int Delete(const int index, int count = 1)
     {
         if (index + count > m_stringLength)
             count = m_stringLength - index;
@@ -2491,7 +2491,7 @@ public:
     // Returns:
     //  Trimmed string.
     //
-    String TrimQuotes(void)
+    inline String TrimQuotes(void)
     {
         TrimRight('\"');
         TrimRight('\'');
@@ -2512,7 +2512,7 @@ public:
     // Returns:
     //  True if string exists, false otherwise.
     //
-    bool Contains(const String& what)
+    inline bool Contains(const String& what)
     {
         return cstrstr(m_bufferPtr, what.m_bufferPtr);
     }
@@ -2524,7 +2524,7 @@ public:
     // Returns:
     //  Hash of the string.
     //
-    unsigned long Hash(void)
+    inline unsigned long Hash(void)
     {
         unsigned long hash = 0;
         const char* ptr = m_bufferPtr;
@@ -2551,7 +2551,7 @@ public:
     // See Also:
     //  <Array>
     //
-    Array <String> Split(char* separator)
+    inline Array <String> Split(char* separator)
     {
         Array <String> holder;
         int tokenLength, index = 0;
@@ -2583,7 +2583,7 @@ public:
     // See Also:
     //  <Array>
     //
-    Array <String> Split(const char separator)
+    inline Array <String> Split(const char separator)
     {
         char sep[2] = { separator, 0x0 };
         return Split(sep);
