@@ -54,7 +54,7 @@ extern float g_pathTimer;
 extern float g_audioTime;
 
 extern int g_mapType;
-extern int g_numWaypoints;
+extern int16_t g_numWaypoints;
 extern uint16_t g_numNavAreas;
 extern int g_gameVersion;
 extern int g_fakeArgc;

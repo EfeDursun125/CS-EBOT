@@ -19,7 +19,7 @@
 #endif
 #include <new>
 #endif
-extern int g_numWaypoints;
+extern int16_t g_numWaypoints;
 template <typename T>
 inline bool IsValidWaypoint(const T index)
 {
@@ -840,15 +840,15 @@ inline void safedel(T*& any)
 }
 
 template <typename T>
-class MiniArray
+class MiniArrayS
 {
 private:
 	T* m_array{};
 	int16_t m_size{};
 	int16_t m_capacity{};
 public:
-	MiniArray(const int16_t size = 0) : m_size(size), m_capacity(size) { safeloc(m_array, size); }
-	virtual ~MiniArray(void) { Destroy(); }
+	MiniArrayS(const int16_t size = 0) : m_size(size), m_capacity(size) { safeloc(m_array, size); }
+	virtual ~MiniArrayS(void) { Destroy(); }
 public:
 	inline bool Resize(const int16_t size, const bool reset = false)
 	{
@@ -968,6 +968,222 @@ public:
 		const T element = m_array[m_size - 1];
 		RemoveAt(m_size - 1);
 		return element;
+	}
+
+	inline void PopNoReturn(void)
+	{
+		RemoveAt(m_size - 1);
+	}
+
+	inline T& Last(void)
+	{
+		return m_array[m_size - 1];
+	}
+
+	inline bool IsEmpty(void) const
+	{
+		return !m_size;
+	}
+
+	inline int16_t Size(void) const
+	{
+		return m_size;
+	}
+
+	inline int16_t Capacity(void) const
+	{
+		return m_capacity;
+	}
+
+	inline T& Random(void) const
+	{
+		return m_array[crandomint(0, m_size - 1)];
+	}
+
+	inline T& operator[] (const int index)
+	{
+		return m_array[index];
+	}
+};
+
+template <typename T>
+class MiniArray
+{
+private:
+	T* m_array{};
+	int16_t m_size{};
+	int16_t m_capacity{};
+public:
+	MiniArray(const int16_t size = 0) : m_size(size), m_capacity(size) { m_array = new(std::nothrow) T[size]; }
+	virtual ~MiniArray(void) { Destroy(); }
+public:
+	inline bool Resize(const int16_t size, const bool reset = false)
+	{
+		if (reset)
+		{
+			Destroy();
+			m_array = new(std::nothrow) T[size];
+			if (m_array)
+			{
+				m_capacity = size;
+				return true;
+			}
+
+			return false;
+		}
+
+		if (!m_array)
+		{
+			m_array = new(std::nothrow) T[size];
+			if (m_array)
+			{
+				m_capacity = size;
+				return true;
+			}
+
+			return false;
+		}
+
+		T* new_array = new(std::nothrow) T[size];
+		if (!new_array)
+			return false;
+
+		size_t max;
+		if (m_size > size)
+			max = size;
+		else
+			max = m_size;
+
+		size_t i;
+		for (i = 0; i < max; i++)
+			new_array[i] = m_array[i];
+
+		delete[] m_array;
+		m_array = new_array;
+		new_array = nullptr;
+		m_capacity = size;
+		return true;
+	}
+
+	inline void Destroy(void)
+	{
+		if (m_array)
+			delete[] m_array;
+
+		m_size = 0;
+		m_capacity = 0;
+	}
+
+	inline T& Get(const int16_t index)
+	{
+		if (index >= m_size)
+			return m_array[0];
+
+		return m_array[index];
+	}
+
+	inline bool Push(const T element, const bool autoSize = true)
+	{
+		return Push(&element, autoSize);
+	}
+
+	inline bool Push(const T* element, const bool autoSize = true)
+	{
+		if (m_size >= m_capacity)
+		{
+			if (!autoSize || !Resize(m_size + 1, false))
+				return false;
+		}
+
+		if (m_array)
+		{
+			m_array[m_size] = *element;
+			m_size++;
+		}
+		
+		return true;
+	}
+
+	inline bool Has(const T element)
+	{
+		return Has(&element);
+	}
+
+	inline bool Has(const T* element)
+	{
+		if (m_array)
+		{
+			int16_t i;
+			for (i = 0; i < m_size; i++)
+			{
+				if (m_array[i] == *element)
+					return true;
+			}
+		}
+
+		return false;
+	}
+
+	inline void RemoveAt(const int16_t index)
+	{
+		if (index >= m_size)
+			return;
+
+		if (m_array)
+		{
+			int16_t i;
+			for (i = index; i < m_size - 1; i++)
+				m_array[i] = m_array[i + 1];
+
+			m_size--;
+		}
+	}
+
+	inline bool Remove(const T element)
+	{
+		return Remove(&element);
+	}
+
+	inline bool Remove(const T* element)
+	{
+		if (m_array && element)
+		{
+			int16_t i;
+			for (i = 0; i < m_size; i++)
+			{
+				if (m_array[i] == *element)
+				{
+					RemoveAt(i);
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	inline void Reverse(void)
+	{
+		if (m_array)
+		{
+			int16_t i;
+			const int16_t half = m_size / 2;
+			const int16_t val = m_size - 1;
+			for (i = 0; i < half; i++)
+				cswap(m_array[i], m_array[val - i]);
+		}
+	}
+
+	inline T Pop(void)
+	{
+		if (m_array)
+		{
+			const T element = m_array[m_size - 1];
+			RemoveAt(m_size - 1);
+			return element;
+		}
+		
+		return T();
 	}
 
 	inline void PopNoReturn(void)

@@ -393,102 +393,169 @@ enum class LiftState : int8_t
 #define WeaponBits_SecondaryNODEFAULT ((1 << Weapon::P228) | (1 << Weapon::Elite) | (1 << Weapon::Deagle) | (1 << Weapon::FiveSeven))
 
 // this structure links waypoints returned from pathfinder
-class PathNode
+class PathManager
 {
 private:
-	int16_t m_cursor{};
-	int16_t m_length{};
-	int16_t m_capacity{};
-	int16_t* m_path{};
+	bool m_follow;
+	int16_t* m_route;
+	int16_t m_routeLength;
+	int16_t m_routeCapacity;
+	int16_t m_routeNumber;
 public:
-	explicit PathNode(void) = default;
-	~PathNode(void)
+	PathManager(void)
 	{
-		safedel(m_path);
-		m_capacity = 0;
-		m_length = 0;
-		m_capacity = 0;
-	}
-public:
-	inline int16_t& Next(void)
-	{
-		return Get(1);
+		m_route = nullptr;
+		m_routeLength = 0;
+		m_routeCapacity = 0;
+		m_routeNumber = 0;
 	}
 
-	inline int16_t& First(void)
+	~PathManager(void)
 	{
-		return Get(0);
-	}
-
-	inline int16_t& Last(void)
-	{
-		return Get(Length() - 1);
-	}
-
-	inline int16_t& Get(const int16_t index)
-	{
-		return m_path[m_cursor + index];
-	}
-
-	inline void Shift(void)
-	{
-		m_cursor++;
-	}
-
-	inline void Reverse(void)
-	{
-		int16_t i;
-		const int16_t half = m_length / 2;
-		const int16_t max = m_length - 1;
-		for (i = 0; i < half; i++)
-			cswap(m_path[i], m_path[max - i]);
-	}
-
-	inline int16_t Length(void) const
-	{
-		if (m_cursor >= m_length)
-			return 0;
-
-		return m_length - m_cursor;
-	}
-
-	inline bool HasNext(void) const
-	{
-		return Length() > m_cursor;
-	}
-
-	inline bool IsEmpty(void) const
-	{
-		return !Length();
-	}
-
-	inline void Add(const int waypoint)
-	{
-		if (waypoint < 0)
-			return;
-
-		if (m_length >= m_capacity)
-		{
-			m_capacity = m_length * 2;
-			safereloc(m_path, m_length, m_capacity);
-		}
-
-		m_path[m_length] = static_cast<int16_t>(waypoint);
-		m_length++;
+		if (m_route)
+			delete[] m_route;
 	}
 
 	inline void Clear(void)
 	{
-		m_cursor = 0;
-		m_length = 0;
-		m_path[0] = 0;
+		if (m_route)
+			delete[] m_route;
+
+		m_routeLength = 0;
+		m_routeCapacity = 0;
+		m_routeNumber = 0;
 	}
 
-	inline void Init(const int16_t length)
+	inline bool Setup(const int16_t length)
 	{
-		safeloc(m_path, length);
-		m_capacity = length;
+		Clear();
+
+		m_route = new(std::nothrow) int16_t[length];
+		if (!m_route)
+		{
+			m_routeCapacity = 0;
+			return false;
+		}
+
+		m_routeCapacity = length;
+		return true;
 	}
+
+	inline bool Add(const int16_t waypointIndex)
+	{
+		if (!m_route || m_routeLength >= m_routeCapacity)
+		{
+			int16_t* newRoute = new(std::nothrow) int16_t[m_routeCapacity + 1];
+			if (!newRoute)
+				return false;
+
+			if (m_route)
+			{
+				int16_t i;
+				for (i = 0; i < m_routeLength; ++i)
+					newRoute[i] = m_route[i];
+			}
+
+			m_route = newRoute;
+			m_routeCapacity++;
+		}
+
+		m_route[m_routeLength++] = waypointIndex;
+		return true;
+	}
+
+	inline void Reverse(void)
+	{
+		if (m_route)
+		{
+			int16_t i;
+			const int16_t half = m_routeLength / 2;
+			const int16_t max = m_routeLength - 1;
+			for (i = 0; i < half; i++)
+				cswap(m_route[i], m_route[max - i]);
+		}
+	}
+
+	inline int16_t Next(void)
+	{
+		return Get(1);
+	}
+
+	inline int16_t First(void)
+	{
+		return Get(0);
+	}
+
+	inline int16_t Last(void)
+	{
+		return Get(Length() - 1);
+	}
+
+	inline int16_t Get(const int16_t index)
+	{
+		if (m_route)
+			return m_route[m_routeNumber + index];
+
+		return -1;
+	}
+
+	inline void Set(const int16_t index, const int16_t waypoint)
+	{
+		if (m_route)
+			m_route[m_routeNumber + index] = waypoint;
+	}
+
+	inline void Shift(void)
+	{
+		m_routeNumber++;
+		m_routeLength--;
+	}
+
+	inline int16_t Length(void) const
+	{
+		if (m_routeNumber >= m_routeLength)
+			return 0;
+
+		return m_routeLength - m_routeNumber;
+	}
+
+	inline bool HasNext(void) const
+	{
+		return Length() > m_routeNumber;
+	}
+
+	inline bool IsEmpty(void) const
+	{
+		return (!m_route || !Length() || !IsValidWaypoint(m_route[m_routeNumber + (Length() - 1)]));
+	}
+
+	inline bool CanFollowPath(void)
+	{
+		return m_follow && m_route && m_routeLength;
+	}
+
+	inline void Start(void)
+	{
+		m_follow = true;
+	}
+
+	inline void Stop(void)
+	{
+		m_follow = false;
+	}
+
+	/*inline float RemainingDistance(void)
+	{
+		if (m_route)
+		{
+			if (Waypoint::GetObjectPtr()->m_distMatrixReady)
+				return static_cast<float>(*(Waypoint::GetObjectPtr()->m_distMatrix + (m_route[m_routeNumber] * g_numWaypoints) + m_route[m_routeCapacity]));
+
+			return (Waypoint::GetObjectPtr()->m_paths[m_route[m_routeNumber]].origin - Waypoint::GetObjectPtr()->m_paths[m_route[m_routeCapacity]].origin).GetLength();
+		}
+
+		return 0.0f;
+	}*/
 };
 
 // links keywords and replies together
@@ -668,7 +735,8 @@ public:
 
 	float m_msecInterval{}; // used for leon hartwig's method for msec calculation
 	float m_frameInterval{}; // bot's frame interval
-	float m_aimInterval{};
+	float m_aimInterval{}; // bot's aim interval
+	float m_pathInterval{}; // bot's path interval
 
 	float m_zoomCheckTime{}; // time to check zoom again
 	float m_shieldCheckTime{}; // time to check shiled drawing again
@@ -847,7 +915,7 @@ public:
 	int m_ammo[MAX_AMMO_SLOTS]{}; // total ammo amounts
 
 	Path m_waypoint{}; // current waypoint
-	PathNode m_navNode{}; // pointer to current node from path
+	PathManager m_navNode{}; // pointer to current node from path
 	int8_t m_visibility{}; // visibility flags
 
 	// NEW VARS
@@ -926,7 +994,7 @@ public:
 	bool IsEnemyViewable(edict_t* player);
 	bool AllowPickupItem(void);
 
-	void CheckStuck(const float maxSpeed);
+	void CheckStuck(const float maxSpeed, const float finterval);
 	void ResetStuck(void);
 	void FindItem(void);
 	bool GetNextBestWaypoint(void);
@@ -1065,14 +1133,14 @@ public:
 class BotControl : public Singleton <BotControl>
 {
 private:
-	MiniArray <CreateItem> m_creationTab{}; // bot creation tab
+	MiniArrayS <CreateItem> m_creationTab{}; // bot creation tab
 	float m_maintainTime{}; // time to maintain bot creation quota
 	int8_t m_lastWinner{}; // the team who won previous round
 	bool m_economicsGood[2]{}; // is team able to buy anything
 protected:
 	int CreateBot(String name, int skill, int personality, const int team, const int member);
 public:
-	Bot* m_bots[32]{}; // all available bots
+	Bot* m_bots[33]{}; // all available bots
 
 	MiniArray <String> m_savedBotNames{}; // storing the bot names
 	MiniArray <String> m_avatars{}; // storing the steam ids
@@ -1184,6 +1252,8 @@ private:
 	MiniArray <int16_t> m_zmHmPoints{};
 	MiniArray <int16_t> m_hmMeshPoints{};
 public:
+	bool m_distMatrixReady{};
+	int16_t* m_distMatrix{};
 	MiniArray <Path> m_paths{};
 	Waypoint(void);
 	~Waypoint(void);
@@ -1224,6 +1294,10 @@ public:
 	bool Download(void);
 	bool Load(void);
 	void Save(void);
+
+	void InitPathMatrix(void);
+	void SavePathMatrix(void);
+	bool LoadPathMatrix(void);
 
 	bool Reachable(edict_t* entity, const int index);
 	bool IsNodeReachable(const Vector& src, const Vector& destination);
