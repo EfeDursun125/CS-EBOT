@@ -17,7 +17,7 @@ void Bot::DestroyBreakableUpdate(void)
 	if (ebot_kill_breakables.GetBool())
 		m_breakableEntity->v.health = -1.0f;
 
-	CheckStuck(pev->maxspeed);
+	CheckStuck(pev->maxspeed, m_frameInterval);
 
 	if (m_stuckWarn > 19)
 	{

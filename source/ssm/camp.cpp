@@ -82,7 +82,7 @@ void Bot::CampUpdate(void)
 				m_campIndex = FindGoal();
 				FindEscapePath(m_currentWaypointIndex, m_nearestEnemy->v.origin);
 				MoveOut(m_enemyOrigin);
-				CheckStuck(pev->maxspeed);
+				CheckStuck(pev->maxspeed, m_frameInterval);
 			}
 			else if (((pev->origin - g_waypoint->m_paths[m_navNode.First()].origin).GetLengthSquared() > (m_nearestEnemy->v.origin - g_waypoint->m_paths[m_navNode.First()].origin).GetLengthSquared() ||
 				(pev->origin - g_waypoint->m_paths[m_navNode.Next()].origin).GetLengthSquared() > (m_nearestEnemy->v.origin - g_waypoint->m_paths[m_navNode.Next()].origin).GetLengthSquared()) && ::IsInViewCone(pev->origin, m_nearestEnemy))
@@ -92,7 +92,7 @@ void Bot::CampUpdate(void)
 
 				FindEscapePath(m_currentWaypointIndex, m_nearestEnemy->v.origin);
 				MoveOut(m_enemyOrigin);
-				CheckStuck(pev->maxspeed);
+				CheckStuck(pev->maxspeed, m_frameInterval);
 			}
 			else
 				FollowPath();

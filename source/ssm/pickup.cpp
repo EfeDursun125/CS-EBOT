@@ -35,7 +35,7 @@ void Bot::PickupUpdate(void)
 	m_destOrigin = destination;
 
 	MoveTo(destination);
-	CheckStuck(pev->maxspeed);
+	CheckStuck(pev->maxspeed, m_frameInterval);
 
 	switch (m_pickupType)
 	{

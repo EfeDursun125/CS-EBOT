@@ -18,28 +18,39 @@ void Bot::DefaultUpdate(void)
 		{
 			if (m_hasEnemiesNear && IsEnemyReachable())
 			{
-				FindFriendsAndEnemiens();
-				m_currentWaypointIndex = -1;
-				m_navNode.Clear();
 				MoveTo(m_enemyOrigin);
 				LookAt(m_enemyOrigin, m_nearestEnemy->v.velocity);
 
-				if (crandomint(1, 3) == 1)
-					pev->buttons |= IN_ATTACK2;
-				else if (crandomint(1, 3) == 1)
-					pev->buttons |= IN_ATTACK;
+				if (m_isSlowThink)
+				{
+					m_currentWaypointIndex = -1;
+					m_navNode.Clear();
+				}
+				else
+				{
+					FindFriendsAndEnemiens();
+					if (crandomint(1, 3) == 1)
+						pev->buttons |= IN_ATTACK2;
+					else if (crandomint(1, 3) == 1)
+						pev->buttons |= IN_ATTACK;
 
-				CheckStuck(pev->maxspeed + cabsf(m_strafeSpeed));
+					CheckStuck(pev->maxspeed + cabsf(m_strafeSpeed), m_frameInterval);
+				}
+
 				return;
 			}
 			else if (!m_navNode.IsEmpty())
 			{
-				if (m_personality != Personality::Careful && m_isSlowThink && crandomint(1, 3) == 1 && (g_waypoint->m_paths[m_navNode.Last()].origin - m_nearestEnemy->v.origin).GetLengthSquared() > squaredf(128.0f))
-					m_navNode.Clear();
+				if (m_isSlowThink && m_personality != Personality::Careful && crandomint(1, 3) == 1 && (g_waypoint->m_paths[m_navNode.Last()].origin - m_nearestEnemy->v.origin).GetLengthSquared() > squaredf(128.0f))
+				{
+					int index = g_waypoint->FindNearest(m_nearestEnemy->v.origin, 256.0f, -1, m_nearestEnemy);
+					if (IsValidWaypoint(index))
+						FindPath(m_currentWaypointIndex, index);
+				}
 				else
 					FollowPath();
 			}
-			else
+			else if (m_isSlowThink)
 			{
 				int index = g_waypoint->FindNearest(m_nearestEnemy->v.origin, 256.0f, -1, m_nearestEnemy);
 				if (IsValidWaypoint(index))
@@ -51,9 +62,8 @@ void Bot::DefaultUpdate(void)
 						FindPath(m_currentWaypointIndex, index);
 					else
 					{
-						m_moveSpeed = pev->maxspeed;
-						pev->speed = pev->maxspeed;
-						m_strafeSpeed = 0.0f;
+						index = crandomint(1, g_numWaypoints - 2);
+						FindPath(m_currentWaypointIndex, index);
 					}
 				}
 			}
@@ -146,7 +156,7 @@ void Bot::DefaultUpdate(void)
 			{
 				FindEscapePath(m_currentWaypointIndex, m_nearestEnemy->v.origin);
 				MoveOut(m_enemyOrigin);
-				CheckStuck(pev->maxspeed);
+				CheckStuck(pev->maxspeed, m_frameInterval);
 			}
 			else if (((pev->origin - g_waypoint->m_paths[m_navNode.First()].origin).GetLengthSquared() > (m_nearestEnemy->v.origin - g_waypoint->m_paths[m_navNode.First()].origin).GetLengthSquared() || 
 				(pev->origin - g_waypoint->m_paths[m_navNode.Next()].origin).GetLengthSquared() > (m_nearestEnemy->v.origin - g_waypoint->m_paths[m_navNode.Next()].origin).GetLengthSquared()) && ::IsInViewCone(pev->origin, m_nearestEnemy))
@@ -154,7 +164,7 @@ void Bot::DefaultUpdate(void)
 				m_currentWaypointIndex = -1;
 				FindEscapePath(m_currentWaypointIndex, m_nearestEnemy->v.origin);
 				MoveOut(m_enemyOrigin);
-				CheckStuck(pev->maxspeed);
+				CheckStuck(pev->maxspeed, m_frameInterval);
 			}
 			else
 				FollowPath();
