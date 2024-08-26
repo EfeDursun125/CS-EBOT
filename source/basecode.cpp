@@ -2086,12 +2086,22 @@ void Bot::BaseUpdate(void)
 	}
 	else
 	{
-		// face position
 		float delta = tempTimer - m_aimInterval;
 		m_aimInterval += delta;
 
 		if (delta > 0.05f)
 			delta = 0.05f;
+
+		if (m_navNode.CanFollowPath())
+		{
+			m_strafeSpeed = 0.0f;
+			m_moveSpeed = GetMaxSpeed();
+			m_pathInterval = delta;
+			DoWaypointNav();
+			CheckStuck(m_moveSpeed + cabsf(m_strafeSpeed), m_pathInterval);
+			m_moveAngles = (m_destOrigin - pev->origin).ToAngles();
+			m_moveAngles.x = -m_moveAngles.x; // invert for engine
+		}
 
 		if (m_lookVelocity != nullvec)
 		{
@@ -2144,7 +2154,8 @@ void Bot::BaseUpdate(void)
 		pev->angles.y = pev->v_angle.y;
 
 		// run playermovement
-		PLAYER_RUN_MOVE(pev->pContainingEntity, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, static_cast<uint16_t>(pev->buttons), static_cast<uint16_t>(pev->impulse), static_cast<uint8_t>(cclampf(((tempTimer - m_msecInterval) * 1000.0f), 0.0f, 255.0f)));
+		if (pev->pContainingEntity)
+			PLAYER_RUN_MOVE(pev->pContainingEntity, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, static_cast<uint16_t>(pev->buttons), static_cast<uint16_t>(pev->impulse), static_cast<uint8_t>(cclampf(((tempTimer - m_msecInterval) * 1000.0f), 0.0f, 255.0f)));
 		m_msecInterval = tempTimer;
 	}
 }

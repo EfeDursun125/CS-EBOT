@@ -229,7 +229,7 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 		tempText.Replace("\v", "\n");
 
 		char* text = tempText;
-		tempText = String(text);
+		//tempText = String(text);
 
 		// make menu looks best
 		char buffer[64];

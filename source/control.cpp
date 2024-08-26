@@ -1019,7 +1019,7 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 		sprintf(c_topcolor, "%d", crandomint(0, 255));
 		sprintf(c_bottomcolor, "%d", crandomint(0, 255));
 		Array <String> models = String("barney,gina,gman,gordon,helmet,hgrunt,recon,robo,scientist,zombie").Split(",");
-		sprintf(c_model, "%s", models[crandomint(0, models.GetElementNumber() - 1)].GetBuffer());
+		sprintf(c_model, "%s", models[crandomint(0, models.GetElementNumber() - 1)].GetRawData());
 		SET_CLIENT_KEYVALUE(clientIndex, buffer, "topcolor", c_topcolor);
 		SET_CLIENT_KEYVALUE(clientIndex, buffer, "bottomcolor", c_bottomcolor);
 		SET_CLIENT_KEYVALUE(clientIndex, buffer, "model", c_model);
@@ -1100,9 +1100,6 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 	// just to be sure
 	m_actMessageIndex = 0;
 	m_pushMessageIndex = 0;
-
-	// init path
-	m_navNode.Init(static_cast<uint16_t>((g_numWaypoints / 2) + 32));
 
 	// assign team and class
 	m_wantedTeam = team;

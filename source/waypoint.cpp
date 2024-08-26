@@ -1351,6 +1351,117 @@ void Waypoint::InitTypes(void)
     }
 }
 
+void Waypoint::InitPathMatrix(void)
+{
+    int16_t i, j, k;
+
+    if (m_distMatrix)
+        delete[] m_distMatrix;
+
+    m_distMatrix = new(std::nothrow) int16_t[g_numWaypoints * g_numWaypoints];
+    if (!m_distMatrix)
+    {
+        m_distMatrixReady = false;
+        return;
+    }
+
+    if (LoadPathMatrix())
+    {
+        m_distMatrixReady = true;
+        return; // matrix loaded from the file
+    }
+
+    for (i = 0; i < g_numWaypoints; i++)
+    {
+        for (j = 0; j < g_numWaypoints; j++)
+            *(m_distMatrix + i * g_numWaypoints + j) = static_cast<int16_t>(32766);
+    }
+
+    for (i = 0; i < g_numWaypoints; i++)
+    {
+        for (j = 0; j < Const_MaxPathIndex; j++)
+        {
+            if (IsValidWaypoint(m_paths[i].index[j]))
+                *(m_distMatrix + (i * g_numWaypoints) + m_paths[i].index[j]) = static_cast<int16_t>((m_paths[i].origin - m_paths[m_paths[i].index[j]].origin).GetLength());
+        }
+    }
+
+    for (i = 0; i < g_numWaypoints; i++)
+        *(m_distMatrix + (i * g_numWaypoints) + i) = 0.0f;
+
+    for (k = 0; k < g_numWaypoints; k++)
+    {
+        for (i = 0; i < g_numWaypoints; i++)
+        {
+            for (j = 0; j < g_numWaypoints; j++)
+            {
+                if (*(m_distMatrix + (i * g_numWaypoints) + k) + *(m_distMatrix + (k * g_numWaypoints) + j) < (*(m_distMatrix + (i * g_numWaypoints) + j)))
+                    *(m_distMatrix + (i * g_numWaypoints) + j) = *(m_distMatrix + (i * g_numWaypoints) + k) + *(m_distMatrix + (k * g_numWaypoints) + j);
+            }
+        }
+    }
+
+    // save path matrix to file for faster access
+    SavePathMatrix();
+    m_distMatrixReady = true;
+}
+
+void Waypoint::SavePathMatrix(void)
+{
+    char matrixFilePath[1024];
+    const char* waypointDir = GetWaypointDir();
+    const char* mapName = GetMapName();
+
+    FormatBuffer(matrixFilePath, "%smatrix/%s.emt", waypointDir, mapName);
+    File fp(matrixFilePath, "wb");
+
+    // unable to open file
+    if (!fp.IsValid())
+        return;
+
+    // write number of waypoints
+    fp.Write(&g_numWaypoints, sizeof(int16_t));
+
+    // write distance matrix
+    fp.Write(m_distMatrix, sizeof(int16_t), g_numWaypoints * g_numWaypoints);
+
+    // and close the file
+    fp.Close();
+}
+
+bool Waypoint::LoadPathMatrix(void)
+{
+    char matrixFilePath[1024];
+    const char* waypointDir = GetWaypointDir();
+    const char* mapName = GetMapName();
+
+    FormatBuffer(matrixFilePath, "%smatrix/%s.emt", waypointDir, mapName);
+    File fp(matrixFilePath, "rb");
+
+    // file doesn't exists return false
+    if (!fp.IsValid())
+        return false;
+
+    int num = 0;
+
+    // read number of waypoints
+    fp.Read(&num, sizeof(int16_t));
+
+    if (num != g_numWaypoints)
+    {
+        fp.Close();
+        SavePathMatrix();
+        return false;
+    }
+
+    // read distance matrixes
+    fp.Read(m_distMatrix, sizeof(int16_t), g_numWaypoints * g_numWaypoints);
+
+    // and close the file
+    fp.Close();
+    return true;
+}
+
 float dsq(const float* start, const float* end)
 {
     const float dx = start[0] - start[0];
@@ -1754,6 +1865,7 @@ bool Waypoint::Load(void)
             safeloc(m_waypointDisplayTime, g_numWaypoints);
 
         InitTypes();
+        InitPathMatrix();
     }
 
     return true;
@@ -1818,6 +1930,7 @@ void Waypoint::Save(void)
         {
             ServerPrint("Waypoints Saved");
             CenterPrint("Waypoints are saved!");
+            SavePathMatrix();
         }
 
         fp.Close();

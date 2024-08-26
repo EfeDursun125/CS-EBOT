@@ -58,7 +58,7 @@ int g_storeAddbotVars[4]{};
 int g_radioSelect[32]{};
 int g_fakeArgc = 0;
 int g_gameVersion = Game::CStrike;
-int g_numWaypoints = 0;
+int16_t g_numWaypoints = 0;
 uint16_t g_numNavAreas = 0;
 int g_mapType = 0;
 
