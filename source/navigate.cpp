@@ -1278,7 +1278,7 @@ inline const float HF_Matrix(const int16_t& start, const int16_t& goal)
 
 inline const float HF_Auto(const int16_t& start, const int16_t& goal)
 {
-	if (g_waypoint->m_distMatrixReady)
+	if (g_waypoint->m_distMatrix)
 		return HF_Matrix(start, goal);
 
 	return HF_Distance(start, goal);
@@ -1576,7 +1576,7 @@ void Bot::FindPath(int& srcIndex, int& destIndex, edict_t* enemy)
 	if (!gcalc)
 		return;
 
-	if (g_waypoint->m_distMatrixReady)
+	if (g_waypoint->m_distMatrix)
 		hcalc = HF_Matrix;
 	else
 		hcalc = HF_Distance;
@@ -1810,7 +1810,7 @@ void Bot::FindShortestPath(int& srcIndex, int& destIndex)
 
 	const float (*hcalc) (const int16_t&, const int16_t&) = nullptr;
 
-	if (g_waypoint->m_distMatrixReady)
+	if (g_waypoint->m_distMatrix)
 		hcalc = HF_Matrix;
 	else
 		hcalc = HF_DistanceSquared;

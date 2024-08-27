@@ -1353,24 +1353,23 @@ void Waypoint::InitTypes(void)
 
 void Waypoint::InitPathMatrix(void)
 {
-    int16_t i, j, k;
-
     if (m_distMatrix)
+    {
         delete[] m_distMatrix;
+        m_distMatrix = nullptr;
+    }
+
+    if (g_numWaypoints > 2048)
+        return;
 
     m_distMatrix = new(std::nothrow) int16_t[g_numWaypoints * g_numWaypoints];
     if (!m_distMatrix)
-    {
-        m_distMatrixReady = false;
         return;
-    }
 
     if (LoadPathMatrix())
-    {
-        m_distMatrixReady = true;
         return; // matrix loaded from the file
-    }
 
+    int16_t i, j, k;
     for (i = 0; i < g_numWaypoints; i++)
     {
         for (j = 0; j < g_numWaypoints; j++)
@@ -1403,7 +1402,6 @@ void Waypoint::InitPathMatrix(void)
 
     // save path matrix to file for faster access
     SavePathMatrix();
-    m_distMatrixReady = true;
 }
 
 void Waypoint::SavePathMatrix(void)

@@ -1039,8 +1039,9 @@ bool Bot::IsRestricted(const int weaponIndex)
 	if (m_buyingFinished)
 		return false;
 
+	int i;
 	Array <String> bannedWeapons = String(ebot_restrictweapons.GetString()).Split(';');
-	ITERATE_ARRAY(bannedWeapons, i)
+	for (i = 0; i < bannedWeapons.GetElementNumber(); i++)
 	{
 		// check is this weapon is banned
 		if (cstrncmp(bannedWeapons[i], STRING(GetWeaponReturn(true, nullptr, weaponIndex)), bannedWeapons[i].GetLength()) == 0)
@@ -2023,7 +2024,8 @@ void Bot::BaseUpdate(void)
 								bool sayBufferExists = false;
 
 								// search for last messages, sayed
-								ITERATE_ARRAY(m_sayTextBuffer.lastUsedSentences, i)
+								int i;
+								for (i = 0; i < m_sayTextBuffer.lastUsedSentences.GetElementNumber(); i++)
 								{
 									if (cstrncmp(m_sayTextBuffer.lastUsedSentences[i], pickedPhrase, m_sayTextBuffer.lastUsedSentences[i].GetLength()) == 0)
 										sayBufferExists = true;

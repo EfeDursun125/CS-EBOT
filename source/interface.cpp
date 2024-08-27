@@ -1011,7 +1011,8 @@ void InitConfig(void)
 						replyKey.keywords.Destroy();
 						replyKey.keywords = String(&line[4]).Split(',');
 
-						ITERATE_ARRAY(replyKey.keywords, i)
+						int i;
+						for (i = 0; i < replyKey.keywords.GetElementNumber(); i++)
 							replyKey.keywords[i].Trim().TrimQuotes();
 					}
 					else if (!replyKey.keywords.IsEmpty())
@@ -3332,7 +3333,7 @@ DLL_ENTRYPOINT
 
 	// dynamic library detaching ??
 	if (DLL_DETACHING)
-	   FreeLibraryMemory(); // free everything that's freeable
+		FreeLibraryMemory(); // free everything that's freeable
 
 	DLL_RETENTRY; // the return data type is OS specific too
 }
