@@ -413,13 +413,19 @@ public:
 	~PathManager(void)
 	{
 		if (m_route)
+		{
 			delete[] m_route;
+			m_route = nullptr;
+		}
 	}
 
 	inline void Clear(void)
 	{
 		if (m_route)
+		{
 			delete[] m_route;
+			m_route = nullptr;
+		}
 
 		m_routeLength = 0;
 		m_routeCapacity = 0;
@@ -548,7 +554,7 @@ public:
 	{
 		if (m_route)
 		{
-			if (Waypoint::GetObjectPtr()->m_distMatrixReady)
+			if (Waypoint::GetObjectPtr()->m_distMatrix)
 				return static_cast<float>(*(Waypoint::GetObjectPtr()->m_distMatrix + (m_route[m_routeNumber] * g_numWaypoints) + m_route[m_routeCapacity]));
 
 			return (Waypoint::GetObjectPtr()->m_paths[m_route[m_routeNumber]].origin - Waypoint::GetObjectPtr()->m_paths[m_route[m_routeCapacity]].origin).GetLength();
@@ -1077,15 +1083,7 @@ public:
 
 	int GetWeaponID(const char* weapon);
 	inline int GetAmmoInClip(void) { return m_ammoInClip[m_currentWeapon]; }
-
-	inline edict_t* GetEntity(void)
-	{
-		if (!pev)
-			return nullptr;
-
-		return pev->pContainingEntity;
-	}
-
+	inline edict_t* GetEntity(void) { return ENT(pev); }
 	inline EOFFSET GetOffset(void) { return OFFSET(pev); };
 	inline int GetIndex(void) { return ENTINDEX(GetEntity()); };
 
@@ -1133,7 +1131,7 @@ public:
 class BotControl : public Singleton <BotControl>
 {
 private:
-	MiniArrayS <CreateItem> m_creationTab{}; // bot creation tab
+	MiniArray <CreateItem> m_creationTab{}; // bot creation tab
 	float m_maintainTime{}; // time to maintain bot creation quota
 	int8_t m_lastWinner{}; // the team who won previous round
 	bool m_economicsGood[2]{}; // is team able to buy anything
@@ -1252,9 +1250,9 @@ private:
 	MiniArray <int16_t> m_zmHmPoints{};
 	MiniArray <int16_t> m_hmMeshPoints{};
 public:
-	bool m_distMatrixReady{};
 	int16_t* m_distMatrix{};
 	MiniArray <Path> m_paths{};
+
 	Waypoint(void);
 	~Waypoint(void);
 

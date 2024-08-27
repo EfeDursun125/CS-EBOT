@@ -628,11 +628,6 @@ namespace Math
 // Class: Array
 //  Universal template array container.
 //
-#include <cstddef>
-#include <new>
-
-// Class: Array
-//  Universal template array container.
 /*template <typename T> class Array
 {
 private:
@@ -683,7 +678,10 @@ public:
     ~Array(void)
     {
         if (data)
+        {
             delete[] data;
+            data = nullptr;
+        }
     }
 
     void Destroy(void)
@@ -1528,17 +1526,6 @@ public:
     }
 };
 
-template <typename T1, typename T2> struct Pair
-{
-public:
-    T1 first{};
-    T2 second{};
-public:
-    Pair <T1, T2>(void) : first(T1()), second(T2()) {}
-    Pair(const T1& f, const T2& s) : first(f), second(s) {}
-    template <typename A1, typename A2> Pair(const Pair <A1, A2>& right) : first(right.first), second(right.second) {}
-};
-
 //
 // Class: String
 //  Reference counted string class.
@@ -1546,7 +1533,7 @@ public:
 class String
 {
 protected:
-    char* m_array{};
+    char* m_buffer{};
     int m_used{};
     int m_allocated{};
 private:
@@ -1557,8 +1544,8 @@ private:
 
     inline void MoveItems(const int destIndex, const int srcIndex)
     {
-        if (m_array)
-            cmemmove(m_array + destIndex, m_array + srcIndex, sizeof(char) * (m_used - srcIndex + 1));
+        if (m_buffer)
+            cmemmove(m_buffer + destIndex, m_buffer + srcIndex, sizeof(char) * (m_used - srcIndex + 1));
     }
 
     inline void InsertSpace(int& index, const int size)
@@ -1578,17 +1565,17 @@ private:
         if (!newBuffer)
             return;
 
-        if (m_allocated && m_array)
+        if (m_allocated && m_buffer)
         {
             int i;
             for (i = 0; i < m_used; i++)
-                newBuffer[i] = m_array[i];
+                newBuffer[i] = m_buffer[i];
 
-            delete[] m_array;
+            delete[] m_buffer;
         }
 
-        m_array = newBuffer;
-        m_array[m_used] = 0;
+        m_buffer = newBuffer;
+        m_buffer[m_used] = 0;
         m_allocated = realCapacity;
     }
 
@@ -1617,56 +1604,56 @@ private:
     }
 
 public:
-    inline String(void) : m_array(nullptr), m_used(0), m_allocated(0)
+    inline String(void) : m_buffer(nullptr), m_used(0), m_allocated(0)
     {
         SetCapacity(3);
     }
 
-    inline String(char chr) : m_array(nullptr), m_used(0), m_allocated(0)
+    inline String(char chr) : m_buffer(nullptr), m_used(0), m_allocated(0)
     {
         SetCapacity(1);
-        if (m_array)
+        if (m_buffer)
         {
-            m_array[0] = chr;
-            m_array[1] = 0;
+            m_buffer[0] = chr;
+            m_buffer[1] = 0;
         }
         m_used = 1;
     }
 
-    inline String(char* str) : m_array(nullptr), m_used(0), m_allocated(0)
+    inline String(char* str) : m_buffer(nullptr), m_used(0), m_allocated(0)
     {
         if (str)
         {
             const int length = cstrlen(str);
             SetCapacity(length);
-            if (m_array)
+            if (m_buffer)
             {
-                cstrcpy(m_array, str);
+                cstrcpy(m_buffer, str);
                 m_used = length;
             }
         }
     }
 
-    inline String(const char* str) : m_array(nullptr), m_used(0), m_allocated(0)
+    inline String(const char* str) : m_buffer(nullptr), m_used(0), m_allocated(0)
     {
         if (str)
         {
             const int length = cstrlen(str);
             SetCapacity(length);
-            if (m_array)
+            if (m_buffer)
             {
-                cstrcpy(m_array, str);
+                cstrcpy(m_buffer, str);
                 m_used = length;
             }
         }
     }
 
-    inline String(const String& other) : m_array(nullptr), m_used(0), m_allocated(0)
+    inline String(const String& other) : m_buffer(nullptr), m_used(0), m_allocated(0)
     {
         SetCapacity(other.m_used);
-        if (m_array && other.m_array)
+        if (m_buffer && other.m_buffer)
         {
-            cstrcpy(m_array, other.m_array);
+            cstrcpy(m_buffer, other.m_buffer);
             m_used = other.m_used;
         }
     }
@@ -1678,95 +1665,95 @@ public:
 
     inline operator const char* (void) const
     {
-        return m_array;
+        return m_buffer;
     }
 
     inline operator char* (void)
     {
-        return m_array;
+        return m_buffer;
     }
 
     inline operator const double(void) const
     {
-        if (m_array)
-            return static_cast<double>(catof(m_array));
+        if (m_buffer)
+            return static_cast<double>(catof(m_buffer));
         
         return 0.0;
     }
 
     inline operator double(void)
     {
-        if (m_array)
-            return static_cast<double>(catof(m_array));
+        if (m_buffer)
+            return static_cast<double>(catof(m_buffer));
 
         return 0.0;
     }
 
     inline operator const float(void) const
     {
-        if (m_array)
-            return catof(m_array);
+        if (m_buffer)
+            return catof(m_buffer);
 
         return 0.0f;
     }
 
     inline operator float(void)
     {
-        if (m_array)
-            return catof(m_array);
+        if (m_buffer)
+            return catof(m_buffer);
 
         return 0.0f;
     }
 
     inline operator const int(void) const
     {
-        if (m_array)
-            return catoi(m_array);
+        if (m_buffer)
+            return catoi(m_buffer);
 
         return 0;
     }
 
     inline operator int(void)
     {
-        if (m_array)
-            return catoi(m_array);
+        if (m_buffer)
+            return catoi(m_buffer);
 
         return 0;
     }
 
     inline operator const long(void) const
     {
-        if (m_array)
-            return static_cast<long>(catoi(m_array));
+        if (m_buffer)
+            return static_cast<long>(catoi(m_buffer));
 
         return 0;
     }
 
     inline operator long(void)
     {
-        if (m_array)
-            return static_cast<long>(catoi(m_array));
+        if (m_buffer)
+            return static_cast<long>(catoi(m_buffer));
 
         return 0;
     }
 
     inline void Destroy(void)
     {
-        if (m_array)
+        if (m_buffer)
         {
-            delete[] m_array;
-            m_array = nullptr;
+            delete[] m_buffer;
+            m_buffer = nullptr;
         }
     }
 
     inline char* GetRawData(void)
     {
-        return m_array;
+        return m_buffer;
     }
 
     inline const char* GetRawData(void) const
     {
-        return m_array;
+        return m_buffer;
     }
 
     inline const char* GetBuffer(const int minBufLength)
@@ -1774,20 +1761,20 @@ public:
         if (minBufLength >= m_allocated)
             SetCapacity(minBufLength);
 
-        return m_array;
+        return m_buffer;
     }
 
     inline void ReleaseBuffer(void)
     {
-        if (m_array)
-            ReleaseBuffer(cstrlen(m_array));
+        if (m_buffer)
+            ReleaseBuffer(cstrlen(m_buffer));
     }
 
     inline void ReleaseBuffer(const int newLength)
     {
-        if (m_array)
+        if (m_buffer)
         {
-            m_array[newLength] = 0;
+            m_buffer[newLength] = 0;
             m_used = newLength;
         }
     }
@@ -1797,10 +1784,10 @@ public:
         SetEmpty();
         SetCapacity(1);
 
-        if (m_array)
+        if (m_buffer)
         {
-            m_array[0] = chr;
-            m_array[1] = 0;
+            m_buffer[0] = chr;
+            m_buffer[1] = 0;
         }
 
         m_used = 1;
@@ -1816,9 +1803,9 @@ public:
         const int length = cstrlen(str);
         SetCapacity(length);
 
-        if (m_array)
+        if (m_buffer)
         {
-            cstrcpy(m_array, str);
+            cstrcpy(m_buffer, str);
             m_used = length;
         }
         
@@ -1833,9 +1820,9 @@ public:
         SetEmpty();
         SetCapacity(other.m_used);
 
-        if (m_array && other.m_array)
+        if (m_buffer && other.m_buffer)
         {
-            cstrcpy(m_array, other.m_array);
+            cstrcpy(m_buffer, other.m_buffer);
             m_used = other.m_used;
         }
 
@@ -1846,10 +1833,10 @@ public:
     {
         GrowLength(1);
 
-        if (m_array)
+        if (m_buffer)
         {
-            m_array[m_used] = chr;
-            m_array[++m_used] = 0;
+            m_buffer[m_used] = chr;
+            m_buffer[++m_used] = 0;
         }
 
         return *this;
@@ -1863,9 +1850,9 @@ public:
         const int length = cstrlen(str);
         GrowLength(length);
 
-        if (m_array)
+        if (m_buffer)
         {
-            cstrcpy(m_array + m_used, str);
+            cstrcpy(m_buffer + m_used, str);
             m_used += length;
         }
         
@@ -1876,9 +1863,9 @@ public:
     {
         GrowLength(other.m_used);
 
-        if (m_array && other.m_array)
+        if (m_buffer && other.m_buffer)
         {
-            cstrcpy(m_array + m_used, other.m_array);
+            cstrcpy(m_buffer + m_used, other.m_buffer);
             m_used += other.m_used;
         }
         
@@ -1958,8 +1945,8 @@ public:
     inline void SetEmpty(void)
     {
         m_used = 0;
-        if (m_array)
-            m_array[0] = 0;
+        if (m_buffer)
+            m_buffer[0] = 0;
     }
 
     inline int GetLength(void) const
@@ -1988,13 +1975,13 @@ public:
         String result;
         result.SetCapacity(count);
 
-        if (m_array && result.m_array)
+        if (m_buffer && result.m_buffer)
         {
             int i;
             for (i = 0; i < count; i++)
-                result.m_array[i] = m_array[startIndex + i];
+                result.m_buffer[i] = m_buffer[startIndex + i];
 
-            result.m_array[count] = 0;
+            result.m_buffer[count] = 0;
             result.m_used = count;
         }
 
@@ -2016,10 +2003,10 @@ public:
 
     inline String& MakeUpper(void)
     {
-        if (!m_array)
+        if (!m_buffer)
             return *this;
 
-        char* ptr = m_array;
+        char* ptr = m_buffer;
         while (*ptr)
         {
             *ptr = static_cast<char>(ctoupper(*ptr));
@@ -2031,10 +2018,10 @@ public:
 
     inline String& MakeLower(void)
     {
-        if (!m_array)
+        if (!m_buffer)
             return *this;
 
-        char* ptr = m_array;
+        char* ptr = m_buffer;
         while (*ptr)
         {
             *ptr = static_cast<char>(ctolower(*ptr));
@@ -2046,40 +2033,40 @@ public:
 
     inline int Compare(const String& str) const
     {
-        if (m_array && str.m_array)
-            return cstrcmp(m_array, str.m_array);
+        if (m_buffer && str.m_buffer)
+            return cstrcmp(m_buffer, str.m_buffer);
 
         return 0;
     }
 
     inline int Compare(const char* str) const
     {
-        if (m_array && str)
-            return cstrcmp(m_array, str);
+        if (m_buffer && str)
+            return cstrcmp(m_buffer, str);
 
         return 0;
     }
 
     inline int CompareNoCase (const String &str) const
     {
-        if (m_array && str.m_array)
-            return cstricmp(m_array, str.m_array);
+        if (m_buffer && str.m_buffer)
+            return cstricmp(m_buffer, str.m_buffer);
 
         return 0;
     }
 
     inline int CompareNoCase(const char *str) const
     {
-        if (m_array && str)
-            return cstricmp(m_array, str);
+        if (m_buffer && str)
+            return cstricmp(m_buffer, str);
 
         return 0;
     }
 
     inline bool Has(const String& other) const
     {
-        if (m_array && other.GetRawData())
-            return cstrstr(m_array, const_cast<char*>(other.GetRawData()));
+        if (m_buffer && other.GetRawData())
+            return cstrstr(m_buffer, const_cast<char*>(other.GetRawData()));
 
         return false;
     }
@@ -2091,14 +2078,14 @@ public:
 
     inline int Find(const char chr, const int startIndex) const
     {
-        if (!m_array)
+        if (!m_buffer)
             return -1;
 
-        char* ptr = m_array + startIndex;
+        char* ptr = m_buffer + startIndex;
         for (; ;)
         {
             if (*ptr == chr)
-                return static_cast<int>(ptr - m_array);
+                return static_cast<int>(ptr - m_buffer);
 
             if (!*ptr)
                 return -1;
@@ -2117,14 +2104,14 @@ public:
         if (str.IsEmpty())
             return startIndex;
 
-        if (m_array && str.m_array)
+        if (m_buffer && str.m_buffer)
         {
             for (; startIndex < m_used; startIndex++)
             {
                 int j;
                 for (j = 0; j < str.m_used && startIndex + j < m_used; j++)
                 {
-                    if (m_array[startIndex + j] != str.m_array[j])
+                    if (m_buffer[startIndex + j] != str.m_buffer[j])
                         break;
                 }
 
@@ -2138,16 +2125,16 @@ public:
 
     inline int ReverseFind(char chr) const
     {
-        if (!m_array)
+        if (!m_buffer)
             return -1;
 
-        char* ptr = m_array + m_used - 1;
+        char* ptr = m_buffer + m_used - 1;
         for (; ;)
         {
             if (*ptr == chr)
-                return static_cast<int>(ptr - m_array);
+                return static_cast<int>(ptr - m_buffer);
 
-            if (ptr == m_array)
+            if (ptr == m_buffer)
                 return -1;
 
             ptr--;
@@ -2158,12 +2145,12 @@ public:
 
     inline int FindOneOf(const String& str) const
     {
-        if (m_array)
+        if (m_buffer)
         {
             int i;
             for (i = 0; i < m_used; i++)
             {
-                if (str.Find(m_array[i]) >= 0)
+                if (str.Find(m_buffer[i]) >= 0)
                     return i;
             }
         }
@@ -2173,23 +2160,23 @@ public:
 
     inline String& TrimLeft(char chr)
     {
-        if (!m_array)
+        if (!m_buffer)
             return *this;
 
-        char* ptr = m_array;
+        char* ptr = m_buffer;
         while (chr == *ptr)
             ptr++;
 
-        Delete(0, ptr - m_array);
+        Delete(0, ptr - m_buffer);
         return *this;
     }
 
     inline String& TrimRight(char chr)
     {
-        if (!m_array)
+        if (!m_buffer)
             return *this;
 
-        char* ptr = m_array;
+        char* ptr = m_buffer;
         char* last = nullptr;
 
         while (*ptr)
@@ -2207,7 +2194,7 @@ public:
 
         if (last)
         {
-            const int diff = static_cast<int>(last - m_array);
+            const int diff = static_cast<int>(last - m_buffer);
             Delete(diff, m_used - diff);
         }
 
@@ -2217,11 +2204,11 @@ public:
 
     inline String& TrimLeft(void)
     {
-        if (!m_array)
+        if (!m_buffer)
             return *this;
 
         int index = 0;
-        for (; index < m_used && IsTrimmingCharacter(m_array[index]); index++)
+        for (; index < m_used && IsTrimmingCharacter(m_buffer[index]); index++)
             Delete(0, index);
 
         return *this;
@@ -2229,11 +2216,11 @@ public:
 
     inline String& TrimRight(void)
     {
-        if (!m_array)
+        if (!m_buffer)
             return *this;
 
         int srcIndex = m_used - 1, destIndex = 0;
-        for (; srcIndex < m_used && IsTrimmingCharacter(m_array[srcIndex]); srcIndex--, destIndex++)
+        for (; srcIndex < m_used && IsTrimmingCharacter(m_buffer[srcIndex]); srcIndex--, destIndex++)
             Delete(srcIndex + 1, destIndex);
 
         return *this;
@@ -2253,9 +2240,9 @@ public:
     {
         InsertSpace(index, 1);
 
-        if (m_array)
+        if (m_buffer)
         {
-            m_array[index] = chr;
+            m_buffer[index] = chr;
             m_used++;
         }
 
@@ -2272,11 +2259,11 @@ public:
         int numInsertChars = str.GetLength();
         InsertSpace(index, numInsertChars);
 
-        if (m_array)
+        if (m_buffer)
         {
             int i;
             for (i = 0; i < numInsertChars; i++)
-                m_array[index + i] = str[i];
+                m_buffer[index + i] = str[i];
 
             m_used += numInsertChars;
         }
@@ -2286,7 +2273,7 @@ public:
 
     inline int Replace(const char oldChar, const char newChar)
     {
-        if (!m_array || oldChar == newChar)
+        if (!m_buffer || oldChar == newChar)
             return 0;
 
         int number = 0;
@@ -2297,7 +2284,7 @@ public:
             if (pos < 0)
                 break;
 
-            m_array[pos] = newChar;
+            m_buffer[pos] = newChar;
             pos++;
             number++;
         }
@@ -2353,12 +2340,12 @@ public:
         int tokenLength, index = 0;
         do
         {
-            index += cstrspn(&m_array[index], separator);
-            tokenLength = cstrcspn(&m_array[index], separator);
+            index += cstrspn(&m_buffer[index], separator);
+            tokenLength = cstrcspn(&m_buffer[index], separator);
             if (tokenLength > 0)
                 holder.Push(Mid(index, tokenLength));
             index += tokenLength;
-        } while (tokenLength);
+        } while (tokenLength > 0);
         return holder;
     }
 
@@ -2853,7 +2840,7 @@ public:
     uint8_t red{}, green{}, blue{}, alpha{};
 public:
     inline Color(const uint8_t color = 0) : red(color), green(color), blue(color), alpha(color) {}
-    inline Color(uint8_t inputRed, uint8_t inputGreen, uint8_t inputBlue, uint8_t inputAlpha = 0) : red(inputRed), green(inputGreen), blue(inputBlue), alpha(inputAlpha) {}
+    inline Color(uint8_t inputRed, uint8_t inputGreen, uint8_t inputBlue, uint8_t inputAlpha = static_cast<uint8_t>(0)) : red(inputRed), green(inputGreen), blue(inputBlue), alpha(inputAlpha) {}
     inline Color(const Color& right) : red(right.red), green(right.green), blue(right.blue), alpha(right.alpha) {}
 public:
     inline bool operator == (const Color& right) const { return red == right.red && green == right.green && blue == right.blue && alpha == right.alpha; }
@@ -2862,15 +2849,5 @@ public:
     inline const uint8_t& operator [] (uint8_t colourIndex) const { return (&red)[colourIndex]; }
     inline const Color operator / (uint8_t scaler) const { return Color(red / scaler, green / scaler, blue / scaler, alpha / scaler); }
 };
-
-template <typename T1, typename T2> inline Pair <T1, T2> MakePair(T1 first, T2 second)
-{
-    return Pair <T1, T2>(first, second);
-}
-
-// @DEPRECATEME@
-#define ITERATE_ARRAY(arrayName, iteratorName) \
-    int iteratorName; \
-    for (iteratorName = 0; iteratorName < arrayName.GetElementNumber (); iteratorName++)
 
 #endif // RUNTIME_INCLUDED

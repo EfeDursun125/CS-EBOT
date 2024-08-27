@@ -2032,10 +2032,10 @@ typedef int EOFFSET;
 //
 inline edict_t* ENT(const entvars_t* pev)
 {
-    if (!pev)
-        return nullptr;
+    if (pev)
+        return pev->pContainingEntity;
 
-    return pev->pContainingEntity;
+    return nullptr;
 }
 
 inline edict_t* ENT(edict_t* pent)
@@ -2045,7 +2045,10 @@ inline edict_t* ENT(edict_t* pent)
 
 inline edict_t* ENT(const EOFFSET eoffset)
 {
-    return (*g_engfuncs.pfnPEntityOfEntOffset) (eoffset);
+    if (eoffset)
+        return (*g_engfuncs.pfnPEntityOfEntOffset) (eoffset);
+
+    return 0;
 }
 
 inline EOFFSET OFFSET(const EOFFSET eoffset)
@@ -2055,7 +2058,10 @@ inline EOFFSET OFFSET(const EOFFSET eoffset)
 
 inline EOFFSET OFFSET(const edict_t* pent)
 {
-    return (*g_engfuncs.pfnEntOffsetOfPEntity) (pent);
+    if (pent)
+        return (*g_engfuncs.pfnEntOffsetOfPEntity) (pent);
+
+    return 0;
 }
 
 inline EOFFSET OFFSET(entvars_t* pev)
@@ -2070,10 +2076,10 @@ inline entvars_t* VARS(entvars_t* pev)
 
 inline entvars_t* VARS(edict_t* pent)
 {
-    if (!pent)
-        return nullptr;
+    if (pent)
+        return &pent->v;
 
-    return &pent->v;
+    return nullptr;
 }
 
 inline entvars_t* VARS(const EOFFSET eoffset)
