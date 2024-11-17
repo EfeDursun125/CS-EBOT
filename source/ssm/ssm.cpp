@@ -18,7 +18,7 @@ bool Bot::SetProcess(const Process& process, const char* debugnote, const bool r
 		if (ebot_debug.GetBool())
 			ServerPrint("%s has got a new process from %s to %s | process started -> %s", GetEntityName(GetEntity()), GetProcessName(m_currentProcess), GetProcessName(process), debugnote);
 
-		if (rememberProcess && m_currentProcess > Process::Default)
+		if (rememberProcess && m_currentProcess > Process::Default && IsReadyForTheProcess(m_currentProcess))
 		{
 			m_rememberedProcess = m_currentProcess;
 			m_rememberedProcessTime = m_currentProcessTime;
