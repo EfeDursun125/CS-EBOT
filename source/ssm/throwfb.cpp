@@ -1,25 +1,16 @@
-#include <core.h>
+#include "../../include/core.h"
 
 void Bot::ThrowFBStart(void)
 {
 	SelectWeaponByName("weapon_flashbang");
-	pev->speed = 0.0f;
-	pev->yaw_speed = 0.0f;
-	pev->pitch_speed = 0.0f;
-	pev->velocity = nullvec;
-	m_moveSpeed = 0.0f;
-	m_strafeSpeed = 0.0f;
 }
 
 void Bot::ThrowFBUpdate(void)
 {
-	m_moveSpeed = 0.0f;
-	m_strafeSpeed = 0.0f;
-
 	edict_t* ent = nullptr;
 	while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "grenade")))
 	{
-		if (ent->v.owner == pev->pContainingEntity && cstrcmp(STRING(ent->v.model) + 9, "flashbang.mdl") == 0)
+		if (ent->v.owner == m_myself && strcmp(STRING(ent->v.model) + 9, "flashbang.mdl") == 0)
 		{
 			cvar_t* maxVel = g_engfuncs.pfnCVarGetPointer("sv_maxvelocity");
 			if (maxVel)
@@ -43,13 +34,13 @@ void Bot::ThrowFBUpdate(void)
 
 	if (m_currentWeapon != Weapon::FbGrenade)
 	{
-		if (pev->weapons & (1 << Weapon::FbGrenade))
+		if (!(m_oldButtons & IN_ATTACK) && pev->weapons & (1 << Weapon::FbGrenade))
 			SelectWeaponByName("weapon_flashbang");
 		else // no grenade???
 			FinishCurrentProcess("i have throwed FB grenade");
 	}
-	else if (m_isSlowThink && !(pev->buttons & IN_ATTACK) && !(pev->oldbuttons & IN_ATTACK))
-		pev->buttons |= IN_ATTACK;
+	else if (m_isSlowThink && !(m_buttons & IN_ATTACK) && !(m_oldButtons & IN_ATTACK))
+		m_buttons |= IN_ATTACK;
 }
 
 void Bot::ThrowFBEnd(void)
@@ -59,5 +50,8 @@ void Bot::ThrowFBEnd(void)
 
 bool Bot::ThrowFBReq(void)
 {
+	if (!IsOnFloor())
+		return false;
+
 	return true;
 }

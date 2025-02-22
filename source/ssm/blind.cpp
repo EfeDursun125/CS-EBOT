@@ -1,4 +1,4 @@
-#include <core.h>
+#include "../../include/core.h"
 
 void Bot::BlindStart(void)
 {
@@ -18,17 +18,19 @@ void Bot::BlindUpdate(void)
 	case Personality::Rusher:
 	{
 		const Vector directionOld = (m_lookAt + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval);
-		const Vector directionNormal = directionOld.Normalize2D();
-		SetStrafeSpeed(directionNormal, pev->maxspeed);
+		SetStrafeSpeed(directionOld.Normalize2D(), pev->maxspeed);
 		m_moveAngles = directionOld.ToAngles();
 		m_moveAngles.ClampAngles();
 		m_moveAngles.x = -m_moveAngles.x;
 		m_moveSpeed = 0.0f;
+		m_buttons |= IN_ATTACK;
 		break;
 	}
 	default:
-		pev->buttons |= IN_ATTACK;
+		m_buttons |= IN_ATTACK;
 	}
+
+	IgnoreCollisionShortly();
 }
 
 void Bot::BlindEnd(void)

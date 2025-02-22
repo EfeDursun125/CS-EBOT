@@ -1,4 +1,5 @@
-#include <core.h>
+#include "../../include/core.h"
+extern ConVar ebot_debug;
 
 Process Bot::GetCurrentState(void)
 {
@@ -14,9 +15,8 @@ bool Bot::SetProcess(const Process& process, const char* debugnote, const bool r
 {
 	if (m_currentProcess != process && IsReadyForTheProcess(process))
 	{
-		extern ConVar ebot_debug;
 		if (ebot_debug.GetBool())
-			ServerPrint("%s has got a new process from %s to %s | process started -> %s", GetEntityName(GetEntity()), GetProcessName(m_currentProcess), GetProcessName(process), debugnote);
+			ServerPrint("%s has got a new process from %s to %s | process started -> %s", GetEntityName(m_myself), GetProcessName(m_currentProcess), GetProcessName(process), debugnote);
 
 		if (rememberProcess && m_currentProcess > Process::Default && IsReadyForTheProcess(m_currentProcess))
 		{
@@ -43,26 +43,6 @@ void Bot::StartProcess(const Process& process)
 		DefaultStart();
 		break;
 	}
-	case Process::Attack:
-	{
-		AttackStart();
-		break;
-	}
-	case Process::Defuse:
-	{
-		DefuseStart();
-		break;
-	}
-	case Process::Plant:
-	{
-		PlantStart();
-		break;
-	}
-	case Process::Escape:
-	{
-		EscapeStart();
-		break;
-	}
 	case Process::Pause:
 	{
 		PauseStart();
@@ -71,16 +51,6 @@ void Bot::StartProcess(const Process& process)
 	case Process::DestroyBreakable:
 	{
 		DestroyBreakableStart();
-		break;
-	}
-	case Process::Pickup:
-	{
-		PickupStart();
-		break;
-	}
-	case Process::Camp:
-	{
-		CampStart();
 		break;
 	}
 	case Process::ThrowHE:
@@ -103,9 +73,9 @@ void Bot::StartProcess(const Process& process)
 		BlindStart();
 		break;
 	}
-	case Process::Jump:
+	case Process::UseButton:
 	{
-		JumpStart();
+		UseButtonStart();
 		break;
 	}
 	}
@@ -120,26 +90,6 @@ void Bot::EndProcess(const Process& process)
 		DefaultEnd();
 		break;
 	}
-	case Process::Attack:
-	{
-		AttackEnd();
-		break;
-	}
-	case Process::Defuse:
-	{
-		DefuseEnd();
-		break;
-	}
-	case Process::Plant:
-	{
-		PlantEnd();
-		break;
-	}
-	case Process::Escape:
-	{
-		EscapeEnd();
-		break;
-	}
 	case Process::Pause:
 	{
 		PauseEnd();
@@ -148,16 +98,6 @@ void Bot::EndProcess(const Process& process)
 	case Process::DestroyBreakable:
 	{
 		DestroyBreakableEnd();
-		break;
-	}
-	case Process::Pickup:
-	{
-		PickupEnd();
-		break;
-	}
-	case Process::Camp:
-	{
-		CampEnd();
 		break;
 	}
 	case Process::ThrowHE:
@@ -180,9 +120,9 @@ void Bot::EndProcess(const Process& process)
 		BlindEnd();
 		break;
 	}
-	case Process::Jump:
+	case Process::UseButton:
 	{
-		JumpEnd();
+		UseButtonEnd();
 		break;
 	}
 	}
@@ -190,34 +130,14 @@ void Bot::EndProcess(const Process& process)
 
 void Bot::UpdateProcess(void)
 {
-	static float time;
-	time = engine->GetTime();
+	static float time2;
+	time2 = engine->GetTime();
 
 	switch (m_currentProcess)
 	{
 	case Process::Default:
 	{
 		DefaultUpdate();
-		break;
-	}
-	case Process::Attack:
-	{
-		AttackUpdate();
-		break;
-	}
-	case Process::Defuse:
-	{
-		DefuseUpdate();
-		break;
-	}
-	case Process::Plant:
-	{
-		PlantUpdate();
-		break;
-	}
-	case Process::Escape:
-	{
-		EscapeUpdate();
 		break;
 	}
 	case Process::Pause:
@@ -228,16 +148,6 @@ void Bot::UpdateProcess(void)
 	case Process::DestroyBreakable:
 	{
 		DestroyBreakableUpdate();
-		break;
-	}
-	case Process::Pickup:
-	{
-		PickupUpdate();
-		break;
-	}
-	case Process::Camp:
-	{
-		CampUpdate();
 		break;
 	}
 	case Process::ThrowHE:
@@ -260,24 +170,23 @@ void Bot::UpdateProcess(void)
 		BlindUpdate();
 		break;
 	}
-	case Process::Jump:
+	case Process::UseButton:
 	{
-		JumpUpdate();
+		UseButtonUpdate();
 		break;
 	}
 	default:
-		SetProcess(Process::Default, "unknown process", true, time + 99999999.0f);
+		SetProcess(Process::Default, "unknown process", true, time2 + 999999.0f);
 	}
 
-	if (m_currentProcess > Process::Default && m_currentProcessTime < time)
+	if (m_currentProcess > Process::Default && m_currentProcessTime < time2)
 	{
-		extern ConVar ebot_debug;
 		if (ebot_debug.GetBool())
-			ServerPrint("%s is cancelled %s process -> timed out.", GetEntityName(GetEntity()), GetProcessName(m_currentProcess));
+			ServerPrint("%s is cancelled %s process -> timed out.", GetEntityName(m_myself), GetProcessName(m_currentProcess));
 
 		EndProcess(m_currentProcess);
 
-		if (m_rememberedProcess != m_currentProcess && m_rememberedProcessTime > time && IsReadyForTheProcess(m_rememberedProcess))
+		if (m_rememberedProcess != m_currentProcess && m_rememberedProcessTime > time2 && IsReadyForTheProcess(m_rememberedProcess))
 		{
 			StartProcess(m_rememberedProcess);
 			m_currentProcess = m_rememberedProcess;
@@ -296,9 +205,8 @@ void Bot::FinishCurrentProcess(const char* debugNote)
 {
 	if (m_currentProcess > Process::Default)
 	{
-		extern ConVar ebot_debug;
 		if (ebot_debug.GetBool())
-			ServerPrint("%s is cancelled %s process -> %s", GetEntityName(GetEntity()), GetProcessName(m_currentProcess), debugNote);
+			ServerPrint("%s is cancelled %s process -> %s", GetEntityName(m_myself), GetProcessName(m_currentProcess), debugNote);
 
 		EndProcess(m_currentProcess);
 
@@ -322,22 +230,10 @@ bool Bot::IsReadyForTheProcess(const Process& process)
 	{
 	case Process::Default:
 		return DefaultReq();
-	case Process::Attack:
-		return AttackReq();
-	case Process::Defuse:
-		return DefuseReq();
-	case Process::Plant:
-		return PlantReq();
-	case Process::Escape:
-		return EscapeReq();
 	case Process::Pause:
 		return PauseReq();
 	case Process::DestroyBreakable:
 		return DestroyBreakableReq();
-	case Process::Pickup:
-		return PickupReq();
-	case Process::Camp:
-		return CampReq();
 	case Process::ThrowHE:
 		return ThrowHEReq();
 	case Process::ThrowFB:
@@ -346,8 +242,8 @@ bool Bot::IsReadyForTheProcess(const Process& process)
 		return ThrowSMReq();
 	case Process::Blind:
 		return BlindReq();
-	case Process::Jump:
-		return JumpReq();
+	case Process::UseButton:
+		return UseButtonReq();
 	}
 
 	return true;
@@ -359,24 +255,10 @@ char* Bot::GetProcessName(const Process& process)
 	{
 	case Process::Default:
 		return "DEFAULT";
-	case Process::Attack:
-		return "ATTACK";
-	case Process::Plant:
-		return "PLANT THE BOMB";
-	case Process::Defuse:
-		return "DEFUSE THE BOMB";
-	case Process::Escape:
-		return "ESCAPE FROM THE BOMB";
-	case Process::Hide:
-		return "HIDE FROM DANGER";
 	case Process::Pause:
 		return "PAUSE";
 	case Process::DestroyBreakable:
 		return "DESTROY BREAKABLE";
-	case Process::Pickup:
-		return "PICKUP ITEM";
-	case Process::Camp:
-		return "CAMP";
 	case Process::ThrowHE:
 		return "THROW HE GRENADE";
 	case Process::ThrowFB:
@@ -385,8 +267,8 @@ char* Bot::GetProcessName(const Process& process)
 		return "THROW SM GRENADE";
 	case Process::Blind:
 		return "BLINDED";
-	case Process::Jump:
-		return "JUMPING";
+	case Process::UseButton:
+		return "USING A BUTTON";
 	default:
 		return "UNKNOWN";
 	}

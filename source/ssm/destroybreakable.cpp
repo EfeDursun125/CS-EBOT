@@ -1,4 +1,4 @@
-#include <core.h>
+#include "../../include/core.h"
 ConVar ebot_kill_breakables("ebot_kill_breakables", "0");
 
 void Bot::DestroyBreakableStart(void)
@@ -17,42 +17,31 @@ void Bot::DestroyBreakableUpdate(void)
 	if (ebot_kill_breakables.GetBool())
 		m_breakableEntity->v.health = -1.0f;
 
-	CheckStuck(pev->maxspeed, m_frameInterval);
-
-	if (m_stuckWarn > 19)
-	{
-		FinishCurrentProcess("i'm stuck");
-		return;
-	}
-
-	LookAt(m_breakable);
-	m_enemyDistance = FLT_MAX;
-	m_nearestEnemy = m_breakableEntity;
-	m_entityDistance = (pev->origin - m_breakable).GetLengthSquared();
-	m_nearestEntity = m_breakableEntity;
-
-	if (pev->origin.z > m_breakable.z)
+	LookAt(m_breakableOrigin);
+	if (pev->origin.z > m_breakableOrigin.z)
 		m_duckTime = engine->GetTime() + 1.0f;
-	else if (!IsVisible(m_breakable, GetEntity()))
+	else if (!IsVisible(m_breakableOrigin, m_myself))
 		m_duckTime = engine->GetTime() + 1.0f;
 
 	if (!m_isZombieBot && m_currentWeapon != Weapon::Knife)
-		FireWeapon();
+		FireWeapon((pev->origin - m_breakableOrigin).GetLengthSquared());
 	else
 	{
+		MoveTo(m_breakableOrigin, true);
 		SelectBestWeapon();
-		KnifeAttack();
+		m_buttons |= IN_ATTACK;
 	}
+
+	IgnoreCollisionShortly();
+	m_pauseTime = engine->GetTime() + crandomfloat(2.0f, 7.0f);
 }
 
 void Bot::DestroyBreakableEnd(void)
 {
-	m_nearestEntity = nullptr;
-	m_nearestEnemy = nullptr;
-	m_enemyDistance = FLT_MAX;
-	m_entityDistance = FLT_MAX;
-	m_hasEntitiesNear = false;
-	m_hasEnemiesNear = false;
+	if (!FNullEnt(m_breakableEntity) && m_breakableEntity->v.health > 0.0f)
+		m_ignoreEntity = m_breakableEntity;
+
+	m_breakableEntity = nullptr;
 }
 
 bool Bot::DestroyBreakableReq(void)
@@ -61,6 +50,12 @@ bool Bot::DestroyBreakableReq(void)
 		return false;
 
 	if (m_breakableEntity->v.health <= 0.0f)
+		return false;
+
+	if (m_breakableEntity->v.takedamage == DAMAGE_NO)
+		return false;
+
+	if (m_ignoreEntity == m_breakableEntity)
 		return false;
 
 	return true;

@@ -1,21 +1,21 @@
-#include <core.h>
+#include "../../include/core.h"
 
 void Bot::PauseStart(void)
 {
-
+	m_duckTime = 0.0f;
+	m_navNode.Stop();
+	m_moveSpeed = 0.0f;
+	m_strafeSpeed = 0.0f;
+	pev->speed = 0.0f;
+	pev->velocity = nullvec;
+	m_jumpReady = false;
+	m_waitForLanding = false;
 }
 
 void Bot::PauseUpdate(void)
 {
-	m_moveSpeed = 0.0f;
-	m_strafeSpeed = 0.0f;
-	FindEnemyEntities();
-	FindFriendsAndEnemiens();
-	if (m_hasEnemiesNear || m_hasEntitiesNear)
-	{
-		FinishCurrentProcess("enemies found me");
-		return;
-	}
+	m_updateLooking = false;
+	IgnoreCollisionShortly();
 }
 
 void Bot::PauseEnd(void)
@@ -25,19 +25,6 @@ void Bot::PauseEnd(void)
 
 bool Bot::PauseReq(void)
 {
-	if (!IsZombieMode())
-	{
-		if (m_hasEnemiesNear)
-			return false;
-
-		if (m_hasEntitiesNear)
-			return false;
-
-		// do not pause on ladder or in the water
-		if (!IsOnFloor())
-			return false;
-	}
-
 	if (IsOnLadder())
 		return false;
 
