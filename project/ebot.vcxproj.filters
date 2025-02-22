@@ -2,7 +2,6 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="..\source\basecode.cpp" />
-    <ClCompile Include="..\source\chat.cpp" />
     <ClCompile Include="..\source\control.cpp" />
     <ClCompile Include="..\source\engine.cpp" />
     <ClCompile Include="..\source\globals.cpp" />
@@ -13,13 +12,7 @@
     <ClCompile Include="..\source\support.cpp" />
     <ClCompile Include="..\source\waypoint.cpp" />
     <ClCompile Include="..\source\clib.cpp" />
-    <ClCompile Include="..\source\ssm\attack.cpp">
-      <Filter>SSM</Filter>
-    </ClCompile>
     <ClCompile Include="..\source\ssm\ssm.cpp">
-      <Filter>SSM</Filter>
-    </ClCompile>
-    <ClCompile Include="..\source\ssm\camp.cpp">
       <Filter>SSM</Filter>
     </ClCompile>
     <ClCompile Include="..\source\ssm\blind.cpp">
@@ -28,25 +21,10 @@
     <ClCompile Include="..\source\ssm\default.cpp">
       <Filter>SSM</Filter>
     </ClCompile>
-    <ClCompile Include="..\source\ssm\defuse.cpp">
-      <Filter>SSM</Filter>
-    </ClCompile>
     <ClCompile Include="..\source\ssm\destroybreakable.cpp">
       <Filter>SSM</Filter>
     </ClCompile>
-    <ClCompile Include="..\source\ssm\escape.cpp">
-      <Filter>SSM</Filter>
-    </ClCompile>
-    <ClCompile Include="..\source\ssm\jump.cpp">
-      <Filter>SSM</Filter>
-    </ClCompile>
     <ClCompile Include="..\source\ssm\pause.cpp">
-      <Filter>SSM</Filter>
-    </ClCompile>
-    <ClCompile Include="..\source\ssm\pickup.cpp">
-      <Filter>SSM</Filter>
-    </ClCompile>
-    <ClCompile Include="..\source\ssm\plant.cpp">
       <Filter>SSM</Filter>
     </ClCompile>
     <ClCompile Include="..\source\ssm\throwfb.cpp">
@@ -58,9 +36,10 @@
     <ClCompile Include="..\source\ssm\throwhe.cpp">
       <Filter>SSM</Filter>
     </ClCompile>
+    <ClCompile Include="..\source\ssm\usebutton.cpp">
+      <Filter>SSM</Filter>
+    </ClCompile>
     <ClCompile Include="..\source\combat.cpp" />
-    <ClCompile Include="..\source\navarea.cpp" />
-    <ClCompile Include="..\source\navmesh.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\core.h" />
@@ -74,7 +53,6 @@
     <ClInclude Include="..\include\rng.h" />
     <ClInclude Include="..\include\sse_mathfun.h" />
     <ClInclude Include="..\include\sse_mathfun_extension.h" />
-    <ClInclude Include="..\include\nav.h" />
     <ClInclude Include="..\include\compress.h" />
   </ItemGroup>
   <ItemGroup>

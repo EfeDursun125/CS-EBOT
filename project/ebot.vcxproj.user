@@ -1,4 +1,12 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='EBOT_Release|Win32'" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='EBOT_Debug|Win32'">
+    <LocalDebuggerCommand>C:\Program Files (x86)\Steam\steamapps\common\Half-Life\hl.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments>-game cstrike -windowed -noforcemparms -noforcemaccel -noforcemspd -nojoy -stretchaspect  -heapsize 4009600</LocalDebuggerCommandArguments>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerEnvironment>SteamEnv=1</LocalDebuggerEnvironment>
+    <LocalDebuggerWorkingDirectory>C:\Program Files (x86)\Steam\steamapps\common\Half-Life</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerAttach>false</LocalDebuggerAttach>
+  </PropertyGroup>
 </Project>
