@@ -902,23 +902,23 @@ typedef enum
 typedef int qboolean;
 #endif
 
-typedef struct
+typedef struct color24
 {
-    uint8_t r{}, g{}, b{};
+    uint8_t r{0}, g{0}, b{0};
 } color24;
 
-typedef struct
+typedef struct colorVec
 {
-    unsigned r{}, g{}, b{}, a{};
+    unsigned r{0}, g{0}, b{0}, a{0};
 } colorVec;
 
 #ifdef _WIN32
 #pragma pack(push,2)
 #endif
 
-typedef struct
+typedef struct PackedColorVec
 {
-    unsigned short r{}, g{}, b{}, a{};
+    unsigned short r{0}, g{0}, b{0}, a{0};
 } PackedColorVec;
 
 #ifdef _WIN32
@@ -926,27 +926,27 @@ typedef struct
 #endif
 typedef struct link_s
 {
-    struct link_s* prev{}, * next{};
+    struct link_s* prev{nullptr}, *next{nullptr};
 } link_t;
 
 typedef struct edict_s edict_t;
 
-typedef struct
+typedef struct plane_t
 {
-    Vector normal{};
-    float dist{};
+    Vector normal{nullvec};
+    float dist{0.0f};
 } plane_t;
 
-typedef struct
+typedef struct trace_t
 {
-    int allsolid{};           // if true, plane is not valid
-    int startsolid{};         // if true, the initial point was in a solid area
-    int inopen{}, inwater{};
-    float fraction{};              // time completed, 1.0f = didn't hit anything
-    Vector endpos{};               // final position
+    int allsolid{0};           // if true, plane is not valid
+    int startsolid{0};         // if true, the initial point was in a solid area
+    int inopen{0}, inwater{0};
+    float fraction{0.0f};              // time completed, 1.0f = didn't hit anything
+    Vector endpos{nullvec};               // final position
     plane_t plane{};               // surface normal at impact
-    edict_t* ent{};                // entity the surface is on
-    int hitgroup{};                // 0 == generic, non zero is specific body part
+    edict_t* ent{nullptr};                // entity the surface is on
+    int hitgroup{0};                // 0 == generic, non zero is specific body part
 } trace_t;
 
 
@@ -1037,11 +1037,11 @@ typedef enum
 
 typedef struct cvar_s
 {
-    char* name{};
-    char* string{}; // (dz): changed since genclass.h library #define
-    int flags{};
-    float value{};
-    struct cvar_s* next{};
+    char* name;
+    char* string; // (dz): changed since genclass.h library #define
+    int flags;
+    float value;
+    struct cvar_s* next;
 } cvar_t;
 
 //
@@ -1060,18 +1060,18 @@ typedef struct cvar_s
 #endif
 
 // Returned by TraceLine
-typedef struct
+typedef struct TraceResult
 {
-    int fAllSolid{}; // if true, plane is not valid
-    int fStartSolid{}; // if true, the initial point was in a solid area
-    int fInOpen{};
-    int fInWater{};
-    float flFraction{}; // time completed, 1.0f = didn't hit anything
-    Vector vecEndPos{}; // final position
-    float flPlaneDist{};
-    Vector vecPlaneNormal{}; // surface normal at impact
-    edict_t* pHit{}; // entity the surface is on
-    int iHitgroup{}; // 0 == generic, non zero is specific body part
+    int fAllSolid{0}; // if true, plane is not valid
+    int fStartSolid{0}; // if true, the initial point was in a solid area
+    int fInOpen{0};
+    int fInWater{0};
+    float flFraction{0.0f}; // time completed, 1.0f = didn't hit anything
+    Vector vecEndPos{nullvec}; // final position
+    float flPlaneDist{0.0f};
+    Vector vecPlaneNormal{nullvec}; // surface normal at impact
+    edict_t* pHit{nullptr}; // entity the surface is on
+    int iHitgroup{0}; // 0 == generic, non zero is specific body part
 } TraceResult;
 
 typedef uint32_t CRC32_t;
@@ -1249,10 +1249,10 @@ typedef struct enginefuncs_s
 // Passed to pfnKeyValue
 typedef struct KeyValueData_s
 {
-    char* szClassName{}; // in: entity classname
-    char* szKeyName{}; // in: name of key
-    char* szValue{}; // in: value of key
-    int32 fHandled{}; // out: DLL sets to true if key-value pair was understood
+    char* szClassName; // in: entity classname
+    char* szKeyName; // in: name of key
+    char* szValue; // in: value of key
+    int32 fHandled; // out: DLL sets to true if key-value pair was understood
 } KeyValueData;
 
 #define ARRAYSIZE_HLSDK(p) (sizeof(p) / sizeof(p[0]))
@@ -1517,7 +1517,9 @@ inline void MESSAGE_BEGIN(const int msg_dest, const int msg_type, const float* p
 typedef unsigned long ULONG;
 typedef uint8_t BYTE;
 
+#ifndef MAX_PATH
 #define MAX_PATH PATH_MAX
+#endif
 #include <limits.h>
 #include <stdarg.h>
 #define _vsnprintf(a,b,c,d) vsnprintf(a,b,c,d)
@@ -1529,177 +1531,177 @@ typedef float vec_t;            // needed before including progdefs.h
 
 typedef struct entvars_s
 {
-    int classname{};
-    int globalname{};
+    int classname;
+    int globalname;
 
-    Vector origin{};
-    Vector oldorigin{};
-    Vector velocity{};
-    Vector basevelocity{};
-    Vector clbasevelocity{}; // Base velocity that was passed in to server physics so
+    Vector origin;
+    Vector oldorigin;
+    Vector velocity;
+    Vector basevelocity;
+    Vector clbasevelocity; // Base velocity that was passed in to server physics so
     // client can predict conveyors correctly.  Server zeroes it, so we need to store here, too.
-    Vector movedir{};
+    Vector movedir;
 
-    Vector angles{}; // Model angles
-    Vector avelocity{}; // angle velocity (degrees per second)
-    Vector punchangle{}; // auto-decaying view angle adjustment
-    Vector v_angle{}; // Viewing angle (player only)
+    Vector angles; // Model angles
+    Vector avelocity; // angle velocity (degrees per second)
+    Vector punchangle; // auto-decaying view angle adjustment
+    Vector v_angle; // Viewing angle (player only)
 
     // For parametric entities
-    Vector endpos{};
-    Vector startpos{};
-    float impacttime{};
-    float starttime{};
+    Vector endpos;
+    Vector startpos;
+    float impacttime;
+    float starttime;
 
-    int fixangle{}; // 0:nothing, 1:force view angles, 2:add avelocity
-    float idealpitch{};
-    float pitch_speed{};
-    float ideal_yaw{};
-    float yaw_speed{};
+    int fixangle; // 0:nothing, 1:force view angles, 2:add avelocity
+    float idealpitch;
+    float pitch_speed;
+    float ideal_yaw;
+    float yaw_speed;
 
-    int modelindex{};
-    int model{};
+    int modelindex;
+    int model;
 
-    int viewmodel{}; // player's viewmodel
-    int weaponmodel{}; // what other players see
+    int viewmodel; // player's viewmodel
+    int weaponmodel; // what other players see
 
-    Vector absmin{}; // BB max translated to world coord
-    Vector absmax{}; // BB max translated to world coord
-    Vector mins{}; // local BB min
-    Vector maxs{}; // local BB max
-    Vector size{}; // maxs - mins
+    Vector absmin; // BB max translated to world coord
+    Vector absmax; // BB max translated to world coord
+    Vector mins; // local BB min
+    Vector maxs; // local BB max
+    Vector size; // maxs - mins
 
-    float ltime{};
-    float nextthink{};
+    float ltime;
+    float nextthink;
 
-    int movetype{};
-    int solid{};
+    int movetype;
+    int solid;
 
-    int skin{};
-    int body{}; // sub-model selection for studiomodels
-    int effects{};
+    int skin;
+    int body; // sub-model selection for studiomodels
+    int effects;
 
-    float gravity{}; // % of "normal" gravity
-    float friction{}; // inverse elasticity of MOVETYPE_BOUNCE
-    int light_level{};
+    float gravity; // % of "normal" gravity
+    float friction; // inverse elasticity of MOVETYPE_BOUNCE
+    int light_level;
 
-    int sequence{}; // animation sequence
-    int gaitsequence{}; // movement animation sequence for player (0 for none)
-    float frame{}; // % playback position in animation sequences (0..255)
-    float animtime{}; // world time when frame was set
-    float framerate{}; // animation playback rate (-8x to 8x)
-    uint8 controller[4]{}; // bone controller setting (0..255)
-    uint8 blending[2]{}; // blending amount between sub-sequences (0..255)
+    int sequence; // animation sequence
+    int gaitsequence; // movement animation sequence for player (0 for none)
+    float frame; // % playback position in animation sequences (0..255)
+    float animtime; // world time when frame was set
+    float framerate; // animation playback rate (-8x to 8x)
+    uint8 controller[4]; // bone controller setting (0..255)
+    uint8 blending[2]; // blending amount between sub-sequences (0..255)
 
-    float scale{}; // sprite rendering scale (0..255)
+    float scale; // sprite rendering scale (0..255)
 
-    int rendermode{};
-    float renderamt{};
-    Vector rendercolor{};
-    int renderfx{};
+    int rendermode;
+    float renderamt;
+    Vector rendercolor;
+    int renderfx;
 
-    float health{};
-    float frags{};
-    int weapons{}; // bit mask for available weapons
-    float takedamage{};
+    float health;
+    float frags;
+    int weapons; // bit mask for available weapons
+    float takedamage;
 
-    int deadflag{};
-    Vector view_ofs{}; // eye position
+    int deadflag;
+    Vector view_ofs; // eye position
 
-    int buttons{};
-    int impulse{};
+    int buttons;
+    int impulse;
 
-    edict_t* chain{}; // entity pointer when linked into a linked list
-    edict_t* dmg_inflictor{};
-    edict_t* enemy{};
-    edict_t* aiment{}; // entity pointer when MOVETYPE_FOLLOW
-    edict_t* owner{};
-    edict_t* groundentity{};
+    edict_t* chain; // entity pointer when linked into a linked list
+    edict_t* dmg_inflictor;
+    edict_t* enemy;
+    edict_t* aiment; // entity pointer when MOVETYPE_FOLLOW
+    edict_t* owner;
+    edict_t* groundentity;
 
-    int spawnflags{};
-    int flags{};
+    int spawnflags;
+    int flags;
 
-    int colormap{}; // lowbyte topcolor, highbyte bottomcolor
-    int team{};
+    int colormap; // lowbyte topcolor, highbyte bottomcolor
+    int team;
 
-    float max_health{};
-    float teleport_time{};
-    float armortype{};
-    float armorvalue{};
-    int waterlevel{};
-    int watertype{};
+    float max_health;
+    float teleport_time;
+    float armortype;
+    float armorvalue;
+    int waterlevel;
+    int watertype;
 
-    int target{};
-    int targetname{};
-    int netname{};
-    int message{};
+    int target;
+    int targetname;
+    int netname;
+    int message;
 
-    float dmg_take{};
-    float dmg_save{};
-    float dmg{};
-    float dmgtime{};
+    float dmg_take;
+    float dmg_save;
+    float dmg;
+    float dmgtime;
 
-    int noise{};
-    int noise1{};
-    int noise2{};
-    int noise3{};
+    int noise;
+    int noise1;
+    int noise2;
+    int noise3;
 
-    float speed{};
-    float air_finished{};
-    float pain_finished{};
-    float radsuit_finished{};
+    float speed;
+    float air_finished;
+    float pain_finished;
+    float radsuit_finished;
 
-    edict_t* pContainingEntity{};
+    edict_t* pContainingEntity;
 
-    int playerclass{};
-    float maxspeed{};
+    int playerclass;
+    float maxspeed;
 
-    float fov{};
-    int weaponanim{};
-    int pushmsec{};
+    float fov;
+    int weaponanim;
+    int pushmsec;
 
-    int bInDuck{};
-    int flTimeStepSound{};
-    int flSwimTime{};
-    int flDuckTime{};
-    int iStepLeft{};
-    float flFallVelocity{};
+    int bInDuck;
+    int flTimeStepSound;
+    int flSwimTime;
+    int flDuckTime;
+    int iStepLeft;
+    float flFallVelocity;
 
-    int gamestate{};
-    int oldbuttons{};
-    int groupinfo{};
+    int gamestate;
+    int oldbuttons;
+    int groupinfo;
 
     // For mods
-    int iuser1{};
-    int iuser2{};
-    int iuser3{};
-    int iuser4{};
-    float fuser1{};
-    float fuser2{};
-    float fuser3{};
-    float fuser4{};
-    Vector vuser1{};
-    Vector vuser2{};
-    Vector vuser3{};
-    Vector vuser4{};
-    edict_t* euser1{};
-    edict_t* euser2{};
-    edict_t* euser3{};
-    edict_t* euser4{};
+    int iuser1;
+    int iuser2;
+    int iuser3;
+    int iuser4;
+    float fuser1;
+    float fuser2;
+    float fuser3;
+    float fuser4;
+    Vector vuser1;
+    Vector vuser2;
+    Vector vuser3;
+    Vector vuser4;
+    edict_t* euser1;
+    edict_t* euser2;
+    edict_t* euser3;
+    edict_t* euser4;
 } entvars_t;
 
 #define MAX_ENT_LEAFS 48
 
 struct edict_s
 {
-    int free{};
-    int serialnumber{};
-    link_t area{}; // linked to a division node or leaf
-    int headnode{}; // -1 to use normal leaf check
-    int num_leafs{};
-    short leafnums[MAX_ENT_LEAFS]{};
-    float freetime{}; // sv.time when the object was freed
-    void* pvPrivateData{}; // Alloced and freed by engine, used by DLLs
+    int free;
+    int serialnumber;
+    link_t area; // linked to a division node or leaf
+    int headnode; // -1 to use normal leaf check
+    int num_leafs;
+    short leafnums[MAX_ENT_LEAFS];
+    float freetime; // sv.time when the object was freed
+    void* pvPrivateData; // Alloced and freed by engine, used by DLLs
     entvars_t v; // C exported fields from progs
 };
 
@@ -1738,11 +1740,11 @@ struct edict_s
 
 typedef struct meta_globals_s
 {
-    META_RES mres{};
-    META_RES prev_mres{};
-    META_RES status{};
-    void* orig_ret{};
-    void* override_ret{};
+    META_RES mres;
+    META_RES prev_mres;
+    META_RES status;
+    void* orig_ret;
+    void* override_ret;
 } meta_globals_t;
 
 extern meta_globals_t* gpMetaGlobals;
@@ -1805,16 +1807,16 @@ typedef plugin_info_t* plid_t;
 #define PLID   &Plugin_info
 typedef struct hudtextparms_s
 {
-    float x{};
-    float y{};
-    int effect{};
-    uint8_t r1{}, g1{}, b1{}, a1{};
-    uint8_t r2{}, g2{}, b2{}, a2{};
-    float fadeinTime{};
-    float fadeoutTime{};
-    float holdTime{};
-    float fxTime{};
-    int channel{};
+    float x;
+    float y;
+    int effect;
+    uint8_t r1{}, g1{}, b1{}, a1;
+    uint8_t r2{}, g2{}, b2{}, a2;
+    float fadeinTime;
+    float fadeoutTime;
+    float holdTime;
+    float fxTime;
+    int channel;
 } hudtextparms_t;
 
 // Meta Utility Function table type.
@@ -1954,37 +1956,37 @@ C_DLLEXPORT int GetEngineFunctions(enginefuncs_t* pengfuncsFromEngine, int* inte
 
 typedef struct
 {
-    float time{};
-    float frametime{};
-    float force_retouch{};
-    int mapname{};
-    int startspot{};
-    float deathmatch{};
-    float coop{};
-    float teamplay{};
-    float serverflags{};
-    float found_secrets{};
-    Vector v_forward{};
-    Vector v_up{};
-    Vector v_right{};
-    float trace_allsolid{};
-    float trace_startsolid{};
-    float trace_fraction{};
-    Vector trace_endpos{};
-    Vector trace_plane_normal{};
-    float trace_plane_dist{};
-    edict_t* trace_ent{};
-    float trace_inopen{};
-    float trace_inwater{};
-    int trace_hitgroup{};
-    int trace_flags{};
-    int msg_entity{};
-    int cdAudioTrack{};
-    int maxClients{};
-    int maxEntities{};
-    const char* pStringBase{};
-    void* pSaveData{};
-    Vector vecLandmarkOffset{};
+    float time;
+    float frametime;
+    float force_retouch;
+    int mapname;
+    int startspot;
+    float deathmatch;
+    float coop;
+    float teamplay;
+    float serverflags;
+    float found_secrets;
+    Vector v_forward;
+    Vector v_up;
+    Vector v_right;
+    float trace_allsolid;
+    float trace_startsolid;
+    float trace_fraction;
+    Vector trace_endpos;
+    Vector trace_plane_normal;
+    float trace_plane_dist;
+    edict_t* trace_ent;
+    float trace_inopen;
+    float trace_inwater;
+    int trace_hitgroup;
+    int trace_flags;
+    int msg_entity;
+    int cdAudioTrack;
+    int maxClients;
+    int maxEntities;
+    const char* pStringBase;
+    void* pSaveData;
+    Vector vecLandmarkOffset;
 } globalvars_t;
 
 #ifdef DEBUG
@@ -1999,7 +2001,7 @@ extern DLL_GLOBAL const Vector g_vecZero;
 
 // use this instead of ALLOC_STRING on constant strings
 #define STRING(offset) (const char *)(g_pGlobals->pStringBase + (int)offset)
-#define MAKE_STRING(str) ((int)str - (int)STRING(0))
+#define MAKE_STRING(str) ((uintptr_t)str - (uintptr_t)STRING(0))
 
 inline edict_t* FIND_ENTITY_BY_CLASSNAME(edict_t* entStart, const char* pszName)
 {
@@ -2134,22 +2136,14 @@ inline bool FStringNull(const int iString)
 
 inline bool FClassnameIs(edict_t* pent, const char* szClassname)
 {
-    return cstrcmp(STRING(VARS(pent)->classname), szClassname) == 0;
+    return strcmp(STRING(VARS(pent)->classname), szClassname) == 0;
 }
 
 inline bool FClassnameIs(entvars_t* pev, const char* szClassname)
 {
-    return cstrcmp(STRING(pev->classname), szClassname) == 0;
+    return strcmp(STRING(pev->classname), szClassname) == 0;
 }
 
-typedef enum
-{
-    ignore_monsters = 1, dont_ignore_monsters = 0, missile = 2
-} IGNORE_MONSTERS;
-typedef enum
-{
-    ignore_glass = 1, dont_ignore_glass = 0
-} IGNORE_GLASS;
 typedef enum
 {
     point_hull = 0, human_hull = 1, large_hull = 2, head_hull = 3
@@ -2322,7 +2316,7 @@ namespace SDK_Utils
 
     inline int MakeStringByOffset(const char* str)
     {
-        return reinterpret_cast<int>(str) - reinterpret_cast<int>(GetStringFromOffset(0));
+        return reinterpret_cast<uintptr_t>(str) - reinterpret_cast<uintptr_t>(GetStringFromOffset(0));
     }
 };
 
@@ -2347,23 +2341,16 @@ enum GlobalVector
 
 enum TraceIgnore
 {
-    NO_MONSTERS = (1 << 0),
-    NO_GLASS = (1 << 1),
-    NO_NOTHING = 0,
-    NO_BOTH = NO_MONSTERS | NO_GLASS
+    Nothing = 0,
+    Glass = (1 << 0),
+    Monsters = (1 << 1),
+    Everything = Monsters | Glass
 };
 
 enum LineType
 {
     LINE_SIMPLE,
     LINE_ARROW
-};
-
-enum TraceTarget
-{
-    HULL_HEAD = 3,
-    HULL_POINT = 0,
-    HULL_IGNORE = -1
 };
 
 enum PrintType
@@ -2389,7 +2376,7 @@ enum ClientTeam
 class ConVar
 {
 public:
-    cvar_t* m_eptr{};
+    cvar_t* m_eptr;
 public:
     ConVar(const char* name, const char* initval, const VarType type = VARTYPE_NORMAL);
     inline bool GetBool(void)
@@ -2444,7 +2431,7 @@ public:
 class Entity
 {
 public:
-    edict_t* m_ent{};
+    edict_t* m_ent;
     inline Entity(void) : m_ent(nullptr) {}
     inline Entity(edict_t* ent) : m_ent(ent) {}
 public:
@@ -2688,9 +2675,9 @@ public:
 class Client : public Entity
 {
 private:
-    int m_team{};
-    int m_flags{};
-    Vector m_safeOrigin{};
+    int m_team;
+    int m_flags;
+    Vector m_safeOrigin;
 public:
     Client(void)
     {
@@ -2784,7 +2771,7 @@ public:
         }
         }
 
-        cstrcat(buffer, "\n");
+        strcat(buffer, "\n");
         g_engfuncs.pfnClientPrintf(m_ent, static_cast<PRINT_TYPE>(enginePrintType), buffer);
     }
 
@@ -2804,6 +2791,7 @@ enum NetMsg
     NETMSG_CURWEAPON = 4,
     NETMSG_AMMOX = 5,
     NETMSG_AMMOPICK = 6,
+    NETMSG_DAMAGE = 7,
     NETMSG_MONEY = 8,
     NETMSG_STATUSICON = 9,
     NETMSG_DEATH = 10,
@@ -2822,16 +2810,11 @@ class Engine : public Singleton <Engine>
 {
     friend class Client;
 private:
-    Client m_clients[32]{};
+    Client m_clients[32];
 private:
     enum GameVars
     {
-        GVAR_C4TIMER = 0,
-        GVAR_BUYTIME,
-        GVAR_FRIENDLYFIRE,
-        GVAR_ROUNDTIME,
-        GVAR_FREEZETIME,
-        GVAR_FOOTSTEPS,
+        GVAR_FREEZETIME = 0,
         GVAR_GRAVITY,
         GVAR_DEVELOPER,
         GVAR_NUM
@@ -2839,11 +2822,11 @@ private:
 private:
     struct VarPair
     {
-        cvar_t reg{};
-        class ConVar* self{};
+        cvar_t reg;
+        class ConVar* self;
     };
-    MiniArray <VarPair> m_regVars{};
-    cvar_t* m_gameVars[GVAR_NUM]{};
+    MiniArray <VarPair> m_regVars;
+    cvar_t* m_gameVars[GVAR_NUM];
 public:
     Engine* operator -> (void)
     {
@@ -2856,11 +2839,6 @@ public:
     const Vector& GetGlobalVector(const GlobalVector id);
     void SetGlobalVector(const GlobalVector id, const Vector& newVector);
     void BuildGlobalVectors(const Vector& on);
-    bool IsFriendlyFireOn(void);
-    bool IsFootstepsOn(void);
-    float GetC4TimerTime(void);
-    float GetBuyTime(void);
-    float GetRoundTime(void);
     float GetFreezeTime(void);
     int GetGravity(void);
     int GetDeveloperLevel(void);
@@ -2871,6 +2849,7 @@ public:
     const Client& GetClientByIndex(const int index);
     void MaintainClients(void);
     void DrawLine(edict_t* client, const Vector& start, const Vector& end, const Color& color, const int width, const int noise, const int speed, const int life, const int lineType = LINE_SIMPLE);
+    void DrawLineToAll(const Vector& start, const Vector& end, const Color& color, const int width, const int noise, const int speed, const int life, const int lineType = LINE_SIMPLE);
 };
 
 #define engine Engine::GetReference()

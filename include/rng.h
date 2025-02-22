@@ -8,11 +8,11 @@ inline int frand(void)
 
 // https://vigna.di.unimi.it/xorshift/xoroshiro128plus.c
 // modified version
-static uint_fast64_t s[2] = {static_cast<uint_fast64_t>(time(nullptr)), static_cast<uint_fast64_t>(time(nullptr) * 2)};
+static uint_fast64_t sr[2] = {static_cast<uint_fast64_t>(time(nullptr)), static_cast<uint_fast64_t>(time(nullptr) * 2)};
 inline uint_fast64_t fnext(void)
 {
-	s[1] ^= s[0];
-	s[0] = (s[0] << 55) | (s[0] >> 9) ^ s[1] ^ (s[1] << 14);
-	s[1] = (s[1] << 36) | (s[1] >> 28);
-	return s[0] + s[1];
+	sr[1] ^= sr[0];
+	sr[0] = (sr[0] << 55) | (sr[0] >> 9) ^ sr[1] ^ (sr[1] << 14);
+	sr[1] = (sr[1] << 36) | (sr[1] >> 28);
+	return sr[0] + sr[1];
 }

@@ -61,7 +61,7 @@
 #	endif
 #endif
 
-#include <glibc.h>
+#include "glibc.h"
 #include <math.h>
 #include <xmmintrin.h>
 #include <emmintrin.h>

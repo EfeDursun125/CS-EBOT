@@ -77,7 +77,7 @@ atan2_ps max deviation is < 2.5e-7
 #pragma warning( disable : 4305 )
 #endif
 
-#include <glibc.h>
+#include "glibc.h"
 #include "sse_mathfun.h"
 
 _PS_CONST( 0, 0 );

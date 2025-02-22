@@ -34,7 +34,7 @@
 #include <list>
 #include <cstring>
 #include <cstdarg>
-#include <clib.h>
+#include "clib.h"
 
 #pragma warning (disable : 4996) // get rid of this
 
@@ -47,7 +47,7 @@ typedef unsigned int uint32_t;
 //
 // Type: uint64_t
 // Unsigned 64bit integer.
-typedef unsigned long long uint64_t;
+// typedef unsigned long long uint64_t;
 
 //
 // Type: uint8_t
@@ -94,7 +94,7 @@ typedef unsigned short uint16_t;
 // Returns:
 //   Formatted buffer.
 //
-inline void FormatBuffer(char buffer[], char* format, ...)
+inline void FormatBuffer(char buffer[], const char* format, ...)
 {
     va_list ap;
     va_start(ap, format);
@@ -163,7 +163,7 @@ public:
     //
     static inline T* GetObjectPtr(void)
     {
-        static T reference{};
+        static T reference;
         return &reference;
     }
 
@@ -177,7 +177,7 @@ public:
     //
     static inline T& GetReference(void)
     {
-        static T reference{};
+        static T reference;
         return reference;
     }
 };
@@ -624,340 +624,13 @@ namespace Math
     }
 }
 
-//
-// Class: Array
-//  Universal template array container.
-//
-/*template <typename T> class Array
-{
-private:
-    T* data{};
-    int size{};
-    int count{};
-    int step{};
-public:
-    // Array constructor with default resize step
-    Array(const int resizeStep = 0)
-    {
-        data = new(std::nothrow) T[resizeStep];
-        count = 0;
-        if (data)
-        {
-            size = resizeStep;
-            step = resizeStep;
-        }
-        else
-        {
-            size = 0;
-            step = 0;
-        }
-    }
-
-    // Array copy constructor to copy another Array object
-    Array(const Array <T>& other)
-    {
-        data = new(std::nothrow) T[other.size];
-        if (data)
-        {
-            size = other.size;
-            count = other.count;
-            step = other.step;
-            int i;
-            for (i = 0; i < count; i++)
-                data[i] = other.data[i];
-        }
-        else
-        {
-            size = 0;
-            count = 0;
-            step = 0;
-        }
-    }
-
-    // Array destructor to free memory
-    ~Array(void)
-    {
-        if (data)
-        {
-            delete[] data;
-            data = nullptr;
-        }
-    }
-
-    void Destroy(void)
-    {
-        if (data)
-        {
-            delete[] data;
-            data = nullptr;
-        }
-        size = 0;
-        count = 0;
-        step = 0;
-    }
-
-    bool SetSize(const int newSize, const bool keepData = true)
-    {
-        if (keepData)
-        {
-            T* newData = new(std::nothrow) T[newSize];
-            if (newData)
-            {
-                if (data)
-                {
-                    int i;
-                    for (i = 0; i < count; i++)
-                        newData[i] = data[i];
-                    delete[] data;
-                }
-                data = newData;
-                size = newSize;
-                return true;
-            }
-            else
-                return false;
-        }
-
-        T* newData = new(std::nothrow) T[newSize];
-        if (newData)
-        {
-            if (data)
-                delete[] data;
-            data = newData;
-            size = newSize;
-        }
-
-        count = 0;
-        return true;
-    }
-
-    int GetSize(void) const
-    {
-        return size;
-    }
-
-    int GetElementNumber(void) const
-    {
-        return count;
-    }
-
-    void SetEnlargeStep(const int resizeStep = 0)
-    {
-        step = resizeStep;
-    }
-
-    int GetEnlargeStep(void)
-    {
-        return step;
-    }
-
-    bool SetAt(const int index, const T object, const bool enlarge = true)
-    {
-        if (index < size)
-        {
-            data[index] = object;
-            if (index >= count)
-                count = index + 1;
-            return true;
-        }
-        else if (enlarge)
-        {
-            SetSize(index + step);
-            data[index] = object;
-            return true;
-        }
-
-        return false;
-    }
-
-    T& GetAt(const int index)
-    {
-        return data[index];
-    }
-
-    bool GetAt(const int index, T& object)
-    {
-        if (index < count)
-        {
-            object = data[index];
-            return true;
-        }
-
-        return false;
-    }
-
-    bool InsertAt(const int index, const T object, const bool enlarge = true)
-    {
-        if (index < size)
-        {
-            int i;
-            for (i = count; i > index; i--)
-                data[i] = data[i - 1];
-            data[index] = object;
-            count++;
-            if (count > size)
-                SetSize(size + step);
-            return true;
-        }
-        else if (enlarge)
-        {
-            SetSize(index + step);
-            data[index] = object;
-            count++;
-            return true;
-        }
-
-        return false;
-    }
-
-    bool InsertAt(const int index, const T* objects, const int count = 1, const bool enlarge = true)
-    {
-        int i;
-        for (i = 0; i < count; i++)
-        {
-            if (!InsertAt(index + i, objects[i], enlarge))
-                return false;
-        }
-
-        return true;
-    }
-
-    bool InsertAt(const int index, const Array <T>& other, const bool enlarge = true)
-    {
-        return InsertAt(index, other.data, other.count, enlarge);
-    }
-
-    bool RemoveAt(const int index, const int count = 1)
-    {
-        int i, j;
-        for (i = 0; i < count; i++)
-        {
-            if (index + i < count)
-            {
-                for (j = index + i; j < count; j++)
-                    data[j] = data[j + 1];
-                count--;
-            }
-        }
-
-        return true;
-    }
-
-    bool Push(const T object, const bool enlarge = true)
-    {
-        return InsertAt(count, object, enlarge);
-    }
-
-    bool Push(const T* objects, const int count = 1, const bool enlarge = true)
-    {
-        return InsertAt(this->count, objects, count, enlarge);
-    }
-
-    bool Push(const Array <T>& other, const bool enlarge = true)
-    {
-        return InsertAt(this->count, other, enlarge);
-    }
-
-    T* GetData(void)
-    {
-        return data;
-    }
-
-    void RemoveAll(void)
-    {
-        count = 0;
-    }
-
-    bool IsEmpty(void)
-    {
-        return !count;
-    }
-
-    void FreeSpace(const bool destroyIfEmpty = true)
-    {
-        if (destroyIfEmpty && IsEmpty())
-            Destroy();
-        else if (count < size)
-            SetSize(count);
-    }
-
-    T Pop(void)
-    {
-        const T last = data[count - 1];
-        RemoveAt(count - 1);
-        return last;
-    }
-
-    void PopNoReturn(void)
-    {
-        RemoveAt(count - 1);
-    }
-
-    T& Last(void)
-    {
-        return data[count - 1];
-    }
-
-    bool GetLast(const T& item)
-    {
-        if (count > 0 && data[count - 1] == item)
-            return true;
-
-        return false;
-    }
-
-    bool AssignFrom(const Array <T>& other)
-    {
-        Destroy();
-        data = new(std::nothrow) T[other.size];
-        if (data)
-        {
-            size = other.size;
-            count = other.count;
-            step = other.step;
-            for (i = 0; i < count; i++)
-                data[i] = other.data[i];
-            return true;
-        }
-        
-        return false;
-    }
-
-    T& GetRandomElement(void) const
-    {
-        return data[crandomint(0, count - 1)];
-    }
-
-    Array <T>& operator = (const Array <T>& other)
-    {
-        Destroy();
-        data = new(std::nothrow) T[other.size];
-        if (data)
-        {
-            size = other.size;
-            count = other.count;
-            step = other.step;
-            int i;
-            for (i = 0; i < count; i++)
-                data[i] = other.data[i];
-        }
-        
-        return *this;
-    }
-
-    T& operator [] (const int index)
-    {
-        return data[index];
-    }
-};*/
-
 template <typename T> class Array
 {
 private:
-    T* m_elements{};
-    int m_resizeStep{};
-    int m_itemSize{};
-    int m_itemCount{};
+    T* m_elements;
+    int m_resizeStep;
+    int m_itemSize;
+    int m_itemCount;
 
     //
     // Group: (Con/De)structors
@@ -1065,7 +738,10 @@ public:
         if (newSize > checkSize)
             checkSize = newSize;
 
-        T* buffer = safeloc<T>(checkSize);
+        T* buffer = new(std::nothrow) T[checkSize];
+        if (!buffer)
+            return false;
+
         if (keepData && m_elements)
         {
             if (checkSize < m_itemCount)
@@ -1418,7 +1094,10 @@ public:
             return;
         }
 
-        T* buffer = safeloc<T>(m_itemCount);
+        T* buffer = new(std::nothrow) T[m_itemCount];
+        if (!buffer)
+            return;
+
         if (m_elements)
         {
             int i;
@@ -1533,9 +1212,9 @@ public:
 class String
 {
 protected:
-    char* m_buffer{};
-    int m_used{};
-    int m_allocated{};
+    char* m_buffer;
+    int m_used;
+    int m_allocated;
 private:
     inline bool IsTrimmingCharacter(char chr)
     {
@@ -1545,7 +1224,7 @@ private:
     inline void MoveItems(const int destIndex, const int srcIndex)
     {
         if (m_buffer)
-            cmemmove(m_buffer + destIndex, m_buffer + srcIndex, sizeof(char) * (m_used - srcIndex + 1));
+            memmove(m_buffer + destIndex, m_buffer + srcIndex, sizeof(char) * (m_used - srcIndex + 1));
     }
 
     inline void InsertSpace(int& index, const int size)
@@ -1624,11 +1303,11 @@ public:
     {
         if (str)
         {
-            const int length = cstrlen(str);
+            const int length = strlen(str);
             SetCapacity(length);
             if (m_buffer)
             {
-                cstrcpy(m_buffer, str);
+                strcpy(m_buffer, str);
                 m_used = length;
             }
         }
@@ -1638,11 +1317,11 @@ public:
     {
         if (str)
         {
-            const int length = cstrlen(str);
+            const int length = strlen(str);
             SetCapacity(length);
             if (m_buffer)
             {
-                cstrcpy(m_buffer, str);
+                strcpy(m_buffer, str);
                 m_used = length;
             }
         }
@@ -1653,7 +1332,7 @@ public:
         SetCapacity(other.m_used);
         if (m_buffer && other.m_buffer)
         {
-            cstrcpy(m_buffer, other.m_buffer);
+            strcpy(m_buffer, other.m_buffer);
             m_used = other.m_used;
         }
     }
@@ -1676,7 +1355,7 @@ public:
     inline operator const double(void) const
     {
         if (m_buffer)
-            return static_cast<double>(catof(m_buffer));
+            return static_cast<double>(atof(m_buffer));
         
         return 0.0;
     }
@@ -1684,7 +1363,7 @@ public:
     inline operator double(void)
     {
         if (m_buffer)
-            return static_cast<double>(catof(m_buffer));
+            return static_cast<double>(atof(m_buffer));
 
         return 0.0;
     }
@@ -1692,7 +1371,7 @@ public:
     inline operator const float(void) const
     {
         if (m_buffer)
-            return catof(m_buffer);
+            return atof(m_buffer);
 
         return 0.0f;
     }
@@ -1700,7 +1379,7 @@ public:
     inline operator float(void)
     {
         if (m_buffer)
-            return catof(m_buffer);
+            return atof(m_buffer);
 
         return 0.0f;
     }
@@ -1708,7 +1387,7 @@ public:
     inline operator const int(void) const
     {
         if (m_buffer)
-            return catoi(m_buffer);
+            return atoi(m_buffer);
 
         return 0;
     }
@@ -1716,7 +1395,7 @@ public:
     inline operator int(void)
     {
         if (m_buffer)
-            return catoi(m_buffer);
+            return atoi(m_buffer);
 
         return 0;
     }
@@ -1724,7 +1403,7 @@ public:
     inline operator const long(void) const
     {
         if (m_buffer)
-            return static_cast<long>(catoi(m_buffer));
+            return static_cast<long>(atoi(m_buffer));
 
         return 0;
     }
@@ -1732,7 +1411,7 @@ public:
     inline operator long(void)
     {
         if (m_buffer)
-            return static_cast<long>(catoi(m_buffer));
+            return static_cast<long>(atoi(m_buffer));
 
         return 0;
     }
@@ -1767,7 +1446,7 @@ public:
     inline void ReleaseBuffer(void)
     {
         if (m_buffer)
-            ReleaseBuffer(cstrlen(m_buffer));
+            ReleaseBuffer(strlen(m_buffer));
     }
 
     inline void ReleaseBuffer(const int newLength)
@@ -1800,12 +1479,12 @@ public:
             return *this;
 
         SetEmpty();
-        const int length = cstrlen(str);
+        const int length = strlen(str);
         SetCapacity(length);
 
         if (m_buffer)
         {
-            cstrcpy(m_buffer, str);
+            strcpy(m_buffer, str);
             m_used = length;
         }
         
@@ -1822,7 +1501,7 @@ public:
 
         if (m_buffer && other.m_buffer)
         {
-            cstrcpy(m_buffer, other.m_buffer);
+            strcpy(m_buffer, other.m_buffer);
             m_used = other.m_used;
         }
 
@@ -1847,12 +1526,12 @@ public:
         if (!str)
             return *this;
 
-        const int length = cstrlen(str);
+        const int length = strlen(str);
         GrowLength(length);
 
         if (m_buffer)
         {
-            cstrcpy(m_buffer + m_used, str);
+            strcpy(m_buffer + m_used, str);
             m_used += length;
         }
         
@@ -1865,7 +1544,7 @@ public:
 
         if (m_buffer && other.m_buffer)
         {
-            cstrcpy(m_buffer + m_used, other.m_buffer);
+            strcpy(m_buffer + m_used, other.m_buffer);
             m_used += other.m_used;
         }
         
@@ -2009,7 +1688,7 @@ public:
         char* ptr = m_buffer;
         while (*ptr)
         {
-            *ptr = static_cast<char>(ctoupper(*ptr));
+            *ptr = static_cast<char>(toupper(*ptr));
             ptr++;
         }
 
@@ -2024,7 +1703,7 @@ public:
         char* ptr = m_buffer;
         while (*ptr)
         {
-            *ptr = static_cast<char>(ctolower(*ptr));
+            *ptr = static_cast<char>(tolower(*ptr));
             ptr++;
         }
 
@@ -2034,7 +1713,7 @@ public:
     inline int Compare(const String& str) const
     {
         if (m_buffer && str.m_buffer)
-            return cstrcmp(m_buffer, str.m_buffer);
+            return strcmp(m_buffer, str.m_buffer);
 
         return 0;
     }
@@ -2042,31 +1721,15 @@ public:
     inline int Compare(const char* str) const
     {
         if (m_buffer && str)
-            return cstrcmp(m_buffer, str);
+            return strcmp(m_buffer, str);
 
         return 0;
     }
-
-    inline int CompareNoCase (const String &str) const
-    {
-        if (m_buffer && str.m_buffer)
-            return cstricmp(m_buffer, str.m_buffer);
-
-        return 0;
-    }
-
-    inline int CompareNoCase(const char *str) const
-    {
-        if (m_buffer && str)
-            return cstricmp(m_buffer, str);
-
-        return 0;
-    }
-
+    
     inline bool Has(const String& other) const
     {
         if (m_buffer && other.GetRawData())
-            return cstrstr(m_buffer, const_cast<char*>(other.GetRawData()));
+            return strstr(m_buffer, const_cast<char*>(other.GetRawData()));
 
         return false;
     }
@@ -2340,8 +2003,8 @@ public:
         int tokenLength, index = 0;
         do
         {
-            index += cstrspn(&m_buffer[index], separator);
-            tokenLength = cstrcspn(&m_buffer[index], separator);
+            index += strspn(&m_buffer[index], separator);
+            tokenLength = strcspn(&m_buffer[index], separator);
             if (tokenLength > 0)
                 holder.Push(Mid(index, tokenLength));
             index += tokenLength;
@@ -2364,8 +2027,8 @@ public:
 class File
 {
 protected:
-    FILE* m_handle{};
-    int m_fileSize{};
+    FILE* m_handle;
+    int m_fileSize;
 
     //
     // Group: (Con/De)structors
@@ -2706,12 +2369,12 @@ private:
     // Variable: m_logFile
     // Pointer to log file.
     //
-    File m_logFile{};
+    File m_logFile;
 
     //
     // Variable: m_logger
     //
-    ILoggerEngine* m_logger{};
+    ILoggerEngine* m_logger;
 
     //
     // Group: (Con/De)structors.
@@ -2765,8 +2428,8 @@ private:
     //
     inline const char* GetTimeFormatString(void) const
     {
-        static char timeFormatStr[32]{};
-        cmemset(timeFormatStr, 0, sizeof(char) * 32);
+        static char timeFormatStr[32];
+        memset(timeFormatStr, 0, sizeof(char) * 32);
         time_t tick = time(&tick);
         const tm* time = localtime(&tick);
         sprintf(timeFormatStr, "%02i:%02i:%02i", time->tm_hour, time->tm_min, time->tm_sec);
@@ -2837,7 +2500,7 @@ public:
 class Color
 {
 public:
-    uint8_t red{}, green{}, blue{}, alpha{};
+    uint8_t red{}, green{}, blue{}, alpha;
 public:
     inline Color(const uint8_t color = 0) : red(color), green(color), blue(color), alpha(color) {}
     inline Color(uint8_t inputRed, uint8_t inputGreen, uint8_t inputBlue, uint8_t inputAlpha = static_cast<uint8_t>(0)) : red(inputRed), green(inputGreen), blue(inputBlue), alpha(inputAlpha) {}

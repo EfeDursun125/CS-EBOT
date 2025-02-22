@@ -16,15 +16,15 @@
 class Compressor
 {
 protected:
-    unsigned long int m_csize{};
+    unsigned long int m_csize;
 
-    uint8_t m_buffer[MAXBUF + PADDING - 1]{};
-    int m_matchPos{};
-    int m_matchLen{};
+    uint8_t m_buffer[MAXBUF + PADDING - 1];
+    int m_matchPos;
+    int m_matchLen;
 
-    int m_left[MAXBUF + 1]{};
-    int m_right[MAXBUF + 257]{};
-    int m_parent[MAXBUF + 1]{};
+    int m_left[MAXBUF + 1];
+    int m_right[MAXBUF + 257];
+    int m_parent[MAXBUF + 1];
 private:
     void InitTrees(void)
     {
@@ -142,10 +142,10 @@ private:
 public:
     Compressor(void) : m_csize(0), m_matchPos(0), m_matchLen(0)
     {
-        cmemset(m_right, 0, sizeof(m_right));
-        cmemset(m_left, 0, sizeof(m_left));
-        cmemset(m_parent, 0, sizeof(m_parent));
-        cmemset(m_buffer, 0, sizeof(m_buffer));
+        memset(m_right, 0, sizeof(m_right));
+        memset(m_left, 0, sizeof(m_left));
+        memset(m_parent, 0, sizeof(m_parent));
+        memset(m_buffer, 0, sizeof(m_buffer));
     }
 
     ~Compressor(void) = default;
