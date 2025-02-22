@@ -22,7 +22,7 @@
 // $Id:$
 //
 
-#include <core.h>
+#include "../include/core.h"
 
 //
 // TODO:
@@ -32,9 +32,8 @@
 
 ConVar ebot_ignore_enemies("ebot_ignore_enemies", "0");
 ConVar ebot_zp_delay_custom("ebot_zp_delay_custom", "0.0");
-ConVar ebot_auto_gamemode("ebot_auto_gamemode", "1");
 
-void TraceLine(const Vector& start, const Vector& end, const bool ignoreMonsters, const bool ignoreGlass, edict_t* ignoreEntity, TraceResult* ptr)
+void TraceLine(const Vector& start, const Vector& end, const int& ignoreFlags, edict_t* ignoreEntity, TraceResult* ptr)
 {
 	// this function traces a line dot by dot, starting from vecStart in the direction of vecEnd,
 	// ignoring or not monsters (depending on the value of IGNORE_MONSTERS, true or false), and stops
@@ -45,23 +44,17 @@ void TraceLine(const Vector& start, const Vector& end, const bool ignoreMonsters
 	// in ignoreEntity in order to ignore it as a possible obstacle.
 	// this is an overloaded prototype to add IGNORE_GLASS in the same way as IGNORE_MONSTERS work.
 
-	(*g_engfuncs.pfnTraceLine) (start, end, (ignoreMonsters ? 1 : 0) | (ignoreGlass ? 0x100 : 0), ignoreEntity, ptr);
+	int engineFlags = 0;
+	if (ignoreFlags & TraceIgnore::Monsters)
+		engineFlags = 1;
+
+	if (ignoreFlags & TraceIgnore::Glass)
+		engineFlags |= 0x100;
+
+	(*g_engfuncs.pfnTraceLine) (start, end, engineFlags, ignoreEntity, ptr);
 }
 
-void TraceLine(const Vector& start, const Vector& end, const bool ignoreMonsters, edict_t* ignoreEntity, TraceResult* ptr)
-{
-	// this function traces a line dot by dot, starting from vecStart in the direction of vecEnd,
-	// ignoring or not monsters (depending on the value of IGNORE_MONSTERS, true or false), and stops
-	// at the first obstacle encountered, returning the results of the trace in the TraceResult structure
-	// ptr. Such results are (amongst others) the distance traced, the hit surface, the hit plane
-	// vector normal, etc. See the TraceResult structure for details. This function allows to specify
-	// whether the trace starts "inside" an entity's polygonal model, and if so, to specify that entity
-	// in ignoreEntity in order to ignore it as a possible obstacle.
-
-	(*g_engfuncs.pfnTraceLine) (start, end, ignoreMonsters ? 1 : 0, ignoreEntity, ptr);
-}
-
-void TraceHull(const Vector& start, const Vector& end, const bool ignoreMonsters, const int hullNumber, edict_t* ignoreEntity, TraceResult* ptr)
+void TraceHull(const Vector& start, const Vector& end, const int& ignoreFlags, const int& hullNumber, edict_t* ignoreEntity, TraceResult* ptr)
 {
 	// this function traces a hull dot by dot, starting from vecStart in the direction of vecEnd,
 	// ignoring or not monsters (depending on the value of IGNORE_MONSTERS, true or
@@ -74,7 +67,7 @@ void TraceHull(const Vector& start, const Vector& end, const bool ignoreMonsters
 	// function allows to specify whether the trace starts "inside" an entity's polygonal model,
 	// and if so, to specify that entity in ignoreEntity in order to ignore it as an obstacle.
 
-	(*g_engfuncs.pfnTraceHull) (start, end, ignoreMonsters ? 1 : 0, hullNumber, ignoreEntity, ptr);
+	(*g_engfuncs.pfnTraceHull) (start, end, !!(ignoreFlags & TraceIgnore::Monsters), hullNumber, ignoreEntity, ptr);
 }
 
 uint16_t FixedUnsigned16(const float value, const float scale)
@@ -121,10 +114,10 @@ bool IsVisible(const Vector& origin, edict_t* ent)
 	if (FNullEnt(ent))
 		return false;
 
-	TraceResult tr{};
-	TraceLine(GetEntityOrigin(ent), origin, true, true, ent, &tr);
+	TraceResult tr;
+	TraceLine(GetEntityOrigin(ent), origin, TraceIgnore::Everything, ent, &tr);
 
-	if (tr.flFraction != 1.0f)
+	if (tr.flFraction < 1.0f)
 		return false; // line of sight is not established
 
 	return true; // line of sight is valid.
@@ -133,10 +126,10 @@ bool IsVisible(const Vector& origin, edict_t* ent)
 // return walkable position on ground
 Vector GetWalkablePosition(const Vector& origin, edict_t* ent, const bool returnNullVec, const float height)
 {
-	TraceResult tr{};
-	TraceLine(origin, Vector(origin.x, origin.y, -height), true, false, ent, &tr);
+	TraceResult tr;
+	TraceLine(origin, Vector(origin.x, origin.y, -height), TraceIgnore::Monsters, ent, &tr);
 
-	if (tr.flFraction != 1.0f)
+	if (tr.flFraction < 1.0f)
 		return tr.vecEndPos; // walkable ground
 
 	if (returnNullVec)
@@ -154,7 +147,7 @@ Vector GetEntityOrigin(edict_t* ent)
 
 	Vector entityOrigin = ent->v.origin;
 	if (entityOrigin == nullvec)
-		entityOrigin = ent->v.absmin + (ent->v.size * 0.5);
+		entityOrigin = ent->v.absmin + (ent->v.size * 0.5f);
 
 	return entityOrigin;
 }
@@ -164,7 +157,7 @@ Vector GetBoxOrigin(edict_t* ent)
 	if (FNullEnt(ent))
 		return nullvec;
 
-	return ent->v.absmin + (ent->v.size * 0.5);
+	return ent->v.absmin + (ent->v.size * 0.5f);
 }
 
 Vector GetTopOrigin(edict_t* ent)
@@ -243,7 +236,7 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 		}
 
 		text = tempText;
-		while (cstrlen(text) >= 64)
+		while (strlen(text) >= 64)
 		{
 			MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent);
 			WRITE_SHORT(menu->validSlots);
@@ -351,11 +344,11 @@ void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
 	// supply directly the whole string as if you were typing it in the bot's "console". It
 	// is supposed to work exactly like the pfnClientCommand (server-sided client command).
 
-	if (!IsValidBot(fakeClient))
+	if (g_isFakeCommand || g_fakeCommandTimer > engine->GetTime() || IsNullString(format) || !IsValidBot(fakeClient))
 		return;
 
 	va_list ap;
-	static char command[256]{};
+	static char command[256];
 	int stop, i, stringIndex = 0;
 
 	va_start(ap, format);
@@ -366,7 +359,8 @@ void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
 		return;
 
 	g_isFakeCommand = true;
-	const int length = cstrlen(command);
+	g_fakeCommandTimer = engine->GetTime() + 0.02;
+	const int length = strlen(command);
 	int start, index;
 
 	while (stringIndex < length)
@@ -414,8 +408,8 @@ void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
 	}
 
 	g_fakeArgv[0] = 0;
-	g_isFakeCommand = false;
 	g_fakeArgc = 0;
+	g_isFakeCommand = false;
 }
 
 char* GetField(const char* string, const int fieldId, const bool endLine)
@@ -429,15 +423,15 @@ char* GetField(const char* string, const int fieldId, const bool endLine)
 	// either to the actual engine functions (when the caller is a real client), either on
 	// our function here, which does the same thing, when the caller is a bot.
 
-	static char field[256]{};
+	static char field[256];
 
 	// reset the string
-	cmemset(field, 0, sizeof(field));
+	memset(field, 0, sizeof(field));
 
 	int length, i, index = 0, fieldCount = 0, start, stop;
 
 	field[0] = 0; // reset field
-	length = cstrlen(string); // get length of string
+	length = strlen(string); // get length of string
 
 	// while we have not reached end of line
 	while (index < length && fieldCount <= fieldId)
@@ -481,20 +475,20 @@ char* GetField(const char* string, const int fieldId, const bool endLine)
 	}
 
 	if (endLine)
-		field[cstrlen(field) - 1] = 0;
+		field[strlen(field) - 1] = 0;
 
 	cstrtrim(field);
 	return &field[0]; // returns the wanted field
 }
 
-const char* GetModName(void)
+char* GetModName(void)
 {
-	static char modName[256]{};
+	static char modName[256];
 
 	// ask the engine for the MOD directory path
 	// get the length of the returned string
 	GET_GAME_DIR(modName);
-	int length = cstrlen(modName);
+	int length = strlen(modName);
 
 	// format the returned string to get the last directory name
 	int stop = length - 1;
@@ -544,160 +538,16 @@ void CreatePath(char* path)
 // this is called at the start of each round
 void RoundInit(void)
 {
-	g_roundEnded = false;
-
-	for (const auto& bot : g_botManager->m_bots)
+	// auto semiclip detection
+	cvar_t* sc = g_engfuncs.pfnCVarGetPointer("semiclip");
+	if (sc && sc->value == 1.0f)
 	{
-		if (!bot)
-			continue;
-
-		bot->NewRound();
-		g_radioSelect[bot->m_index - 1] = 0;
-	}
-
-	g_bombSayString = false;
-	g_timeBombPlanted = 0.0f;
-
-	g_lastRadioTime[0] = 0.0f;
-	g_lastRadioTime[1] = 0.0f;
-
-	g_waypoint->SetBombPosition(true);
-
-	if (!(g_gameVersion & Game::HalfLife))
-	{
-		// auto semiclip detection
-		cvar_t* sc = g_engfuncs.pfnCVarGetPointer("semiclip");
-		if (sc && sc->value == 1.0f)
-		{
-			extern ConVar ebot_has_semiclip;
-			ebot_has_semiclip.SetInt(1);
-		}
-
-		if (ebot_auto_gamemode.GetBool())
-			AutoLoadGameMode();
-
-		if (GetGameMode() == GameMode::Original)
-		{
-			// check team economics
-			g_botManager->CheckTeamEconomics(Team::Terrorist);
-			g_botManager->CheckTeamEconomics(Team::Counter);
-		}
-
-		// calculate the round mid/end in world time
-		g_timeRoundStart = engine->GetTime() + engine->GetFreezeTime() + g_pGlobals->frametime;
-		g_timeRoundMid = g_timeRoundStart + engine->GetRoundTime() * 30.0f;
-		g_timeRoundEnd = g_timeRoundStart + engine->GetRoundTime() * 60.0f;
-
-		g_botManager->SelectLeaderEachTeam(Team::Counter);
-		g_botManager->SelectLeaderEachTeam(Team::Counter);
-	}
-	else
-	{
-		g_timeRoundStart = engine->GetTime();
-		g_timeRoundMid = g_timeRoundStart + 999999.0f;
-		g_timeRoundEnd = g_timeRoundStart + 999999.0f;
-		SetGameMode(GameMode::Deathmatch);
-	}
-}
-
-void AutoLoadGameMode(void)
-{
-	char buffer[1024]{};
-	char buffer2[1024]{};
-	const char* getModeName = GetModName();
-	static int8_t checkShowTextTime = 0;
-	checkShowTextTime++;
-
-	// CS:BTE Support
-	FormatBuffer(buffer, "%s/addons/amxmodx/configs/bte_player.ini", getModeName);
-	FormatBuffer(buffer2, "%s/addons/amxmodx/configs/bte_config/bte_blockresource.txt", getModeName);
-	if (TryFileOpen(buffer) || TryFileOpen(buffer2))
-	{
-		const int Const_GameModes = 13;
-		GameMode bteGameModAi[Const_GameModes] =
-		{
-			GameMode::Original,		//1
-			GameMode::TeamDeathmatch,		//2
-			GameMode::Deathmatch,		//3
-			GameMode::NoTeam,	//4
-			GameMode::TeamDeathmatch,		//5
-			GameMode::ZombiePlague,		//6
-			GameMode::ZombiePlague,		//7
-			GameMode::ZombiePlague,		//8
-			GameMode::ZombiePlague,		//9
-			GameMode::ZombieHell,		//10
-			GameMode::ZombiePlague,		//11
-			GameMode::NoTeam,	//12
-			GameMode::ZombiePlague			//13
-		};
-
-		char* bteGameINI[Const_GameModes] =
-		{
-			"plugins-none", //1
-			"plugins-td",   //2
-			"plugins-dm",   //3
-			"plugins-dr",   //4
-			"plugins-gd",   //5
-			"plugins-ghost",//6
-			"plugins-zb1",  //7
-			"plugins-zb3",  //8
-			"plugins-zb4",  //9
-			"plugins-ze",   //10
-			"plugins-zse",  //11
-			"plugins-npc",  //12
-			"plugins-zb5"   //13
-		};
-
-		int i;
-		for (i = 0; i < Const_GameModes; i++)
-		{
-			FormatBuffer(buffer, "%s/addons/amxmodx/configs/%s.ini", getModeName, bteGameINI[i]);
-			if (TryFileOpen(buffer))
-			{
-				if (bteGameModAi[i] == GameMode(2) && i != 5)
-					g_DelayTimer = engine->GetTime() + 20.0f + CVAR_GET_FLOAT("mp_freezetime");
-
-				if (checkShowTextTime < 3 || GetGameMode() != bteGameModAi[i])
-					ServerPrint("*** E-BOT Auto Game Mode Setting: CS:BTE [%s] [%d] ***", bteGameINI[i], bteGameModAi[i]);
-
-				if (i == 3 || i == 9)
-				{
-					ServerPrint("***** E-BOT not support the mode now :( *****");
-					SetGameMode(GameMode::TeamDeathmatch);
-				}
-				else
-					SetGameMode(bteGameModAi[i]);
-
-				// Only ZM3 need restart the round
-				if (checkShowTextTime < 3 && i == 7)
-					ServerCommand("sv_restart 1");
-
-				break;
-			}
-		}
-
-		return;
+		extern ConVar ebot_has_semiclip;
+		ebot_has_semiclip.SetInt(1);
 	}
 
 	if (ebot_zp_delay_custom.GetFloat() > 0.0f)
-	{
-		SetGameMode(GameMode::ZombiePlague);
-		extern ConVar ebot_prefer_better_pickup;
-		ebot_prefer_better_pickup.SetInt(0);
 		g_DelayTimer = engine->GetTime() + ebot_zp_delay_custom.GetFloat() + 2.2f;
-
-		// zombie escape
-		if (g_mapType == MAP_ZE)
-		{
-			extern ConVar ebot_escape;
-			ebot_escape.SetInt(1);
-			ServerPrint("*** E-BOT Detected Zombie Escape Map: ebot_zombie_escape_mode is set to 1 ***");
-		}
-		else
-			g_mapType = MAP_DE;
-
-		return;
-	}
 	else
 	{
 		cvar_t* zpCvar = g_engfuncs.pfnCVarGetPointer("zp_delay");
@@ -706,23 +556,6 @@ void AutoLoadGameMode(void)
 
 		if (zpCvar)
 		{
-			if (checkShowTextTime < 3 || GetGameMode() != GameMode::ZombiePlague)
-				ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Mode (Plague/Escape) ***");
-
-			SetGameMode(GameMode::ZombiePlague);
-			extern ConVar ebot_prefer_better_pickup;
-			ebot_prefer_better_pickup.SetInt(0);
-
-			// zombie escape
-			if (g_mapType == MAP_ZE)
-			{
-				extern ConVar ebot_escape;
-				ebot_escape.SetInt(1);
-				ServerPrint("*** E-BOT Detected Zombie Escape Map: ebot_zombie_escape_mode is set to 1 ***");
-			}
-			else
-				g_mapType = MAP_DE;
-
 			const float delayTime = zpCvar->value + 2.2f;
 			if (delayTime > 0.0f)
 				g_DelayTimer = engine->GetTime() + delayTime;
@@ -734,7 +567,8 @@ void AutoLoadGameMode(void)
 				{
 					extern ConVar ebot_force_flashlight;
 					ebot_force_flashlight.SetInt(1);
-					// TODO: add visiblity option for human bots
+					extern ConVar ebot_dark_mode;
+					ebot_dark_mode.SetInt(1);
 				}
 				else if (zpCvar->string[0] == 'b')
 				{
@@ -742,142 +576,26 @@ void AutoLoadGameMode(void)
 					ebot_force_flashlight.SetInt(1);
 				}
 			}
-
-			return;
-		}
-	}
-
-	// Base Builder
-	const cvar_t* bbCvar = g_engfuncs.pfnCVarGetPointer("bb_buildtime");
-	const cvar_t* bbCvar2 = g_engfuncs.pfnCVarGetPointer("bb_preptime");
-	if (bbCvar && bbCvar2)
-	{
-		if (checkShowTextTime < 3 || GetGameMode() != GameMode::ZombiePlague)
-			ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Mode (Base Builder) ***");
-
-		SetGameMode(GameMode::ZombiePlague);
-		extern ConVar ebot_prefer_better_pickup;
-		ebot_prefer_better_pickup.SetInt(0);
-
-		const float delayTime = bbCvar->value + bbCvar2->value + 2.2f;
-		if (delayTime > 0.0f)
-			g_DelayTimer = engine->GetTime() + delayTime;
-
-		g_mapType = MAP_DE;
-		return;
-	}
-
-	// DM:KD
-	FormatBuffer(buffer, "%s/addons/amxmodx/configs/plugins-dmkd.ini", GetModName());
-	if (TryFileOpen(buffer))
-	{
-		if (CVAR_GET_FLOAT("DMKD_DMMODE") == 1)
-		{
-			if (checkShowTextTime < 3 || GetGameMode() != GameMode::Deathmatch)
-				ServerPrint("*** E-BOT Auto Game Mode Setting: DM:KD-DM ***");
-
-			SetGameMode(GameMode::Deathmatch);
 		}
 		else
 		{
-			if (checkShowTextTime < 3 || GetGameMode() != GameMode::TeamDeathmatch)
-				ServerPrint("*** E-BOT Auto Game Mode Setting: DM:KD-TDM ***");
-
-			SetGameMode(GameMode::TeamDeathmatch);
-		}
-
-		g_mapType = MAP_DE;
-		return;
-	}
-
-	// Zombie Hell
-	const cvar_t* zhCvar = g_engfuncs.pfnCVarGetPointer("zh_zombie_maxslots");
-	if (zhCvar && zhCvar->value > 0.0f)
-	{
-		if (checkShowTextTime < 3 || GetGameMode() != GameMode::ZombieHell)
-			ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Hell ***");
-
-		SetGameMode(GameMode::ZombieHell);
-		extern ConVar ebot_prefer_better_pickup;
-		ebot_prefer_better_pickup.SetInt(0);
-
-		extern ConVar ebot_quota;
-		ebot_quota.SetInt(static_cast<int>(zhCvar->value));
-		g_mapType = MAP_DE;
-		return;
-	}
-
-	const cvar_t* bhCvar = g_engfuncs.pfnCVarGetPointer("bh_starttime");
-	if (bhCvar)
-	{
-		if (checkShowTextTime < 3 || GetGameMode() != GameMode::ZombiePlague)
-			ServerPrint("*** E-BOT Auto Game Mode Setting: Zombie Mode (Biohazard) ***");
-
-		SetGameMode(GameMode::ZombiePlague);
-		extern ConVar ebot_prefer_better_pickup;
-		ebot_prefer_better_pickup.SetInt(0);
-
-		const float delayTime = bhCvar->value + 1.0f;
-		if (delayTime > 0.0f)
-			g_DelayTimer = engine->GetTime() + delayTime;
-
-		g_mapType = MAP_DE;
-		return;
-	}
-
-	const cvar_t* dmActive = g_engfuncs.pfnCVarGetPointer("csdm_active");
-	if (dmActive && dmActive->value > 0.0f)
-	{
-		const cvar_t* freeForAll = g_engfuncs.pfnCVarGetPointer("mp_freeforall");
-		if (freeForAll && freeForAll->value > 0.0f)
-		{
-			if (checkShowTextTime < 3 || GetGameMode() != GameMode::Deathmatch)
-				ServerPrint("*** E-BOT Auto Game Mode Setting: CSDM-DM ***");
-
-			SetGameMode(GameMode::Deathmatch);
-			g_mapType = MAP_DE;
-			return;
-		}
-		else
-		{
-			if (checkShowTextTime < 3 || GetGameMode() != GameMode::TeamDeathmatch)
-				ServerPrint("*** E-BOT Auto Game Mode Setting: CSDM-TDM ***");
-
-			SetGameMode(GameMode::TeamDeathmatch);
-			g_mapType = MAP_DE;
-			return;
+			zpCvar = g_engfuncs.pfnCVarGetPointer("bh_starttime");
+			if (zpCvar)
+			{
+				const float delayTime = zpCvar->value + 1.0f;
+				if (delayTime > 0.0f)
+					g_DelayTimer = engine->GetTime() + delayTime;
+			}
 		}
 	}
 
-	if (checkShowTextTime < 3)
+	for (Bot* const &bot : g_botManager->m_bots)
 	{
-		if (GetGameMode() == GameMode::Original)
-			ServerPrint("*** E-BOT Auto Game Mode Setting: Original ***");
-		else
-			ServerPrint("*** E-BOT Auto Game Mode Setting: Unknown ***");
+		if (bot)
+			bot->NewRound();
 	}
-}
 
-void SetGameMode(const GameMode gamemode)
-{
-	ebot_gamemod.SetInt(static_cast<int>(gamemode));
-}
-
-bool IsZombieMode(void)
-{
-	const GameMode gamemode = GetGameMode();
-	return (gamemode == GameMode::ZombiePlague || gamemode == GameMode::ZombieHell);
-}
-
-bool IsDeathmatchMode(void)
-{
-	const GameMode gamemode = GetGameMode();
-	return (gamemode == GameMode::Deathmatch || gamemode == GameMode::TeamDeathmatch);
-}
-
-GameMode GetGameMode(void)
-{
-	return static_cast<GameMode>(ebot_gamemod.GetInt());
+	g_roundEnded = false;
 }
 
 bool IsBreakable(edict_t* ent)
@@ -921,7 +639,7 @@ int GetTeam(edict_t* ent)
 
 	if (ebot_ignore_enemies.GetBool())
 		player_team = Team::Counter;
-	else if (GetGameMode() == GameMode::ZombiePlague)
+	else
 	{
 		if (g_DelayTimer > engine->GetTime())
 			player_team = Team::Counter;
@@ -930,23 +648,13 @@ int GetTeam(edict_t* ent)
 		else
 			player_team = *(reinterpret_cast<int*>(ent->pvPrivateData) + OFFSET_TEAM) - 1;
 	}
-	else if (GetGameMode() == GameMode::Deathmatch || GetGameMode() == GameMode::NoTeam)
-	{
-		const int client = ENTINDEX(ent);
-		player_team = client * client;
-	}
-	else
-		player_team = *(reinterpret_cast<int*>(ent->pvPrivateData) + OFFSET_TEAM) - 1;
 
 	return player_team;
 }
 
 bool IsZombieEntity(edict_t* ent)
 {
-	if (IsZombieMode()) // Zombie Mode
-		return GetTeam(ent) == Team::Terrorist;
-
-	return false;
+	return GetTeam(ent) == Team::Terrorist;
 }
 
 bool IsValidPlayer(edict_t* ent)
@@ -993,19 +701,26 @@ bool IsEntityWalkable(edict_t* ent)
 	return false;
 }
 
+
 bool IsWalkableLineClear(const Vector& from, const Vector& to)
 {
-	TraceResult result{};
+	TraceResult result;
 	edict_t* pEntIgnore = g_hostEntity;
+	edict_t* pEntPrev = g_hostEntity;
 	Vector useFrom = from, dir;
 
-	while (true)
+	int i;
+	for (i = 0; i < 64; i++)
 	{
-		TraceHull(useFrom, to, true, point_hull, pEntIgnore, &result);
+		TraceLine(useFrom, to, TraceIgnore::Monsters, pEntIgnore, &result);
 
 		// if we hit a walkable entity, try again
-		if ((result.flFraction != 1.0f || result.fAllSolid || result.fStartSolid) && IsEntityWalkable(result.pHit))
+		if (result.flFraction < 1.0f && (result.pHit && IsEntityWalkable(result.pHit)))
 		{
+			if (result.pHit == pEntPrev)
+				return false; // deadlock, give up
+
+			pEntPrev = pEntIgnore;
 			pEntIgnore = result.pHit;
 
 			// start from just beyond where we hit to avoid infinite loops
@@ -1017,16 +732,7 @@ bool IsWalkableLineClear(const Vector& from, const Vector& to)
 			break;
 	}
 
-	if (result.fStartSolid)
-		return false;
-
-	if (result.fAllSolid)
-		return false;
-
-	if (result.vecPlaneNormal.z > 0.7f)
-		return false;
-
-	if (result.flFraction == 1.0f)
+	if (result.flFraction >= 1.0f)
 		return true;
 
 	return false;
@@ -1153,7 +859,7 @@ void ChatPrint(const char* format, ...)
 		return;
 	}
 
-	cstrcat(string, "\n");
+	strcat(string, "\n");
 
 	MESSAGE_BEGIN(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG));
 	WRITE_BYTE(HUD_PRINTTALK);
@@ -1183,7 +889,7 @@ void ClientPrint(edict_t* ent, int dest, const char* format, ...)
 		return;
 	}
 
-	cstrcat(string, "\n");
+	strcat(string, "\n");
 
 	if (dest & 0x3ff)
 	{
@@ -1223,22 +929,22 @@ void ServerCommand(const char* format, ...)
 
 char* GetEntityName(edict_t* entity)
 {
-	static char entityName[32]{};
+	static char entityName[32];
 	if (!g_pGlobals || FNullEnt(entity))
-		cstrcpy(entityName, "nullptr");
+		strcpy(entityName, "nullptr");
 	else if (entity->v.flags & FL_CLIENT || entity->v.flags & FL_FAKECLIENT)
-		cstrncpy(entityName, STRING(entity->v.netname), sizeof(entityName));
+		strncpy(entityName, STRING(entity->v.netname), sizeof(entityName));
 	else
-		cstrncpy(entityName, STRING(entity->v.classname), sizeof(entityName));
+		strncpy(entityName, STRING(entity->v.classname), sizeof(entityName));
 
 	return &entityName[0];
 }
 
 // this function gets the map name and store it in the map_name global string variable.
-const char* GetMapName(void)
+char* GetMapName(void)
 {
-	static char mapName[32]{};
-	cstrncpy(mapName, STRING(g_pGlobals->mapname), sizeof(mapName));
+	static char mapName[32];
+	strncpy(mapName, STRING(g_pGlobals->mapname), sizeof(mapName));
 	return &mapName[0]; // and return a pointer to it
 }
 
@@ -1259,9 +965,9 @@ bool OpenConfig(const char* fileName, char* errorIfNotExists, File* outFile)
 	return true;
 }
 
-const char* GetWaypointDir(void)
+char* GetWaypointDir(void)
 {
-	static char wpDir[1024]{};
+	static char wpDir[1024];
     sprintf(wpDir, "%s/addons/ebot/waypoints/", GetModName());
 	return &wpDir[0];
 }
@@ -1278,25 +984,6 @@ void RegisterCommand(char* command, void funcPtr(void))
 	REG_SVR_COMMAND(command, funcPtr); // ask the engine to register this new command
 }
 
-void CheckWelcomeMessage(void)
-{
-	static float receiveTime = -1.0f;
-
-	if (receiveTime == -1.0f && IsAlive(g_hostEntity))
-		receiveTime = engine->GetTime() + 12.5f;
-
-	if (receiveTime > 0.0f && receiveTime < engine->GetTime())
-	{
-		const int buildVersion[4] = { PRODUCT_VERSION_DWORD };
-		const int bV16[4] = { buildVersion[0], buildVersion[1], buildVersion[2], buildVersion[3] };
-
-		ChatPrint("----- [%s %s] by %s -----", PRODUCT_NAME, PRODUCT_VERSION, PRODUCT_AUTHOR);
-		ChatPrint("***** Build: (%u.%u.%u.%u) *****", bV16[0], bV16[1], bV16[2], bV16[3]);
-
-		receiveTime = 0.0f;
-	}
-}
-
 void DetectCSVersion(void)
 {
 	const char* infoBuffer = "Game Registered: %s (0x%d)";
@@ -1306,8 +993,6 @@ void DetectCSVersion(void)
 	{
 		if (g_gameVersion & Game::CZero)
 			ServerPrint(infoBuffer, "CS: CZ (Xash Engine)", sizeof(Bot));
-		else if (g_gameVersion & Game::HalfLife)
-			ServerPrint(infoBuffer, "Half-Life (Xash Engine)", sizeof(Bot));
 		else
 		{
 			g_gameVersion = (Game::Xash | Game::CStrike);
@@ -1316,8 +1001,6 @@ void DetectCSVersion(void)
 	}
 	else if (g_gameVersion & Game::CZero)
 		ServerPrint(infoBuffer, "CS: CZ", sizeof(Bot));
-	else if (g_gameVersion & Game::HalfLife)
-		ServerPrint(infoBuffer, "Half-Life", sizeof(Bot));
 	else
 	{
 		g_gameVersion = Game::CStrike;
@@ -1350,27 +1033,27 @@ void AddLogEntry(const Log logLevel, const char* format, ...)
 	{
 	case Log::Default:
 	{
-		cstrncpy(levelString, "Log: ", sizeof(levelString));
+		strncpy(levelString, "Log: ", sizeof(levelString));
 		break;
 	}
 	case Log::Warning:
 	{
-		cstrncpy(levelString, "Warning: ", sizeof(levelString));
+		strncpy(levelString, "Warning: ", sizeof(levelString));
 		break;
 	}
 	case Log::Error:
 	{
-		cstrncpy(levelString, "Error: ", sizeof(levelString));
+		strncpy(levelString, "Error: ", sizeof(levelString));
 		break;
 	}
 	case Log::Fatal:
 	{
-		cstrncpy(levelString, "Critical: ", sizeof(levelString));
+		strncpy(levelString, "Critical: ", sizeof(levelString));
 		break;
 	}
 	case Log::Memory:
 	{
-		cstrncpy(levelString, "Memory Error: ", sizeof(levelString));
+		strncpy(levelString, "Memory Error: ", sizeof(levelString));
 		ServerPrint("unexpected memory error");
 		break;
 	}
@@ -1439,7 +1122,7 @@ void MOD_AddLogEntry(const int mod, char* format)
 bool FindNearestPlayer(void** pvHolder, edict_t* to, const float searchDistance, const bool sameTeam, const bool needBot, const bool isAlive, const bool needDrawn)
 {
 	edict_t* survive = nullptr; // pointer to temporaly & survive entity
-	float nearestPlayer = FLT_MAX; // nearest player
+	float nearestPlayer = 9999999.0f; // nearest player
 
 	const Vector toOrigin = GetEntityOrigin(to);
 	float distance;
@@ -1473,473 +1156,4 @@ bool FindNearestPlayer(void** pvHolder, edict_t* to, const float searchDistance,
 		*pvHolder = reinterpret_cast<void*>(survive);
 
 	return true;
-}
-
-// this function returning weapon id from the weapon alias and vice versa.
-int GetWeaponReturn(const bool needString, const char* weaponAlias, const int weaponID)
-{
-	// structure definition for weapon tab
-	struct WeaponTab_t
-	{
-		int weaponID; // weapon id
-		const char* alias; // weapon alias
-	};
-
-	// weapon enumeration
-	WeaponTab_t weaponTab[] =
-	{
-	   {Weapon::Usp, "usp"}, // HK USP .45 Tactical
-	   {Weapon::Glock18, "glock"}, // Glock18 Select Fire
-	   {Weapon::Deagle, "deagle"}, // Desert Eagle .50AE
-	   {Weapon::P228, "p228"}, // SIG P228
-	   {Weapon::Elite, "elite"}, // Dual Beretta 96G Elite
-	   {Weapon::FiveSeven, "fn57"}, // FN Five-Seven
-	   {Weapon::M3, "m3"}, // Benelli M3 Super90
-	   {Weapon::Xm1014, "xm1014"}, // Benelli XM1014
-	   {Weapon::Mp5, "mp5"}, // HK MP5-Navy
-	   {Weapon::Tmp, "tmp"}, // Steyr Tactical Machine Pistol
-	   {Weapon::P90, "p90"}, // FN P90
-	   {Weapon::Mac10, "mac10"}, // Ingram MAC-10
-	   {Weapon::Ump45, "ump45"}, // HK UMP45
-	   {Weapon::Ak47, "ak47"}, // Automat Kalashnikov AK-47
-	   {Weapon::Galil, "galil"}, // IMI Galil
-	   {Weapon::Famas, "famas"}, // GIAT FAMAS
-	   {Weapon::Sg552, "sg552"}, // Sig SG-552 Commando
-	   {Weapon::M4A1, "m4a1"}, // Colt M4A1 Carbine
-	   {Weapon::Aug, "aug"}, // Steyr Aug
-	   {Weapon::Scout, "scout"}, // Steyr Scout
-	   {Weapon::Awp, "awp"}, // AI Arctic Warfare/Magnum
-	   {Weapon::G3SG1, "g3sg1"}, // HK G3/SG-1 Sniper Rifle
-	   {Weapon::Sg550, "sg550"}, // Sig SG-550 Sniper
-	   {Weapon::M249, "m249"}, // FN M249 Para
-	   {Weapon::FbGrenade, "flash"}, // Concussion Grenade
-	   {Weapon::HeGrenade, "hegren"}, // High-Explosive Grenade
-	   {Weapon::SmGrenade, "sgren"}, // Smoke Grenade
-	   {Weapon::Kevlar, "vest"}, // Kevlar Vest
-	   {Weapon::KevlarHelmet, "vesthelm"}, // Kevlar Vest and Helmet
-	   {Weapon::Defuser, "defuser"}, // Defuser Kit
-	   {Weapon::Shield, "shield"}, // Tactical Shield
-	};
-
-	// if we need to return the string, find by weapon id
-	if (needString && weaponID != -1)
-	{
-		for (auto pointer : weaponTab)
-		{
-			if (pointer.weaponID == weaponID) // is weapon id found?
-				return MAKE_STRING(pointer.alias);
-		}
-
-		return MAKE_STRING("(none)"); // return none
-	}
-
-	// else search weapon by name and return weapon id
-	for (auto pointer : weaponTab)
-	{
-		if (cstrncmp(pointer.alias, weaponAlias, cstrlen(pointer.alias)) == 0)
-			return pointer.weaponID;
-	}
-
-	return -1; // no weapon was found return -1
-}
-
-ChatterMessage GetEqualChatter(const int message)
-{
-	switch (message)
-	{
-	case Radio::Affirmative:
-		return ChatterMessage::Yes;
-	case Radio::Negative:
-		return ChatterMessage::No;
-	case Radio::EnemySpotted:
-	case Radio::NeedBackup:
-	case Radio::TakingFire:
-		return ChatterMessage::SeeksEnemy;
-	case Radio::EnemyDown:
-		return ChatterMessage::EnemyDown;
-	case Radio::CoverMe:
-		return ChatterMessage::CoverMe;
-	case Radio::SectorClear:
-		return ChatterMessage::Clear;
-	case Radio::InPosition:
-		return ChatterMessage::Camp;
-	case Radio::ReportingIn:
-		return ChatterMessage::ReportingIn;
-	case Radio::ReportTeam:
-		return ChatterMessage::ReportTeam;
-	}
-
-	return ChatterMessage::Nothing;
-}
-
-char* GetVoice(const ChatterMessage message)
-{
-	switch (message)
-	{
-	case ChatterMessage::Yes:
-	{
-		switch (crandomint(1, 17))
-		{
-		case 1:
-			return "affirmative";
-		case 2:
-			return "alright";
-		case 3:
-			return "alright_lets_do_this";
-		case 4:
-			return "alright2";
-		case 5:
-			return "ok";
-		case 6:
-			return "ok_sir_lets_go";
-		case 7:
-			return "ok_cmdr_lets_go";
-		case 8:
-			return "ok2";
-		case 9:
-			return "roger";
-		case 10:
-			return "roger_that";
-		case 11:
-			return "yea_ok";
-		case 12:
-			return "you_heard_the_man_lets_go";
-		case 13:
-			return "hang_on_im_coming";
-		case 14:
-			return "im_coming";
-		case 15:
-			return "sounds_like_a_plan";
-		case 16:
-			return "be_right_there";
-		case 17:
-			return "good_idea";
-		}
-		break;
-	}
-	case ChatterMessage::No:
-	{
-		switch (crandomint(1, 13))
-		{
-		case 1:
-			return "ahh_negative";
-		case 2:
-			return "negative";
-		case 3:
-			return "negative2";
-		case 4:
-			return "no";
-		case 5:
-			return "no_sir";
-		case 6:
-			return "no_thanks";
-		case 7:
-			return "no2";
-		case 8:
-			return "naa";
-		case 9:
-			return "nnno_sir";
-		case 10:
-			return "hes_broken";
-		case 11:
-			return "i_dont_think_so";
-		case 12:
-			return "noo";
-		case 13:
-			return "do_not_mess_with_me";
-		}
-		break;
-	}
-	case ChatterMessage::SeeksEnemy:
-	{
-		switch (crandomint(1, 19))
-		{
-		case 1:
-			return "help";
-		case 2:
-			return "need_help";
-		case 3:
-			return "need_help2";
-		case 4:
-			return "taking_fire_need_assistance2";
-		case 5:
-			return "engaging_enemies";
-		case 6:
-			return "attacking";
-		case 7:
-			return "attacking_enemies";
-		case 8:
-			return "a_bunch_of_them";
-		case 9:
-			return "im_pinned_down";
-		case 10:
-			return "im_in_trouble";
-		case 11:
-			return "in_combat";
-		case 12:
-			return "in_combat2";
-		case 13:
-			return "target_acquired";
-		case 14:
-			return "target_spotted";
-		case 15:
-			return "i_see_our_target";
-		case 16:
-			return "i_could_use_some_help";
-		case 17:
-			return "i_could_use_some_help_over_here";
-		case 18:
-			return "returning_fire";
-		case 19:
-			return "they_got_me_pinned_down_here";
-		}
-		break;
-	}
-	case ChatterMessage::Clear:
-	{
-		switch (crandomint(1, 24))
-		{
-		case 1:
-			return "clear";
-		case 2:
-			return "clear2";
-		case 3:
-			return "clear3";
-		case 4:
-			return "clear4";
-		case 5:
-			return "where_are_you_hiding";
-		case 6:
-		{
-			for (const auto& otherBot : g_botManager->m_bots)
-			{
-				if (otherBot)
-					otherBot->m_radioOrder = Radio::ReportTeam;
-			}
-			return "where_could_they_be";
-		}
-		case 7:
-		{
-			for (const auto& otherBot : g_botManager->m_bots)
-			{
-				if (otherBot)
-					otherBot->m_radioOrder = Radio::ReportTeam;
-			}
-			return "where_is_it";
-		}
-		case 8:
-			return "area_clear";
-		case 9:
-			return "area_secure";
-		case 10:
-		{
-			for (const auto& otherBot : g_botManager->m_bots)
-			{
-				if (otherBot)
-					otherBot->m_radioOrder = Radio::ReportTeam;
-			}
-			return "anyone_see_anything";
-		}
-		case 11:
-			return "all_clear_here";
-		case 12:
-			return "all_quiet";
-		case 13:
-			return "nothing";
-		case 14:
-			return "nothing_happening_over_here";
-		case 15:
-			return "nothing_here";
-		case 16:
-			return "nothing_moving_over_here";
-		case 17:
-		{
-			for (const auto& otherBot : g_botManager->m_bots)
-			{
-				if (otherBot)
-					otherBot->m_radioOrder = Radio::ReportTeam;
-			}
-			return "anyone_see_them";
-		}
-		case 18:
-		{
-			for (const auto& otherBot : g_botManager->m_bots)
-			{
-				if (otherBot)
-					otherBot->m_radioOrder = Radio::ReportTeam;
-			}
-			return "report_in_team";
-		}
-		case 19:
-			return "they_will_not_escape";
-		case 20:
-			return "they_wont_get_away";
-		case 21:
-			return "they_wont_get_away2";
-		case 22:
-			return "come_out_and_fight_like_a_man";
-		case 23:
-			return "come_out_wherever_you_are";
-		case 24:
-			return "come_to_papa";
-		}
-		break;
-	}
-	case ChatterMessage::CoverMe:
-	{
-		switch (crandomint(1, 2))
-		{
-		case 1:
-			return "cover_me";
-		case 2:
-			return "cover_me2";
-		}
-		break;
-	}
-	case ChatterMessage::Happy:
-	{
-		switch (crandomint(1, 21))
-		{
-		case 1:
-			return "yea_baby";
-		case 2:
-			return "whos_the_man";
-		case 3:
-			return "who_wants_some_more";
-		case 4:
-			return "yikes";
-		case 5:
-			return "yesss";
-		case 6:
-			return "yesss2";
-		case 7:
-			return "whoo";
-		case 8:
-			return "i_am_dangerous";
-		case 9:
-			return "i_am_on_fire";
-		case 10:
-			return "whoo2";
-		case 11:
-			return "i_got_more_where_that_came_from";
-		case 12:
-			return "i_wasnt_worried_for_a_minute";
-		case 13:
-			return "its_a_party";
-		case 14:
-			return "thats_the_way_this_is_done";
-		case 15:
-			return "they_never_knew_what_hit_them";
-		case 16:
-			return "well_done";
-		case 17:
-			return "and_thats_how_its_done";
-		case 18:
-			return "good_idea_team";
-		case 19:
-			return "good_one";
-		case 20:
-			return "good_one2";
-		case 21:
-			return "great";
-		}
-		break;
-	}
-	case ChatterMessage::Camp:
-	{
-		switch (crandomint(1, 4))
-		{
-		case 1:
-			return "im_going_to_camp";
-		case 2:
-			return "im_going_to_wait_here";
-		case 3:
-			return "weve_got_the_situation";
-		case 4:
-			return "lets_wait_here";
-		}
-		break;
-	}
-	case ChatterMessage::EnemyDown:
-	{
-		switch (crandomint(1, 19))
-		{
-		case 1:
-			return "took_him_down";
-		case 2:
-			return "took_him_out";
-		case 3:
-			return "took_him_out2";
-		case 4:
-			return "enemy_down";
-		case 5:
-			return "enemy_down2";
-		case 6:
-			return "got_him";
-		case 7:
-			return "hes_done";
-		case 8:
-			return "hes_dead";
-		case 9:
-			return "hes_down";
-		case 10:
-			return "i_got_more_where_that_came_from";
-		case 11:
-			return "i_wasnt_worried_for_a_minute";
-		case 12:
-			return "killed_him";
-		case 13:
-			return "neutralized";
-		case 14:
-			return "owned";
-		case 15:
-			return "tag_them_and_bag_them";
-		case 16:
-			return "thats_the_way_this_is_done";
-		case 17:
-			return "and_thats_how_its_done";
-		case 18:
-			return "do_not_mess_with_me";
-		case 19:
-			return "dropped_him";
-		}
-		break;
-	}
-	case ChatterMessage::ReportingIn:
-		return "reporting_in";
-	case ChatterMessage::FallBack:
-	{
-		switch (crandomint(1, 4))
-		{
-		case 1:
-			return "im_gonna_hang_back";
-		case 2:
-			return "thats_not_good";
-		case 3:
-			return "aw_hell";
-		case 4:
-			return "aww_man";
-		}
-		break;
-	}
-	case ChatterMessage::ReportTeam:
-	{
-		switch (crandomint(1, 5))
-		{
-		case 1:
-			return "report_in_team";
-		case 2:
-			return "where_could_they_be";
-		case 3:
-			return "anyone_see_them";
-		case 4:
-			return "anyone_see_anything";
-		case 5:
-			return "where_is_it";
-		}
-		break;
-	}
-	}
-
-	return nullptr;
 }

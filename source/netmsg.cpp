@@ -22,7 +22,7 @@
 // $Id:$
 //
 
-#include <core.h>
+#include "../include/core.h"
 
 #define PTR_TO_BYTE(in) *reinterpret_cast<uint8_t*>(in)
 #define PTR_TO_FLT(in) *reinterpret_cast<float*>(in)
@@ -52,13 +52,11 @@ void NetworkMsg::Execute(void* p)
 
     // some needed variables
     static uint8_t r = 0, g = 0, b = 0;
-    static uint8_t enabled = 0;
 
     static int index = 0, numPlayers = 0;
     static int state = 0, id = 0;
-    static int killerIndex = 0, victimIndex = 0;
 
-    static WeaponProperty weaponProp{};
+    static WeaponProperty weaponProp;
     static char* x;
 
     // now starts of netmessage execution
@@ -67,19 +65,21 @@ void NetworkMsg::Execute(void* p)
     case NETMSG_VGUI:
     {
         // this message is sent when a VGUI menu is displayed
-        if (!m_state && m_bot)
+        if (!m_state)
         {
             switch (PTR_TO_INT(p))
             {
             case GMENU_TEAM:
             {
-                m_bot->m_startAction = CMENU_TEAM;
+                if (m_bot)
+                    m_bot->m_startAction = CMENU_TEAM;
                 break;
             }
             case GMENU_TERRORIST:
             case GMENU_COUNTER:
             {
-                m_bot->m_startAction = CMENU_CLASS;
+                if (m_bot)
+                    m_bot->m_startAction = CMENU_CLASS;
                 break;
             }
             }
@@ -159,23 +159,6 @@ void NetworkMsg::Execute(void* p)
                 break;
             }
             }
-
-            /*if (cstrncmp(x, "#Team_Select", 13) == 0) // team select menu?
-                m_bot->m_startAction = CMENU_TEAM;
-            else if (cstrncmp(x, "#Team_Select_Spect", 19) == 0) // team select menu?
-                m_bot->m_startAction = CMENU_TEAM;
-            else if (cstrncmp(x, "#IG_Team_Select_Spect", 22) == 0) // team select menu?
-                m_bot->m_startAction = CMENU_TEAM;
-            else if (cstrncmp(x, "#IG_Team_Select", 16) == 0) // team select menu?
-                m_bot->m_startAction = CMENU_TEAM;
-            else if (cstrncmp(x, "#IG_VIP_Team_Select", 20) == 0) // team select menu?
-                m_bot->m_startAction = CMENU_TEAM;
-            else if (cstrncmp(x, "#IG_VIP_Team_Select_Spect", 26) == 0) // team select menu?
-                m_bot->m_startAction = CMENU_TEAM;
-            else if (cstrncmp(x, "#Terrorist_Select", 18) == 0) // T model select?
-                m_bot->m_startAction = CMENU_CLASS;
-            else if (cstrncmp(x, "#CT_Select", 11) == 0) // CT model select menu?
-                m_bot->m_startAction = CMENU_CLASS;*/
         }
 
         break;
@@ -187,7 +170,7 @@ void NetworkMsg::Execute(void* p)
         {
         case 0:
         {
-            cstrncpy(weaponProp.className, PTR_TO_STR(p), sizeof(weaponProp.className));
+            strcpy(weaponProp.className, PTR_TO_STR(p));
             break;
         }
         case 1:
@@ -217,10 +200,9 @@ void NetworkMsg::Execute(void* p)
         }
         case 8:
         {
-
-            if (weaponProp.id > -1 && weaponProp.id < Const_MaxWeapons)
+            if (weaponProp.id >= 0 && weaponProp.id < Const_MaxWeapons)
             {
-                weaponProp.flags = PTR_TO_INT(p); // flags for weapon (WTF???)
+                weaponProp.flags = PTR_TO_INT(p);
                 g_weaponDefs[weaponProp.id] = weaponProp; // store away this weapon with it's ammo information...
             }
 
@@ -246,7 +228,7 @@ void NetworkMsg::Execute(void* p)
         }
         case 2:
         {
-            if (m_bot && id > -1 && id < Const_MaxWeapons)
+            if (m_bot)
             {
                 if (state != 0)
                     m_bot->m_currentWeapon = id;
@@ -268,7 +250,7 @@ void NetworkMsg::Execute(void* p)
         }
         case 1:
         {
-            if (m_bot && index > -1 && index < Const_MaxWeapons)
+            if (m_bot)
                 m_bot->m_ammo[index] = PTR_TO_INT(p);
             break;
         }
@@ -289,83 +271,27 @@ void NetworkMsg::Execute(void* p)
         }
         case 1:
         {
-            if (m_bot && index > -1 && index < Const_MaxWeapons)
+            if (m_bot)
                 m_bot->m_ammo[index] = PTR_TO_INT(p);
             break;
         }
         }
         break;
     }
-    case NETMSG_MONEY:
+    case NETMSG_DAMAGE:
     {
-        // this message gets sent when the bots money amount changes
-        if (!m_state && m_bot)
-            m_bot->m_moneyAmount = PTR_TO_INT(p); // amount of money
-        break;
-    }
-    case NETMSG_STATUSICON:
-    {
-        switch (m_state)
+        // this message gets sent when the bots are getting damaged
+        if (m_state == 2)
         {
-        case 0:
-        {
-            enabled = PTR_TO_BYTE(p);
-            break;
-        }
-        case 1:
-        {
-            if (!(g_gameVersion & Game::HalfLife) && m_bot)
-            {
-                x = PTR_TO_STR(p);
-                if (!x)
-                    break;
-
-                // this is around up to 3-5 times faster than cstrncmp one
-                switch (x[0])
-                {
-                case 'b':
-                {
-                    if (x[1] == 'u' && charToInt(x) == 565)
-                        m_bot->m_inBuyZone = (enabled != 0);
-                    break;
-                }
-                case 'd':
-                {
-                    if (x[1] == 'e' && charToInt(x) == 549)
-                        m_bot->m_hasDefuser = (enabled != 0);
-                    break;
-                }
-                case 'v':
-                {
-                    if (x[1] == 'i' && charToInt(x) == 764)
-                        m_bot->m_inVIPZone = (enabled != 0);
-                    break;
-                }
-                case 'c':
-                {
-                    if (x[1] == '4')
-                        m_bot->m_inBombZone = (enabled == 2);
-                    break;
-                }
-                }
-
-                /*if (cstrncmp(x, "defuser", 8) == 0)
-                    m_bot->m_hasDefuser = (enabled != 0);
-                else if (cstrncmp(x, "buyzone", 8) == 0)
-                    m_bot->m_inBuyZone = (enabled != 0);
-                else if (cstrncmp(x, "vipsafety", 10) == 0)
-                    m_bot->m_inVIPZone = (enabled != 0);
-                else if (cstrncmp(x, "c4", 3) == 0)
-                    m_bot->m_inBombZone = (enabled == 2);*/
-            }
-            break;
-        }
+            if (m_bot)
+                m_bot->IgnoreCollisionShortly();
         }
         break;
     }
-    case NETMSG_DEATH: // this message sends on death
+    case NETMSG_DEATH:
     {
-        /*if (m_state == 1)
+        // this message sends on death
+        if (m_state == 1)
         {
             Bot* victimer = g_botManager->GetBot(PTR_TO_INT(p));
             if (victimer)
@@ -374,153 +300,10 @@ void NetworkMsg::Execute(void* p)
                 victimer->m_navNode.Clear();
                 victimer->m_avgDeathOrigin += victimer->pev->origin;
                 victimer->m_avgDeathOrigin *= 0.5f;
+                memset(&victimer->m_ammoInClip, 0, sizeof(victimer->m_ammoInClip));
+	            memset(&victimer->m_ammo, 0, sizeof(victimer->m_ammo));
+	            victimer->m_currentWeapon = 0;
             }
-        }
-        break;*/
-
-        // this can cause to message not has been sent bug...
-        switch (m_state)
-        {
-        case 0:
-        {
-            killerIndex = PTR_TO_INT(p);
-            break;
-        }
-        case 1:
-        {
-            victimIndex = PTR_TO_INT(p);
-            break;
-        }
-        case 2: // this one is heavy...
-        {
-            edict_t* victim = INDEXENT(victimIndex);
-            if (!IsValidPlayer(victim))
-                break;
-
-            Bot* bot = g_botManager->GetBot(victimIndex);
-            if (bot)
-            {
-                bot->m_isAlive = false;
-                bot->m_navNode.Clear();
-                bot->m_avgDeathOrigin += bot->pev->origin;
-                bot->m_avgDeathOrigin *= 0.5f;
-            }
-
-            edict_t* killer = INDEXENT(killerIndex);
-            if (!IsValidPlayer(killer))
-                break;
-
-            bot = g_botManager->GetBot(killerIndex);
-            int index, teamValue = GetTeam(killer);
-            float timeCache = engine->GetTime();
-            extern ConVar ebot_camp_max;
-            if ((bot && bot->GetCurrentState() == Process::Camp) || (!bot && killer->v.flags & FL_DUCKING))
-            {
-                for (const auto& teammate : g_botManager->m_bots)
-                {
-                    if (!teammate)
-                        continue;
-
-                    if (teammate->m_team == teamValue)
-                        continue;
-
-                    if (!teammate->m_isAlive)
-                        continue;
-
-                    if ((teammate->pev->origin - killer->v.origin).GetLengthSquared() > squaredf(1280.0f))
-                        continue;
-
-                    if (teammate->m_isBomber || teammate->m_isVIP)
-                    {
-                        if (teammate->CheckGrenadeThrow(killer))
-                            teammate->RadioMessage(Radio::Fallback);
-                        else
-                        {
-                            index = teammate->m_navNode.Last();
-                            teammate->FindPath(teammate->m_currentWaypointIndex, index, killer);
-                        }
-                    }
-                    else
-                    {
-                        teammate->m_pauseTime = timeCache + crandomfloat(2.0f, 5.0f);
-                        teammate->LookAt(killer->v.origin + killer->v.view_ofs, killer->v.velocity);
-
-                        if (teammate->CheckGrenadeThrow(killer))
-                            teammate->RadioMessage(Radio::Fallback);
-                        else if ((bot && bot->m_friendsNearCount > teammate->m_friendsNearCount) && (!bot && teammate->pev->health < killer->v.health))
-                        {
-                            index = teammate->FindDefendWaypoint(teammate->EyePosition());
-                            if (IsValidWaypoint(index))
-                            {
-                                teammate->m_campIndex = index;
-                                teammate->SetProcess(Process::Camp, "there's too many... i must camp", true, timeCache + ebot_camp_max.GetFloat());
-                            }
-                            else // hell no...
-                            {
-                                index = teammate->m_navNode.Last();
-                                teammate->FindPath(teammate->m_currentWaypointIndex, index, killer);
-                                teammate->RadioMessage(Radio::RegroupTeam);
-                            }
-                        }
-                        else
-                        {
-                            index = teammate->m_navNode.Last();
-                            teammate->FindPath(teammate->m_currentWaypointIndex, index, killer);
-                        }
-                    }
-                }
-            }
-            else // not camping (act different, but idk what can i do else ???)
-            {
-                for (const auto& teammate : g_botManager->m_bots)
-                {
-                    if (!teammate)
-                        continue;
-
-                    if (teammate->m_team == teamValue)
-                        continue;
-
-                    if (!teammate->m_isAlive)
-                        continue;
-
-                    if ((teammate->pev->origin - killer->v.origin).GetLengthSquared() > squaredf(1280.0f))
-                        continue;
-
-                    if (teammate->m_isBomber || teammate->m_isVIP)
-                    {
-                        index = teammate->m_navNode.Last();
-                        teammate->FindPath(teammate->m_currentWaypointIndex, index, killer);
-                    }
-                    else
-                    {
-                        teammate->m_pauseTime = timeCache + crandomfloat(2.0f, 5.0f);
-                        teammate->LookAt(killer->v.origin + killer->v.view_ofs, killer->v.velocity);
-
-                        if ((bot && bot->m_friendsNearCount > teammate->m_friendsNearCount) && (!bot && teammate->pev->health < killer->v.health))
-                        {
-                            index = teammate->FindDefendWaypoint(teammate->EyePosition());
-                            if (IsValidWaypoint(index))
-                            {
-                                teammate->m_campIndex = index;
-                                teammate->SetProcess(Process::Camp, "there's too many... i must camp", true, timeCache + ebot_camp_max.GetFloat());
-                            }
-                            else // hell no...
-                            {
-                                index = teammate->m_navNode.Last();
-                                teammate->FindPath(teammate->m_currentWaypointIndex, index, killer);
-                                teammate->RadioMessage(Radio::RegroupTeam);
-                            }
-                        }
-                        else
-                        {
-                            index = teammate->m_navNode.Last();
-                            teammate->FindPath(teammate->m_currentWaypointIndex, index, killer);
-                        }
-                    }
-                }
-            }
-            break;
-        }
         }
         break;
     }
@@ -578,77 +361,42 @@ void NetworkMsg::Execute(void* p)
             if (!x)
                 break;
 
-            if (cstrncmp(x, "#CTs_Win", 9) == 0 ||
-                cstrncmp(x, "#Bomb_Defused", 14) == 0 ||
-                cstrncmp(x, "#Terrorists_Win", 16) == 0 ||
-                cstrncmp(x, "#Round_Draw", 12) == 0 ||
-                cstrncmp(x, "#All_Hostages_Rescued", 22) == 0 ||
-                cstrncmp(x, "#Target_Saved", 14) == 0 ||
-                cstrncmp(x, "#Hostages_Not_Rescued", 22) == 0 ||
-                cstrncmp(x, "#Terrorists_Not_Escaped", 24) == 0 ||
-                cstrncmp(x, "#VIP_Not_Escaped", 17) == 0 ||
-                cstrncmp(x, "#Escaping_Terrorists_Neutralized", 33) == 0 ||
-                cstrncmp(x, "#VIP_Assassinated", 18) == 0 ||
-                cstrncmp(x, "#VIP_Escaped", 13) == 0 ||
-                cstrncmp(x, "#Terrorists_Escaped", 20) == 0 ||
-                cstrncmp(x, "#CTs_PreventEscape", 19) == 0 ||
-                cstrncmp(x, "#Target_Bombed", 15) == 0 ||
-                cstrncmp(x, "#Game_Commencing", 17) == 0 ||
-                cstrncmp(x, "#Game_will_restart_in", 22) == 0)
+            if (strncmp(x, "#CTs_Win", 9) == 0 ||
+                strncmp(x, "#Bomb_Defused", 14) == 0 ||
+                strncmp(x, "#Terrorists_Win", 16) == 0 ||
+                strncmp(x, "#Round_Draw", 12) == 0 ||
+                strncmp(x, "#All_Hostages_Rescued", 22) == 0 ||
+                strncmp(x, "#Target_Saved", 14) == 0 ||
+                strncmp(x, "#Hostages_Not_Rescued", 22) == 0 ||
+                strncmp(x, "#Terrorists_Not_Escaped", 24) == 0 ||
+                strncmp(x, "#VIP_Not_Escaped", 17) == 0 ||
+                strncmp(x, "#Escaping_Terrorists_Neutralized", 33) == 0 ||
+                strncmp(x, "#VIP_Assassinated", 18) == 0 ||
+                strncmp(x, "#VIP_Escaped", 13) == 0 ||
+                strncmp(x, "#Terrorists_Escaped", 20) == 0 ||
+                strncmp(x, "#CTs_PreventEscape", 19) == 0 ||
+                strncmp(x, "#Target_Bombed", 15) == 0 ||
+                strncmp(x, "#Game_Commencing", 17) == 0 ||
+                strncmp(x, "#Game_will_restart_in", 22) == 0)
             {
                 g_roundEnded = true;
-
-                if (GetGameMode() == GameMode::Original)
-                {
-                    if (cstrncmp(x, "#CTs_Win", 9) == 0)
-                        g_botManager->SetLastWinner(Team::Counter); // update last winner for economics
-                    else if (cstrncmp(x, "#Terrorists_Win", 16) == 0)
-                        g_botManager->SetLastWinner(Team::Terrorist); // update last winner for economics
-                }
-
-                g_waypoint->SetBombPosition(true);
-            }
-            else if (!g_bombPlanted && cstrncmp(x, "#Bomb_Planted", 14) == 0)
-            {
-                g_bombPlanted = true;
-                g_bombSayString = true;
-                g_timeBombPlanted = engine->GetTime();
-                g_waypoint->SetBombPosition();
-
+                g_helicopter = nullptr;
                 for (const auto& bot : g_botManager->m_bots)
                 {
-                    if (!bot)
-                        continue;
-
-                    if (!bot->m_isAlive)
-                        continue;
-
-                    bot->m_navNode.Clear();
+                    if (bot)
+                    {
+                        bot->m_hasEnemiesNear = false;
+                        bot->m_hasFriendsNear = false;
+                        bot->m_hasEntitiesNear = false;
+                        bot->m_enemyDistance = 9999999.0f;
+                        bot->m_friendDistance = 9999999.0f;
+                        bot->m_entityDistance = 9999999.0f;
+                        bot->m_numEnemiesLeft = 0;
+                        bot->m_numFriendsLeft = 0;
+                        bot->m_isSlowThink = false;
+                    }
                 }
             }
-            else if (m_bot)
-            {
-                if (cstrncmp(x, "#Switch_To_BurstFire", 21) == 0)
-                    m_bot->m_weaponBurstMode = BurstMode::Enabled;
-                else if (cstrncmp(x, "#Switch_To_SemiAuto", 20) == 0)
-                    m_bot->m_weaponBurstMode = BurstMode::Disabled;
-            }
-        }
-        break;
-    }
-    case NETMSG_BARTIME:
-    {
-        if (!m_state && m_bot)
-        {
-            if (GetGameMode() == GameMode::Original)
-            {
-                if (PTR_TO_INT(p))
-                    m_bot->m_hasProgressBar = true; // the progress bar on a hud
-                else
-                    m_bot->m_hasProgressBar = false; // no progress bar or disappeared
-            }
-            else
-                m_bot->m_hasProgressBar = false;
         }
         break;
     }

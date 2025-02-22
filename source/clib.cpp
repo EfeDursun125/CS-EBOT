@@ -1,16 +1,8 @@
-﻿//
-// Custom Lib For E-Bot
-// E-Bot is ai controlled players for counter-strike 1.6
-// 
-// For reduce glibc requirements and take full advantage of compiler optimizations
-// And to get same results/performance on every OS
-//
-
-#include <core.h>
+#include "../include/core.h"
 
 #define USE_SSE2
-#include <sse_mathfun.h>
-#include <sse_mathfun_extension.h>
+#include "../include/sse_mathfun.h"
+#include "../include/sse_mathfun_extension.h"
 
 float csqrtf(const float value)
 {

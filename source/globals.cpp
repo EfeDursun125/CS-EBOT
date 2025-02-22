@@ -22,70 +22,56 @@
 // $Id:$
 //
 
-#include <core.h>
+#include "../include/core.h"
 
 bool g_roundEnded = true;
-bool g_bombPlanted = false;
-bool g_bombDefusing = false;
-bool g_bombSayString = false;
 bool g_editNoclip = false;
-bool g_isFakeCommand = false;
 bool g_waypointOn = false;
 bool g_waypointsChanged = true;
 bool g_autoWaypoint = false;
 bool g_bLearnJumpWaypoint = false;
 bool g_analyzewaypoints = false;
-bool g_analyzenavmesh = false;
 bool g_analyzeputrequirescrouch = false;
 bool g_hasDoors = false;
-bool g_navmeshOn = false;
+bool g_isFakeCommand = false;
+bool g_isMatrixReady = false;
 
-float g_lastChatTime = 0.0f;
-float g_timeRoundStart = 0.0f;
-float g_timeRoundEnd = 0.0f;
-float g_timeRoundMid = 0.0f;
-float g_timeBombPlanted = 0.0f;
-float g_lastRadioTime[2] = {0.0f, 0.0f};
 float g_autoPathDistance = 250.0f;
 float g_fakePingUpdate = 0.0f;
-float g_randomJoinTime = 0.0f;
 float g_DelayTimer = 0.0f;
 float g_pathTimer = 0.0f;
-float g_audioTime = 0.0f;
+float g_fakeCommandTimer = 0.0f;
 
-int g_lastRadio[2]{};
-int g_storeAddbotVars[4]{};
-int g_radioSelect[32]{};
+int g_storeAddbotVars[4];
 int g_fakeArgc = 0;
 int g_gameVersion = Game::CStrike;
 int16_t g_numWaypoints = 0;
-uint16_t g_numNavAreas = 0;
-int g_mapType = 0;
+int16_t g_avgRequiredHeap = 500;
+int16_t g_avgRequiredHeapShortest = 250;
+int16_t g_avgRequiredHeapEscape = 50;
 
 int g_modelIndexLaser = 0;
 int g_modelIndexArrow = 0;
-char g_fakeArgv[256]{};
+char g_fakeArgv[256];
 
 // Entity Data
-int g_entityId[entityNum]{};
-int g_entityTeam[entityNum]{};
-int g_entityAction[entityNum]{};
+int g_entityId[entityNum];
+int g_entityTeam[entityNum];
+int g_entityAction[entityNum];
 //******
-
-Array <Array <String>> g_chatFactory{};
-MiniArray <NameItem> g_botNames{};
-Array <KwChat> g_replyFactory{};
 
 meta_globals_t* gpMetaGlobals = nullptr;
 gamedll_funcs_t* gpGamedllFuncs = nullptr;
 mutil_funcs_t* gpMetaUtilFuncs = nullptr;
 
-enginefuncs_t g_engfuncs{};
-WeaponProperty g_weaponDefs[Const_MaxWeapons + 1]{};
-Clients g_clients[32]{};
+enginefuncs_t g_engfuncs;
+WeaponProperty g_weaponDefs[Const_MaxWeapons + 1];
+Clients g_clients[32];
+MiniArray <NameItem> g_botNames;
 
 edict_t* g_worldEdict = nullptr;
 edict_t* g_hostEntity = nullptr;
+edict_t* g_helicopter = nullptr;
 globalvars_t* g_pGlobals = nullptr;
 
 // metamod engine & dllapi function tables
@@ -117,50 +103,31 @@ plugin_info_t Plugin_info =
 
 WeaponSelect g_weaponSelect[Const_NumWeapons + 1] =
 {
-	{Weapon::Knife,		"weapon_knife",     "knife.mdl",     0,    0,  0,  0,  0,  0, true},
-	{Weapon::Usp,			"weapon_usp",       "usp.mdl",       500,  1,  1,  1,  2,  2, false},
-	{Weapon::Glock18,		"weapon_glock18",   "glock18.mdl",   400,  1,  1,  2,  1,  1, false},
-	{Weapon::Deagle,		"weapon_deagle",	"deagle.mdl",	 650,  1,  1,  3,  4,  4,  false},
-	{Weapon::P228,		"weapon_p228",      "p228.mdl",      600,  1,  1,  4,  3,  3, false},
-	{Weapon::Elite,		"weapon_elite",     "elite.mdl",     1000, 1,  1,  5,  5,  5, false},
-	{Weapon::FiveSeven,		"weapon_fiveseven", "fiveseven.mdl", 750,  1,  1,  6,  5,  5, false},
-	{Weapon::M3,			"weapon_m3",        "m3.mdl",        1700, 1,  2,  1,  1,  1, false},
-	{Weapon::Xm1014,		"weapon_xm1014",    "xm1014.mdl",    3000, 1,  2,  2,  2,  2, false},
-	{Weapon::Mp5,			"weapon_mp5navy",   "mp5.mdl",       1500, 1,  3,  1,  2,  2, true},
-	{Weapon::Tmp,			"weapon_tmp",       "tmp.mdl",       1250, 1,  3,  2,  1,  1, true},
-	{Weapon::P90,			"weapon_p90",       "p90.mdl",       2350, 1,  3,  3,  4,  4, true},
-	{Weapon::Mac10,		"weapon_mac10",     "mac10.mdl",     1400, 1,  3,  4,  1,  1, true},
-	{Weapon::Ump45,		"weapon_ump45",     "ump45.mdl",     1700, 1,  3,  5,  3,  3, true},
-	{Weapon::Ak47,		"weapon_ak47",      "ak47.mdl",      2500, 1,  4,  1,  2,  2,  true},
-	{Weapon::Sg552,		"weapon_sg552",     "sg552.mdl",     3500, 1,  4,  2,  4,  4,  true},
-	{Weapon::M4A1,		"weapon_m4a1",      "m4a1.mdl",      3100, 1,  4,  3,  3,  3,  true},
-	{Weapon::Galil,		"weapon_galil",     "galil.mdl",     2000, 1,  4,  -1, 1,  1,  true},
-	{Weapon::Famas,		"weapon_famas",     "famas.mdl",     2250, 1,  4,  -1, 1,  1,  true},
-	{Weapon::Aug,			"weapon_aug",       "aug.mdl",       3500, 1,  4,  4,  4,  4,  true},
-	{Weapon::Scout,		"weapon_scout",		"scout.mdl",	 2750, 1,  4,  5,  3,  2, false},
-	{Weapon::Awp,			"weapon_awp",       "awp.mdl",       4750, 1,  4,  6,  5,  6,  false},
-	{Weapon::G3SG1,		"weapon_g3sg1",     "g3sg1.mdl",     5000, 1,  4,  7,  6,  6,  false},
-	{Weapon::Sg550,		"weapon_sg550",     "sg550.mdl",     4200, 1,  4,  8,  5,  5,  false},
-	{Weapon::M249,		"weapon_m249",      "m249.mdl",      5750, 1,  5,  1,  1,  1,  true},
-	{Weapon::Shield,	"weapon_shield",    "shield.mdl",    2200, 0,  8,  -1, 8,  8, false},
-	{0,					"",                 "",              0,    0,   0,   0, 0,  0, false}
-};
-
-WeaponSelect g_weaponSelectHL[Const_NumWeaponsHL + 1] =
-{
-	{WeaponHL::Crowbar, "weapon_crowbar", "crowbar.mdl", 0, 0, 0, 0, 0, 0, true},
-	{WeaponHL::Glock, "weapon_9mmhandgun", "9mmhandgun.mdl", 2222, 1, 1, 1, 2, 2, true},
-	{WeaponHL::Python, "weapon_357", "357.mdl", 3333, 1, 1, 2, 1, 1, true},
-	{WeaponHL::Mp5_HL, "weapon_9mmAR",	"9mmar.mdl", 4444, 1, 1, 3, 4, 4, true},
-	{WeaponHL::Crossbow, "weapon_crossbow", "crossbow.mdl", 5555, 1, 1, 5, 5, 5, true},
-	{WeaponHL::Shotgun, "weapon_shotgun", "shotgun.mdl", 5555, 1, 1, 6, 5, 5, true},
-	{WeaponHL::Rpg, "weapon_rpg", "rpg.mdl", 8888, 1, 2, 1, 1, 1, true},
-	{WeaponHL::Gauss, "weapon_gauss", "gauss.mdl", 6666, 1, 2, 2, 2, 2, true},
-	{WeaponHL::Egon, "weapon_egon", "egon.mdl", 7777, 1, 3, 1, 2, 2, true},
-	{WeaponHL::HornetGun, "weapon_hornetgun", "hgun.mdl", 3333, 1, 3, 2, 1, 1, true},
-	{WeaponHL::HandGrenade, "weapon_handgrenade", "grenade.mdl", 1111, 1, 3, 3, 4, 4, true},
-	{WeaponHL::Snark, "weapon_snark", "squeak.mdl", 9999, 1, 4, 1, 2, 2, true},
-	{0,	"", "", 0, 0, 0, 0, 0, 0, true}
+	{Weapon::Knife, "weapon_knife", true},
+	{Weapon::Usp, "weapon_usp", false},
+	{Weapon::Glock18, "weapon_glock18", false},
+	{Weapon::Deagle, "weapon_deagle", false},
+	{Weapon::P228, "weapon_p228", false},
+	{Weapon::Elite, "weapon_elite", false},
+	{Weapon::FiveSeven, "weapon_fiveseven",false},
+	{Weapon::M3, "weapon_m3", false},
+	{Weapon::Xm1014, "weapon_xm1014", false},
+	{Weapon::Mp5, "weapon_mp5navy", true},
+	{Weapon::Tmp, "weapon_tmp", true},
+	{Weapon::P90, "weapon_p90", true},
+	{Weapon::Mac10, "weapon_mac10", true},
+	{Weapon::Ump45, "weapon_ump45", true},
+	{Weapon::Ak47, "weapon_ak47", true},
+	{Weapon::Sg552, "weapon_sg552", true},
+	{Weapon::M4A1, "weapon_m4a1", true},
+	{Weapon::Galil, "weapon_galil", true},
+	{Weapon::Famas, "weapon_famas", true},
+	{Weapon::Aug, "weapon_aug", true},
+	{Weapon::Scout, "weapon_scout", false},
+	{Weapon::Awp, "weapon_awp", false},
+	{Weapon::G3SG1, "weapon_g3sg1", false},
+	{Weapon::Sg550, "weapon_sg550", false},
+	{Weapon::M249, "weapon_m249", true}
 };
 
 // weapon firing delay based on skill (min and max delay for each weapon)
@@ -190,9 +157,7 @@ FireDelay g_fireDelay[Const_NumWeapons + 1] =
    {Weapon::Awp,      10,  170, 0.22f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
    {Weapon::G3SG1,    4,   256, 0.25f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
    {Weapon::Sg550,    4,   256, 0.25f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
-   {Weapon::M249,     3,   640, 0.10f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}},
-   {Weapon::Shield,0,   256, 0.00f, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, 0.0f, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}},
-   {0,               0,   256, 0.00f, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, 0.0f, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}}
+   {Weapon::M249,     3,   640, 0.10f, {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f}, 0.2f, {0.0f, 0.0f, 0.1f, 0.1f, 0.2f}, {0.1f, 0.1f, 0.2f, 0.2f, 0.4f}}
 };
 
 // bot menus
@@ -363,7 +328,7 @@ MenuText g_menus[28] =
 		"\\w4. Avoid\v"
 		"\\y5. Rescue Zone\v"
 		"\\w6. Camping\v"
-		"7. Sniper Camp End\v"
+		"7. Helicopter\v"
 		"\\r8. Map Goal\v"
 		"\\w9. Jump\v\v"
 		"0. Exit"
@@ -377,7 +342,7 @@ MenuText g_menus[28] =
 		"2. Terrorists Specific\v"
 		"3. CTs Specific\v"
 		"4. Use Elevator\v"
-		"5. Sniper Point (\\yFor Camp Points Only!\\w)\v"
+		"5. Helicopter\v"
 		"6. Zombie Mode Camp\v"
 		"7. \\yDelete All Flags!\\ \v\v"
 		"8. Previous...\v"

@@ -22,7 +22,7 @@
 // $Id: engine.cpp 35 2009-06-24 16:43:26Z jeefo $
 //
 
-#include <core.h>
+#include "../include/core.h"
 
 ConVar::ConVar(const char* name, const char* initval, const VarType type)
 {
@@ -65,18 +65,9 @@ void Engine::PushRegisteredConVarsToEngine(void)
 
 void Engine::GetGameConVarsPointers(void)
 {
-    m_gameVars[GVAR_C4TIMER] = g_engfuncs.pfnCVarGetPointer("mp_c4timer");
-    m_gameVars[GVAR_BUYTIME] = g_engfuncs.pfnCVarGetPointer("mp_buytime");
-    m_gameVars[GVAR_FRIENDLYFIRE] = g_engfuncs.pfnCVarGetPointer("mp_friendlyfire");
-    m_gameVars[GVAR_ROUNDTIME] = g_engfuncs.pfnCVarGetPointer("mp_roundtime");
     m_gameVars[GVAR_FREEZETIME] = g_engfuncs.pfnCVarGetPointer("mp_freezetime");
-    m_gameVars[GVAR_FOOTSTEPS] = g_engfuncs.pfnCVarGetPointer("mp_footsteps");
     m_gameVars[GVAR_GRAVITY] = g_engfuncs.pfnCVarGetPointer("sv_gravity");
     m_gameVars[GVAR_DEVELOPER] = g_engfuncs.pfnCVarGetPointer("developer");
-
-    // if buytime is null, just set it to round time
-    if (!m_gameVars[GVAR_BUYTIME])
-        m_gameVars[GVAR_BUYTIME] = m_gameVars[3];
 }
 
 const Vector& Engine::GetGlobalVector(const GlobalVector id)
@@ -127,39 +118,6 @@ void Engine::BuildGlobalVectors(const Vector& on)
         on.BuildVectors(&g_pGlobals->v_forward, &g_pGlobals->v_right, &g_pGlobals->v_up);
 }
 
-bool Engine::IsFootstepsOn(void)
-{
-    if (!m_gameVars[GVAR_FOOTSTEPS])
-        return true;
-
-    return m_gameVars[GVAR_FOOTSTEPS]->value > 0.0f;
-}
-
-float Engine::GetC4TimerTime(void)
-{
-    if (!m_gameVars[GVAR_C4TIMER])
-        return 35.0f;
-
-    return m_gameVars[GVAR_C4TIMER]->value;
-}
-
-float Engine::GetBuyTime(void)
-{
-    if (!m_gameVars[GVAR_BUYTIME])
-        return 15.0f;
-
-    return m_gameVars[GVAR_BUYTIME]->value;
-}
-
-float Engine::GetRoundTime(void)
-{
-    // we have no idea
-    if (!m_gameVars[GVAR_ROUNDTIME])
-        return crandomfloat(120.0f, 300.0f);
-
-    return m_gameVars[GVAR_ROUNDTIME]->value;
-}
-
 float Engine::GetFreezeTime(void)
 {
     if (!m_gameVars[GVAR_FREEZETIME])
@@ -184,14 +142,6 @@ int Engine::GetDeveloperLevel(void)
     return static_cast<int>(m_gameVars[GVAR_DEVELOPER]->value);
 }
 
-bool Engine::IsFriendlyFireOn(void)
-{
-    if (!m_gameVars[GVAR_FRIENDLYFIRE])
-        return false;
-
-    return m_gameVars[GVAR_FRIENDLYFIRE]->value > 0.0f;
-}
-
 void Engine::PrintServer(const char* format, ...)
 {
     char buffer[1024];
@@ -199,7 +149,7 @@ void Engine::PrintServer(const char* format, ...)
     va_start(ap, format);
     vsprintf(buffer, format, ap);
     va_end(ap);
-    cstrcat(buffer, "\n");
+    strcat(buffer, "\n");
     g_engfuncs.pfnServerPrint(buffer);
 }
 
@@ -250,7 +200,7 @@ void Engine::DrawLine(edict_t* client, const Vector& start, const Vector& end, c
     if (!IsValidPlayer(client) || IsValidBot(client))
         return;
 
-    MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, g_hostEntity);
+    MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, client);
     WRITE_BYTE(TE_BEAMPOINTS);
     WRITE_COORD(start.x);
     WRITE_COORD(start.y);
@@ -272,6 +222,39 @@ void Engine::DrawLine(edict_t* client, const Vector& start, const Vector& end, c
     MESSAGE_END();
 }
 
+void Engine::DrawLineToAll(const Vector& start, const Vector& end, const Color& color, const int width, const int noise, const int speed, const int life, const int lineType)
+{
+    for (const Clients& client : g_clients)
+    {
+        if (IsValidBot(client.ent))
+            continue;
+
+        if (!IsValidPlayer(client.ent))
+            continue;
+
+        MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, client.ent);
+        WRITE_BYTE(TE_BEAMPOINTS);
+        WRITE_COORD(start.x);
+        WRITE_COORD(start.y);
+        WRITE_COORD(start.z);
+        WRITE_COORD(end.x);
+        WRITE_COORD(end.y);
+        WRITE_COORD(end.z);
+        WRITE_SHORT(lineType == LINE_ARROW ? g_modelIndexArrow : g_modelIndexLaser);
+        WRITE_BYTE(0);
+        WRITE_BYTE(10);
+        WRITE_BYTE(life);
+        WRITE_BYTE(width);
+        WRITE_BYTE(noise);
+        WRITE_BYTE(color.red);
+        WRITE_BYTE(color.green);
+        WRITE_BYTE(color.blue);
+        WRITE_BYTE(color.alpha);
+        WRITE_BYTE(speed);
+        MESSAGE_END();
+    }
+}
+
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -285,9 +268,9 @@ bool Client::IsInViewCone(const Vector& pos) const
 
 bool Client::IsVisible(const Vector& pos) const
 {
-    TraceResult tr{};
-    TraceLine(GetHeadOrigin(), pos, true, true, m_ent, &tr);
-    return tr.flFraction == 1.0f;
+    TraceResult tr;
+    TraceLine(GetHeadOrigin(), pos, TraceIgnore::Everything, m_ent, &tr);
+    return tr.flFraction >= 1.0f;
 }
 
 bool Client::HasFlag(const int clientFlags)
