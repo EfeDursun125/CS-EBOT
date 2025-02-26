@@ -674,6 +674,8 @@ void Bot::BaseUpdate(void)
 		pev->buttons = m_buttons;
 		pev->impulse = m_impulse;
 		const uint8_t calc = static_cast<uint8_t>(cclampf(((tempTimer - m_msecInterval) * 1000.0f), 0.0f, 255.0f));
+
+		// FIXME: infinite loop for some reason
 		(*g_engfuncs.pfnRunPlayerMove) (m_myself, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, m_buttons, m_impulse, calc);
 		m_msecInterval = tempTimer;
 	}

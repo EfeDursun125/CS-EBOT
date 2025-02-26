@@ -1892,9 +1892,6 @@ bool Waypoint::Load(void)
     {
         InitTypes();
         InitPathMatrix();
-        g_avgRequiredHeap = g_numWaypoints / 2;
-        g_avgRequiredHeapShortest = g_numWaypoints / 3;
-        g_avgRequiredHeapEscape = g_numWaypoints / 20;
     }
 
     return true;
@@ -1953,7 +1950,7 @@ void Waypoint::Save(void)
         {
             ServerPrint("Error: Cannot Save Waypoints");
             CenterPrint("Error: Cannot save waypoints!");
-            AddLogEntry(Log::Error, "Error writing '%s' waypoint file", GetMapName());
+            AddLogEntry(Log::Error, "Error writing '%s' waypoint file: cannot compress the waypoint file!", GetMapName());
             fp.Close();
         }
         else
@@ -1964,7 +1961,7 @@ void Waypoint::Save(void)
         }
     }
     else
-        AddLogEntry(Log::Error, "Error writing '%s' waypoint file", GetMapName());
+        AddLogEntry(Log::Error, "Error writing '%s' waypoint file: file cannot be created!", GetMapName());
 }
 
 const char* Waypoint::CheckSubfolderFile(void)

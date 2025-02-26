@@ -1287,6 +1287,16 @@ inline const float GF_CostRusher(const int16_t& index, const int16_t& parent, co
 	return HF_Auto(index, parent);
 }
 
+struct AStar
+{
+	float g{0.0f};
+	float f{0.0f};
+	int16_t parent{-1};
+	bool is_closed{false};
+};
+
+AStar waypoints[Const_MaxWaypoints];
+
 // this function finds a path from srcIndex to destIndex
 void Bot::FindPath(int& srcIndex, int& destIndex)
 {
@@ -1338,13 +1348,13 @@ void Bot::FindPath(int& srcIndex, int& destIndex)
 	if (m_isStuck)
 		seed += static_cast<int>(engine->GetTime() * 0.1f);
 
-	struct AStar
+	for (i = 0; i < Const_MaxWaypoints; i++)
 	{
-		float g = 0.0f;
-		float f = 0.0f;
-		int16_t parent = -1;
-		bool is_closed = false;
-	} waypoints[g_numWaypoints];
+		waypoints[i].g = 0.0f;
+		waypoints[i].f = 0.0f;
+		waypoints[i].parent = -1;
+		waypoints[i].is_closed = false;
+	}
 
 	// put start waypoint into open list
 	AStar& srcWaypoint = waypoints[srcIndex];
@@ -1407,12 +1417,14 @@ void Bot::FindPath(int& srcIndex, int& destIndex)
 					if (tr.flFraction >= 1.0f)
 						continue;
 				}
-				else if (flags & WAYPOINT_SPECIFICGRAVITY)
+				
+				if (flags & WAYPOINT_SPECIFICGRAVITY)
 				{
 					if ((pev->gravity * engine->GetGravity()) > g_waypoint->m_paths[self].gravity)
 						continue;
 				}
-				else if (flags & WAYPOINT_ONLYONE)
+
+				if (flags & WAYPOINT_ONLYONE)
 				{
 					bool skip = false;
 					for (Bot* const& bot : g_botManager->m_bots)
@@ -1479,14 +1491,6 @@ void Bot::FindShortestPath(int& srcIndex, int& destIndex)
 	if (srcIndex == destIndex)
 		return;
 
-	struct AStar
-	{
-		float g = 0.0f;
-		float f = 0.0f;
-		int16_t parent = -1;
-		bool is_closed = false;
-	} waypoints[g_numWaypoints];
-
 	const float (*hcalc) (const int16_t&, const int16_t&) = nullptr;
 
 	if (g_isMatrixReady)
@@ -1497,12 +1501,20 @@ void Bot::FindShortestPath(int& srcIndex, int& destIndex)
 	if (!hcalc)
 		return;
 
+	int16_t i;
+	for (i = 0; i < Const_MaxWaypoints; i++)
+	{
+		waypoints[i].g = 0.0f;
+		waypoints[i].f = 0.0f;
+		waypoints[i].parent = -1;
+		waypoints[i].is_closed = false;
+	}
+
 	AStar& srcWaypoint = waypoints[srcIndex];
 	srcWaypoint.g = hcalc(srcIndex, destIndex);
 	srcWaypoint.f = srcWaypoint.g + hcalc(srcIndex, destIndex);
 
 	// loop cache
-	int16_t i;
 	AStar* currWaypoint;
 	AStar* childWaypoint;
 	int16_t currentIndex, self;
@@ -1541,7 +1553,6 @@ void Bot::FindShortestPath(int& srcIndex, int& destIndex)
 			continue;
 
 		currWaypoint->is_closed = true;
-
 		currPath = g_waypoint->m_paths[currentIndex];
 		for (i = 0; i < Const_MaxPathIndex; i++)
 		{
@@ -1567,6 +1578,8 @@ void Bot::FindShortestPath(int& srcIndex, int& destIndex)
 
 void Bot::FindEscapePath(int& srcIndex, const Vector& dangerOrigin)
 {
+	// if we can't find new path we will go backwards
+	m_navNode.Clear();
 	if (g_pathTimer > engine->GetTime())
 		return;
 
@@ -1577,12 +1590,12 @@ void Bot::FindEscapePath(int& srcIndex, const Vector& dangerOrigin)
 		srcIndex = i;
 	}
 
-	struct AStar
+	for (i = 0; i < Const_MaxWaypoints; i++)
 	{
-		float f = 0.0f;
-		int16_t parent = -1;
-		bool is_closed = false;
-	} waypoints[g_numWaypoints];
+		waypoints[i].f = 0.0f;
+		waypoints[i].parent = -1;
+		waypoints[i].is_closed = false;
+	}
 
 	AStar& srcWaypoint = waypoints[srcIndex];
 	srcWaypoint.f = (g_waypoint->m_paths[srcIndex].origin - dangerOrigin).GetLengthSquared();
@@ -1594,25 +1607,28 @@ void Bot::FindEscapePath(int& srcIndex, const Vector& dangerOrigin)
 	uint32_t flags;
 	Path currPath;
 	float f;
+	int numIt = 0;
+	const int maxIt = g_numWaypoints / 2;
 
 	PriorityQueue openList;
 	openList.Setup();
-	openList.InsertLowest(srcIndex, srcWaypoint.f);
+	openList.InsertHighest(srcIndex, srcWaypoint.f);
 	while (!openList.IsEmpty())
 	{
 		currentIndex = openList.RemoveHighest();
 		currPath = g_waypoint->m_paths[currentIndex];
 
-		// is the current waypoint the goal waypoint?
 		if (!IsEnemyReachableToPosition(currPath.origin))
 		{
-			m_navNode.Clear();
-
 			do
 			{
 				m_navNode.Add(currentIndex);
 				currentIndex = waypoints[currentIndex].parent;
-			} while (IsValidWaypoint(currentIndex));
+			} while (IsValidWaypoint(currentIndex) && ++numIt < maxIt); // infinite loop here even with it limit... idk why
+
+			// Find better solution...
+			if (numIt >= maxIt)
+				break;
 
 			m_navNode.Reverse();
 			if (m_navNode.HasNext() && (g_waypoint->GetPath(m_navNode.Next())->origin - pev->origin).GetLengthSquared() < (g_waypoint->GetPath(m_navNode.Next())->origin - g_waypoint->GetPath(m_navNode.First())->origin).GetLengthSquared())
@@ -1646,7 +1662,8 @@ void Bot::FindEscapePath(int& srcIndex, const Vector& dangerOrigin)
 					if (tr.flFraction >= 1.0f)
 						continue;
 				}
-				else if (flags & WAYPOINT_SPECIFICGRAVITY)
+
+				if (flags & WAYPOINT_SPECIFICGRAVITY)
 				{
 					if ((pev->gravity * engine->GetGravity()) > g_waypoint->m_paths[self].gravity)
 						continue;

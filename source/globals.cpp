@@ -46,9 +46,6 @@ int g_storeAddbotVars[4];
 int g_fakeArgc = 0;
 int g_gameVersion = Game::CStrike;
 int16_t g_numWaypoints = 0;
-int16_t g_avgRequiredHeap = 500;
-int16_t g_avgRequiredHeapShortest = 250;
-int16_t g_avgRequiredHeapEscape = 50;
 
 int g_modelIndexLaser = 0;
 int g_modelIndexArrow = 0;
