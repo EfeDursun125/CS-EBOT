@@ -43,9 +43,6 @@ extern float g_pathTimer;
 extern float g_fakeCommandTimer;
 
 extern int16_t g_numWaypoints;
-extern int16_t g_avgRequiredHeap;
-extern int16_t g_avgRequiredHeapShortest;
-extern int16_t g_avgRequiredHeapEscape;
 extern int g_gameVersion;
 extern int g_fakeArgc;
 extern int g_storeAddbotVars[4];

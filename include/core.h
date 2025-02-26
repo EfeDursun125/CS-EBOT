@@ -489,7 +489,7 @@ public:
 	uint8_t m_impulse{0}; // bot's impulse command
 
 	int m_tryOpenDoor{0}; // attempt's to open the door
-	LiftState m_liftState{0}; // state of lift handling
+	LiftState m_liftState{}; // state of lift handling
 	float m_liftUsageTime{0.0f}; // time to use lift
 	edict_t* m_liftEntity{nullptr}; // pointer to lift entity
 	Vector m_liftTravelPos{nullvec}; // lift travel position
