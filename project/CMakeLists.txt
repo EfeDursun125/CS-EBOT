@@ -8,36 +8,23 @@ project(EBOT)
 set(CMAKE_SYSTEM_NAME Linux)
 
 # Set build type and library suffix
-set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Release)
 
 # Set build type to shared library (.so file)
 set(CMAKE_SHARED_LIBRARY_SUFFIX ".so")
 
-# Set compiler to clang
-find_program(CMAKE_CXX_COMPILER clang++)
-if(CMAKE_CXX_COMPILER)
-    message(STATUS "Found Clang++: ${CMAKE_CXX_COMPILER} and using it as default C++ compiler")
-    set(CMAKE_CXX_COMPILER clang++)
-endif()
-
-find_program(CMAKE_C_COMPILER clang)
-if(CMAKE_C_COMPILER)
-    message(STATUS "Found Clang: ${CMAKE_C_COMPILER} and using it as default C compiler")
-    set(CMAKE_C_COMPILER clang)
-endif()
-
 # Set compiler flags
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 11)
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g3 -Og")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3 -Og -fno-inline -fno-omit-frame-pointer")
 else()
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Ofast")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Ofast -flto -mssse3 -msse3 -msse2 -msse -mmmx -mfpmath=sse -fvisibility=hidden -fno-rtti -Wno-parentheses -pipe -mtune=generic -fomit-frame-pointer -fvisibility-inlines-hidden -funroll-loops -ffunction-sections -fdata-sections -fcf-protection=none -fno-common -fshort-enums -fno-math-errno -fno-plt")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Ofast -flto -mssse3 -msse3 -msse2 -msse -mmmx -mfpmath=sse -fvisibility=hidden -fno-rtti -Wno-parentheses -pipe -mtune=generic -fomit-frame-pointer -fvisibility-inlines-hidden -funroll-loops -ffunction-sections -fdata-sections -fcf-protection=none -fno-common -fshort-enums -fno-math-errno -fno-plt -fno-strict-aliasing")
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32") # -fPIC")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m32 -w -fno-threadsafe-statics") # -fPIC -Wno-write-strings -Wno-format-security -fno-stack-protector -fno-exceptions")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32 -fPIC")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_FORTIFY_SOURCE=0 -m32 -w -fPIC -fno-stack-protector -fno-exceptions -fno-mudflap -fnothrow-opt -fsplit-stack -fpermissive")
 
 
 # Set output directory for the library
@@ -63,7 +50,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_DL_LIBS})
 
 # Set library properties
 set_target_properties(${PROJECT_NAME} PROPERTIES
-    CXX_STANDARD 17
+    CXX_STANDARD 11
     CXX_STANDARD_REQUIRED ON
     POSITION_INDEPENDENT_CODE ON
     PREFIX ""
