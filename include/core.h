@@ -339,10 +339,16 @@ public:
 		return !Length();
 	}
 
-	inline void Add(const int16_t waypoint)
+	inline bool Add(const int16_t waypoint)
 	{
-		m_path[m_length] = waypoint;
-		m_length++;
+		if (m_path)
+		{
+			m_path[m_length] = waypoint;
+			m_length++;
+			return true;
+		}
+
+		return false;
 	}
 
 	inline void Set(const int16_t index, const int16_t waypoint)
@@ -484,7 +490,7 @@ public:
 
 	edict_t* m_myself{nullptr};
 	edict_t* m_avoid{nullptr};
-	uint16_t m_buttons{0};
+	unsigned short m_buttons{0};
 	uint16_t m_oldButtons{0}; // buttons from previous frame
 	uint8_t m_impulse{0}; // bot's impulse command
 
@@ -532,6 +538,7 @@ public:
 	int m_collStateIndex{0}; // index into collide moves
 	CollisionState m_collisionState{CollisionState::COSTATE_UNDECIDED}; // collision state
 
+	float m_msecVal{0.0f};
 	float m_msecInterval{0.0f}; // used for leon hartwig's method for msec calculation
 	float m_frameInterval{0.0f}; // bot's frame interval
 	float m_aimInterval{0.0f}; // bot's aim interval
@@ -613,7 +620,9 @@ public:
 	void FindEscapePath(int& srcIndex, const Vector& dangerOrigin);
 	void CalculatePing(void);
 public:
-	entvars_t* pev{nullptr};
+	entvars_t* pev{nullptr}; // pev
+
+	float m_updateTimer{0.0f}; // used to update bots
 
 	uint16_t m_numSpawns{0}; // used for path randomizing
 	int m_wantedTeam{0}; // player team bot wants select
@@ -689,7 +698,6 @@ public:
 
 	float m_searchTime{0.0f};
 	float m_pauseTime{0.0f};
-	float m_spawnTime{0.0f};
 
 	float m_frameDelay{0.0f};
 	float m_baseUpdate{0.0f};
@@ -697,6 +705,8 @@ public:
 
 	Bot(edict_t* bot, const int skill, const int personality, const int team, const int member);
 	~Bot(void);
+
+	void RunPlayerMovement(void);
 
 	// NEW AI
 	void BaseUpdate(void);
@@ -995,7 +1005,7 @@ extern bool IsInViewCone(const Vector& origin, edict_t* ent);
 extern bool IsValidBot(edict_t* ent);
 extern bool IsValidBot(const int index);
 extern bool IsValidPlayer(edict_t* ent);
-extern bool OpenConfig(const char* fileName, char* errorIfNotExists, File* outFile);
+extern bool OpenConfig(const char* fileName, const char* errorIfNotExists, File* outFile);
 extern bool FindNearestPlayer(void** holder, edict_t* to, const float searchDistance = 4096.0f, const bool sameTeam = false, const bool needBot = false, const bool needAlive = false, const bool needDrawn = false);
 
 extern char* GetEntityName(edict_t* entity);
@@ -1018,7 +1028,7 @@ extern void RoundInit(void);
 extern void FakeClientCommand(edict_t* fakeClient, const char* format, ...);
 extern void CreateWaypointPath(char* path);
 extern void ServerCommand(const char* format, ...);
-extern void RegisterCommand(char* command, void funcPtr(void));
+extern void RegisterCommand(const char* command, void funcPtr(void));
 extern void DetectCSVersion(void);
 extern void PlaySound(edict_t* ent, const char* soundName);
 extern void ServerPrint(const char* format, ...);
