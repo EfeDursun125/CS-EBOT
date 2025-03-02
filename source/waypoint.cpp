@@ -1941,6 +1941,9 @@ const char* Waypoint::CheckSubfolderFile(void)
 // this function returns 2D traveltime to a position
 float Waypoint::GetTravelTime(const float maxSpeed, const Vector& src, const Vector& origin)
 {
+    if (Math::FltZero(maxSpeed))
+        return 7.0f;
+
     return (origin - src).GetLength2D() / cabsf(maxSpeed);
 }
 

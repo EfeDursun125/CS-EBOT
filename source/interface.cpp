@@ -651,6 +651,7 @@ void CheckEntityAction(void)
 void LoadEntityData(void)
 {
 	int i;
+	Bot* bot;
 	edict_t* entity;
 
 	for (i = 0; i < entityNum; i++)
@@ -673,6 +674,7 @@ void LoadEntityData(void)
 			g_clients[i].origin = nullvec;
 			g_clients[i].index = -1;
 			g_clients[i].team = Team::Count;
+			g_clients[i].wp = -1;
 			continue;
 		}
 
@@ -685,6 +687,17 @@ void LoadEntityData(void)
 			g_clients[i].flags |= CFLAG_ALIVE;
 			g_clients[i].team = GetTeam(entity);
 			g_clients[i].origin = GetEntityOrigin(entity);
+			bot = g_botManager->GetBot(i);
+			if (bot && !bot->m_isStuck && IsValidWaypoint(bot->m_currentWaypointIndex) && g_waypoint->Reachable(g_clients[i].ent, bot->m_currentWaypointIndex))
+			{
+				g_clients[i].wp = bot->m_currentWaypointIndex;
+				continue;
+			}
+
+			g_clients[i].wp = g_waypoint->FindNearestToEnt(g_clients[i].origin, 99999.0f, g_clients[i].ent);
+			if (!IsValidWaypoint(g_clients[i].wp))
+				g_clients[i].wp = g_waypoint->FindNearest(g_clients[i].origin, 99999.0f);
+
 			continue;
 		}
 
@@ -2337,9 +2350,9 @@ void FrameThread(void)
 	}
 
 	if (g_roundEnded)
-		secondTimer = engine->GetTime() + 0.05f;
+		secondTimer = engine->GetTime() + 0.1f;
 	else
-		secondTimer = engine->GetTime() + 0.5f;
+		secondTimer = engine->GetTime() + 1.0f;
 }
 
 void StartFrame(void)
@@ -2917,16 +2930,6 @@ C_DLLEXPORT float Amxx_EBotGetEnemyDistance(int index)
 	index--;
 	amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
-		return csqrtf(amxxbot->m_enemyDistance);
-
-	return -1.0f;
-}
-
-C_DLLEXPORT float Amxx_EBotGetEnemyDistanceSquared(int index)
-{
-	index--;
-	amxxbot = g_botManager->GetBot(index);
-	if (amxxbot)
 		return amxxbot->m_enemyDistance;
 
 	return -1.0f;
@@ -2937,32 +2940,12 @@ C_DLLEXPORT float Amxx_EBotGetEntityDistance(int index)
 	index--;
 	amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
-		return csqrtf(amxxbot->m_entityDistance);
-
-	return -1.0f;
-}
-
-C_DLLEXPORT float Amxx_EBotGetEntityDistanceSquared(int index)
-{
-	index--;
-	amxxbot = g_botManager->GetBot(index);
-	if (amxxbot)
 		return amxxbot->m_entityDistance;
 
 	return -1.0f;
 }
 
 C_DLLEXPORT float Amxx_EBotGetFriendDistance(int index)
-{
-	index--;
-	amxxbot = g_botManager->GetBot(index);
-	if (amxxbot)
-		return csqrtf(amxxbot->m_friendDistance);
-
-	return -1.0f;
-}
-
-C_DLLEXPORT float Amxx_EBotGetFriendDistanceSquared(int index)
 {
 	index--;
 	amxxbot = g_botManager->GetBot(index);

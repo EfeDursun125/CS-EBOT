@@ -32,7 +32,7 @@ ConVar ebot_force_shortest_path("ebot_force_shortest_path", "0");
 ConVar ebot_pathfinder_seed_min("ebot_pathfinder_seed_min", "0.9");
 ConVar ebot_pathfinder_seed_max("ebot_pathfinder_seed_max", "1.1");
 ConVar ebot_helicopter_width("ebot_helicopter_width", "54.0");
-ConVar ebot_use_pathfinding_for_avoid("ebot_use_pathfinding_for_avoid", "1");
+ConVar ebot_use_pathfinding_for_avoid("ebot_use_pathfinding_for_avoid", "0");
 
 int Bot::FindGoalZombie(void)
 {
@@ -52,8 +52,19 @@ int Bot::FindGoalZombie(void)
 	return m_currentGoalIndex;
 }
 
+float GetWaypointDistance(const int start, const int goal)
+{
+	if (g_isMatrixReady)
+		return static_cast<float>(*(g_waypoint->m_distMatrix + (start * g_numWaypoints) + goal));
+
+	return (g_waypoint->m_paths[start].origin - g_waypoint->m_paths[goal].origin).GetLength();
+}
+
 int Bot::FindGoalHuman(void)
 {
+	if (!IsValidWaypoint(m_currentWaypointIndex))
+		FindWaypoint();
+
 	if (IsValidWaypoint(m_myMeshWaypoint))
 	{
 		m_currentGoalIndex = m_myMeshWaypoint;
@@ -78,7 +89,7 @@ int Bot::FindGoalHuman(void)
 					for (i = 0; i < g_waypoint->m_zmHmPoints.Size(); i++)
 					{
 						temp = g_waypoint->m_zmHmPoints.Get(i);
-						dist = (pev->origin - g_waypoint->m_paths[temp].origin).GetLengthSquared();
+						dist = GetWaypointDistance(m_currentWaypointIndex, temp);
 						if (dist > maxDist)
 							continue;
 
@@ -97,7 +108,7 @@ int Bot::FindGoalHuman(void)
 						for (i = 0; i < g_waypoint->m_zmHmPoints.Size(); i++)
 						{
 							temp = g_waypoint->m_zmHmPoints.Get(i);
-							dist = (pev->origin - g_waypoint->m_paths[temp].origin).GetLengthSquared();
+							dist = GetWaypointDistance(m_currentWaypointIndex, temp);
 							if (dist > maxDist)
 								continue;
 
@@ -119,7 +130,7 @@ int Bot::FindGoalHuman(void)
 					for (i = 0; i < g_waypoint->m_zmHmPoints.Size(); i++)
 					{
 						temp = g_waypoint->m_zmHmPoints.Get(i);
-						dist = (pev->origin - g_waypoint->m_paths[temp].origin).GetLengthSquared();
+						dist = GetWaypointDistance(m_currentWaypointIndex, temp);
 
 						// at least get nearest camp spot
 						if (dist > maxDist)
@@ -197,16 +208,22 @@ void Bot::DoWaypointNav(void)
 			else
 				waypointOrigin.z -= 36.0f;
 
-			Vector temp;
-			const float timeToReachWaypoint = (waypointOrigin - myOrigin).GetLength() / pev->maxspeed;
-			temp.x = (waypointOrigin.x - myOrigin.x) / timeToReachWaypoint;
-			temp.y = (waypointOrigin.y - myOrigin.y) / timeToReachWaypoint;
-			temp.z = ((waypointOrigin.z - myOrigin.z) * pev->gravity * squaredf(timeToReachWaypoint)) / timeToReachWaypoint;;
-			if (temp != nullvec)
+			if (pev->maxspeed > MATH_EQEPSILON)
 			{
-				m_moveAngles.x = pev->velocity.x = temp.x;
-				m_moveAngles.y = pev->velocity.y = temp.y;
-				m_moveAngles.z = pev->velocity.z = temp.z;
+				const float timeToReachWaypoint = (waypointOrigin - myOrigin).GetLength() / pev->maxspeed;
+				if (timeToReachWaypoint > MATH_EQEPSILON)
+				{
+					Vector temp;
+					temp.x = (waypointOrigin.x - myOrigin.x) / timeToReachWaypoint;
+					temp.y = (waypointOrigin.y - myOrigin.y) / timeToReachWaypoint;
+					temp.z = ((waypointOrigin.z - myOrigin.z) * pev->gravity * squaredf(timeToReachWaypoint)) / timeToReachWaypoint;
+					if (temp != nullvec)
+					{
+						m_moveAngles.x = pev->velocity.x = temp.x;
+						m_moveAngles.y = pev->velocity.y = temp.y;
+						m_moveAngles.z = pev->velocity.z = temp.z;
+					}
+				}
 			}
 
 			m_duckTime = engine->GetTime() + 1.25f;
@@ -1313,7 +1330,7 @@ void Bot::FindPath(int& srcIndex, int& destIndex)
 
 	// put start waypoint into open list
 	AStar& srcWaypoint = waypoints[srcIndex];
-	srcWaypoint.g = ((gcalc(srcIndex, destIndex, 0, m_team, pev->gravity, m_isZombieBot) * crandomfloatfast(seed, min, max)) / (pev->origin - m_avgDeathOrigin).GetLength());
+	srcWaypoint.g = ((gcalc(srcIndex, destIndex, 0, m_team, pev->gravity, m_isZombieBot) * crandomfloatfast(seed, min, max)));
 	srcWaypoint.f = srcWaypoint.g + hcalc(srcIndex, destIndex);
 	srcWaypoint.state = RouteState::Open;
 
@@ -1413,7 +1430,7 @@ void Bot::FindPath(int& srcIndex, int& destIndex)
 				}
 			}
 
-			g = currWaypoint->g + ((gcalc(currentIndex, self, flags, m_team, pev->gravity, m_isZombieBot) * crandomfloatfast(seed, min, max)) / (pev->origin - m_avgDeathOrigin).GetLength());
+			g = currWaypoint->g + ((gcalc(currentIndex, self, flags, m_team, pev->gravity, m_isZombieBot) * crandomfloatfast(seed, min, max)));
 			f = g + hcalc(self, destIndex);
 
 			childWaypoint = &waypoints[self];
@@ -1782,6 +1799,8 @@ int Bot::FindWaypoint(void)
 		int index;
 		if (!m_isStuck && m_navNode.HasNext() && g_waypoint->Reachable(m_myself, m_navNode.First()))
 			index = m_navNode.First();
+		else if (!m_isStuck && g_waypoint->Reachable(m_myself, m_navNode.First()))
+			index = g_clients[m_index].wp;
 		else
 		{
 			index = g_waypoint->FindNearestToEnt(pev->origin, 2048.0f, m_myself);
@@ -1826,7 +1845,7 @@ void Bot::IgnoreCollisionShortly(void)
 	m_lastCollTime = time2 + 2.0f;
 	if (m_waypointTime < time2 + 7.0f)
 		m_waypointTime = time2 + 7.0f;
-	
+
 	m_isStuck = false;
 	m_stuckTime = 0.0f;
 }

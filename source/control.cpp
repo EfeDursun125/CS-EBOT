@@ -729,14 +729,12 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 	NewRound();
 
 	const float way = static_cast<float>(g_numWaypoints);
-	m_avgDeathOrigin.x = crandomfloat(-way, way);
-	m_avgDeathOrigin.y = crandomfloat(-way, way);
-	m_avgDeathOrigin.z = crandomfloat(-way, way);
 	g_fakeCommandTimer = engine->GetTime() + 1.0f;
 }
 
 Bot::~Bot(void)
 {
+	m_navNode.Destroy();
 	const char* name = GetEntityName(m_myself);
 	if (IsNullString(name))
 		return;
@@ -812,7 +810,6 @@ void Bot::NewRound(void)
 	m_team = GetTeam(m_myself);
 	m_isZombieBot = IsZombieEntity(m_myself);
 
-	FindWaypoint();
 	m_prevTravelFlags = 0;
 	m_currentTravelFlags = 0;
 
@@ -842,6 +839,13 @@ void Bot::NewRound(void)
 	m_randomAttackTimer = time2 + crandomfloat(10.0f, 30.0f);
 	m_slowThinkTimer = time2 + crandomfloat(1.0f, 3.0f);
 	ResetStuck();
+
+	// reset waypoint
+	int index = g_waypoint->FindNearestToEnt(pev->origin, 4096.0f, m_myself);
+	if (!IsValidWaypoint(index))
+		index = g_waypoint->FindNearest(pev->origin);
+
+	ChangeWptIndex(index);
 }
 
 // this function kills a bot (not just using ClientKill, but like the CSBot does)

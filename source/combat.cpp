@@ -57,26 +57,37 @@ int Bot::GetNearbyEnemiesNearPosition(const Vector& origin, const float radius)
 	return count;
 }
 
+float GetDistance(const int start, const int goal)
+{
+	if (g_isMatrixReady)
+		return static_cast<float>(*(g_waypoint->m_distMatrix + (start * g_numWaypoints) + goal));
+
+	return (g_waypoint->m_paths[start].origin - g_waypoint->m_paths[goal].origin).GetLength();
+}
+
 void Bot::FindFriendsAndEnemiens(void)
 {
-	m_enemyDistance = 9999999.0f;
-	m_friendDistance = 9999999.0f;
 	m_numEnemiesLeft = 0;
 	m_numFriendsLeft = 0;
 	m_hasEnemiesNear = false;
 	m_hasFriendsNear = false;
 	if (g_roundEnded)
 	{
+		m_enemyDistance = -1.0f;
+		m_friendDistance = -1.0f;
 		m_nearestEnemy = nullptr;
 		m_nearestFriend = nullptr;
 		return;
 	}
-	
-	edict_t* cache;
+	m_enemyDistance = 999999.0f;
+	m_friendDistance = 999999.0f;
+
 	float distance;
 	TraceResult tr;
-	Vector headOrigin;
 	const Vector myOrigin = EyePosition();
+	int myWP = m_currentWaypointIndex;
+	if (!IsValidWaypoint(myWP))
+		myWP = g_clients[m_index].wp;
 
 	if (m_isZombieBot)
 	{
@@ -89,58 +100,56 @@ void Bot::FindFriendsAndEnemiens(void)
 			if (!(client.flags & CFLAG_ALIVE))
 				continue;
 
-			cache = client.ent;
-			if (cache == m_myself)
+			if (client.ent == m_myself)
 				continue;
 
-			if (!IsAlive(cache))
+			if (!IsAlive(client.ent))
 				continue;
 
-			if (cache->v.flags & FL_NOTARGET)
+			if (client.ent->v.flags & FL_NOTARGET)
 				continue;
 
-			headOrigin = cache->v.origin + cache->v.view_ofs;
 			if (client.team == m_team)
 			{
 				m_numFriendsLeft++;
-				distance = (myOrigin - headOrigin).GetLengthSquared();
+				distance = GetDistance(myWP, client.wp);
 				if (distance < m_friendDistance)
 				{
 					// simple check
-					TraceLine(myOrigin, headOrigin, TraceIgnore::Everything, m_myself, &tr);
+					TraceLine(myOrigin, client.ent->v.origin + client.ent->v.view_ofs, TraceIgnore::Everything, m_myself, &tr);
 					if (tr.flFraction < 1.0f)
 						continue;
 
 					m_friendDistance = distance;
-					m_nearestFriend = cache;
+					m_nearestFriend = client.ent;
 					m_hasFriendsNear = true;
 				}
 			}
 			else
 			{
 				m_numEnemiesLeft++;
-				distance = (myOrigin - headOrigin).GetLengthSquared();
+				distance = GetDistance(myWP, client.wp);
 				if (distance < m_enemyDistance)
 				{
-					if (IsEnemyInvincible(cache))
+					if (IsEnemyInvincible(client.ent))
 						continue;
 
-					if (IsEnemyHidden(cache))
+					if (IsEnemyHidden(client.ent))
 						continue;
 
-					if (!CheckVisibility(cache))
+					if (!CheckVisibility(client.ent))
 					{
 						if (needTarget && ebot_zombie_wall_hack.GetBool())
-							m_moveTarget = cache;
+							m_moveTarget = client.ent;
 
 						continue;
 					}
 
 					m_enemyDistance = distance;
-					if (needTarget || m_enemyDistance < (myOrigin - m_moveTarget->v.origin).GetLengthSquared())
-						m_moveTarget = cache;
+					if (needTarget || m_enemyDistance < GetDistance(myWP, g_clients[ENTINDEX(m_moveTarget) - 1].wp))
+						m_moveTarget = client.ent;
 
-					m_nearestEnemy = cache;
+					m_nearestEnemy = client.ent;
 					m_hasEnemiesNear = true;
 				}
 			}
@@ -156,57 +165,55 @@ void Bot::FindFriendsAndEnemiens(void)
 			if (!(client.flags & CFLAG_ALIVE))
 				continue;
 
-			cache = client.ent;
-			if (cache == m_myself)
+			if (client.ent == m_myself)
 				continue;
 
-			if (!IsAlive(cache))
+			if (!IsAlive(client.ent))
 				continue;
 
-			if (cache->v.flags & FL_NOTARGET)
+			if (client.ent->v.flags & FL_NOTARGET)
 				continue;
 
-			headOrigin = cache->v.origin + cache->v.view_ofs;
 			if (client.team == m_team)
 			{
 				m_numFriendsLeft++;
-				distance = (myOrigin - headOrigin).GetLengthSquared();
+				distance = GetDistance(myWP, client.wp);
 				if (distance < m_friendDistance)
 				{
 					// simple check
-					TraceLine(myOrigin, headOrigin, TraceIgnore::Everything, m_myself, &tr);
+					TraceLine(myOrigin, client.ent->v.origin + client.ent->v.view_ofs, TraceIgnore::Everything, m_myself, &tr);
 					if (tr.flFraction < 1.0f)
 						continue;
 
 					m_friendDistance = distance;
-					m_nearestFriend = cache;
+					m_nearestFriend = client.ent;
 					m_hasFriendsNear = true;
 				}
 			}
 			else
 			{
 				m_numEnemiesLeft++;
-				distance = (myOrigin - headOrigin).GetLengthSquared();
+				distance = GetDistance(myWP, client.wp);
 				if (distance < m_enemyDistance)
 				{
-					if (IsEnemyInvincible(cache))
+					if (IsEnemyInvincible(client.ent))
 						continue;
 
-					if (IsEnemyHidden(cache))
+					if (IsEnemyHidden(client.ent))
 						continue;
 
-					if (!CheckVisibility(cache))
+					if (!CheckVisibility(client.ent))
 						continue;
 
 					// we don't know this entity
-					if (cache != m_nearestEnemy)
+					if (client.ent != m_nearestEnemy)
 					{
-						if (ebot_dark_mode.GetBool() && !IsAttacking(cache) && !IsInViewCone(headOrigin))
+						if (ebot_dark_mode.GetBool() && !IsAttacking(client.ent) && !IsInViewCone(client.ent->v.origin + client.ent->v.view_ofs))
 							continue;
 					}
 
 					m_enemyDistance = distance;
-					m_nearestEnemy = cache;
+					m_nearestEnemy = client.ent;
 					m_hasEnemiesNear = true;
 				}
 			}
@@ -228,14 +235,15 @@ void Bot::FindFriendsAndEnemiens(void)
 
 void Bot::FindEnemyEntities(void)
 {
-	m_entityDistance = 9999999.0f;
 	m_numEntitiesLeft = 0;
 	m_hasEntitiesNear = false;
 	if (g_roundEnded)
 	{
+		m_entityDistance = -1.0f;
 		m_nearestEntity = nullptr;
 		return;
 	}
+	m_enemyDistance = 999999.0f;
 
 	int i;
 	Vector origin;
@@ -276,6 +284,7 @@ void Bot::FindEnemyEntities(void)
 	if (m_hasEntitiesNear)
 	{
 		m_entityOrigin = GetBoxOrigin(m_nearestEntity);
+		m_entityDistance = csqrtf(m_entityDistance);
 		m_entitySeeTime = engine->GetTime();
 	}
 }
@@ -375,11 +384,11 @@ void Bot::FireWeapon(const float distance)
 	{
 		if (m_zoomCheckTime < engine->GetTime())
 		{
-			if (pev->fov >= 40.0f && distance > squaredf(1500.0f)) // should the bot switch to the long-range zoom?
+			if (pev->fov >= 40.0f && distance > 1500.0f) // should the bot switch to the long-range zoom?
 				m_buttons |= IN_ATTACK2;
-			else if (pev->fov >= 90.0f && distance > squaredf(150.0f)) // else should the bot switch to the close-range zoom ?
+			else if (pev->fov >= 90.0f && distance > 250.0f) // else should the bot switch to the close-range zoom ?
 				m_buttons |= IN_ATTACK2;
-			else if (pev->fov < 90.0f && distance < squaredf(150.0f)) // else should the bot restore the normal view ?
+			else if (pev->fov < 90.0f && distance < 250.0f) // else should the bot restore the normal view ?
 				m_buttons |= IN_ATTACK2;
 			
 			m_zoomCheckTime = engine->GetTime() + crandomfloat(0.75f, 1.25f);
@@ -401,7 +410,7 @@ void Bot::FireWeapon(const float distance)
 		if (selectTab[i].primaryFireHold) // if automatic weapon, just press attack
 		{
 			m_buttons |= IN_ATTACK;
-			if (distance > squaredf(768.0f) && ctanf((cabsf(pev->punchangle.y) + cabsf(pev->punchangle.x)) * 0.00872664625f) * (distance + (distance * 0.25f)) > 100.0f)
+			if (distance > 768.0f && ctanf((cabsf(pev->punchangle.y) + cabsf(pev->punchangle.x)) * 0.00872664625f) * (distance + (distance * 0.25f)) > 100.0f)
 				m_firePause = engine->GetTime() + crandomfloat(m_frameInterval, m_frameInterval * 3.0f);
 		}
 		else // if not, toggle the buttons
@@ -428,9 +437,9 @@ void Bot::KnifeAttack(void)
 		distance = m_entityDistance;
 	}
 
-	if (distance < squaredf(64.0f))
+	if (distance < 64.0f)
 		m_buttons |= IN_ATTACK;
-	else if (distance < squaredf(pev->velocity.GetLength() * 0.33f))
+	else if (distance < pev->velocity.GetLength() * 0.33f)
 		m_buttons |= IN_ATTACK2;
 
 	if (pev->origin.z > origin.z && (pev->origin - origin).GetLengthSquared2D() < squaredf(54.0f))
@@ -451,7 +460,7 @@ void Bot::KnifeAttack(void)
 bool Bot::IsWeaponBadInDistance(const int weaponIndex, const float distance)
 {
 	// shotguns is too inaccurate at long distances, so weapon is bad
-	if ((weaponIndex == Weapon::M3 || weaponIndex == Weapon::Xm1014) && (pev->waterlevel > 2 || (distance > (weaponIndex == m_currentWeapon ? squaredf(768.0f) : squaredf(512.0f)))))
+	if ((weaponIndex == Weapon::M3 || weaponIndex == Weapon::Xm1014) && (pev->waterlevel > 2 || (distance > (weaponIndex == m_currentWeapon ? 768.0f : 512.0f))))
 		return true;
 
 	return false;

@@ -65,7 +65,6 @@ void Engine::PushRegisteredConVarsToEngine(void)
 
 void Engine::GetGameConVarsPointers(void)
 {
-    m_gameVars[GVAR_FREEZETIME] = g_engfuncs.pfnCVarGetPointer("mp_freezetime");
     m_gameVars[GVAR_GRAVITY] = g_engfuncs.pfnCVarGetPointer("sv_gravity");
     m_gameVars[GVAR_DEVELOPER] = g_engfuncs.pfnCVarGetPointer("developer");
 }
@@ -116,14 +115,6 @@ void Engine::BuildGlobalVectors(const Vector& on)
 {
     if (g_pGlobals)
         on.BuildVectors(&g_pGlobals->v_forward, &g_pGlobals->v_right, &g_pGlobals->v_up);
-}
-
-float Engine::GetFreezeTime(void)
-{
-    if (!m_gameVars[GVAR_FREEZETIME])
-        return 1.0f;
-
-    return m_gameVars[GVAR_FREEZETIME]->value;
 }
 
 int Engine::GetGravity(void)

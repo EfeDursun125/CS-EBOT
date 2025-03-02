@@ -223,7 +223,7 @@ bool Bot::CheckReachable(void)
 	if (FNullEnt(m_nearestEnemy))
 		return m_isEnemyReachable = false;
 
-	const int nearest = g_waypoint->FindNearestToEnt(m_nearestEnemy->v.origin, 768.0f, m_nearestEnemy);
+	const int nearest = g_clients[ENTINDEX(m_nearestEnemy) - 1].wp;
 	if (m_currentWaypointIndex == nearest || m_prevWptIndex[0] == nearest)
 		return m_isEnemyReachable = true;
 
@@ -556,6 +556,14 @@ void Bot::BaseUpdate(void)
 	const float tempTimer = engine->GetTime();
 	if (m_baseUpdate < tempTimer)
 	{
+		// avoid frame drops
+		m_frameInterval = tempTimer - m_frameDelay;
+		m_frameDelay = tempTimer;
+		m_baseUpdate = tempTimer + 0.1f;
+
+		if (m_frameInterval < 0.0001f)
+			return;
+
 		pev->buttons = m_buttons;
 		m_oldButtons = m_buttons;
 		m_impulse = 0;
@@ -591,20 +599,18 @@ void Bot::BaseUpdate(void)
 			{
 				m_isSlowThink = true;
 				CheckSlowThink();
-				m_slowThinkTimer = tempTimer + crandomfloat(0.9f, 1.1f);
+				m_slowThinkTimer = tempTimer + crandomfloat(0.4f, 0.6f);
 			}
 		}
-
-		// avoid frame drops
-		m_frameInterval = tempTimer - m_frameDelay;
-		m_frameDelay = tempTimer;
-		m_baseUpdate = tempTimer + 0.1f;
 	}
 	else
 	{
 		m_pathInterval = cminf(tempTimer - m_aimInterval, 0.05f);
 		m_aimInterval = tempTimer;
-		
+
+		if (m_pathInterval < 0.0001f)
+			return;
+
 		if (m_navNode.CanFollowPath() && CheckWaypoint())
 		{
 			m_strafeSpeed = 0.0f;
@@ -857,7 +863,7 @@ void Bot::UpdateLooking(void)
 {
 	if (m_isZombieBot)
 	{
-		if (m_hasEntitiesNear && m_entityDistance < squaredf(384.0f) && (m_entityDistance < m_enemyDistance || !m_hasEnemiesNear))
+		if (m_hasEntitiesNear && m_entityDistance < 384.0f && (m_entityDistance < m_enemyDistance || !m_hasEnemiesNear))
 		{
 			if (!FNullEnt(m_nearestEntity))
 			{
@@ -867,7 +873,7 @@ void Bot::UpdateLooking(void)
 			}
 		}
 
-		if (m_hasEnemiesNear && (m_isEnemyReachable || m_enemyDistance < squaredf(384.0f)) && IsAlive(m_nearestEnemy))
+		if (m_hasEnemiesNear && (m_isEnemyReachable || m_enemyDistance < 384.0f) && IsAlive(m_nearestEnemy))
 		{
 			if (CheckVisibility(m_nearestEnemy))
 			{
@@ -1328,7 +1334,7 @@ void Bot::DebugModeMsg(void)
 				"Enemy: %s  Friend: %s \n\n"
 
 				"Current Index: %d  Goal Index: %d  Enemy Reachable: %s \n"
-				"Nav: %d  Next Nav: %d \n"
+				"Nav: %d  Next Nav: %d  Enemy Distance: %2.f \n"
 				"Move Speed: %2.f  Strafe Speed: %2.f  Velocity: %2.f \n"
 				"Stuck Time: %2.f  Stuck: %s \n",
 				GetEntityName(m_myself), processName, rememberedProcessName,
@@ -1337,7 +1343,7 @@ void Bot::DebugModeMsg(void)
 				enemyName, friendName,
 
 				m_currentWaypointIndex, goal, m_isEnemyReachable ? "Yes" : "No",
-				m_navNode.IsEmpty() ? -1 : m_navNode.First(), m_navNode.HasNext() ? m_navNode.Next() : -1,
+				m_navNode.IsEmpty() ? -1 : m_navNode.First(), m_navNode.HasNext() ? m_navNode.Next() : -1, m_enemyDistance,
 				m_moveSpeed, m_strafeSpeed, pev->velocity.GetLength2D(),
 				m_stuckTime, m_isStuck ? "Yes" : "No");
 
@@ -1369,9 +1375,12 @@ void Bot::DebugModeMsg(void)
 		else if (m_isZombieBot && !FNullEnt(m_moveTarget))
 			engine->DrawLine(mi, EyePosition(), m_moveTarget->v.origin, Color(255, 0, 0, 255), 10, 0, 5, 1, LINE_SIMPLE);
 
-		int16_t i;
-		for (i = 0; i < m_navNode.Length(); i++)
-			engine->DrawLine(mi, g_waypoint->GetPath(m_navNode.Get(i))->origin, g_waypoint->GetPath(m_navNode.Get(i + 1))->origin, Color(255, 100, 55, 255), 15, 0, 8, 1, LINE_SIMPLE);
+		if (m_navNode.HasNext())
+		{
+			int16_t i;
+			for (i = 0; i < m_navNode.Length() - 1; i++)
+				engine->DrawLine(mi, g_waypoint->GetPath(m_navNode.Get(i))->origin, g_waypoint->GetPath(m_navNode.Get(i + 1))->origin, Color(255, 100, 55, 255), 15, 0, 8, 1, LINE_SIMPLE);
+		}
 
 		if (IsValidWaypoint(m_currentWaypointIndex))
 		{

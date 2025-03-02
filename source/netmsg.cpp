@@ -298,8 +298,6 @@ void NetworkMsg::Execute(void* p)
             {
                 victimer->m_isAlive = false;
                 victimer->m_navNode.Clear();
-                victimer->m_avgDeathOrigin += victimer->pev->origin;
-                victimer->m_avgDeathOrigin *= 0.5f;
                 memset(&victimer->m_ammoInClip, 0, sizeof(victimer->m_ammoInClip));
 	            memset(&victimer->m_ammo, 0, sizeof(victimer->m_ammo));
 	            victimer->m_currentWeapon = 0;
@@ -388,9 +386,6 @@ void NetworkMsg::Execute(void* p)
                         bot->m_hasEnemiesNear = false;
                         bot->m_hasFriendsNear = false;
                         bot->m_hasEntitiesNear = false;
-                        bot->m_enemyDistance = 9999999.0f;
-                        bot->m_friendDistance = 9999999.0f;
-                        bot->m_entityDistance = 9999999.0f;
                         bot->m_numEnemiesLeft = 0;
                         bot->m_numFriendsLeft = 0;
                         bot->m_isSlowThink = false;
