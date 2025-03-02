@@ -16,12 +16,15 @@ void Bot::ThrowFBUpdate(void)
 			if (maxVel)
 			{
 				const float fVel = maxVel->value;
-				Vector fixedVel;
-				fixedVel.x = cclampf(m_throw.x, -fVel, fVel);
-				fixedVel.y = cclampf(m_throw.y, -fVel, fVel);
-				fixedVel.z = cclampf(m_throw.z, -fVel, fVel);
-				if (fixedVel != nullvec)
-					ent->v.velocity = fixedVel;
+				if (!Math::FltZero(fVel))
+				{
+					Vector fixedVel;
+					fixedVel.x = cclampf(m_throw.x, -fVel, fVel);
+					fixedVel.y = cclampf(m_throw.y, -fVel, fVel);
+					fixedVel.z = cclampf(m_throw.z, -fVel, fVel);
+					if (fixedVel != nullvec)
+						ent->v.velocity = fixedVel;
+				}
 			}
 			else if (m_throw != nullvec)
 				ent->v.velocity = m_throw;

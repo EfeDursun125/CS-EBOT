@@ -34,7 +34,7 @@ void Bot::DefaultUpdate(void)
 				if (m_isSlowThink && m_navNode.HasNext() && (g_waypoint->m_paths[m_navNode.Last()].origin - pev->origin).GetLengthSquared() < (g_waypoint->m_paths[m_navNode.Last()].origin - m_moveTarget->v.origin).GetLengthSquared())
 				{
 					KnifeAttack();
-					int index = g_waypoint->FindNearestToEnt(m_moveTarget->v.origin, 768.0f, m_moveTarget);
+					int index = g_clients[ENTINDEX(m_moveTarget) - 1].wp;
 					if (IsValidWaypoint(index))
 					{
 						m_currentGoalIndex = index;
@@ -46,7 +46,7 @@ void Bot::DefaultUpdate(void)
 			}
 			else
 			{
-				int index = g_waypoint->FindNearestToEnt(m_moveTarget->v.origin, 2048.0f, m_moveTarget);
+				int index = g_clients[ENTINDEX(m_moveTarget) - 1].wp;
 				if (IsValidWaypoint(index))
 				{
 					m_currentGoalIndex = index;
@@ -240,7 +240,7 @@ void Bot::DefaultUpdate(void)
 					m_currentWeapon != Weapon::Sg550)
 					crouch = false;
 
-				if (m_personality == Personality::Normal && m_enemyDistance < squaredf(512.0f))
+				if (m_personality == Personality::Normal && m_enemyDistance < 512.0f)
 					crouch = false;
 
 				if (crouch && IsVisible(m_enemyOrigin, m_myself))
