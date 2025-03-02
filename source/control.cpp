@@ -250,10 +250,15 @@ Bot* BotControl::GetBot(edict_t* ent)
 
 void BotControl::Think(void)
 {
+	static float time2;
+	time2 = engine->GetTime();
 	for (Bot* const &bot : m_bots)
 	{
-		if (bot)
+		if (bot && bot->m_updateTimer < time2)
+		{
 			bot->BaseUpdate();
+			bot->m_updateTimer = time2 + 0.025f;
+		}
 	}
 }
 
@@ -765,22 +770,28 @@ Bot::~Bot(void)
 // this function initializes a bot after creation & at the start of each round
 void Bot::NewRound(void)
 {
-	m_numSpawns++;
+	// delete all allocated path nodes
+	m_navNode.Clear();
 
 	m_team = GetTeam(m_myself);
+	m_isAlive = IsAlive(m_myself);
 	if (!m_isAlive) // if bot died, clear all weapon stuff and force buying again
 	{
 		memset(&m_ammoInClip, 0, sizeof(m_ammoInClip));
 		memset(&m_ammo, 0, sizeof(m_ammo));
 		m_currentWeapon = 0;
-		m_navNode.Clear();
 		return;
 	}
 
-	// delete all allocated path nodes
-	m_navNode.Clear();
-
+	m_numSpawns++;
 	const float time2 = engine->GetTime();
+
+	// initialize msec value
+	m_msecInterval = time2;
+	m_aimInterval = time2;
+	m_frameInterval = time2;
+	m_pathInterval = time2;
+
 	SetProcess(Process::Default, "i have respawned", true, time2 + 9999.0f);
 	m_rememberedProcess = Process::Default;
 	m_rememberedProcessTime = 0.0f;
@@ -793,8 +804,6 @@ void Bot::NewRound(void)
 	else
 		m_zhCampPointIndex = -1;
 	m_myMeshWaypoint = -1;
-
-	m_spawnTime = time2;
 
 	m_hasEnemiesNear = false;
 	m_hasEntitiesNear = false;
@@ -861,7 +870,6 @@ void Bot::Kill(void)
 	kv.fHandled = false;
 
 	MDLL_KeyValue(hurtEntity, &kv);
-
 	MDLL_Spawn(hurtEntity);
 	MDLL_Touch(hurtEntity, m_myself);
 

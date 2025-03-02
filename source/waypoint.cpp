@@ -27,7 +27,6 @@
 
 #ifdef PLATFORM_LINUX
 #include <cstdlib>
-#include <thread>
 #endif
 
 ConVar ebot_analyze_distance("ebot_analyze_distance", "40");
@@ -891,7 +890,7 @@ void Waypoint::DeleteByIndex(const int index)
         {
             if (path->index[j] == index)
             {
-                path->index[j] = -1;  // unassign this path
+                path->index[j] = -1; // unassign this path
                 path->connectionFlags[j] = 0;
             }
         }
@@ -1406,18 +1405,31 @@ void Waypoint::InitPathMatrix(void)
     if (LoadPathMatrix())
         return; // matrix loaded from the file
 
-    // run async thread to calculate path matrix
-#ifndef WIN32
-    std::thread pathMatrixThread = std::thread(&Waypoint::SavePathMatrix, this);
-    pathMatrixThread.detach();
-#else
+    ServerPrint("PLEASE WAIT UNTIL DISTANCE MATRIX CALCULATION FINISHES!");
+    ServerPrint("YOU CAN DISABLE THIS BY SETTING ebot_disable_path_matrix TO 1");
+    ServerPrint("THIS WILL REDUCE MEMORY USAGE BUT IT WILL INCREASE CPU USAGE!");
+    ServerPrint("THIS IS ONE TIME ONLY PROCESS, IT WILL LOAD FROM THE FILE!");
+
     SavePathMatrix();
-#endif
+}
+
+#include <xmmintrin.h>
+inline float GetVectorDistanceSSE(const Vector vec1, const Vector vec2)
+{
+    const __m128 v1 = _mm_set_ps(0.0f, vec1.z, vec1.y, vec1.x);
+    const __m128 v2 = _mm_set_ps(0.0f, vec2.z, vec2.y, vec2.x);
+    const __m128 diff = _mm_sub_ps(v1, v2);
+    const __m128 squared = _mm_mul_ps(diff, diff);
+    __m128 sum = _mm_add_ps(squared, squared);
+    sum = _mm_add_ps(sum, _mm_movehl_ps(sum, sum));
+    sum = _mm_add_ss(sum, _mm_shuffle_ps(sum, sum, 0x55));
+    return _mm_cvtss_f32(_mm_sqrt_ss(sum));
 }
 
 void Waypoint::SavePathMatrix(void)
 {
     int16_t i, j, k;
+
     for (i = 0; i < g_numWaypoints; i++)
     {
         for (j = 0; j < g_numWaypoints; j++)
@@ -1429,7 +1441,7 @@ void Waypoint::SavePathMatrix(void)
         for (j = 0; j < Const_MaxPathIndex; j++)
         {
             if (IsValidWaypoint(m_paths[i].index[j]))
-                *(m_distMatrix + (i * g_numWaypoints) + m_paths[i].index[j]) = static_cast<int16_t>((m_paths[i].origin - m_paths[m_paths[i].index[j]].origin).GetLength());
+                *(m_distMatrix + (i * g_numWaypoints) + m_paths[i].index[j]) = static_cast<int16_t>(GetVectorDistanceSSE(m_paths[i].origin, m_paths[m_paths[i].index[j]].origin));
         }
     }
 
@@ -1507,6 +1519,8 @@ bool Waypoint::LoadPathMatrix(void)
     // and close the file
     fp.Close();
     g_isMatrixReady = true;
+    ServerPrint("Distance Matrix loaded from the file.");
+
     return true;
 }
 
@@ -1558,8 +1572,6 @@ static int8_t tryDownload;
 size_t WriteCallback(void* contents, size_t size, size_t nmemb, FILE* stream)
 {
     const size_t written = fwrite(contents, size, nmemb, stream);
-    if (written < nmemb)
-        ServerPrint("Error: fwrite wrote fewer items than expected: %zu out of %zu", written, nmemb);
     return written;
 }
 #endif
@@ -1572,33 +1584,20 @@ bool Waypoint::Download(void)
     const HMODULE hUrlMon = LoadLibrary("urlmon.dll");
     if (hUrlMon)
     {
-        ServerPrint("UrlMon found on the machine");
-
         typedef HRESULT(WINAPI* URLDownloadToFileFn)(LPUNKNOWN, LPCSTR, LPCSTR, DWORD, LPBINDSTATUSCALLBACK);
         const URLDownloadToFileFn pURLDownloadToFile = reinterpret_cast<URLDownloadToFileFn>(GetProcAddress(hUrlMon, "URLDownloadToFileA"));
 
         if (pURLDownloadToFile)
         {
-            ServerPrint("UrlMon loaded successfully");
             char tpath[1024];
             FormatBuffer(tpath, "%s/%s.%s", ebot_download_waypoints_from.GetString(), GetMapName(), ebot_download_waypoints_format.GetString());
             if (SUCCEEDED(pURLDownloadToFile(nullptr, tpath, CheckSubfolderFile(), 0, nullptr)))
             {
-                ServerPrint("UrlMon download successful");
                 FreeLibrary(hUrlMon);
                 return true;
             }
         }
-        else
-            ServerPrint("Error: Could not find URLDownloadToFileA in UrlMon, UrlMon is courrupted!");
-
-        if (FreeLibrary(hUrlMon))
-            ServerPrint("UrlMon unloaded successfully");
-        else
-            ServerPrint("Cannot able to unload UrlMon!");
     }
-    else
-        ServerPrint("Error: Could not load UrlMon, could be missing or courrupted");
 #else
 #ifdef CURL_AVAILABLE
     if (curl_version_info(CURLVERSION_NOW))
@@ -1617,7 +1616,6 @@ bool Waypoint::Download(void)
             curl_easy_setopt(curl, CURLOPT_URL, downloadURL);
             curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
             curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-            ServerPrint("Downloading from cURL: %s", downloadURL);
 
             // path to the 'cstrike/maps' directory
             FormatBuffer(tpath, "%s/%s.%s", GetWaypointDir(), GetMapName(), ebot_download_waypoints_format.GetString());
@@ -1625,7 +1623,6 @@ bool Waypoint::Download(void)
             FILE* fp = fopen(filepath, "wb");
             if (!fp)
             {
-                ServerPrint("Error: Could not open file for writing");
                 curl_easy_cleanup(curl);
                 curl_global_cleanup();
                 return false;
@@ -1640,7 +1637,6 @@ bool Waypoint::Download(void)
             curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
             if (response_code != 200)
             {
-                ServerPrint("Error: HTTP response code is not 200, but %ld", response_code);
                 fclose(fp);
                 curl_easy_cleanup(curl);
                 curl_global_cleanup();
@@ -1650,22 +1646,17 @@ bool Waypoint::Download(void)
             fclose(fp);
             if (res != CURLE_OK)
             {
-                ServerPrint("Error: curl_easy_perform() failed: %s", curl_easy_strerror(res));
                 curl_easy_cleanup(curl);
                 curl_global_cleanup();
                 return false;
             }
 
             curl_easy_cleanup(curl);
-            ServerPrint("cURL download successful");
             return true;
         }
 
-        ServerPrint("Error: Could not initialize cURL handle");
         curl_global_cleanup();
     }
-    else
-        ServerPrint("Error: Could not find valid cURL version");
 #else
     // check if wget is installed
     if (!system("which wget"))
@@ -1680,22 +1671,12 @@ bool Waypoint::Download(void)
 
         char command[1024];
         snprintf(command, sizeof(command), "wget -O %s %s", filepath, downloadURL);
-        printf("Executing wget command: %s", command);
         const int result = system(command);
-
         if (!result)
-        {
-            ServerPrint("wget download successful");
             return true;
-        }
         else
-        {
-            ServerPrint("Error: wget command failed with code %d", result);
             return false;
-        }
     }
-    else
-        ServerPrint("Error: Neither curl nor wget is available");
 #endif
 #endif
 
@@ -1722,22 +1703,17 @@ bool Waypoint::Load(void)
         if (header.fileVersion > static_cast<int32_t>(FV_WAYPOINT))
         {
             g_numWaypoints = 0;
-            CenterPrint("Waypoint version is too high, update your ebot!");
             sprintf(m_infoBuffer, "Waypoint version is too high, update your ebot!");
         }
         else if (header.fileVersion == static_cast<int32_t>(FV_WAYPOINT))
         {
             g_numWaypoints = header.pointNumber;
             m_paths.Resize(g_numWaypoints, true);
-
-            Path paths[g_numWaypoints];
-            if (Compressor::Uncompress(pathtofl, sizeof(WaypointHeader), reinterpret_cast<uint8_t*>(paths), g_numWaypoints * sizeof(Path)) != -1)
+            Path* path = &m_paths[0];
+            if (Compressor::Uncompress(pathtofl, sizeof(WaypointHeader), reinterpret_cast<uint8_t*>(path), g_numWaypoints * sizeof(Path)) != -1)
             {
                 for (i = 0; i < g_numWaypoints; i++)
-                {
-                    Sort(i, paths[i].index);
-                    m_paths.Push(paths[i]);
-                }
+                    Sort(i, m_paths[i].index);
             }
         }
         else if (header.fileVersion == static_cast<int32_t>(126))
@@ -1761,11 +1737,11 @@ bool Waypoint::Load(void)
             struct PathOLD2
             {
                 Vector origin;
-                int32 flags;
-                int16 radius;
-                int16 mesh;
-                int16 index[8];
-                uint16 connectionFlags[8];
+                int32_t flags;
+                int16_t radius;
+                int16_t mesh;
+                int16_t index[8];
+                uint16_t connectionFlags[8];
                 float gravity;
             };
 
@@ -1779,7 +1755,7 @@ bool Waypoint::Load(void)
 
                 path.origin = paths.origin;
                 path.radius = static_cast<uint8_t>(cclamp(paths.radius, 0, 255));
-                path.flags = static_cast<uint32>(cmax(0, paths.flags));
+                path.flags = static_cast<uint32_t>(cmax(0, paths.flags));
                 path.mesh = static_cast<uint8_t>(cclamp(paths.mesh, 0, 255));
                 path.gravity = paths.gravity;
 
@@ -1800,8 +1776,8 @@ bool Waypoint::Load(void)
 
             struct PathOLD
             {
-                int32 pathNumber;
-                int32 flags;
+                int32_t pathNumber;
+                int32_t flags;
                 Vector origin;
                 float radius;
 
@@ -1810,12 +1786,12 @@ bool Waypoint::Load(void)
                 float campEndX;
                 float campEndY;
 
-                int16 index[8];
-                uint16 connectionFlags[8];
+                int16_t index[8];
+                uint16_t connectionFlags[8];
                 Vector connectionVelocity[8];
-                int32 distances[8];
+                int32_t distances[8];
 
-                struct Vis_t { uint16 stand{}, crouch; } vis;
+                struct Vis_t { uint16_t stand{}, crouch; } vis;
             };
 
             PathOLD paths;
@@ -1828,7 +1804,7 @@ bool Waypoint::Load(void)
 
                 path.origin = paths.origin;
                 path.radius = static_cast<uint8_t>(cclampf(paths.radius, 0.0f, 255.0f));
-                path.flags = static_cast<uint32>(cmax(0, paths.flags));
+                path.flags = static_cast<uint32_t>(cmax(0, paths.flags));
                 path.mesh = static_cast<uint8_t>(cclampf(paths.campStartX, 0.0f, 255.0f));
                 path.gravity = 0.0f;
 

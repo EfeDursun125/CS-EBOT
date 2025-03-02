@@ -948,7 +948,7 @@ char* GetMapName(void)
 	return &mapName[0]; // and return a pointer to it
 }
 
-bool OpenConfig(const char* fileName, char* errorIfNotExists, File* outFile)
+bool OpenConfig(const char* fileName, const char* errorIfNotExists, File* outFile)
 {
 	if (outFile->IsValid())
 		outFile->Close();
@@ -976,11 +976,12 @@ char* GetWaypointDir(void)
 // to the standard ones, whose name is command_name. The engine is thus supposed to be aware
 // that for every "command_name" server command it receives, it should call the function
 // pointed to by "function" in order to handle it.
-void RegisterCommand(char* command, void funcPtr(void))
+void RegisterCommand(const char* command, void funcPtr(void))
 {
 	if (IsNullString(command) || !funcPtr)
 		return; // reliability check
 
+	// it must be const char*
 	REG_SVR_COMMAND(command, funcPtr); // ask the engine to register this new command
 }
 

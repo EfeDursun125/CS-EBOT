@@ -542,7 +542,6 @@ bool Bot::IsEnemyHidden(edict_t* entity)
 	return false;
 }
 
-static float tempTimer;
 void Bot::BaseUpdate(void)
 {
 	if (!pev)
@@ -554,7 +553,7 @@ void Bot::BaseUpdate(void)
 		return;
 	}
 
-	tempTimer = engine->GetTime();
+	const float tempTimer = engine->GetTime();
 	if (m_baseUpdate < tempTimer)
 	{
 		pev->buttons = m_buttons;
@@ -671,15 +670,21 @@ void Bot::BaseUpdate(void)
 		pev->angles.ClampAngles();
 
 		// run playermovement
-		pev->buttons = m_buttons;
-		pev->impulse = m_impulse;
-		const uint8_t calc = static_cast<uint8_t>(cclampf(((tempTimer - m_msecInterval) * 1000.0f), 0.0f, 255.0f));
-
-		// FIXME: infinite loop for some reason
-		(*g_engfuncs.pfnRunPlayerMove) (m_myself, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, m_buttons, m_impulse, calc);
-		m_msecInterval = tempTimer;
+		pev->buttons = static_cast<int>(m_buttons);
+		pev->impulse = static_cast<int>(m_impulse);
+		RunPlayerMovement();
 	}
 }
+
+#pragma GCC push_options
+#pragma GCC optimize("O0")
+void Bot::RunPlayerMovement(void)
+{
+	m_msecVal = (engine->GetTime() - m_msecInterval) * 1000.0f;
+	m_msecInterval = engine->GetTime();
+	(*g_engfuncs.pfnRunPlayerMove) (m_myself, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, m_buttons, m_impulse, static_cast<uint8_t>(m_msecVal));
+}
+#pragma GCC pop_options
 
 int GetMaxClip(const int& id)
 {
@@ -719,7 +724,7 @@ int GetMaxClip(const int& id)
 
 void Bot::CheckSlowThink(void)
 {
-	tempTimer = engine->GetTime();
+	const float tempTimer = engine->GetTime();
 
 	if (m_waypointTime < tempTimer)
 	{

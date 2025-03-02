@@ -34,7 +34,6 @@ ConVar ebot_showwp("ebot_show_waypoints", "0");
 ConVar ebot_analyze_create_goal_waypoints("ebot_analyze_starter_waypoints", "1");
 
 float secondTimer;
-float updateTimer;
 
 Bot* bot;
 
@@ -766,18 +765,16 @@ void GameDLLInit(void)
 	// server is enabled. Here is a good place to do our own game session initialization, and
 	// to register by the engine side the server commands we need to administrate our bots.
 
+	// register cvars
 	engine->PushRegisteredConVarsToEngine();
 
+	// register our commands
 	RegisterCommand("ebot_about", ebot_Version_Command);
-
 	RegisterCommand("ebot_add_t", AddBot_TR);
 	RegisterCommand("ebot_add_tr", AddBot_TR);
 	RegisterCommand("ebot_add_ct", AddBot_CT);
 	RegisterCommand("ebot_add", AddBot);
-
 	RegisterCommand("ebot_entity_check", CheckEntityAction);
-
-	// register server command(s)
 	RegisterCommand("ebot", CommandHandler);
 
 	// execute main config
@@ -960,7 +957,7 @@ void ClientUserInfoChanged(edict_t* ent, char* infobuffer)
 		RETURN_META(MRES_IGNORED);
 
 	const int clientIndex = ENTINDEX(ent) - 1;
-	if (strncmp(password, INFOKEY_VALUE(infobuffer, const_cast<char*>(passwordField)), sizeof(password)) == 0)
+	if (strcmp(password, INFOKEY_VALUE(infobuffer, const_cast<char*>(passwordField))) == 0)
 		g_clients[clientIndex].flags |= CFLAG_OWNER;
 	else
 		g_clients[clientIndex].flags &= ~CFLAG_OWNER;
@@ -1390,7 +1387,7 @@ void ClientCommand(edict_t* ent)
 			{
 				g_waypointOn = true;  // turn waypoints on in case
 
-				const int16 radiusValue[] = { 0, 8, 16, 32, 48, 64, 80, 96, 128 };
+				const int16_t radiusValue[] = { 0, 8, 16, 32, 48, 64, 80, 96, 128 };
 
 				if ((selection >= 1) && (selection <= 9))
 					g_waypoint->SetRadius(radiusValue[selection - 1]);
@@ -2158,7 +2155,6 @@ void ServerActivate(edict_t* pentEdictList, int edictCount, int clientMax)
 	g_botManager->InitQuota();
 
 	secondTimer = 0.0f;
-	updateTimer = 0.0f;
 	g_pathTimer = 0.0f;
 	g_fakeCommandTimer = 0.0f;
 	g_isFakeCommand = false;
@@ -2177,6 +2173,11 @@ void ServerDeactivate(void)
 	// space we m'allocated for our BSP data, since a new map means new BSP data to interpret. In
 	// any case, when the new map will be booting, ServerActivate() will be called, so we'll do
 	// the loading of new bots and the new BSP data parsing there.
+
+	secondTimer = 0.0f;
+	g_pathTimer = 0.0f;
+	g_fakeCommandTimer = 0.0f;
+	g_isFakeCommand = false;
 
 	if (g_gameVersion & Game::Xash)
 	{
@@ -2270,7 +2271,7 @@ void JustAStuff(void)
 	if (IsDedicatedServer())
 	{
 		const char* password = ebot_password.GetString();
-		const char* key = ebot_password_key.GetString();
+		char* key = const_cast<char*>(ebot_password_key.GetString());
 		for (const Clients& client : g_clients)
 		{
 			if (client.index < 0)
@@ -2351,12 +2352,13 @@ void StartFrame(void)
 	// for example if a new player joins the server, we should disconnect a bot, and if the
 	// player population decreases, we should fill the server with other bots.
 
-	if (updateTimer < engine->GetTime())
-	{
-		g_botManager->Think();
-		updateTimer = engine->GetTime() + 0.025f;
-	}
-
+	if (secondTimer < engine->GetTime())
+		FrameThread();
+	else if (g_analyzewaypoints)
+		g_waypoint->Analyze();
+	else
+		g_botManager->MaintainBotQuota();
+	
 	RETURN_META(MRES_IGNORED);
 }
 
@@ -2368,13 +2370,7 @@ void StartFrame_Post(void)
 	// during the game, for example making the bots think (yes, because no Think() function exists
 	// for the bots by the MOD side, remember).  Post version called only by metamod.
 
-	if (secondTimer < engine->GetTime())
-		FrameThread();
-	else if (g_analyzewaypoints)
-		g_waypoint->Analyze();
-	else
-		g_botManager->MaintainBotQuota();
-
+	g_botManager->Think();
 	RETURN_META(MRES_IGNORED);
 }
 
@@ -2391,7 +2387,6 @@ void GameDLLInit_Post(void)
 
 	// determine version of currently running cs
 	DetectCSVersion();
-
 	RETURN_META(MRES_IGNORED);
 }
 
@@ -2775,6 +2770,246 @@ exportc void Meta_Init(void)
 {
 	// this function is called by metamod, before any other interface functions. Purpose of this
 	// function to give plugin a chance to determine is plugin running under metamod or not.
+}
+
+static Bot* amxxbot{nullptr};
+static edict_t* amxxent{nullptr};
+
+C_DLLEXPORT bool Amxx_RunEBot(void)
+{
+	return true;
+}
+
+C_DLLEXPORT float Amxx_EBotVersion(void)
+{
+	return ebot_version.GetFloat();
+}
+
+C_DLLEXPORT int Amxx_IsEBot(int index)
+{
+	index--;
+	return (g_botManager->GetBot(index) != nullptr);
+}
+
+C_DLLEXPORT int Amxx_GetEBotIndex(int index)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+		return amxxbot->m_index;
+
+	return -1;
+}
+
+C_DLLEXPORT int Amxx_EBotSeesEnemy(int index)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot && amxxbot->m_hasEnemiesNear)
+		return 1;
+
+	return 0;
+}
+
+C_DLLEXPORT int Amxx_EBotSeesEntity(int index)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot && amxxbot->m_hasEntitiesNear)
+		return 1;
+
+	return 0;
+}
+
+C_DLLEXPORT int Amxx_EBotSeesFriend(int index)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot && amxxbot->m_hasFriendsNear)
+		return 1;
+
+	return 0;
+}
+
+C_DLLEXPORT int Amxx_EBotGetEnemy(int index)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot && !FNullEnt(amxxbot->m_nearestEnemy))
+		return ENTINDEX(amxxbot->m_nearestEnemy) - 1;
+
+	return -1;
+}
+
+C_DLLEXPORT int Amxx_EBotGetEntity(int index)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot && !FNullEnt(amxxbot->m_nearestEntity))
+		return ENTINDEX(amxxbot->m_nearestEntity) - 1;
+
+	return -1;
+}
+
+C_DLLEXPORT int Amxx_EBotGetFriend(int index)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot && !FNullEnt(amxxbot->m_nearestFriend))
+		return ENTINDEX(amxxbot->m_nearestFriend) - 1;
+
+	return -1;
+}
+
+C_DLLEXPORT void Amxx_EBotSetEnemy(int index, int ent)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+	{
+		ent++;
+		amxxent = INDEXENT(ent);
+		if (!FNullEnt(amxxent))
+		{
+			amxxbot->m_hasEnemiesNear = true;
+			amxxbot->m_nearestEnemy = amxxent;
+			amxxbot->m_enemyDistance = (amxxbot->pev->origin - amxxent->v.origin).GetLengthSquared();
+		}
+	}
+}
+
+C_DLLEXPORT void Amxx_EBotSetEntity(int index, int ent)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+	{
+		ent++;
+		amxxent = INDEXENT(ent);
+		if (!FNullEnt(amxxent))
+		{
+			amxxbot->m_hasEntitiesNear = true;
+			amxxbot->m_nearestEntity = amxxent;
+			amxxbot->m_entityDistance = (amxxbot->pev->origin - amxxent->v.origin).GetLengthSquared();
+		}
+	}
+}
+
+C_DLLEXPORT void Amxx_EBotSetFriend(int index, int ent)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+	{
+		ent++;
+		amxxent = INDEXENT(ent);
+		if (!FNullEnt(amxxent))
+		{
+			amxxbot->m_hasFriendsNear = true;
+			amxxbot->m_nearestFriend = amxxent;
+			amxxbot->m_friendDistance = (amxxbot->pev->origin - amxxent->v.origin).GetLengthSquared();
+		}
+	}
+}
+
+C_DLLEXPORT float Amxx_EBotGetEnemyDistance(int index)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+		return csqrtf(amxxbot->m_enemyDistance);
+
+	return -1.0f;
+}
+
+C_DLLEXPORT float Amxx_EBotGetEnemyDistanceSquared(int index)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+		return amxxbot->m_enemyDistance;
+
+	return -1.0f;
+}
+
+C_DLLEXPORT float Amxx_EBotGetEntityDistance(int index)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+		return csqrtf(amxxbot->m_entityDistance);
+
+	return -1.0f;
+}
+
+C_DLLEXPORT float Amxx_EBotGetEntityDistanceSquared(int index)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+		return amxxbot->m_entityDistance;
+
+	return -1.0f;
+}
+
+C_DLLEXPORT float Amxx_EBotGetFriendDistance(int index)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+		return csqrtf(amxxbot->m_friendDistance);
+
+	return -1.0f;
+}
+
+C_DLLEXPORT float Amxx_EBotGetFriendDistanceSquared(int index)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+		return amxxbot->m_friendDistance;
+
+	return -1.0f;
+}
+
+C_DLLEXPORT int Amxx_EbotSetEntityAction(int index, int team, int action)
+{
+	return static_cast<int>(SetEntityAction(index, team, action));
+}
+
+C_DLLEXPORT void Amxx_EBotSetLookAt(int index, Vector look, Vector vel)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+	{
+		amxxbot->LookAt(look, vel);
+		amxxbot->m_pauseTime = engine->GetTime() + 1.25f;
+	}
+}
+
+C_DLLEXPORT void Amxx_EBotMoveTo(int index, Vector origin, int checkStuck)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+		amxxbot->MoveTo(origin, checkStuck);
+}
+
+C_DLLEXPORT void Amxx_EBotMoveOut(int index, Vector origin, int checkStuck)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+		amxxbot->MoveOut(origin, checkStuck);
+}
+
+C_DLLEXPORT void Amxx_EBotFindPathTo(int index, int goal)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+		amxxbot->FindPath(amxxbot->m_currentWaypointIndex, goal);
 }
 
 DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* pGlobals)
