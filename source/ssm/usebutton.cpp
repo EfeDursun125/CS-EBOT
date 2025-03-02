@@ -40,7 +40,7 @@ void Bot::UseButtonUpdate(void)
 			FollowPath();
 		else
 		{
-			int index = g_waypoint->FindNearest(pev->origin, 512.0f, -1, m_buttonEntity);
+			int index = g_waypoint->FindNearestToEnt(pev->origin, 512.0f, m_buttonEntity);
 			if (IsValidWaypoint(index))
 				FindShortestPath(m_currentWaypointIndex, index);
 			else

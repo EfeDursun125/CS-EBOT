@@ -34,7 +34,7 @@ void Bot::DefaultUpdate(void)
 				if (m_isSlowThink && m_navNode.HasNext() && (g_waypoint->m_paths[m_navNode.Last()].origin - pev->origin).GetLengthSquared() < (g_waypoint->m_paths[m_navNode.Last()].origin - m_moveTarget->v.origin).GetLengthSquared())
 				{
 					KnifeAttack();
-					int index = g_waypoint->FindNearest(m_moveTarget->v.origin, 768.0f, -1, m_moveTarget);
+					int index = g_waypoint->FindNearestToEnt(m_moveTarget->v.origin, 768.0f, m_moveTarget);
 					if (IsValidWaypoint(index))
 					{
 						m_currentGoalIndex = index;
@@ -46,7 +46,7 @@ void Bot::DefaultUpdate(void)
 			}
 			else
 			{
-				int index = g_waypoint->FindNearest(m_moveTarget->v.origin, 2048.0f, -1, m_moveTarget);
+				int index = g_waypoint->FindNearestToEnt(m_moveTarget->v.origin, 2048.0f, m_moveTarget);
 				if (IsValidWaypoint(index))
 				{
 					m_currentGoalIndex = index;
@@ -54,7 +54,7 @@ void Bot::DefaultUpdate(void)
 				}
 				else
 				{
-					index = g_waypoint->FindNearestInCircle(m_moveTarget->v.origin);
+					index = g_waypoint->FindNearest(m_moveTarget->v.origin);
 					if (IsValidWaypoint(index))
 					{
 						m_currentGoalIndex = index;
