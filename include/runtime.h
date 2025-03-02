@@ -2019,7 +2019,6 @@ public:
     }
 };
 
-
 //
 // Class: File
 //  Simple STDIO file wrapper class.
@@ -2500,7 +2499,7 @@ public:
 class Color
 {
 public:
-    uint8_t red{}, green{}, blue{}, alpha;
+    uint8_t red, green, blue, alpha;
 public:
     inline Color(const uint8_t color = 0) : red(color), green(color), blue(color), alpha(color) {}
     inline Color(uint8_t inputRed, uint8_t inputGreen, uint8_t inputBlue, uint8_t inputAlpha = static_cast<uint8_t>(0)) : red(inputRed), green(inputGreen), blue(inputBlue), alpha(inputAlpha) {}

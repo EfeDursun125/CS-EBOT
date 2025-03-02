@@ -883,6 +883,10 @@ public:
 	void SetId(const int messageType, const int messsageIdentifier) { m_registerdMessages[messageType] = messsageIdentifier; }
 };
 
+const int MAX_WAYPOINT_BUCKET_SIZE = static_cast<int>(Const_MaxWaypoints * 0.65);
+const int MAX_WAYPOINT_BUCKET_MAX = Const_MaxWaypoints * 8 / MAX_WAYPOINT_BUCKET_SIZE + 1;
+const int MAX_WAYPOINT_BUCKET_WPTS = MAX_WAYPOINT_BUCKET_SIZE / MAX_WAYPOINT_BUCKET_MAX;
+
 // waypoint operation class
 class Waypoint : public Singleton <Waypoint>
 {
@@ -916,7 +920,9 @@ private:
 	MiniArray<int16_t>m_terrorPoints{};
 	MiniArray<int16_t>m_zmHmPoints{};
 	MiniArray<int16_t>m_hmMeshPoints{};
+	MiniArray<int16_t>m_buckets[MAX_WAYPOINT_BUCKET_MAX][MAX_WAYPOINT_BUCKET_MAX][MAX_WAYPOINT_BUCKET_MAX];
 public:
+	struct Bucket { int x, y, z; };
 	float* m_waypointDisplayTime{nullptr};
 	int16_t* m_distMatrix{nullptr};
 	MiniArray<Path>m_paths{};
@@ -931,9 +937,11 @@ public:
 	void AddPath(const int addIndex, const int pathIndex, const int type = 0);
 
 	int GetFacingIndex(void);
-	int FindFarest(const Vector& origin, const float maxDistance = 99999.0f);
-	int FindNearestInCircle(const Vector& origin, const float maxDistance = 99999.0f);
-	int FindNearest(const Vector& origin, const float minDistance = 99999.0f, const int flags = -1, edict_t* entity = nullptr, int* findWaypointPoint = reinterpret_cast<int*>(-2), const int mode = -1);
+	int FindFarest(const Vector& origin, float maxDistance = 99999.0f);
+	int FindNearest(const Vector& origin, float minDistance = 99999.0f, const int flags = -1);
+	int FindNearestSlow(const Vector& origin, float minDistance = 99999.0f, const int flags = -1);
+	int FindNearestToEnt(const Vector& origin, float minDistance, edict_t* entity);
+	int FindNearestToEntSlow(const Vector& origin, float minDistance, edict_t* entity);
 	void FindInRadius(const Vector& origin, const float radius, int* holdTab, int* count);
 	void FindInRadius(MiniArray <int16_t>& queueID, const float& radius, const Vector& origin);
 
@@ -974,6 +982,12 @@ public:
 	void CreateBasic(void);
 
 	float GetPathDistance(const int srcIndex, const int destIndex);
+
+	void InitBuckets(void);
+	void AddToBucket(const Vector& pos, const int index);
+	void EraseFromBucket(const Vector& pos, int index);
+	Bucket LocateBucket(const Vector& pos);
+	MiniArray<int16_t>&GetWaypointsInBucket(const Vector &pos);
 
 	Path* GetPath(const int id);
 	char* GetWaypointInfo(const int id);
