@@ -20,9 +20,10 @@ void Bot::ThrowHEUpdate(void)
 				fixedVel.x = cclampf(m_throw.x, -fVel, fVel);
 				fixedVel.y = cclampf(m_throw.y, -fVel, fVel);
 				fixedVel.z = cclampf(m_throw.z, -fVel, fVel);
-				ent->v.velocity = fixedVel;
+				if (fixedVel != nullvec)
+					ent->v.velocity = fixedVel;
 			}
-			else
+			else if (m_throw != nullvec)
 				ent->v.velocity = m_throw;
 
 			FinishCurrentProcess("i have throwed HE grenade");

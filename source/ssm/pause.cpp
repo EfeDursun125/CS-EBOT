@@ -7,7 +7,6 @@ void Bot::PauseStart(void)
 	m_moveSpeed = 0.0f;
 	m_strafeSpeed = 0.0f;
 	pev->speed = 0.0f;
-	pev->velocity = nullvec;
 	m_jumpReady = false;
 	m_waitForLanding = false;
 }
