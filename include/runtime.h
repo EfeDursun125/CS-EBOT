@@ -336,7 +336,14 @@ public:
     inline const Vector operator- (void) const { return Vector(-x, -y, -z); }
     friend inline const Vector operator* (const float vec, const Vector& right) { return Vector(right.x * vec, right.y * vec, right.z * vec); }
     inline const Vector operator* (const float vec) const { return Vector(vec * x, vec * y, vec * z); }
-    inline const Vector operator/ (const float vec) const { const float inv = 1 / vec; return Vector(inv * x, inv * y, inv * z); }
+    inline const Vector operator/ (const float vec) const
+    {
+        if (Math::FltZero(vec))
+            return Vector(x, y, z);
+
+        const float inv = 1.0f / vec;
+        return Vector(inv * x, inv * y, inv * z);
+    }
     inline const Vector operator^ (const Vector& right) const { return Vector(y * right.z - z * right.y, z * right.x - x * right.z, x * right.y - y * right.x); }
     inline float operator| (const Vector& right) const { return x * right.x + y * right.y + z * right.z; }
 
@@ -366,10 +373,13 @@ public:
 
     inline const Vector& operator/= (const float vec)
     {
-        const float inv = 1.0f / vec;
-        x *= inv;
-        y *= inv;
-        z *= inv;
+        if (!Math::FltZero(vec))
+        {
+            const float inv = 1.0f / vec;
+            x *= inv;
+            y *= inv;
+            z *= inv;
+        }
         return *this;
     }
 
@@ -471,7 +481,7 @@ public:
     //
     inline Vector Normalize(void) const
     {
-        const float length = crsqrtf(x * x + y * y + z * z);
+        const float length = crsqrtf(x * x + y * y + z * z) + MATH_FLEPSILON;
         return Vector(x * length, y * length, z * length);
     }
 
@@ -485,7 +495,7 @@ public:
     //
     inline Vector Normalize2D(void) const
     {
-        const float length = crsqrtf(x * x + y * y);
+        const float length = crsqrtf(x * x + y * y) + MATH_FLEPSILON;
         return Vector(x * length, y * length, 0.0f);
     }
 
@@ -542,6 +552,9 @@ public:
     //
     inline float ToPitch(void) const
     {
+        if (Math::FltZero(x) && Math::FltZero(y))
+            return 0.0f;
+
         return Math::RadianToDegree(catan2f(z, GetLength2D()));
     }
 
@@ -555,6 +568,9 @@ public:
     //
     inline float ToYaw(void) const
     {
+        if (Math::FltZero(x) && Math::FltZero(y))
+            return 0.0f;
+
         return Math::RadianToDegree(catan2f(y, x));
     }
 
@@ -568,6 +584,10 @@ public:
     //
     inline Vector ToAngles(void) const
     {
+        // is the input vector absolutely vertical?
+        if (Math::FltZero(x) && Math::FltZero(y))
+            return Vector(z > 0.0f ? 90.0f : 270.0f, 0.0, 0.0f);
+
         // it's another sort of vector compute individually the pitch and yaw corresponding to this vector.
         return Vector(Math::RadianToDegree(catan2f(z, GetLength2D())), Math::RadianToDegree(catan2f(y, x)), 0.0f);
     }
@@ -623,587 +643,6 @@ namespace Math
         return min1.x < max2.x && max1.x > min2.x && min1.y < max2.y && max1.y > min2.y && min1.z < max2.z && max1.z > min2.z;
     }
 }
-
-template <typename T> class Array
-{
-private:
-    T* m_elements;
-    int m_resizeStep;
-    int m_itemSize;
-    int m_itemCount;
-
-    //
-    // Group: (Con/De)structors
-    //
-public:
-
-    //
-    // Function: Array
-    //  Default array constructor.
-    //
-    // Parameters:
-    //  resizeStep - Array resize step, when new items added, or old deleted.
-    //
-    Array(const int resizeStep = 0)
-    {
-        m_elements = nullptr;
-        m_itemSize = 0;
-        m_itemCount = 0;
-        m_resizeStep = resizeStep;
-    }
-
-    //
-    // Function: Array
-    //  Array copying constructor.
-    //
-    // Parameters:
-    //  other - Other array that should be assigned to this one.
-    //
-    Array(const Array <T>& other)
-    {
-        m_elements = nullptr;
-        m_itemSize = 0;
-        m_itemCount = 0;
-        m_resizeStep = 0;
-        AssignFrom(other);
-    }
-
-    //
-    // Function: ~Array
-    //  Default array destructor.
-    //
-    virtual ~Array(void)
-    {
-        Destroy();
-    }
-
-    //
-    // Group: Functions
-    //
-public:
-
-    //
-    // Function: Destroy
-    //  Destroys array object, and all elements.
-    //
-    inline void Destroy(void)
-    {
-        if (m_elements)
-        {
-            delete[] m_elements;
-            m_elements = nullptr;
-        }
-
-        m_itemSize = 0;
-        m_itemCount = 0;
-        m_resizeStep = 0;
-    }
-
-    //
-    // Function: SetSize
-    //  Sets the size of the array.
-    //
-    // Parameters:
-    //  newSize - Size to what array should be resized.
-    //  keepData - Keep exiting data, while resizing array or not.
-    //
-    // Returns:
-    //  True if operation succeeded, false otherwise.
-    //
-    inline bool SetSize(const int newSize, const bool keepData = true)
-    {
-        if (!newSize)
-        {
-            Destroy();
-            return true;
-        }
-
-        int checkSize = 0;
-
-        if (m_resizeStep != 0)
-            checkSize = m_itemCount + m_resizeStep;
-        else
-        {
-            checkSize = m_itemCount / 8;
-
-            if (checkSize < 4)
-                checkSize = 4;
-
-            if (checkSize > 1024)
-                checkSize = 1024;
-
-            checkSize += m_itemCount;
-        }
-
-        if (newSize > checkSize)
-            checkSize = newSize;
-
-        T* buffer = new(std::nothrow) T[checkSize];
-        if (!buffer)
-            return false;
-
-        if (keepData && m_elements)
-        {
-            if (checkSize < m_itemCount)
-                m_itemCount = checkSize;
-
-            int i;
-            for (i = 0; i < m_itemCount; i++)
-                buffer[i] = m_elements[i];
-
-            delete[] m_elements;
-        }
-
-        m_elements = buffer;
-        m_itemSize = checkSize;
-        return true;
-    }
-
-    //
-    // Function: GetSize
-    //  Gets allocated size of array.
-    //
-    // Returns:
-    //  Number of allocated items.
-    //
-    inline int GetSize(void) const
-    {
-        return m_itemSize;
-    }
-
-    //
-    // Function: GetElementNumber
-    //  Gets real number currently in array.
-    //
-    // Returns:
-    //  Number of elements.
-    //
-    inline int GetElementNumber(void) const
-    {
-        return m_itemCount;
-    }
-
-    //
-    // Function: SetEnlargeStep
-    //  Sets step, which used while resizing array data.
-    //
-    // Parameters:
-    //  resizeStep - Step that should be set.
-    //  
-    inline void SetEnlargeStep(const int resizeStep = 0)
-    {
-        m_resizeStep = resizeStep;
-    }
-
-    //
-    // Function: GetEnlargeStep
-    //  Gets the current enlarge step.
-    //
-    // Returns:
-    //  Current resize step.
-    //
-    inline int GetEnlargeStep(void)
-    {
-        return m_resizeStep;
-    }
-
-    //
-    // Function: SetAt
-    //  Sets element data, at specified index.
-    //
-    // Parameters:
-    //  index - Index where object should be assigned.
-    //  object - Object that should be assigned.
-    //  enlarge - Checks whether array must be resized in case, allocated size + enlarge step is exceeded.
-    //
-    // Returns:
-    //  True if operation succeeded, false otherwise.
-    //
-    inline bool SetAt(const int index, const T object, const bool enlarge = true)
-    {
-        if (index >= m_itemSize)
-        {
-            if (!enlarge || !SetSize(index + 1))
-                return false;
-        }
-
-        m_elements[index] = object;
-
-        if (index >= m_itemCount)
-            m_itemCount = index + 1;
-
-        return true;
-    }
-
-    //
-    // Function: GetAt
-    //  Gets element from specified index
-    //
-    // Parameters:
-    //  index - Element index to retrieve.
-    //
-    // Returns:
-    //  Element object.
-    //
-    inline T& GetAt(const int index)
-    {
-        if (index < 0 || index >= m_itemCount)
-            return m_elements[crandomint(0, m_itemCount - 1)];
-
-        return m_elements[index];
-    }
-
-    //
-    // Function: GetAt
-    //  Gets element at specified index, and store it in reference object.
-    //
-    // Parameters:
-    //  index - Element index to retrieve.
-    //  object - Holder for element reference.
-    //
-    // Returns:
-    //  True if operation succeeded, false otherwise.
-    //
-    inline bool GetAt(const int index, T& object)
-    {
-        if (index < 0 || index >= m_itemCount)
-            return false;
-
-        object = m_elements[index];
-        return true;
-    }
-
-    //
-    // Function: InsertAt
-    //  Inserts new element at specified index.
-    //
-    // Parameters:
-    //  index - Index where element should be inserted.
-    //  object - Object that should be inserted.
-    //  enlarge - Checks whether array must be resized in case, allocated size + enlarge step is exceeded.
-    //
-    // Returns:
-    //  True if operation succeeded, false otherwise.
-    //
-    inline bool InsertAt(const int index, const T object, const bool enlarge = true)
-    {
-        return InsertAt(index, &object, 1, enlarge);
-    }
-
-    //
-    // Function: InsertAt
-    //  Inserts number of element at specified index.
-    //
-    // Parameters:
-    //  index - Index where element should be inserted.
-    //  objects - Pointer to object list.
-    //  count - Number of element to insert.
-    //  enlarge - Checks whether array must be resized in case, allocated size + enlarge step is exceeded.
-    //
-    // Returns:
-    //  True if operation succeeded, false otherwise.
-    //
-    inline bool InsertAt(const int index, const T* objects, const int count = 1, const bool enlarge = true)
-    {
-        if (!objects || count < 1)
-            return false;
-
-        int newSize = 0;
-
-        if (m_itemCount > index)
-            newSize = m_itemCount + count;
-        else
-            newSize = index + count;
-
-        if (newSize >= m_itemSize)
-        {
-            if (!enlarge || !SetSize(newSize))
-                return false;
-        }
-
-        if (index >= m_itemCount)
-        {
-            int i;
-            for (i = 0; i < count; i++)
-                m_elements[i + index] = objects[i];
-
-            m_itemCount = newSize;
-        }
-        else
-        {
-            int i;
-            for (i = m_itemCount; i > index; i--)
-                m_elements[i + count - 1] = m_elements[i - 1];
-
-            for (i = 0; i < count; i++)
-                m_elements[i + index] = objects[i];
-
-            m_itemCount += count;
-        }
-
-        return true;
-    }
-
-    //
-    // Function: InsertAt
-    //  Inserts other array reference into the our array.
-    //
-    // Parameters:
-    //  index - Index where element should be inserted.
-    //  objects - Pointer to object list.
-    //  count - Number of element to insert.
-    //  enlarge - Checks whether array must be resized in case, allocated size + enlarge step is exceeded.
-    //
-    // Returns:
-    //  True if operation succeeded, false otherwise.
-    //
-    inline bool InsertAt(const int index, const Array <T>& other, const bool enlarge = true)
-    {
-        if (&other == this)
-            return false;
-
-        return InsertAt(index, other.m_elements, other.m_itemCount, enlarge);
-    }
-
-    //
-    // Function: RemoveAt
-    //  Removes elements from specified index.
-    //
-    // Parameters:
-    //  index - Index, where element should be removed.
-    //  count - Number of elements to remove.
-    //
-    // Returns:
-    //  True if operation succeeded, false otherwise.
-    //
-    inline bool RemoveAt(const int index, const int count = 1)
-    {
-        if (index + count > m_itemCount)
-            return false;
-
-        if (count < 1)
-            return true;
-
-        m_itemCount -= count;
-
-        int i;
-        for (i = index; i < m_itemCount; i++)
-            m_elements[i] = m_elements[i + count];
-
-        return true;
-    }
-
-    //
-    // Function: Push
-    //  Appends element to the end of array.
-    //
-    // Parameters:
-    //  object - Object to append.
-    //  enlarge - Checks whether array must be resized in case, allocated size + enlarge step is exceeded.
-    //
-    // Returns:
-    //  True if operation succeeded, false otherwise.
-    //
-    inline bool Push(const T object, const bool enlarge = true)
-    {
-        return InsertAt(m_itemCount, &object, 1, enlarge);
-    }
-
-    //
-    // Function: Push
-    //  Appends number of elements to the end of array.
-    //
-    // Parameters:
-    //  objects - Pointer to object list.
-    //  count - Number of element to insert.
-    //  enlarge - Checks whether array must be resized in case, allocated size + enlarge step is exceeded.
-    //
-    // Returns:
-    //  True if operation succeeded, false otherwise.
-    //
-    inline bool Push(const T* objects, const int count = 1, const bool enlarge = true)
-    {
-        return InsertAt(m_itemCount, objects, count, enlarge);
-    }
-
-    //
-    // Function: Push
-    //  Inserts other array reference into the our array.
-    //
-    // Parameters:
-    //  objects - Pointer to object list.
-    //  count - Number of element to insert.
-    //  enlarge - Checks whether array must be resized in case, allocated size + enlarge step is exceeded.
-    //
-    // Returns:
-    //  True if operation succeeded, false otherwise.
-    //
-    inline bool Push(const Array <T>& other, const bool enlarge = true)
-    {
-        if (&other == this)
-            return false;
-
-        return InsertAt(m_itemCount, other.m_elements, other.m_itemCount, enlarge);
-    }
-
-    //
-    // Function: GetData
-    //  Gets the pointer to all element in array.
-    //
-    // Returns:
-    //  Pointer to object list.
-    //
-    inline T* GetData(void)
-    {
-        return m_elements;
-    }
-
-    //
-    // Function: RemoveAll
-    //  Resets array, and removes all elements out of it.
-    // 
-    inline void RemoveAll(void)
-    {
-        m_itemCount = 0;
-        SetSize(m_itemCount);
-    }
-
-    //
-    // Function: IsEmpty
-    //  Checks whether element is empty.
-    //
-    // Returns:
-    //  True if element is empty, false otherwise.
-    //
-    inline bool IsEmpty(void)
-    {
-        return !m_itemCount;
-    }
-
-    //
-    // Function: FreeExtra
-    //  Frees unused space.
-    //
-    inline void FreeSpace(const bool destroyIfEmpty = true)
-    {
-        if (!m_itemCount)
-        {
-            if (destroyIfEmpty)
-                Destroy();
-
-            return;
-        }
-
-        T* buffer = new(std::nothrow) T[m_itemCount];
-        if (!buffer)
-            return;
-
-        if (m_elements)
-        {
-            int i;
-            for (i = 0; i < m_itemCount; i++)
-                buffer[i] = m_elements[i];
-
-            delete[] m_elements;
-        }
-
-        m_elements = buffer;
-        m_itemSize = m_itemCount;
-    }
-
-    //
-    // Function: Pop
-    //  Pops element from array.
-    //
-    // Returns:
-    //  Object popped from the end of array.
-    //
-    inline T Pop(void)
-    {
-        const T element = m_elements[m_itemCount - 1];
-        RemoveAt(m_itemCount - 1);
-        return element;
-    }
-
-    //
-    // Function: PopNoReturn
-    //  Pops element from array.
-    //
-    inline T PopNoReturn(void)
-    {
-        RemoveAt(m_itemCount - 1);
-    }
-
-    inline T& Last(void)
-    {
-        return m_elements[m_itemCount - 1];
-    }
-
-    inline bool GetLast(const T& item)
-    {
-        if (!m_itemCount)
-            return false;
-
-        item = m_elements[m_itemCount - 1];
-        return true;
-    }
-
-    //
-    // Function: AssignFrom
-    //  Reassigns current array with specified one.
-    //
-    // Parameters:
-    //  other - Other array that should be assigned.
-    //
-    // Returns:
-    //  True if operation succeeded, false otherwise.
-    //
-    inline bool AssignFrom(const Array <T>& other)
-    {
-        if (&other == this)
-            return true;
-
-        if (!SetSize(other.m_itemCount, false))
-            return false;
-
-        if (!other.m_elements)
-            return false;
-
-        int i;
-        for (i = 0; i < other.m_itemCount; i++)
-            m_elements[i] = other.m_elements[i];
-
-        m_itemCount = other.m_itemCount;
-        m_resizeStep = other.m_resizeStep;
-        return true;
-    }
-
-    //
-    // Function: GetRandomElement
-    //  Gets the random element from the array.
-    //
-    // Returns:
-    //  Random element reference.
-    //
-    inline T& GetRandomElement(void) const
-    {
-        return m_elements[crandomint(0, m_itemCount - 1)];
-    }
-
-    inline Array <T>& operator = (const Array <T>& other)
-    {
-        AssignFrom(other);
-        return *this;
-    }
-
-    inline T& operator [] (const int index)
-    {
-        if (index < m_itemSize && index >= m_itemCount)
-            m_itemCount = index + 1;
-
-        return GetAt(index);
-    }
-};
 
 //
 // Class: String
@@ -1995,27 +1434,6 @@ public:
         }
 
         return m_used;
-    }
-
-    Array <String> Split(char* separator)
-    {
-        Array <String> holder;
-        int tokenLength, index = 0;
-        do
-        {
-            index += strspn(&m_buffer[index], separator);
-            tokenLength = strcspn(&m_buffer[index], separator);
-            if (tokenLength > 0)
-                holder.Push(Mid(index, tokenLength));
-            index += tokenLength;
-        } while (tokenLength > 0);
-        return holder;
-    }
-
-    Array <String> Split(const char separator)
-    {
-        char sep[2] = {separator, 0x0};
-        return Split(sep);
     }
 };
 

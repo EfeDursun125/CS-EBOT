@@ -364,6 +364,14 @@ public:
 		m_path[0] = 0;
 	}
 
+	inline void Destroy(void)
+	{
+		m_cursor = 0;
+		m_length = 0;
+		if (m_path)
+			delete[] m_path;
+	}
+
 	inline bool Init(const int16_t length)
 	{
 		m_path = new(std::nothrow) int16_t[length];
@@ -433,6 +441,7 @@ struct Clients
 	int team; // bot team
 	int flags; // client flags
 	int index; // client index
+	int16_t wp; // waypoint index
 };
 
 // bot creation tab
@@ -501,7 +510,6 @@ public:
 	Vector m_liftTravelPos{nullvec}; // lift travel position
 	float m_timeDoorOpen{0.0f}; // time to next door open check
 
-	Vector m_avgDeathOrigin{nullvec}; // average death origin
 	Vector m_breakableOrigin{nullvec}; // origin of the breakable
 	edict_t* m_breakableEntity{nullptr}; // pointer to breakable entity
 	edict_t* m_ignoreEntity{nullptr}; // pointer to entity to ignore

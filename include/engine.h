@@ -2783,8 +2783,7 @@ private:
 private:
     enum GameVars
     {
-        GVAR_FREEZETIME = 0,
-        GVAR_GRAVITY,
+        GVAR_GRAVITY = 0,
         GVAR_DEVELOPER,
         GVAR_NUM
     };
@@ -2808,7 +2807,6 @@ public:
     const Vector& GetGlobalVector(const GlobalVector id);
     void SetGlobalVector(const GlobalVector id, const Vector& newVector);
     void BuildGlobalVectors(const Vector& on);
-    float GetFreezeTime(void);
     int GetGravity(void);
     int GetDeveloperLevel(void);
     void PrintServer(const char* format, ...);
