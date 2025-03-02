@@ -1261,7 +1261,7 @@ void Bot::FindPath(int& srcIndex, int& destIndex)
 			return;
 	}
 
-	if (ebot_force_shortest_path.GetBool())
+	if (ebot_force_shortest_path.GetBool() || g_numWaypoints > 2048)
 	{
 		FindShortestPath(srcIndex, destIndex);
 		return;
@@ -1549,6 +1549,8 @@ void Bot::FindEscapePath(int& srcIndex, const Vector& dangerOrigin)
 {
 	// if we can't find new path we will go backwards
 	m_navNode.Clear();
+
+	// TODO: FIXME: ...
 	if (g_pathTimer > engine->GetTime())
 		return;
 
@@ -1584,6 +1586,7 @@ void Bot::FindEscapePath(int& srcIndex, const Vector& dangerOrigin)
 	uint32_t flags;
 	Path currPath;
 	float f, g;
+	bool found = false;
 
 	PriorityQueue openList;
 	openList.Setup();
@@ -1600,19 +1603,8 @@ void Bot::FindEscapePath(int& srcIndex, const Vector& dangerOrigin)
 		currPath = g_waypoint->m_paths[currentIndex];
 		if (!IsEnemyReachableToPosition(currPath.origin))
 		{
-			do
-			{
-				m_navNode.Add(currentIndex);
-				currentIndex = waypoints[currentIndex].parent;
-			} while (IsValidWaypoint(currentIndex));
-
-			m_navNode.Reverse();
-			if (m_navNode.HasNext() && (g_waypoint->GetPath(m_navNode.Next())->origin - pev->origin).GetLengthSquared() < (g_waypoint->GetPath(m_navNode.Next())->origin - g_waypoint->GetPath(m_navNode.First())->origin).GetLengthSquared())
-				m_navNode.Shift();
-
-			ChangeWptIndex(m_navNode.First());
 			g_pathTimer = engine->GetTime() + 0.05f;
-			return;
+			break;
 		}
 
 		currWaypoint = &waypoints[currentIndex];
@@ -1660,7 +1652,26 @@ void Bot::FindEscapePath(int& srcIndex, const Vector& dangerOrigin)
 		}
 	}
 
-	g_pathTimer = engine->GetTime() + 0.05f;
+	if (found)
+	{
+		do
+		{
+			m_navNode.Add(currentIndex);
+			currentIndex = waypoints[currentIndex].parent;
+		} while (IsValidWaypoint(currentIndex));
+
+		// at least get 2
+		if (m_navNode.HasNext())
+		{
+			m_navNode.Reverse();
+			if ((g_waypoint->GetPath(m_navNode.Next())->origin - pev->origin).GetLengthSquared() < (g_waypoint->GetPath(m_navNode.Next())->origin - g_waypoint->GetPath(m_navNode.First())->origin).GetLengthSquared())
+				m_navNode.Shift();
+
+			ChangeWptIndex(m_navNode.First());
+		}
+	}
+	else
+		g_pathTimer = engine->GetTime() + 0.05f;
 }
 
 void Bot::CheckTouchEntity(edict_t* entity)
@@ -1773,9 +1784,9 @@ int Bot::FindWaypoint(void)
 			index = m_navNode.First();
 		else
 		{
-			index = g_waypoint->FindNearest(pev->origin, 2048.0f, -1, m_myself);
+			index = g_waypoint->FindNearestToEnt(pev->origin, 2048.0f, m_myself);
 			if (!IsValidWaypoint(index))
-				index = g_waypoint->FindNearestInCircle(pev->origin);
+				index = g_waypoint->FindNearest(pev->origin);
 		}
 	
 		ChangeWptIndex(index);

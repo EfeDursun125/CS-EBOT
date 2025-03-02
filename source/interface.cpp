@@ -412,7 +412,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 				ClientPrint(ent, print_withtag, "Please set mesh <number>, min 0, max 255");
 			else
 			{
-				const int index = g_waypoint->FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
+				const int index = g_waypoint->FindNearestSlow(GetEntityOrigin(g_hostEntity), 75.0f);
 				if (IsValidWaypoint(index))
 				{
 					g_waypoint->GetPath(index)->mesh = static_cast<uint8_t>(cabsf(atof(arg2)));
@@ -430,7 +430,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 				ClientPrint(ent, print_withtag, "Please set gravity <number>");
 			else
 			{
-				const int index = g_waypoint->FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
+				const int index = g_waypoint->FindNearestSlow(GetEntityOrigin(g_hostEntity), 75.0f);
 				if (IsValidWaypoint(index))
 				{
 					g_waypoint->GetPath(index)->gravity = cabsf(atof(arg2));

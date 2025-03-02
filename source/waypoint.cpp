@@ -87,7 +87,7 @@ void CreateWaypoint(Vector& Next, float range)
     if (tr.flFraction < 1.0f && !IsBreakable(tr.pHit))
         return;
 
-    const int startindex = g_waypoint->FindNearestInCircle(tr.vecEndPos, range);
+    const int startindex = g_waypoint->FindNearestSlow(tr.vecEndPos, range);
     if (IsValidWaypoint(startindex))
         return;
 
@@ -100,11 +100,11 @@ void CreateWaypoint(Vector& Next, float range)
     Vector TargetPosition = tr2.vecEndPos;
     TargetPosition.z = TargetPosition.z + 19.0f;
 
-    const int endindex = g_waypoint->FindNearestInCircle(TargetPosition, range);
+    const int endindex = g_waypoint->FindNearestSlow(TargetPosition, range);
     if (IsValidWaypoint(endindex))
         return;
 
-    const Vector targetOrigin = g_waypoint->GetPath(g_waypoint->FindNearestInCircle(TargetPosition, 256.0f))->origin;
+    const Vector targetOrigin = g_waypoint->GetPath(g_waypoint->FindNearestSlow(TargetPosition, 256.0f))->origin;
     g_analyzeputrequirescrouch = CheckCrouchRequirement(TargetPosition);
     if (g_waypoint->IsNodeReachable(targetOrigin, TargetPosition))
         g_waypoint->Add(isBreakable ? 1 : -1, g_analyzeputrequirescrouch ? Vector(TargetPosition.x, TargetPosition.y, (TargetPosition.z - 18.0f)) : TargetPosition);
@@ -372,165 +372,127 @@ void Waypoint::AddPath(const int addIndex, const int pathIndex, const int type)
     }
 }
 
-int Waypoint::FindFarest(const Vector& origin, const float maxDistance)
+int Waypoint::FindFarest(const Vector& origin, float maxDistance)
 {
-    int i, index = -1;
-    float distance, maxDist = squaredf(maxDistance);
-    for (i = 0; i < g_numWaypoints; i++)
-    {
-        distance = (m_paths[i].origin - origin).GetLengthSquared();
-        if (distance > maxDist)
-        {
-            index = i;
-            maxDist = distance;
-        }
-    }
-
-    return index;
-}
-
-int Waypoint::FindNearestInCircle(const Vector& origin, const float maxDistance)
-{
-    int i, index = -1;
-    float distance, maxDist = squaredf(maxDistance);
-    for (i = 0; i < g_numWaypoints; i++)
-    {
-        distance = (m_paths[i].origin - origin).GetLengthSquared();
-        if (distance < maxDist)
-        {
-            index = i;
-            maxDist = distance;
-        }
-    }
-
-    return index;
-}
-
-int Waypoint::FindNearest(const Vector& origin, const float minDistance, const int flags, edict_t* entity, int* findWaypointPoint, const int mode)
-{
-    float squaredMinDistance = squaredf(minDistance);
-    const int checkPoint = 20;
-    float wpDistance[checkPoint];
-    int wpIndex[checkPoint];
+    int16_t i;
+    int index = -1;
+    maxDistance = squaredf(maxDistance);
     float distance;
-    Vector dest;
-
-    int i, y, z;
-    for (i = 0; i < checkPoint; i++)
+    for (i = 0; i < g_numWaypoints; i++)
     {
-        wpIndex[i] = -1;
-        wpDistance[i] = 999999.0f;
+        distance = (m_paths[i].origin - origin).GetLengthSquared();
+        if (distance > maxDistance)
+        {
+            index = i;
+            maxDistance = distance;
+        }
     }
 
+    return index;
+}
+
+int Waypoint::FindNearest(const Vector& origin, float minDistance, const int flags)
+{
+    MiniArray<int16_t> &bucket = GetWaypointsInBucket(origin);
+    if (bucket.IsEmpty())
+        return FindNearestSlow(origin, minDistance, flags);
+
+    int index = -1;
+    minDistance = squaredf(minDistance);
+    float distance;
+
+    int16_t i, at;
+    for (i = 0; i < bucket.Size(); i++)
+    {
+        at = bucket[i];
+        if (flags != -1 && !(m_paths[at].flags & flags))
+            continue;
+
+        distance = (m_paths[at].origin - origin).GetLengthSquared();
+        if (distance < minDistance)
+        {
+            index = at;
+            minDistance = distance;
+        }
+    }
+
+    return index;
+}
+
+int Waypoint::FindNearestSlow(const Vector& origin, float minDistance, const int flags)
+{
+    int index = -1;
+    minDistance = squaredf(minDistance);
+    float distance;
+
+    int16_t i;
     for (i = 0; i < g_numWaypoints; i++)
     {
         if (flags != -1 && !(m_paths[i].flags & flags))
             continue;
 
-        dest = m_paths[i].origin;
-        distance = (dest - origin).GetLengthSquared();
-        if (distance > squaredMinDistance)
-            continue;
-
-        if (((dest.z > origin.z + 62.0f || dest.z < origin.z - 100.0f) && !(m_paths[i].flags & WAYPOINT_LADDER)) && (dest - origin).GetLengthSquared2D() < squaredf(30.0f))
-            continue;
-
-        for (y = 0; y < checkPoint; y++)
+        distance = (m_paths[i].origin - origin).GetLengthSquared();
+        if (distance < minDistance)
         {
-            if (distance > wpDistance[y])
-                continue;
-
-            for (z = checkPoint - 1; z > y; z--)
-            {
-                if (z == checkPoint - 1 || wpIndex[z] == -1)
-                    continue;
-
-                wpIndex[z + 1] = wpIndex[z];
-                wpDistance[z + 1] = wpDistance[z];
-            }
-
-            wpIndex[y] = i;
-            wpDistance[y] = distance;
-            y = checkPoint + 5;
+            index = i;
+            minDistance = distance;
         }
     }
 
-    if (IsValidWaypoint(mode))
+    return index;
+}
+
+int Waypoint::FindNearestToEnt(const Vector& origin, float minDistance, edict_t* entity)
+{
+    minDistance = squaredf(minDistance);
+    MiniArray<int16_t> &bucket = GetWaypointsInBucket(origin);
+    if (bucket.IsEmpty())
+        return FindNearestToEntSlow(origin, minDistance, entity);
+
+    int index = -1;
+    float distance;
+
+    int16_t i, at;
+    for (i = 0; i < bucket.Size(); i++)
     {
-        int cdWPIndex[checkPoint];
-        float cdWPDistance[checkPoint];
-
-        for (i = 0; i < checkPoint; i++)
+        at = bucket[i];
+        distance = (m_paths[at].origin - origin).GetLengthSquared();
+        if (distance < minDistance)
         {
-            cdWPIndex[i] = -1;
-            cdWPDistance[i] = 9999999.0f;
-        }
-
-        for (i = 0; i < checkPoint; i++)
-        {
-            if (!IsValidWaypoint(wpIndex[i]))
+            if (!g_waypoint->Reachable(entity, at))
                 continue;
 
-            distance = g_waypoint->GetPathDistance(wpIndex[i], mode);
-            for (y = 0; y < checkPoint; y++)
-            {
-                if (distance > cdWPDistance[y])
-                    continue;
-
-                for (z = checkPoint - 1; z >= y; z--)
-                {
-                    if (z == checkPoint - 1 || cdWPIndex[z] == -1)
-                        continue;
-
-                    cdWPIndex[z + 1] = cdWPIndex[z];
-                    cdWPDistance[z + 1] = cdWPDistance[z];
-                }
-
-                cdWPIndex[y] = wpIndex[i];
-                cdWPDistance[y] = distance;
-                y = checkPoint + 5;
-            }
-        }
-
-        for (i = 0; i < checkPoint; i++)
-        {
-            wpIndex[i] = cdWPIndex[i];
-            wpDistance[i] = cdWPDistance[i];
+            index = at;
+            minDistance = distance;
         }
     }
 
-    int firsIndex = -1;
-    if (!FNullEnt(entity))
+    if (!IsValidWaypoint(index))
+        return FindNearestToEntSlow(origin, minDistance, entity);
+
+    return index;
+}
+
+int Waypoint::FindNearestToEntSlow(const Vector& origin, float minDistance, edict_t* entity)
+{
+    int index = -1;
+    float distance;
+
+    int16_t i;
+    for (i = 0; i < g_numWaypoints; i++)
     {
-        for (i = 0; i < checkPoint; i++)
+        distance = (m_paths[i].origin - origin).GetLengthSquared();
+        if (distance < minDistance)
         {
-            if (!IsValidWaypoint(wpIndex[i]))
+            if (!g_waypoint->Reachable(entity, i))
                 continue;
 
-            // Use the path variable in the condition     
-            if (wpDistance[i] > squaredf(m_paths[wpIndex[i]].radius) && !Reachable(entity, wpIndex[i]))
-                continue;
-
-            if (findWaypointPoint == reinterpret_cast<int*>(-2))
-                return wpIndex[i];
-
-            if (firsIndex == -1)
-            {
-                firsIndex = wpIndex[i];
-                continue;
-            }
-
-            if (findWaypointPoint && findWaypointPoint != reinterpret_cast<int*>(-2))
-                *findWaypointPoint = wpIndex[i];
-
-            return firsIndex;
+            index = i;
+            minDistance = distance;
         }
     }
 
-    if (!IsValidWaypoint(firsIndex))
-        firsIndex = wpIndex[0];
-
-    return firsIndex;
+    return index;
 }
 
 // returns all waypoints within radius from position
@@ -601,7 +563,7 @@ void Waypoint::Add(const int flags, const Vector& waypointOrigin)
     }
     case 10:
     {
-        index = FindNearest(GetEntityOrigin(g_hostEntity), 25.0f);
+        index = FindNearestSlow(GetEntityOrigin(g_hostEntity), 25.0f);
         if (IsValidWaypoint(index))
         {
             if ((m_paths[index].origin - GetEntityOrigin(g_hostEntity)).GetLengthSquared() < squaredf(25.0f))
@@ -644,6 +606,7 @@ void Waypoint::Add(const int flags, const Vector& waypointOrigin)
 
         // store the origin (location) of this waypoint
         path->origin = newOrigin;
+        AddToBucket(newOrigin, index);
         path->mesh = 0;
         path->gravity = 0;
 
@@ -857,7 +820,7 @@ void Waypoint::Add(const int flags, const Vector& waypointOrigin)
 
 void Waypoint::Delete(void)
 {
-    const int index = FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
+    const int index = FindNearestSlow(GetEntityOrigin(g_hostEntity), 75.0f);
     if (!IsValidWaypoint(index))
         return;
 
@@ -909,6 +872,7 @@ void Waypoint::DeleteByIndex(const int index)
         }
     }
 
+    EraseFromBucket(m_paths[index].origin, index);
     m_paths.RemoveAt(index);
 
     g_numWaypoints--;
@@ -920,7 +884,7 @@ void Waypoint::DeleteByIndex(const int index)
 
 void Waypoint::DeleteFlags(void)
 {
-    const int index = FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
+    const int index = FindNearestSlow(GetEntityOrigin(g_hostEntity), 75.0f);
     if (!IsValidWaypoint(index))
         return;
 
@@ -931,7 +895,7 @@ void Waypoint::DeleteFlags(void)
 // this function allow manually changing flags
 void Waypoint::ToggleFlags(const int toggleFlag)
 {
-    const int index = FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
+    const int index = FindNearestSlow(GetEntityOrigin(g_hostEntity), 75.0f);
     if (!IsValidWaypoint(index))
         return;
 
@@ -947,7 +911,7 @@ void Waypoint::ToggleFlags(const int toggleFlag)
 // this function allow manually setting the zone radius
 void Waypoint::SetRadius(const int radius)
 {
-    const int index = FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
+    const int index = FindNearestSlow(GetEntityOrigin(g_hostEntity), 75.0f);
     if (!IsValidWaypoint(index))
         return;
 
@@ -978,7 +942,7 @@ int Waypoint::GetFacingIndex(void)
 
     int pointedIndex = -1;
     float range = 5.32f;
-    const int nearestNode = FindNearest(g_hostEntity->v.origin, 54.0f);
+    const int nearestNode = FindNearestSlow(g_hostEntity->v.origin, 54.0f);
 
     // check bounds from eyes of editor
     const Vector eyePosition = g_hostEntity->v.origin + g_hostEntity->v.view_ofs;
@@ -1026,7 +990,7 @@ int Waypoint::GetFacingIndex(void)
 // this function allow player to manually create a path from one waypoint to another
 void Waypoint::CreateWaypointPath(const int dir)
 {
-    const int nodeFrom = FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
+    const int nodeFrom = FindNearestSlow(GetEntityOrigin(g_hostEntity), 75.0f);
 
     if (!IsValidWaypoint(nodeFrom))
     {
@@ -1085,7 +1049,7 @@ void Waypoint::TeleportWaypoint(void)
 // this function allow player to manually remove a path from one waypoint to another
 void Waypoint::DeletePath(void)
 {
-    int nodeFrom = FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
+    int nodeFrom = FindNearestSlow(GetEntityOrigin(g_hostEntity), 75.0f);
     if (!IsValidWaypoint(nodeFrom))
     {
         CenterPrint("Unable to find nearest waypoint in 75 units");
@@ -1185,7 +1149,7 @@ void Waypoint::DeletePathByIndex(int nodeFrom, int nodeTo)
 
 void Waypoint::CacheWaypoint(void)
 {
-    const int node = FindNearest(GetEntityOrigin(g_hostEntity), 75.0f);
+    const int node = FindNearestSlow(GetEntityOrigin(g_hostEntity), 75.0f);
     if (!IsValidWaypoint(node))
     {
         m_cacheWaypointIndex = -1;
@@ -1708,17 +1672,24 @@ bool Waypoint::Load(void)
         else if (header.fileVersion == static_cast<int32_t>(FV_WAYPOINT))
         {
             g_numWaypoints = header.pointNumber;
+
+            InitBuckets();
             m_paths.Resize(g_numWaypoints, true);
             Path* path = &m_paths[0];
             if (Compressor::Uncompress(pathtofl, sizeof(WaypointHeader), reinterpret_cast<uint8_t*>(path), g_numWaypoints * sizeof(Path)) != -1)
             {
                 for (i = 0; i < g_numWaypoints; i++)
+                {
                     Sort(i, m_paths[i].index);
+                    AddToBucket(m_paths[i].origin, i);
+                }
             }
         }
         else if (header.fileVersion == static_cast<int32_t>(126))
         {
             g_numWaypoints = header.pointNumber;
+
+            InitBuckets();
             m_paths.Resize(g_numWaypoints, true);
 
             Path path;
@@ -1726,12 +1697,15 @@ bool Waypoint::Load(void)
             {
                 fp.Read(&path, sizeof(Path));
                 Sort(i, path.index);
+                AddToBucket(path.origin, i);
                 m_paths.Push(path);
             }
         }
         else if (header.fileVersion == static_cast<int32_t>(125))
         {
             g_numWaypoints = header.pointNumber;
+
+            InitBuckets();
             m_paths.Resize(g_numWaypoints, true);
 
             struct PathOLD2
@@ -1766,12 +1740,15 @@ bool Waypoint::Load(void)
                 }
 
                 Sort(i, path.index);
+                AddToBucket(path.origin, i);
                 m_paths.Push(path);
             }
         }
         else
         {
             g_numWaypoints = header.pointNumber;
+
+            InitBuckets();
             m_paths.Resize(g_numWaypoints, true);
 
             struct PathOLD
@@ -1815,6 +1792,7 @@ bool Waypoint::Load(void)
                 }
 
                 Sort(i, path.index);
+                AddToBucket(path.origin, i);
                 m_paths.Push(path);
             }
 
@@ -2733,7 +2711,7 @@ void Waypoint::CreateBasic(void)
 
         do
         {
-            if (FindNearest(pointOrigin, 50.0f) == -1)
+            if (FindNearestSlow(pointOrigin, 50.0f) == -1)
                 Add(-1, pointOrigin);
 
             pointOrigin.z += 160.0f;
@@ -2741,7 +2719,7 @@ void Waypoint::CreateBasic(void)
 
         pointOrigin = down + Vector(0.0f, 0.0f, 38.0f);
 
-        if (FindNearest(pointOrigin, 50.0f) == -1)
+        if (FindNearestSlow(pointOrigin, 50.0f) == -1)
             Add(-1, pointOrigin);
 
         m_isOnLadder = false;
@@ -2751,7 +2729,7 @@ void Waypoint::CreateBasic(void)
     while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "info_player_deathmatch")))
     {
         const Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
-        if (FindNearest(origin, 50.0f) == -1)
+        if (FindNearestSlow(origin, 50.0f) == -1)
             Add(0, Vector(origin.x, origin.y, (origin.z + 36.0f)));
     }
 
@@ -2759,7 +2737,7 @@ void Waypoint::CreateBasic(void)
     while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "info_player_start")))
     {
         const Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
-        if (FindNearest(origin, 50.0f) == -1)
+        if (FindNearestSlow(origin, 50.0f) == -1)
             Add(0, Vector(origin.x, origin.y, (origin.z + 36.0f)));
     }
 
@@ -2767,7 +2745,7 @@ void Waypoint::CreateBasic(void)
     while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "info_vip_start")))
     {
         const Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
-        if (FindNearest(origin, 50.0f) == -1)
+        if (FindNearestSlow(origin, 50.0f) == -1)
             Add(0, Vector(origin.x, origin.y, (origin.z + 36.0f)));
     }
 
@@ -2775,7 +2753,7 @@ void Waypoint::CreateBasic(void)
     while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "func_hostage_rescue")))
     {
         const Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
-        if (FindNearest(origin, 50.0f) == -1)
+        if (FindNearestSlow(origin, 50.0f) == -1)
             Add(4, Vector(origin.x, origin.y, (origin.z + 36.0f)));
     }
 
@@ -2783,7 +2761,7 @@ void Waypoint::CreateBasic(void)
     while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "info_hostage_rescue")))
     {
         const Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
-        if (FindNearest(origin, 50.0f) == -1)
+        if (FindNearestSlow(origin, 50.0f) == -1)
             Add(4, Vector(origin.x, origin.y, (origin.z + 36.0f)));
     }
 
@@ -2791,7 +2769,7 @@ void Waypoint::CreateBasic(void)
     while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "func_bomb_target")))
     {
         const Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
-        if (FindNearest(origin, 50.0f) == -1)
+        if (FindNearestSlow(origin, 50.0f) == -1)
             Add(100, Vector(origin.x, origin.y, (origin.z + 36.0f)));
     }
 
@@ -2799,7 +2777,7 @@ void Waypoint::CreateBasic(void)
     while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "info_bomb_target")))
     {
         const Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
-        if (FindNearest(origin, 50.0f) == -1)
+        if (FindNearestSlow(origin, 50.0f) == -1)
             Add(100, Vector(origin.x, origin.y, (origin.z + 36.0f)));
     }
 
@@ -2811,7 +2789,7 @@ void Waypoint::CreateBasic(void)
             continue;
 
         const Vector origin = GetWalkablePosition(GetEntityOrigin(ent));
-        if (FindNearest(origin, 50.0f) == -1)
+        if (FindNearestSlow(origin, 50.0f) == -1)
             Add(100, Vector(origin.x, origin.y, (origin.z + 36.0f)));
     }
 
@@ -2819,7 +2797,7 @@ void Waypoint::CreateBasic(void)
     while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "func_vip_safetyzone")))
     {
         const Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
-        if (FindNearest(origin, 50.0f) == -1)
+        if (FindNearestSlow(origin, 50.0f) == -1)
             Add(100, Vector(origin.x, origin.y, (origin.z + 36.0f)));
     }
 
@@ -2827,7 +2805,7 @@ void Waypoint::CreateBasic(void)
     while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "func_escapezone")))
     {
         const Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
-        if (FindNearest(origin, 50.0f) == -1)
+        if (FindNearestSlow(origin, 50.0f) == -1)
             Add(100, Vector(origin.x, origin.y, (origin.z + 36.0f)));
     }
 
@@ -2835,7 +2813,7 @@ void Waypoint::CreateBasic(void)
     while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "armoury_entity")))
     {
         const Vector origin = GetWalkablePosition(GetEntityOrigin(ent));
-        if (FindNearest(origin, 50.0f) == -1)
+        if (FindNearestSlow(origin, 50.0f) == -1)
             Add(0, Vector(origin.x, origin.y, (origin.z + 36.0f)));
     }
 }
@@ -2866,6 +2844,57 @@ void Waypoint::SetFindIndex(const int index)
     }
 }
 
+void Waypoint::InitBuckets(void)
+{
+    int16_t x, y, z;
+    for (x = 0; x < MAX_WAYPOINT_BUCKET_MAX; x++)
+    {
+        for (y = 0; y < MAX_WAYPOINT_BUCKET_MAX; y++)
+        {
+            for (z = 0; z < MAX_WAYPOINT_BUCKET_MAX; z++)
+                m_buckets[x][y][z].Resize(MAX_WAYPOINT_BUCKET_WPTS);
+        }
+    }
+}
+
+void Waypoint::AddToBucket(const Vector& pos, const int index)
+{
+    const Bucket &bucket = LocateBucket(pos);
+    m_buckets[bucket.x][bucket.y][bucket.z].Push(index);
+}
+ 
+ void Waypoint::EraseFromBucket(const Vector& pos, int index)
+ {
+    const Bucket &bucket = LocateBucket(pos);
+    MiniArray<int16_t>&data = m_buckets[bucket.x][bucket.y][bucket.z];
+    int16_t i;
+    for (i = 0; i < data.Size(); i++)
+    {
+        if (data[i] == index)
+        {
+            data.RemoveAt(i);
+            break;
+        }
+    }
+}
+
+#define gsize 4096.0f
+Waypoint::Bucket Waypoint::LocateBucket(const Vector& pos)
+{
+    return
+    {
+        abs(static_cast<int16_t>((pos.x + gsize) / MAX_WAYPOINT_BUCKET_SIZE)),
+        abs(static_cast<int16_t>((pos.y + gsize) / MAX_WAYPOINT_BUCKET_SIZE)),
+        abs(static_cast<int16_t>((pos.z + gsize) / MAX_WAYPOINT_BUCKET_SIZE))
+    };
+}
+
+MiniArray<int16_t>&Waypoint::GetWaypointsInBucket(const Vector &pos)
+{
+    const Bucket &bucket = LocateBucket(pos);
+    return m_buckets[bucket.x][bucket.y][bucket.z];
+}
+ 
 Waypoint::Waypoint(void)
 {
     m_endJumpPoint = false;

@@ -223,7 +223,7 @@ bool Bot::CheckReachable(void)
 	if (FNullEnt(m_nearestEnemy))
 		return m_isEnemyReachable = false;
 
-	const int nearest = g_waypoint->FindNearest(m_nearestEnemy->v.origin, 768.0f, -1, m_nearestEnemy);
+	const int nearest = g_waypoint->FindNearestToEnt(m_nearestEnemy->v.origin, 768.0f, m_nearestEnemy);
 	if (m_currentWaypointIndex == nearest || m_prevWptIndex[0] == nearest)
 		return m_isEnemyReachable = true;
 
@@ -1079,7 +1079,7 @@ void Bot::LookAtAround(void)
 	bestLookPos.y += crandomfloat(-1024.0f, 1024.0f);
 	bestLookPos.z += crandomfloat(-256.0f, 256.0f);
 
-	const int index = g_waypoint->FindNearestInCircle(bestLookPos, 999999.0f);
+	const int index = g_waypoint->FindNearest(bestLookPos, 999999.0f);
 	if (IsValidWaypoint(index) && m_knownWaypointIndex[0] != index && m_knownWaypointIndex[1] != index && m_knownWaypointIndex[2] != index && m_knownWaypointIndex[3] != index && m_knownWaypointIndex[4] != index && m_knownWaypointIndex[5] != index)
 	{
 		const Path* pointer = g_waypoint->GetPath(index);
