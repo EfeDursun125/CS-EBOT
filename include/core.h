@@ -37,7 +37,6 @@
 // reduce glibc version...
 #ifndef _WIN32
 #include "glibc.h"
-#define stricmp strcasecmp
 #include <cstdint>
 #endif
 
@@ -257,7 +256,7 @@ enum class LiftState : int8_t
 #define FV_WAYPOINT 127
 
 #define Const_MaxPathIndex 8
-#define Const_MaxWaypoints 8192
+#define Const_MaxWaypoints 4096
 #define Const_NumWeapons 24
 #define Const_MaxWeapons 32
 
@@ -331,7 +330,7 @@ public:
 
 	inline bool HasNext(void) const
 	{
-		return Length() > m_cursor;
+		return Length() > 1;
 	}
 
 	inline bool IsEmpty(void) const
@@ -369,7 +368,10 @@ public:
 		m_cursor = 0;
 		m_length = 0;
 		if (m_path)
+		{
 			delete[] m_path;
+			m_path = nullptr;
+		}
 	}
 
 	inline bool Init(const int16_t length)
@@ -930,7 +932,7 @@ private:
 	MiniArray<int16_t>m_hmMeshPoints{};
 	MiniArray<int16_t>m_buckets[MAX_WAYPOINT_BUCKET_MAX][MAX_WAYPOINT_BUCKET_MAX][MAX_WAYPOINT_BUCKET_MAX];
 public:
-	struct Bucket { int x, y, z; };
+	struct Bucket { int16_t x, y, z; };
 	float* m_waypointDisplayTime{nullptr};
 	int16_t* m_distMatrix{nullptr};
 	MiniArray<Path>m_paths{};
@@ -942,6 +944,7 @@ public:
 	void Analyze(void);
 	void AnalyzeDeleteUselessWaypoints(void);
 	void InitTypes(void);
+	void AddZMCamps(void);
 	void AddPath(const int addIndex, const int pathIndex, const int type = 0);
 
 	int GetFacingIndex(void);

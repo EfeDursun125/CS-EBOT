@@ -663,7 +663,7 @@ private:
     inline void MoveItems(const int destIndex, const int srcIndex)
     {
         if (m_buffer)
-            memmove(m_buffer + destIndex, m_buffer + srcIndex, sizeof(char) * (m_used - srcIndex + 1));
+            cmemmove(m_buffer + destIndex, m_buffer + srcIndex, sizeof(char) * (m_used - srcIndex + 1));
     }
 
     inline void InsertSpace(int& index, const int size)
@@ -742,11 +742,11 @@ public:
     {
         if (str)
         {
-            const int length = strlen(str);
+            const int length = cstrlen(str);
             SetCapacity(length);
             if (m_buffer)
             {
-                strcpy(m_buffer, str);
+                cstrcpy(m_buffer, str);
                 m_used = length;
             }
         }
@@ -756,11 +756,11 @@ public:
     {
         if (str)
         {
-            const int length = strlen(str);
+            const int length = cstrlen(str);
             SetCapacity(length);
             if (m_buffer)
             {
-                strcpy(m_buffer, str);
+                cstrcpy(m_buffer, str);
                 m_used = length;
             }
         }
@@ -771,7 +771,7 @@ public:
         SetCapacity(other.m_used);
         if (m_buffer && other.m_buffer)
         {
-            strcpy(m_buffer, other.m_buffer);
+            cstrcpy(m_buffer, other.m_buffer);
             m_used = other.m_used;
         }
     }
@@ -794,7 +794,7 @@ public:
     inline operator const double(void) const
     {
         if (m_buffer)
-            return static_cast<double>(atof(m_buffer));
+            return static_cast<double>(catof(m_buffer));
         
         return 0.0;
     }
@@ -802,7 +802,7 @@ public:
     inline operator double(void)
     {
         if (m_buffer)
-            return static_cast<double>(atof(m_buffer));
+            return static_cast<double>(catof(m_buffer));
 
         return 0.0;
     }
@@ -810,7 +810,7 @@ public:
     inline operator const float(void) const
     {
         if (m_buffer)
-            return atof(m_buffer);
+            return catof(m_buffer);
 
         return 0.0f;
     }
@@ -818,7 +818,7 @@ public:
     inline operator float(void)
     {
         if (m_buffer)
-            return atof(m_buffer);
+            return catof(m_buffer);
 
         return 0.0f;
     }
@@ -826,7 +826,7 @@ public:
     inline operator const int(void) const
     {
         if (m_buffer)
-            return atoi(m_buffer);
+            return catoi(m_buffer);
 
         return 0;
     }
@@ -834,7 +834,7 @@ public:
     inline operator int(void)
     {
         if (m_buffer)
-            return atoi(m_buffer);
+            return catoi(m_buffer);
 
         return 0;
     }
@@ -842,7 +842,7 @@ public:
     inline operator const long(void) const
     {
         if (m_buffer)
-            return static_cast<long>(atoi(m_buffer));
+            return static_cast<long>(catoi(m_buffer));
 
         return 0;
     }
@@ -850,7 +850,7 @@ public:
     inline operator long(void)
     {
         if (m_buffer)
-            return static_cast<long>(atoi(m_buffer));
+            return static_cast<long>(catoi(m_buffer));
 
         return 0;
     }
@@ -885,7 +885,7 @@ public:
     inline void ReleaseBuffer(void)
     {
         if (m_buffer)
-            ReleaseBuffer(strlen(m_buffer));
+            ReleaseBuffer(cstrlen(m_buffer));
     }
 
     inline void ReleaseBuffer(const int newLength)
@@ -918,12 +918,12 @@ public:
             return *this;
 
         SetEmpty();
-        const int length = strlen(str);
+        const int length = cstrlen(str);
         SetCapacity(length);
 
         if (m_buffer)
         {
-            strcpy(m_buffer, str);
+            cstrcpy(m_buffer, str);
             m_used = length;
         }
         
@@ -940,7 +940,7 @@ public:
 
         if (m_buffer && other.m_buffer)
         {
-            strcpy(m_buffer, other.m_buffer);
+            cstrcpy(m_buffer, other.m_buffer);
             m_used = other.m_used;
         }
 
@@ -965,12 +965,12 @@ public:
         if (!str)
             return *this;
 
-        const int length = strlen(str);
+        const int length = cstrlen(str);
         GrowLength(length);
 
         if (m_buffer)
         {
-            strcpy(m_buffer + m_used, str);
+            cstrcpy(m_buffer + m_used, str);
             m_used += length;
         }
         
@@ -983,7 +983,7 @@ public:
 
         if (m_buffer && other.m_buffer)
         {
-            strcpy(m_buffer + m_used, other.m_buffer);
+            cstrcpy(m_buffer + m_used, other.m_buffer);
             m_used += other.m_used;
         }
         
@@ -1127,7 +1127,7 @@ public:
         char* ptr = m_buffer;
         while (*ptr)
         {
-            *ptr = static_cast<char>(toupper(*ptr));
+            *ptr = static_cast<char>(ctoupper(*ptr));
             ptr++;
         }
 
@@ -1142,7 +1142,7 @@ public:
         char* ptr = m_buffer;
         while (*ptr)
         {
-            *ptr = static_cast<char>(tolower(*ptr));
+            *ptr = static_cast<char>(ctolower(*ptr));
             ptr++;
         }
 
@@ -1152,7 +1152,7 @@ public:
     inline int Compare(const String& str) const
     {
         if (m_buffer && str.m_buffer)
-            return strcmp(m_buffer, str.m_buffer);
+            return cstrcmp(m_buffer, str.m_buffer);
 
         return 0;
     }
@@ -1160,7 +1160,7 @@ public:
     inline int Compare(const char* str) const
     {
         if (m_buffer && str)
-            return strcmp(m_buffer, str);
+            return cstrcmp(m_buffer, str);
 
         return 0;
     }
@@ -1168,7 +1168,7 @@ public:
     inline bool Has(const String& other) const
     {
         if (m_buffer && other.GetRawData())
-            return strstr(m_buffer, const_cast<char*>(other.GetRawData()));
+            return cstrstr(m_buffer, const_cast<char*>(other.GetRawData()));
 
         return false;
     }
@@ -1846,7 +1846,7 @@ private:
     inline const char* GetTimeFormatString(void) const
     {
         static char timeFormatStr[32];
-        memset(timeFormatStr, 0, sizeof(char) * 32);
+        cmemset(timeFormatStr, 0, sizeof(char) * 32);
         time_t tick = time(&tick);
         const tm* time = localtime(&tick);
         sprintf(timeFormatStr, "%02i:%02i:%02i", time->tm_hour, time->tm_min, time->tm_sec);

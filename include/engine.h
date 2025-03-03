@@ -1505,7 +1505,7 @@ typedef struct entvars_s
 
     Vector origin;
     Vector oldorigin;
-    Vector velocity;
+    Vector velocity{1.0f, 1.0f, 1.0f};
     Vector basevelocity;
     Vector clbasevelocity; // Base velocity that was passed in to server physics so
     // client can predict conveyors correctly.  Server zeroes it, so we need to store here, too.
@@ -2104,12 +2104,12 @@ inline bool FStringNull(const int iString)
 
 inline bool FClassnameIs(edict_t* pent, const char* szClassname)
 {
-    return strcmp(STRING(VARS(pent)->classname), szClassname) == 0;
+    return cstrcmp(STRING(VARS(pent)->classname), szClassname) == 0;
 }
 
 inline bool FClassnameIs(entvars_t* pev, const char* szClassname)
 {
-    return strcmp(STRING(pev->classname), szClassname) == 0;
+    return cstrcmp(STRING(pev->classname), szClassname) == 0;
 }
 
 typedef enum
@@ -2501,7 +2501,7 @@ public:
 
     inline void SetVelocity(const Vector& velocity) const
     {
-        if (velocity != nullvec)
+        if (!velocity.IsNull())
             m_ent->v.velocity = velocity;
     }
 
@@ -2607,12 +2607,12 @@ public:
 
     inline virtual Vector GetOrigin(void) const
     {
-        return HasBoundingBox() ? GetCenter() : m_ent->v.rendercolor == nullvec ? m_ent->v.absmin + (m_ent->v.size * 0.5f) : m_ent->v.origin;
+        return HasBoundingBox() ? GetCenter() : m_ent->v.rendercolor.IsNull() ? m_ent->v.absmin + (m_ent->v.size * 0.5f) : m_ent->v.origin;
     }
 
     inline bool HasBoundingBox(void) const
     {
-        return m_ent->v.absmin != nullvec && m_ent->v.absmax != nullvec;
+        return !m_ent->v.absmin.IsNull() && !m_ent->v.absmax.IsNull();
     }
 
     inline float GetSpeed(void) const
@@ -2740,7 +2740,7 @@ public:
         }
         }
 
-        strcat(buffer, "\n");
+        cstrcat(buffer, "\n");
         g_engfuncs.pfnClientPrintf(m_ent, static_cast<PRINT_TYPE>(enginePrintType), buffer);
     }
 

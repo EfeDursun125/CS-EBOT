@@ -160,6 +160,14 @@ inline int cabs(const int value)
 	return value;
 }
 
+inline int16_t cabs16(const int16_t value)
+{
+	if (value < 0)
+		return -value;
+
+	return value;
+}
+
 inline float cceilf(const float value)
 {
 	float result = static_cast<float>(static_cast<int>(value));
@@ -234,16 +242,172 @@ inline double cround(const double value)
 	return result;
 }
 
-inline int charToInt(const char* str)
+inline int cstrlen(const char* str)
 {
-	int i = 2;
-	int sum = 0;
-	while (str && str[i] != '\0')
+	if (!str)
+		return 0;
+
+	int i = 0;
+	while (i < SIZE_MAX && str[i] != '\0')
+		i++;
+
+	return i;
+}
+
+inline int cstrcmp(const char* str1, const char* str2)
+{
+	if (!str1)
+		return -1;
+
+	if (!str2)
+		return -1;
+
+	int t1, t2;
+	do
 	{
-		sum += static_cast<int>(str[i]);
+		t1 = *str1; t2 = *str2;
+		if (t1 != t2)
+		{
+			if (t1 > t2)
+				return 1;
+
+			return -1;
+		}
+
+		if (!t1)
+			return 0;
+
+		str1++;
+		str2++;
+
+	} while (true);
+
+	return -1;
+}
+
+inline int cstrncmp(const char* str1, const char* str2, const int num)
+{
+	if (!str1)
+		return 0;
+
+	if (!str2)
+		return 0;
+
+	int i;
+	for (i = 0; i < num; ++i)
+	{
+		if (str1[i] != str2[i])
+			return (str1[i] < str2[i]) ? -1 : 1;
+		else if (str1[i] == '\0')
+			return 0;
+	}
+
+	return 0;
+}
+
+inline void cstrcpy(char* dest, const char* src)
+{
+	while (*src != '\0')
+	{
+		*dest = *src;
+		dest++;
+		src++;
+	}
+
+	*dest = '\0';
+}
+
+inline void cmemcpy(void* dest, const void* src, const int size)
+{
+	char* dest2 = static_cast<char*>(dest);
+	const char* src2 = static_cast<const char*>(src);
+
+	int i;
+	for (i = 0; i < size; i++)
+		dest2[i] = src2[i];
+}
+
+inline void cmemset(void* dest, const int value, const int count)
+{
+	unsigned char* ptr = static_cast<unsigned char*>(dest);
+	const unsigned char byteValue = static_cast<unsigned char>(value);
+
+	int i;
+	for (i = 0; i < count; i++)
+	{
+		*ptr = byteValue;
+		ptr++;
+	}
+}
+
+inline void* cmemmove(void* dest, const void* src, int count)
+{
+	unsigned char* d = static_cast<unsigned char*>(dest);
+	const unsigned char* s = static_cast<const unsigned char*>(src);
+
+	if (d == s)
+		return dest;
+
+	if (d < s)
+	{
+		while (count--)
+			*d++ = *s++;
+	}
+	else
+	{
+		d += count;
+		s += count;
+		while (count--)
+			*--d = *--s;
+	}
+
+	return dest;
+}
+
+inline int cctz(unsigned int value)
+{
+	if (!value)
+		return sizeof(unsigned int) * 8;
+
+	int i = 0;
+	while (!(value & 1))
+	{
+		value >>= 1;
 		i++;
 	}
-	return sum;
+
+	return i;
+}
+
+inline int ctolower(const int value)
+{
+	if (value >= 'A' && value <= 'Z')
+		return value + ('a' - 'A');
+
+	return value;
+}
+
+inline int ctoupper(const int value)
+{
+	if (value >= 'a' && value <= 'z')
+		return value - 'a' + 'A';
+
+	return value;
+}
+
+inline int cstricmp(const char* str1, const char* str2)
+{
+	while (*str1 && *str2)
+	{
+		const int result = ctolower(*str1) - ctolower(*str2);
+		if (result != 0)
+			return result;
+
+		str1++;
+		str2++;
+	}
+
+	return ctolower(*str1) - ctolower(*str2);
 }
 
 inline bool cspace(const int str)
@@ -257,29 +421,30 @@ inline void cstrtrim(char* string)
 		return;
 
 	char* ptr = string;
-	int length = 0, toggleFlag = 0, increment = 0, cache = 0;
+	int length = 0, toggleFlag = 0, increment = 0;
 	while (*ptr++)
 		length++;
 
-	for (cache = length - 1; cache >= 0; cache--)
+	int i;
+	for (i = length - 1; i >= 0; i--)
 	{
-		if (!cspace(string[cache]))
+		if (!cspace(string[i]))
 			break;
 		else
 		{
-			string[cache] = 0;
+			string[i] = 0;
 			length--;
 		}
 	}
 
-	for (cache = 0; cache < length; cache++)
+	for (i = 0; i < length; i++)
 	{
-		if (cspace(string[cache]) && !toggleFlag)
+		if (cspace(string[i]) && !toggleFlag)
 		{
 			increment++;
 
-			if (increment + cache < length)
-				string[cache] = string[increment + cache];
+			if (increment + i < length)
+				string[i] = string[increment + i];
 		}
 		else
 		{
@@ -287,11 +452,245 @@ inline void cstrtrim(char* string)
 				toggleFlag = 1;
 
 			if (increment)
-				string[cache] = string[increment + cache];
+				string[i] = string[increment + i];
 		}
 	}
 
 	string[length] = 0;
+}
+
+inline char* cstrstr(char* str1, char* str2)
+{
+	if (*str2 == '\0')
+		return str1;
+
+	char* p1;
+	char* p2;
+	while (*str1 != '\0')
+	{
+		p1 = str1;
+		p2 = str2;
+
+		while (*p1 != '\0' && *p2 != '\0' && *p1 == *p2)
+		{
+			p1++;
+			p2++;
+		}
+
+		if (*p2 == '\0')
+			return str1;
+
+		str1++;
+	}
+
+	return nullptr;
+}
+
+inline char* cstrncpy(char* dest, const char* src, const int count)
+{
+	char* destPtr = dest;
+	const char* srcPtr = src;
+
+	int i = 0;
+	for (; i < count && *srcPtr != '\0'; i++, destPtr++, srcPtr++)
+		*destPtr = *srcPtr;
+
+	for (; i < count; i++, destPtr++)
+		*destPtr = '\0';
+
+	return dest;
+}
+
+inline char* cstrcat(char* dest, const char* src)
+{
+	while (*dest != '\0')
+		dest++;
+
+	while (*src != '\0')
+	{
+		*dest = *src;
+		dest++;
+		src++;
+	}
+
+	*dest = '\0';
+	return dest;
+}
+
+inline int cstrcoll(const char* str1, const char* str2)
+{
+	if (!str1)
+		return 0;
+
+	if (!str2)
+		return 0;
+
+	while (*str1 != '\0' && *str2 != '\0')
+	{
+		if (*str1 < *str2)
+			return -1;
+		else if (*str1 > *str2)
+			return 1;
+
+		str1++;
+		str2++;
+	}
+
+	if (*str1 == '\0' && *str2 != '\0')
+		return -1;
+	else if (*str1 != '\0' && *str2 == '\0')
+		return 1;
+
+	return 0;
+}
+
+inline int cstrspn(const char* str, char* charset)
+{
+	if (!str)
+		return 0;
+
+	if (!charset)
+		return 0;
+
+	int i = 0;
+	bool found = false;
+	char* charset_ptr;
+	while (*str != '\0')
+	{
+		charset_ptr = charset;
+		while (*charset_ptr != '\0')
+		{
+			if (*charset_ptr == *str)
+			{
+				found = true;
+				break;
+			}
+
+			charset_ptr++;
+		}
+
+		if (!found)
+			break;
+
+		i++;
+		str++;
+	}
+
+	return i;
+}
+
+inline int cstrcspn(const char* str, char* charset)
+{
+	if (!str)
+		return 0;
+
+	if (!charset)
+		return 0;
+
+	int i = 0;
+	bool found = false;
+	char* charset_ptr;
+	while (*str != '\0')
+	{
+		charset_ptr = charset;
+		while (*charset_ptr != '\0')
+		{
+			if (*charset_ptr == *str)
+			{
+				found = true;
+				break;
+			}
+
+			charset_ptr++;
+		}
+
+		if (found)
+			break;
+
+		i++;
+		str++;
+	}
+
+	return i;
+}
+
+inline int catoi(const char* str)
+{
+	if (!str)
+		return -1;
+
+	int result = 0;
+	int sign = 1;
+	int i = 0;
+
+	while (str[i] == ' ')
+		i++;
+
+	if (str[i] == '-' || str[i] == '+')
+	{
+		sign = (str[i] == '-') ? -1 : 1;
+		i++;
+	}
+
+	while (str[i] >= '0' && str[i] <= '9')
+	{
+		result = result * 10 + (str[i] - '0');
+		i++;
+	}
+
+	result *= sign;
+	return result;
+}
+
+inline float catof(const char* str)
+{
+	if (!str)
+		return -1.0f;
+
+	float result = 0.0f;
+	float sign = 1.0f;
+	int i = 0;
+
+	while (str[i] == ' ')
+		i++;
+
+	if (str[i] == '-' || str[i] == '+')
+	{
+		sign = (str[i] == '-') ? -1.0f : 1.0f;
+		i++;
+	}
+
+	while (str[i] >= '0' && str[i] <= '9')
+	{
+		result = result * 10.0f + (str[i] - '0');
+		i++;
+	}
+
+	if (str[i] == '.')
+		i++;
+
+	float factor = 0.1f;
+	while (str[i] >= '0' && str[i] <= '9')
+	{
+		result += (str[i] - '0') * factor;
+		factor *= 0.1f;
+		i++;
+	}
+
+	result *= sign;
+	return result;
+}
+
+inline int charToInt(const char* str)
+{
+	int i = 2;
+	int sum = 0;
+	while (str && str[i] != '\0')
+	{
+		sum += static_cast<int>(str[i]);
+		i++;
+	}
+	return sum;
 }
 
 template <typename T>

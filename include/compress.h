@@ -142,10 +142,10 @@ private:
 public:
     Compressor(void) : m_csize(0), m_matchPos(0), m_matchLen(0)
     {
-        memset(m_right, 0, sizeof(m_right));
-        memset(m_left, 0, sizeof(m_left));
-        memset(m_parent, 0, sizeof(m_parent));
-        memset(m_buffer, 0, sizeof(m_buffer));
+        cmemset(m_right, 0, sizeof(m_right));
+        cmemset(m_left, 0, sizeof(m_left));
+        cmemset(m_parent, 0, sizeof(m_parent));
+        cmemset(m_buffer, 0, sizeof(m_buffer));
     }
 
     ~Compressor(void) = default;
