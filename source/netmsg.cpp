@@ -170,7 +170,7 @@ void NetworkMsg::Execute(void* p)
         {
         case 0:
         {
-            strcpy(weaponProp.className, PTR_TO_STR(p));
+            cstrcpy(weaponProp.className, PTR_TO_STR(p));
             break;
         }
         case 1:
@@ -298,8 +298,8 @@ void NetworkMsg::Execute(void* p)
             {
                 victimer->m_isAlive = false;
                 victimer->m_navNode.Clear();
-                memset(&victimer->m_ammoInClip, 0, sizeof(victimer->m_ammoInClip));
-	            memset(&victimer->m_ammo, 0, sizeof(victimer->m_ammo));
+                cmemset(&victimer->m_ammoInClip, 0, sizeof(victimer->m_ammoInClip));
+	            cmemset(&victimer->m_ammo, 0, sizeof(victimer->m_ammo));
 	            victimer->m_currentWeapon = 0;
             }
         }
@@ -359,23 +359,23 @@ void NetworkMsg::Execute(void* p)
             if (!x)
                 break;
 
-            if (strncmp(x, "#CTs_Win", 9) == 0 ||
-                strncmp(x, "#Bomb_Defused", 14) == 0 ||
-                strncmp(x, "#Terrorists_Win", 16) == 0 ||
-                strncmp(x, "#Round_Draw", 12) == 0 ||
-                strncmp(x, "#All_Hostages_Rescued", 22) == 0 ||
-                strncmp(x, "#Target_Saved", 14) == 0 ||
-                strncmp(x, "#Hostages_Not_Rescued", 22) == 0 ||
-                strncmp(x, "#Terrorists_Not_Escaped", 24) == 0 ||
-                strncmp(x, "#VIP_Not_Escaped", 17) == 0 ||
-                strncmp(x, "#Escaping_Terrorists_Neutralized", 33) == 0 ||
-                strncmp(x, "#VIP_Assassinated", 18) == 0 ||
-                strncmp(x, "#VIP_Escaped", 13) == 0 ||
-                strncmp(x, "#Terrorists_Escaped", 20) == 0 ||
-                strncmp(x, "#CTs_PreventEscape", 19) == 0 ||
-                strncmp(x, "#Target_Bombed", 15) == 0 ||
-                strncmp(x, "#Game_Commencing", 17) == 0 ||
-                strncmp(x, "#Game_will_restart_in", 22) == 0)
+            if (cstrncmp(x, "#CTs_Win", 9) == 0 ||
+                cstrncmp(x, "#Bomb_Defused", 14) == 0 ||
+                cstrncmp(x, "#Terrorists_Win", 16) == 0 ||
+                cstrncmp(x, "#Round_Draw", 12) == 0 ||
+                cstrncmp(x, "#All_Hostages_Rescued", 22) == 0 ||
+                cstrncmp(x, "#Target_Saved", 14) == 0 ||
+                cstrncmp(x, "#Hostages_Not_Rescued", 22) == 0 ||
+                cstrncmp(x, "#Terrorists_Not_Escaped", 24) == 0 ||
+                cstrncmp(x, "#VIP_Not_Escaped", 17) == 0 ||
+                cstrncmp(x, "#Escaping_Terrorists_Neutralized", 33) == 0 ||
+                cstrncmp(x, "#VIP_Assassinated", 18) == 0 ||
+                cstrncmp(x, "#VIP_Escaped", 13) == 0 ||
+                cstrncmp(x, "#Terrorists_Escaped", 20) == 0 ||
+                cstrncmp(x, "#CTs_PreventEscape", 19) == 0 ||
+                cstrncmp(x, "#Target_Bombed", 15) == 0 ||
+                cstrncmp(x, "#Game_Commencing", 17) == 0 ||
+                cstrncmp(x, "#Game_will_restart_in", 22) == 0)
             {
                 g_roundEnded = true;
                 g_helicopter = nullptr;

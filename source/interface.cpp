@@ -65,54 +65,54 @@ void ebotVersionMSG(edict_t* entity = nullptr)
 
 int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, const String& arg2, const String& arg3, const String& arg4, const String /*&arg5*/)
 {
-	if (stricmp(arg0, "addbot") == 0 || stricmp(arg0, "add") == 0 ||
-		stricmp(arg0, "addbot_hs") == 0 || stricmp(arg0, "addhs") == 0 ||
-		stricmp(arg0, "addbot_t") == 0 || stricmp(arg0, "add_t") == 0 ||
-		stricmp(arg0, "addbot_ct") == 0 || stricmp(arg0, "add_ct") == 0)
+	if (cstricmp(arg0, "addbot") == 0 || cstricmp(arg0, "add") == 0 ||
+		cstricmp(arg0, "addbot_hs") == 0 || cstricmp(arg0, "addhs") == 0 ||
+		cstricmp(arg0, "addbot_t") == 0 || cstricmp(arg0, "add_t") == 0 ||
+		cstricmp(arg0, "addbot_ct") == 0 || cstricmp(arg0, "add_ct") == 0)
 		ServerPrint("Pls use the command to change it, use 'ebot help'");
 
 	// kicking off one bot from the terrorist team
-	else if (stricmp(arg0, "kickbot_t") == 0 || stricmp(arg0, "kick_t") == 0)
+	else if (cstricmp(arg0, "kickbot_t") == 0 || cstricmp(arg0, "kick_t") == 0)
 		g_botManager->RemoveFromTeam(Team::Terrorist);
 
 	// kicking off one bot from the counter-terrorist team
-	else if (stricmp(arg0, "kickbot_ct") == 0 || stricmp(arg0, "kick_ct") == 0)
+	else if (cstricmp(arg0, "kickbot_ct") == 0 || cstricmp(arg0, "kick_ct") == 0)
 		g_botManager->RemoveFromTeam(Team::Counter);
 
 	// kills all bots on the terrorist team
-	else if (stricmp(arg0, "killbots_t") == 0 || stricmp(arg0, "kill_t") == 0)
+	else if (cstricmp(arg0, "killbots_t") == 0 || cstricmp(arg0, "kill_t") == 0)
 		g_botManager->KillAll(Team::Terrorist);
 
 	// kills all bots on the counter-terrorist team
-	else if (stricmp(arg0, "killbots_ct") == 0 || stricmp(arg0, "kill_ct") == 0)
+	else if (cstricmp(arg0, "killbots_ct") == 0 || cstricmp(arg0, "kill_ct") == 0)
 		g_botManager->KillAll(Team::Counter);
 
 	// list all bots playeing on the server
-	else if (stricmp(arg0, "listbots") == 0 || stricmp(arg0, "list") == 0)
+	else if (cstricmp(arg0, "listbots") == 0 || cstricmp(arg0, "list") == 0)
 		g_botManager->ListBots();
 
 	// kick off all bots from the played server
-	else if (stricmp(arg0, "kickbots") == 0 || stricmp(arg0, "kickall") == 0)
+	else if (cstricmp(arg0, "kickbots") == 0 || cstricmp(arg0, "kickall") == 0)
 		g_botManager->RemoveAll();
 
 	// kill all bots on the played server
-	else if (stricmp(arg0, "killbots") == 0 || stricmp(arg0, "killall") == 0)
+	else if (cstricmp(arg0, "killbots") == 0 || cstricmp(arg0, "killall") == 0)
 		g_botManager->KillAll();
 
 	// kick off one random bot from the played server
-	else if (stricmp(arg0, "kickone") == 0 || stricmp(arg0, "kick") == 0)
+	else if (cstricmp(arg0, "kickone") == 0 || cstricmp(arg0, "kick") == 0)
 		g_botManager->RemoveRandom();
 
 	// fill played server with bots
-	else if (stricmp(arg0, "fillserver") == 0 || stricmp(arg0, "fill") == 0)
-		g_botManager->FillServer(atoi(arg1), IsNullString(arg2) ? -1 : atoi(arg2), IsNullString(arg3) ? -1 : atoi(arg3), IsNullString(arg4) ? -1 : atoi(arg4));
+	else if (cstricmp(arg0, "fillserver") == 0 || cstricmp(arg0, "fill") == 0)
+		g_botManager->FillServer(catoi(arg1), IsNullString(arg2) ? -1 : catoi(arg2), IsNullString(arg3) ? -1 : catoi(arg3), IsNullString(arg4) ? -1 : catoi(arg4));
 
 	// set entity action with command
-	else if (stricmp(arg0, "setentityaction") == 0)
-		SetEntityAction(atoi(arg1), atoi(arg2), atoi(arg3));
+	else if (cstricmp(arg0, "setentityaction") == 0)
+		SetEntityAction(catoi(arg1), catoi(arg2), catoi(arg3));
 
 	// swap counter-terrorist and terrorist teams
-	else if (stricmp(arg0, "swaptteams") == 0 || stricmp(arg0, "swap") == 0)
+	else if (cstricmp(arg0, "swaptteams") == 0 || cstricmp(arg0, "swap") == 0)
 	{
 		for (const auto& client : g_clients)
 		{
@@ -130,12 +130,12 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 	}
 
 	// force bots to execute client command
-	else if (stricmp(arg0, "sendcmd") == 0 || stricmp(arg0, "order") == 0)
+	else if (cstricmp(arg0, "sendcmd") == 0 || cstricmp(arg0, "order") == 0)
 	{
 		if (IsNullString(arg1))
 			return 1;
 
-		edict_t* cmd = INDEXENT(atoi(arg1) - 1);
+		edict_t* cmd = INDEXENT(catoi(arg1) - 1);
 
 		if (IsValidBot(cmd))
 		{
@@ -147,7 +147,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 	}
 
 	// display current time on the server
-	else if (stricmp(arg0, "ctime") == 0 || stricmp(arg0, "time") == 0)
+	else if (cstricmp(arg0, "ctime") == 0 || cstricmp(arg0, "time") == 0)
 	{
 		const time_t tickTime = time(nullptr);
 		const tm* localTime = localtime(&tickTime);
@@ -159,7 +159,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 	}
 
 	// displays bot about information
-	else if (stricmp(arg0, "about_bot") == 0 || stricmp(arg0, "about") == 0)
+	else if (cstricmp(arg0, "about_bot") == 0 || cstricmp(arg0, "about") == 0)
 	{
 		char aboutData[] =
 			"+---------------------------------------------------------------------------------+\n"
@@ -172,11 +172,11 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 	}
 
 	// displays version information
-	else if (stricmp(arg0, "version") == 0 || stricmp(arg0, "ver") == 0)
+	else if (cstricmp(arg0, "version") == 0 || cstricmp(arg0, "ver") == 0)
 		ebotVersionMSG(ent);
 
 	// display some sort of help information
-	else if (stricmp(arg0, "?") == 0 || stricmp(arg0, "help") == 0)
+	else if (cstricmp(arg0, "?") == 0 || cstricmp(arg0, "help") == 0)
 	{
 		ClientPrint(ent, print_console, "E-Bot Commands:");
 		ClientPrint(ent, print_console, "ebot version            - display version information");
@@ -191,7 +191,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		ClientPrint(ent, print_console, "ebot cmenu              - displaying e-bots command menu");
 		ClientPrint(ent, print_console, "ebot_add                - adds a e-bot in current game");
 
-		if (stricmp(arg1, "full") == 0 || stricmp(arg1, "f") == 0 || stricmp(arg1, "?") == 0)
+		if (cstricmp(arg1, "full") == 0 || cstricmp(arg1, "f") == 0 || cstricmp(arg1, "?") == 0)
 		{
 			ClientPrint(ent, print_console, "ebot_add_t              - creates one random e-bot to terrorist team");
 			ClientPrint(ent, print_console, "ebot_add_ct             - creates one random e-bot to ct team");
@@ -231,29 +231,29 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 	}
 
 	// sets health for all available bots
-	else if (stricmp(arg0, "sethealth") == 0 || stricmp(arg0, "health") == 0)
+	else if (cstricmp(arg0, "sethealth") == 0 || cstricmp(arg0, "health") == 0)
 	{
 		if (IsNullString(arg1))
 			ClientPrint(ent, print_withtag, "Please specify health");
 		else
 		{
-			ClientPrint(ent, print_withtag, "E-Bot health is set to %d%%", atoi(arg1));
+			ClientPrint(ent, print_withtag, "E-Bot health is set to %d%%", catoi(arg1));
 
 			for (const auto& bot : g_botManager->m_bots)
 			{
 				if (bot)
-					bot->pev->health = cabsf(atof(arg1));
+					bot->pev->health = cabsf(catof(arg1));
 			}
 		}
 	}
 
-	else if (stricmp(arg0, "setgravity") == 0 || stricmp(arg0, "gravity") == 0)
+	else if (cstricmp(arg0, "setgravity") == 0 || cstricmp(arg0, "gravity") == 0)
 	{
 		if (IsNullString(arg1))
 			ClientPrint(ent, print_withtag, "Please specify gravity");
 		else
 		{
-			const float gravity = cabsf(atof(arg1));
+			const float gravity = cabsf(catof(arg1));
 			ClientPrint(ent, print_withtag, "E-Bot gravity is set to %d%%", gravity);
 
 			for (const auto& bot : g_botManager->m_bots)
@@ -265,11 +265,11 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 	}
 
 	// displays main bot menu
-	else if (stricmp(arg0, "botmenu") == 0 || stricmp(arg0, "menu") == 0)
+	else if (cstricmp(arg0, "botmenu") == 0 || cstricmp(arg0, "menu") == 0)
 		DisplayMenuToClient(ent, &g_menus[0]);
 
 	// display command menu
-	else if (stricmp(arg0, "cmdmenu") == 0 || stricmp(arg0, "cmenu") == 0)
+	else if (cstricmp(arg0, "cmdmenu") == 0 || cstricmp(arg0, "cmenu") == 0)
 	{
 		if (IsAlive(ent))
 			DisplayMenuToClient(ent, &g_menus[18]);
@@ -280,10 +280,10 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		}
 	}
 	// some debug routines
-	else if (stricmp(arg0, "debug") == 0)
+	else if (cstricmp(arg0, "debug") == 0)
 	{
 		// test random number generator
-		if (stricmp(arg0, "randgen") == 0)
+		if (cstricmp(arg0, "randgen") == 0)
 		{
 			int i;
 			for (i = 0; i < 500; i++)
@@ -292,10 +292,10 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 	}
 
 	// waypoint manimupulation (really obsolete, can be edited through menu) (supported only on listen server)
-	else if (stricmp(arg0, "waypoint") == 0 || stricmp(arg0, "wp") == 0 || stricmp(arg0, "wpt") == 0)
+	else if (cstricmp(arg0, "waypoint") == 0 || cstricmp(arg0, "wp") == 0 || cstricmp(arg0, "wpt") == 0)
 	{
 		// enables or disable waypoint displaying
-		if (stricmp(arg1, "analyze") == 0)
+		if (cstricmp(arg1, "analyze") == 0)
 		{
 			ServerPrint("Waypoint Analyzing On (Please Manually Edit Waypoints For Better Result)");
 			ServerCommand("ebot wp on");
@@ -305,7 +305,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 			g_analyzewaypoints = true;
 		}
 
-		else if (stricmp(arg1, "analyzeoff") == 0)
+		else if (cstricmp(arg1, "analyzeoff") == 0)
 		{
 			g_waypoint->AnalyzeDeleteUselessWaypoints();
 			g_analyzewaypoints = false;
@@ -315,13 +315,13 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 			g_analyzeputrequirescrouch = false;
 		}
 
-		else if (stricmp(arg1, "analyzefix") == 0)
+		else if (cstricmp(arg1, "analyzefix") == 0)
 		{
 			g_waypoint->AnalyzeDeleteUselessWaypoints();
 			ServerCommand("ebot wp on");
 		}
 
-		else if (stricmp(arg1, "on") == 0)
+		else if (cstricmp(arg1, "on") == 0)
 		{
 			g_waypointOn = true;
 			ServerPrint("Waypoint Editing Enabled");
@@ -332,7 +332,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		}
 
 		// enables noclip cheat
-		else if (stricmp(arg1, "noclip") == 0)
+		else if (cstricmp(arg1, "noclip") == 0)
 		{
 			if (g_editNoclip)
 			{
@@ -349,7 +349,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		}
 
 		// switching waypoint editing off
-		else if (stricmp(arg1, "off") == 0)
+		else if (cstricmp(arg1, "off") == 0)
 		{
 			g_waypointOn = false;
 			g_editNoclip = false;
@@ -366,11 +366,11 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		}
 
 		// toggles displaying player models on spawn spots
-		else if (stricmp(arg1, "mdl") == 0 || stricmp(arg1, "models") == 0)
+		else if (cstricmp(arg1, "mdl") == 0 || cstricmp(arg1, "models") == 0)
 		{
 			edict_t* spawnEntity = nullptr;
 
-			if (stricmp(arg2, "on") == 0)
+			if (cstricmp(arg2, "on") == 0)
 			{
 				while (!FNullEnt(spawnEntity = FIND_ENTITY_BY_CLASSNAME(spawnEntity, "info_player_start")))
 					spawnEntity->v.effects &= ~EF_NODRAW;
@@ -383,7 +383,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 				ServerCommand("mp_timelimit 0"); // disable the time limit
 				ServerCommand("mp_freezetime 0"); // disable freezetime
 			}
-			else if (stricmp(arg2, "off") == 0)
+			else if (cstricmp(arg2, "off") == 0)
 			{
 				while (!FNullEnt(spawnEntity = FIND_ENTITY_BY_CLASSNAME(spawnEntity, "info_player_start")))
 					spawnEntity->v.effects |= EF_NODRAW;
@@ -395,18 +395,18 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		}
 
 		// show direction to specified waypoint
-		else if (stricmp(arg1, "find") == 0)
-			g_waypoint->SetFindIndex(atoi(arg2));
+		else if (cstricmp(arg1, "find") == 0)
+			g_waypoint->SetFindIndex(catoi(arg2));
 
 		// opens adding waypoint menu
-		else if (stricmp(arg1, "add") == 0)
+		else if (cstricmp(arg1, "add") == 0)
 		{
 			g_waypointOn = true;  // turn waypoints on
 			DisplayMenuToClient(g_hostEntity, &g_menus[12]);
 		}
 
 		// sets mesh for waypoint
-		else if (stricmp(arg1, "setmesh") == 0)
+		else if (cstricmp(arg1, "setmesh") == 0)
 		{
 			if (IsNullString(arg2))
 				ClientPrint(ent, print_withtag, "Please set mesh <number>, min 0, max 255");
@@ -415,7 +415,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 				const int index = g_waypoint->FindNearestSlow(GetEntityOrigin(g_hostEntity), 75.0f);
 				if (IsValidWaypoint(index))
 				{
-					g_waypoint->GetPath(index)->mesh = static_cast<uint8_t>(cabsf(atof(arg2)));
+					g_waypoint->GetPath(index)->mesh = static_cast<uint8_t>(cabsf(catof(arg2)));
 					ClientPrint(ent, print_withtag, "Waypoint mesh set to %d", g_waypoint->GetPath(index)->mesh);
 				}
 				else
@@ -424,7 +424,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		}
 
 		// sets gravity for waypoint
-		else if (stricmp(arg1, "setgravity") == 0)
+		else if (cstricmp(arg1, "setgravity") == 0)
 		{
 			if (IsNullString(arg2))
 				ClientPrint(ent, print_withtag, "Please set gravity <number>");
@@ -433,7 +433,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 				const int index = g_waypoint->FindNearestSlow(GetEntityOrigin(g_hostEntity), 75.0f);
 				if (IsValidWaypoint(index))
 				{
-					g_waypoint->GetPath(index)->gravity = cabsf(atof(arg2));
+					g_waypoint->GetPath(index)->gravity = cabsf(catof(arg2));
 					ClientPrint(ent, print_withtag, "Waypoint gravity set to %f", g_waypoint->GetPath(index)->gravity);
 				}
 				else
@@ -442,58 +442,58 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		}
 
 		// creates basic waypoints on the map (ladder/spawn points/goals)
-		else if (stricmp(arg1, "addbasic") == 0)
+		else if (cstricmp(arg1, "addbasic") == 0)
 		{
 			g_waypoint->CreateBasic();
 			CenterPrint("Basic waypoints was Created");
 		}
 
 		// delete nearest to host edict waypoint
-		else if (stricmp(arg1, "delete") == 0)
+		else if (cstricmp(arg1, "delete") == 0)
 		{
 			g_waypointOn = true; // turn waypoints on
 			g_waypoint->Delete();
 		}
 
 		// save waypoint data into file on hard disk
-		else if (stricmp(arg1, "save") == 0)
+		else if (cstricmp(arg1, "save") == 0)
 		{
-			if (strncmp(arg2, "nocheck", 8) == 0)
+			if (cstrncmp(arg2, "nocheck", 8) == 0)
 				g_waypoint->Save();
 			else if (g_waypoint->NodesValid())
 				g_waypoint->Save();
 		}
 
 		// load all waypoints again (overrides all changes, that wasn't saved)
-		else if (stricmp(arg1, "load") == 0)
+		else if (cstricmp(arg1, "load") == 0)
 		{
 			if (g_waypoint->Load())
 				ServerPrint("Waypoints loaded");
 		}
 
 		// check all nodes for validation
-		else if (stricmp(arg1, "check") == 0)
+		else if (cstricmp(arg1, "check") == 0)
 		{
 			if (g_waypoint->NodesValid())
 				CenterPrint("Nodes work Fine");
 		}
 
 		// opens menu for setting (removing) waypoint flags
-		else if (stricmp(arg1, "flags") == 0)
+		else if (cstricmp(arg1, "flags") == 0)
 			DisplayMenuToClient(g_hostEntity, &g_menus[13]);
 
 		// setting waypoint radius
-		else if (stricmp(arg1, "setradius") == 0)
-			g_waypoint->SetRadius(atoi(arg2));
+		else if (cstricmp(arg1, "setradius") == 0)
+			g_waypoint->SetRadius(catoi(arg2));
 
 		// remembers nearest waypoint
-		else if (stricmp(arg1, "cache") == 0)
+		else if (cstricmp(arg1, "cache") == 0)
 			g_waypoint->CacheWaypoint();
 
 		// teleport player to specified waypoint
-		else if (stricmp(arg1, "teleport") == 0)
+		else if (cstricmp(arg1, "teleport") == 0)
 		{
-			const int teleportPoint = atoi(arg2);
+			const int teleportPoint = catoi(arg2);
 			if (teleportPoint < g_numWaypoints)
 			{
 				(*g_engfuncs.pfnSetOrigin) (g_hostEntity, g_waypoint->GetPath(teleportPoint)->origin);
@@ -505,7 +505,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		}
 
 		// displays waypoint menu
-		else if (stricmp(arg1, "menu") == 0)
+		else if (cstricmp(arg1, "menu") == 0)
 			DisplayMenuToClient(g_hostEntity, &g_menus[9]);
 
 		// otherwise display waypoint current status
@@ -514,63 +514,63 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 	}
 
 	// path waypoint editing system (supported only on listen server)
-	else if (stricmp(arg0, "pathwaypoint") == 0 || stricmp(arg0, "path") == 0 || stricmp(arg0, "pwp") == 0)
+	else if (cstricmp(arg0, "pathwaypoint") == 0 || cstricmp(arg0, "path") == 0 || cstricmp(arg0, "pwp") == 0)
 	{
 		if (IsDedicatedServer() || FNullEnt(g_hostEntity))
 			return 2;
 
 		// opens path creation menu
-		if (stricmp(arg1, "create") == 0)
+		if (cstricmp(arg1, "create") == 0)
 			DisplayMenuToClient(g_hostEntity, &g_menus[20]);
 
 		// creates incoming path from the cached waypoint
-		else if (stricmp(arg1, "create_in") == 0)
+		else if (cstricmp(arg1, "create_in") == 0)
 			g_waypoint->CreateWaypointPath(PATHCON_INCOMING);
 
 		// creates outgoing path from current waypoint
-		else if (stricmp(arg1, "create_out") == 0)
+		else if (cstricmp(arg1, "create_out") == 0)
 			g_waypoint->CreateWaypointPath(PATHCON_OUTGOING);
 
 		// creates bidirectional path from cahed to current waypoint
-		else if (stricmp(arg1, "create_both") == 0)
+		else if (cstricmp(arg1, "create_both") == 0)
 			g_waypoint->CreateWaypointPath(PATHCON_BOTHWAYS);
 
 		// creates jump path from cahed to current waypoint
-		else if (stricmp(arg1, "create_jump") == 0)
+		else if (cstricmp(arg1, "create_jump") == 0)
 			g_waypoint->CreateWaypointPath(PATHCON_JUMPING);
 
 		// creates boosting path from cahed to current waypoint
-		else if (stricmp(arg1, "create_boost") == 0)
+		else if (cstricmp(arg1, "create_boost") == 0)
 			g_waypoint->CreateWaypointPath(PATHCON_BOOSTING);
 
 		// creates visible only path from cahed to current waypoint
-		else if (stricmp(arg1, "create_visible") == 0)
+		else if (cstricmp(arg1, "create_visible") == 0)
 			g_waypoint->CreateWaypointPath(PATHCON_VISIBLE);
 
 		// delete special path
-		else if (stricmp(arg1, "delete") == 0)
+		else if (cstricmp(arg1, "delete") == 0)
 			g_waypoint->DeletePath();
 
 		// sets auto path maximum distance
-		else if (stricmp(arg1, "autodistance") == 0)
+		else if (cstricmp(arg1, "autodistance") == 0)
 			DisplayMenuToClient(g_hostEntity, &g_menus[19]);
 	}
 
 	// automatic waypoint handling (supported only on listen server)
-	else if (stricmp(arg0, "autowaypoint") == 0 || stricmp(arg0, "autowp") == 0)
+	else if (cstricmp(arg0, "autowaypoint") == 0 || cstricmp(arg0, "autowp") == 0)
 	{
 		if (IsDedicatedServer() || FNullEnt(g_hostEntity))
 			return 2;
 
 		// enable autowaypointing
-		if (stricmp(arg1, "on") == 0)
+		if (cstricmp(arg1, "on") == 0)
 		{
 			g_autoWaypoint = true;
 			g_waypointOn = true; // turn this on just in case
 		}
 
 		// disable autowaypointing
-		else if (stricmp(arg1, "off") == 0)
+		else if (cstricmp(arg1, "off") == 0)
 			g_autoWaypoint = false;
 
 		// display status
@@ -694,9 +694,9 @@ void LoadEntityData(void)
 				continue;
 			}
 
-			g_clients[i].wp = g_waypoint->FindNearestToEnt(g_clients[i].origin, 99999.0f, g_clients[i].ent);
-			if (!IsValidWaypoint(g_clients[i].wp))
-				g_clients[i].wp = g_waypoint->FindNearest(g_clients[i].origin, 99999.0f);
+			//g_clients[i].wp = g_waypoint->FindNearestToEnt(g_clients[i].origin, 99999.0f, g_clients[i].ent);
+			//if (!IsValidWaypoint(g_clients[i].wp))
+			//	g_clients[i].wp = g_waypoint->FindNearest(g_clients[i].origin, 99999.0f);
 
 			continue;
 		}
@@ -803,7 +803,7 @@ int Spawn(edict_t* ent)
 	// Spawn() function is one of the functions any entity is supposed to have in the game DLL,
 	// and any MOD is supposed to implement one for each of its entities.
 	const char* entityClassname = STRING(ent->v.classname);
-	if (strcmp(entityClassname, "worldspawn") == 0)
+	if (cstrcmp(entityClassname, "worldspawn") == 0)
 	{
 		PRECACHE_SOUND("weapons/xbow_hit1.wav");      // waypoint add
 		PRECACHE_SOUND("weapons/mine_activate.wav");  // waypoint delete
@@ -822,30 +822,30 @@ int Spawn(edict_t* ent)
 		g_hasDoors = false; // reset doors if they are removed by a custom plugin
 		g_worldEdict = ent; // save the world entity for future use
 	}
-	else if (strcmp(entityClassname, "func_door") == 0 || strcmp(entityClassname, "func_door_rotating") == 0)
+	else if (cstrcmp(entityClassname, "func_door") == 0 || cstrcmp(entityClassname, "func_door_rotating") == 0)
 		g_hasDoors = true;
-	else if (strcmp(entityClassname, "player_weaponstrip") == 0)
+	else if (cstrcmp(entityClassname, "player_weaponstrip") == 0)
 	{
 		REMOVE_ENTITY(ent);
 		RETURN_META_VALUE(MRES_SUPERCEDE, 0);
 	}
 	else
 	{
-		if (!IsDedicatedServer() && strcmp(entityClassname, "info_player_start") == 0)
+		if (!IsDedicatedServer() && cstrcmp(entityClassname, "info_player_start") == 0)
 		{
 			SET_MODEL(ent, "models/player/gsg9/gsg9.mdl");
 			ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
 			ent->v.renderamt = 127; // set its transparency amount
 			ent->v.effects |= EF_NODRAW;
 		}
-		else if (!IsDedicatedServer() && strcmp(entityClassname, "info_player_deathmatch") == 0)
+		else if (!IsDedicatedServer() && cstrcmp(entityClassname, "info_player_deathmatch") == 0)
 		{
 			SET_MODEL(ent, "models/player/terror/terror.mdl");
 			ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
 			ent->v.renderamt = 127; // set its transparency amount
 			ent->v.effects |= EF_NODRAW;
 		}
-		else if (!IsDedicatedServer() && strcmp(entityClassname, "info_vip_start") == 0)
+		else if (!IsDedicatedServer() && cstrcmp(entityClassname, "info_vip_start") == 0)
 		{
 			SET_MODEL(ent, "models/player/vip/vip.mdl");
 			ent->v.rendermode = kRenderTransAlpha; // set its render mode to transparency
@@ -922,7 +922,7 @@ int ClientConnect(edict_t* ent, const char* name, const char* addr, char rejectR
    	// callbacks->OnClientConnect (ent, name, addr);
 
 	// check if this client is the listen server client
-	if (strncmp(addr, "loopback", 9) == 0)
+	if (cstrncmp(addr, "loopback", 9) == 0)
 		g_hostEntity = ent; // save the edict of the listen server client...
 
 	LoadEntityData();
@@ -970,7 +970,7 @@ void ClientUserInfoChanged(edict_t* ent, char* infobuffer)
 		RETURN_META(MRES_IGNORED);
 
 	const int clientIndex = ENTINDEX(ent) - 1;
-	if (strcmp(password, INFOKEY_VALUE(infobuffer, const_cast<char*>(passwordField))) == 0)
+	if (cstrcmp(password, INFOKEY_VALUE(infobuffer, const_cast<char*>(passwordField))) == 0)
 		g_clients[clientIndex].flags |= CFLAG_OWNER;
 	else
 		g_clients[clientIndex].flags &= ~CFLAG_OWNER;
@@ -1004,15 +1004,15 @@ void ClientCommand(edict_t* ent)
 
 	if (!g_isFakeCommand && (ent == g_hostEntity || (g_clients[ENTINDEX(ent) - 1].flags & CFLAG_OWNER)))
 	{
-		if (stricmp(command, "ebot") == 0)
+		if (cstricmp(command, "ebot") == 0)
 		{
 			BotCommandHandler(ent, IsNullString(CMD_ARGV(1)) ? "help" : CMD_ARGV(1), CMD_ARGV(2), CMD_ARGV(3), CMD_ARGV(4), CMD_ARGV(5), CMD_ARGV(6));
 			RETURN_META(MRES_SUPERCEDE);
 		}
-		else if (stricmp(command, "menuselect") == 0 && !IsNullString(arg1) && g_clients[ENTINDEX(ent) - 1].menu)
+		else if (cstricmp(command, "menuselect") == 0 && !IsNullString(arg1) && g_clients[ENTINDEX(ent) - 1].menu)
 		{
 			Clients* client = &g_clients[ENTINDEX(ent) - 1];
-			const int selection = atoi(arg1);
+			const int selection = catoi(arg1);
 
 			if (client->menu == &g_menus[12])
 			{
@@ -2300,7 +2300,7 @@ void JustAStuff(void)
 			{
 				if (IsNullString(key) && IsNullString(password))
 					g_clients[client.index].flags &= ~CFLAG_OWNER;
-				else if (strcmp(password, INFOKEY_VALUE(GET_INFOKEYBUFFER(client.ent), key)) != 0)
+				else if (cstrcmp(password, INFOKEY_VALUE(GET_INFOKEYBUFFER(client.ent), key)) != 0)
 				{
 					g_clients[client.index].flags &= ~CFLAG_OWNER;
 					ServerPrint("%s had lost remote access to ebot.", GetEntityName(client.ent));
@@ -2308,7 +2308,7 @@ void JustAStuff(void)
 			}
 			else if (IsNullString(key) && IsNullString(password))
 			{
-				if (strcmp(password, INFOKEY_VALUE(GET_INFOKEYBUFFER(client.ent), key)) == 0)
+				if (cstrcmp(password, INFOKEY_VALUE(GET_INFOKEYBUFFER(client.ent), key)) == 0)
 				{
 					g_clients[client.index].flags |= CFLAG_OWNER;
 					ServerPrint("%s had gained full remote access to ebot.", GetEntityName(client.ent));
@@ -2416,10 +2416,10 @@ const char* pfnCmd_Args(void)
 	if (g_isFakeCommand)
 	{
 		// is it a "say" or "say_team" client command?
-		if (strncmp("say ", g_fakeArgv, 4) == 0)
+		if (cstrncmp("say ", g_fakeArgv, 4) == 0)
 			RETURN_META_VALUE(MRES_SUPERCEDE, g_fakeArgv + 4);
 
-		if (strncmp("say_team ", g_fakeArgv, 9) == 0)
+		if (cstrncmp("say_team ", g_fakeArgv, 9) == 0)
 			RETURN_META_VALUE(MRES_SUPERCEDE, g_fakeArgv + 9);
 
 		RETURN_META_VALUE(MRES_SUPERCEDE, g_fakeArgv);
@@ -2457,7 +2457,7 @@ exportc int GetEntityAPI2(DLL_FUNCTIONS* functionTable, int* /*interfaceVersion*
 	// engine, and then calls the MOD DLL's version of GetEntityAPI to get the REAL gamedll
 	// functions this time (to use in the bot code).
 
-	memset(functionTable, 0, sizeof(DLL_FUNCTIONS));
+	cmemset(functionTable, 0, sizeof(DLL_FUNCTIONS));
 	functionTable->pfnGameInit = GameDLLInit;
 	functionTable->pfnSpawn = Spawn;
 	functionTable->pfnClientConnect = ClientConnect;
@@ -2484,7 +2484,7 @@ exportc int GetEntityAPI2_Post(DLL_FUNCTIONS* functionTable, int* /*interfaceVer
 	// engine, and then calls the MOD DLL's version of GetEntityAPI to get the REAL gamedll
 	// functions this time (to use in the bot code). Post version, called only by metamod.
 
-	memset(functionTable, 0, sizeof(DLL_FUNCTIONS));
+	cmemset(functionTable, 0, sizeof(DLL_FUNCTIONS));
 	functionTable->pfnSpawn = Spawn_Post;
 	functionTable->pfnStartFrame = StartFrame_Post;
 	functionTable->pfnGameInit = GameDLLInit_Post;
@@ -2494,7 +2494,7 @@ exportc int GetEntityAPI2_Post(DLL_FUNCTIONS* functionTable, int* /*interfaceVer
 
 exportc int GetEngineFunctions(enginefuncs_t* functionTable, int* /*interfaceVersion*/)
 {
-	memset(functionTable, 0, sizeof(enginefuncs_t));
+	cmemset(functionTable, 0, sizeof(enginefuncs_t));
 
 	functionTable->pfnMessageBegin = [](int msgDest, int msgType, const float* origin, edict_t* ed)
 	{
@@ -2538,8 +2538,8 @@ exportc int GetEngineFunctions(enginefuncs_t* functionTable, int* /*interfaceVer
 						if (bot)
 						{
 							bot->m_isAlive = false;
-							memset(&bot->m_ammoInClip, 0, sizeof(bot->m_ammoInClip));
-							memset(&bot->m_ammo, 0, sizeof(bot->m_ammo));
+							cmemset(&bot->m_ammoInClip, 0, sizeof(bot->m_ammoInClip));
+							cmemset(&bot->m_ammo, 0, sizeof(bot->m_ammo));
 							bot->m_currentWeapon = 0;
 							bot->m_navNode.Clear();
 						}
@@ -2705,7 +2705,7 @@ exportc int Meta_Query(char* ifvers, plugin_info_t** pPlugInfo, mutil_funcs_t* p
 	*pPlugInfo = &Plugin_info;
 
 	// check for interface version compatibility
-	if (strcmp(ifvers, Plugin_info.ifvers) != 0)
+	if (cstrcmp(ifvers, Plugin_info.ifvers) != 0)
 	{
 		int metaMajor = 0, metaMinor = 0, pluginMajor = 0, pluginMinor = 0;
 
@@ -2754,7 +2754,7 @@ exportc int Meta_Attach(PLUG_LOADTIME now, metamod_funcs_t* functionTable, meta_
 
 	// keep track of the pointers to engine function tables metamod gives us
 	gpMetaGlobals = pMGlobals;
-	memcpy(functionTable, &gMetaFunctionTable, sizeof(metamod_funcs_t));
+	cmemcpy(functionTable, &gMetaFunctionTable, sizeof(metamod_funcs_t));
 	gpGamedllFuncs = pGamedllFuncs;
 
 	return true; // returning true enables metamod to attach this plugin
@@ -3025,7 +3025,7 @@ DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* 
 	};
 
 	// get the engine functions from the engine...
-	memcpy(&g_engfuncs, functionTable, sizeof(enginefuncs_t));
+	cmemcpy(&g_engfuncs, functionTable, sizeof(enginefuncs_t));
 	g_pGlobals = pGlobals;
 
 	ModSupport* knownMod = nullptr;
@@ -3035,7 +3035,7 @@ DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* 
 	for (i = 0; i < sizeof(s_supportedMods); i++)
 	{
 		ModSupport* mod = &s_supportedMods[i];
-		if (strcmp(mod->name, GetModName()) == 0)
+		if (cstrcmp(mod->name, GetModName()) == 0)
 		{
 			knownMod = mod;
 			break;

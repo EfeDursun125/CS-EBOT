@@ -29,7 +29,7 @@
 #include <cstdlib>
 #endif
 
-ConVar ebot_analyze_distance("ebot_analyze_distance", "40");
+ConVar ebot_analyze_distance("ebot_analyze_grid_distance", "128");
 ConVar ebot_analyze_disable_fall_connections("ebot_analyze_disable_fall_connections", "0");
 ConVar ebot_analyze_max_jump_height("ebot_analyze_max_jump_height", "62");
 ConVar ebot_analyzer_min_fps("ebot_analyzer_min_fps", "30.0");
@@ -43,6 +43,7 @@ ConVar ebot_waypoint_r("ebot_waypoint_r", "0");
 ConVar ebot_waypoint_g("ebot_waypoint_g", "255");
 ConVar ebot_waypoint_b("ebot_waypoint_b", "0");
 ConVar ebot_disable_path_matrix("ebot_disable_path_matrix", "0");
+ConVar ebot_analyze_post_processing("ebot_analyze_post_processing", "2");
 
 // this function initialize the waypoint structures..
 void Waypoint::Initialize(void)
@@ -52,23 +53,7 @@ void Waypoint::Initialize(void)
     m_lastWaypoint = nullvec;
 }
 
-void SetFlags(const char* className, const int index, const int flag, bool checkEffect = false)
-{
-    Path* pointer = g_waypoint->GetPath(index);
-    edict_t* ent = nullptr;
-    while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, className)))
-    {
-        if (checkEffect && ((ent->v.effects & EF_NODRAW) || ent->v.speed > 0.0f))
-            continue;
-
-        if (!Math::BBoxIntersects(ent->v.absmin, pointer->origin, ent->v.absmax, pointer->origin))
-            continue;
-
-        pointer->flags |= flag;
-    }
-}
-
-bool CheckCrouchRequirement(const Vector& TargetPosition)
+inline bool CheckCrouchRequirement(const Vector& TargetPosition)
 {
     TraceResult upcheck;
     const Vector TargetPosition2 = Vector(TargetPosition.x, TargetPosition.y, (TargetPosition.z + 36.0f));
@@ -76,14 +61,14 @@ bool CheckCrouchRequirement(const Vector& TargetPosition)
     return upcheck.flFraction < 1.0f;
 }
 
-void CreateWaypoint(Vector& Next, float range)
+inline void CreateWaypoint(Vector& Next, float range, const float rngmul)
 {
     Next.z += 19.0f;
     TraceResult tr;
     TraceHull(Next, Next, TraceIgnore::Monsters, head_hull, g_hostEntity, &tr);
     Next.z -= 19.0f;
 
-    range *= 0.75f;
+    range *= rngmul;
     if (tr.flFraction < 1.0f && !IsBreakable(tr.pHit))
         return;
 
@@ -110,10 +95,169 @@ void CreateWaypoint(Vector& Next, float range)
         g_waypoint->Add(isBreakable ? 1 : -1, g_analyzeputrequirescrouch ? Vector(TargetPosition.x, TargetPosition.y, (TargetPosition.z - 18.0f)) : TargetPosition);
 }
 
+void OptimizeThread(void)
+{
+    int16_t i, j;
+    int8_t C, concount, concount2, tries, dir;
+    Vector WayVec, Next;
+    float range = ebot_analyze_distance.GetFloat();
+    for (tries = 0; tries < 3; tries++)
+    {
+        range *= 0.5f;
+        for (i = 0; i < g_numWaypoints; i++)
+        {
+            concount = 0;
+            for (C = 0; C < Const_MaxPathIndex; C++)
+            {
+                if (IsValidWaypoint(g_waypoint->m_paths[i].index[C]))
+                    concount++;
+            }
+
+            if (concount >= Const_MaxPathIndex)
+                continue;
+
+            for (j = 0; j < g_numWaypoints; j++)
+            {
+                for (C = 0; C < Const_MaxPathIndex; C++)
+                {
+                    if (g_waypoint->m_paths[j].index[C] == i)
+                        concount2++;
+                }
+            }
+
+            if (concount2 >= Const_MaxPathIndex)
+                continue;
+
+            WayVec = g_waypoint->GetPath(i)->origin;
+            for (dir = 1; dir < 16; dir++)
+            {
+                switch (dir)
+                {
+                    case 1:
+                    {
+                        Next.x = WayVec.x + range;
+                        Next.y = WayVec.y;
+                        Next.z = WayVec.z;
+                        break;
+                    }
+                    case 2:
+                    {
+                        Next.x = WayVec.x - range;
+                        Next.y = WayVec.y;
+                        Next.z = WayVec.z;
+                        break;
+                    }
+                    case 3:
+                    {
+                        Next.x = WayVec.x;
+                        Next.y = WayVec.y + range;
+                        Next.z = WayVec.z;
+                        break;
+                    }
+                    case 4:
+                    {
+                        Next.x = WayVec.x;
+                        Next.y = WayVec.y - range;
+                        Next.z = WayVec.z;
+                        break;
+                    }
+                    case 5:
+                    {
+                        Next.x = WayVec.x + range;
+                        Next.y = WayVec.y + range;
+                        Next.z = WayVec.z;
+                        break;
+                    }
+                    case 6:
+                    {
+                        Next.x = WayVec.x - range;
+                        Next.y = WayVec.y + range;
+                        Next.z = WayVec.z;
+                        break;
+                    }
+                    case 7:
+                    {
+                        Next.x = WayVec.x - range;
+                        Next.y = WayVec.y + range;
+                        Next.z = WayVec.z;
+                        break;
+                    }
+                    case 8:
+                    {
+                        Next.x = WayVec.x - range;
+                        Next.y = WayVec.y - range;
+                        Next.z = WayVec.z;
+                        break;
+                    }
+                    case 9:
+                    {
+                        Next.x = WayVec.x + range;
+                        Next.y = WayVec.y;
+                        Next.z = WayVec.z + range;
+                        break;
+                    }
+                    case 10:
+                    {
+                        Next.x = WayVec.x - range;
+                        Next.y = WayVec.y;
+                        Next.z = WayVec.z + range;
+                        break;
+                    }
+                    case 11:
+                    {
+                        Next.x = WayVec.x;
+                        Next.y = WayVec.y + range;
+                        Next.z = WayVec.z + range;
+                        break;
+                    }
+                    case 12:
+                    {
+                        Next.x = WayVec.x;
+                        Next.y = WayVec.y - range;
+                        Next.z = WayVec.z + range;
+                        break;
+                    }
+                    case 13:
+                    {
+                        Next.x = WayVec.x + range;
+                        Next.y = WayVec.y + range;
+                        Next.z = WayVec.z + range;
+                        break;
+                    }
+                    case 14:
+                    {
+                        Next.x = WayVec.x - range;
+                        Next.y = WayVec.y + range;
+                        Next.z = WayVec.z + range;
+                        break;
+                    }
+                    case 15:
+                    {
+                        Next.x = WayVec.x - range;
+                        Next.y = WayVec.y + range;
+                        Next.z = WayVec.z + range;
+                        break;
+                    }
+                    case 16:
+                    {
+                        Next.x = WayVec.x - range;
+                        Next.y = WayVec.y - range;
+                        Next.z = WayVec.z + range;
+                        break;
+                    }
+                }
+
+                CreateWaypoint(Next, range, 0.75f);
+            }
+        }
+    }
+}
+
 void AnalyzeThread(void)
 {
     static bool* expanded;
     static float magicTimer;
+    static float lastWP;
     if (!FNullEnt(g_hostEntity))
     {
         char message[] =
@@ -126,7 +270,7 @@ void AnalyzeThread(void)
     else if (!IsDedicatedServer())
         return;
 
-    int16_t i;
+    int16_t i, j;
 
     // guarantee to have it
     if (!expanded)
@@ -137,11 +281,13 @@ void AnalyzeThread(void)
 
         for (i = 0; i < Const_MaxWaypoints; i++)
             expanded[i] = false;
+
+        lastWP = engine->GetTime();
     }
 
-    float range;
+    const float range = ebot_analyze_distance.GetFloat();
     Vector WayVec, Next;
-    int8_t dir;
+    int8_t dir, C, concount, concount2;
     for (i = 0; i < g_numWaypoints; i++)
     {
         if (expanded[i])
@@ -154,115 +300,153 @@ void AnalyzeThread(void)
             magicTimer = engine->GetTime() + g_pGlobals->frametime * 0.066f;
 
         WayVec = g_waypoint->GetPath(i)->origin;
-        range = ebot_analyze_distance.GetFloat();
-        for (dir = 1; dir < 12; dir++)
+        for (dir = 1; dir < 16; dir++)
         {
             switch (dir)
             {
-            case 1:
-            {
-                Next.x = WayVec.x + range;
-                Next.y = WayVec.y;
-                Next.z = WayVec.z;
-                break;
-            }
-            case 2:
-            {
-                Next.x = WayVec.x - range;
-                Next.y = WayVec.y;
-                Next.z = WayVec.z;
-                break;
-            }
-            case 3:
-            {
-                Next.x = WayVec.x;
-                Next.y = WayVec.y + range;
-                Next.z = WayVec.z;
-                break;
-            }
-            case 4:
-            {
-                Next.x = WayVec.x;
-                Next.y = WayVec.y - range;
-                Next.z = WayVec.z;
-                break;
-            }
-            case 5:
-            {
-                Next.x = WayVec.x + range;
-                Next.y = WayVec.y;
-                Next.z = WayVec.z + 128.0f;
-                break;
-            }
-            case 6:
-            {
-                Next.x = WayVec.x - range;
-                Next.y = WayVec.y;
-                Next.z = WayVec.z + 128.0f;
-                break;
-            }
-            case 7:
-            {
-                Next.x = WayVec.x;
-                Next.y = WayVec.y + range;
-                Next.z = WayVec.z + 128.0f;
-                break;
-            }
-            case 8:
-            {
-                Next.x = WayVec.x;
-                Next.y = WayVec.y - range;
-                Next.z = WayVec.z + 128.0f;
-                break;
-            }
-            case 9:
-            {
-                Next.x = WayVec.x + range;
-                Next.y = WayVec.y;
-                Next.z = WayVec.z - 128.0f;
-                break;
-            }
-            case 10:
-            {
-                Next.x = WayVec.x - range;
-                Next.y = WayVec.y;
-                Next.z = WayVec.z - 128.0f;
-                break;
-            }
-            case 11:
-            {
-                Next.x = WayVec.x;
-                Next.y = WayVec.y + range;
-                Next.z = WayVec.z - 128.0f;
-                break;
-            }
-            case 12:
-            {
-                Next.x = WayVec.x;
-                Next.y = WayVec.y - range;
-                Next.z = WayVec.z - 128.0f;
-                break;
-            }
+                case 1:
+                {
+                    Next.x = WayVec.x + range;
+                    Next.y = WayVec.y;
+                    Next.z = WayVec.z;
+                    break;
+                }
+                case 2:
+                {
+                    Next.x = WayVec.x - range;
+                    Next.y = WayVec.y;
+                    Next.z = WayVec.z;
+                    break;
+                }
+                case 3:
+                {
+                    Next.x = WayVec.x;
+                    Next.y = WayVec.y + range;
+                    Next.z = WayVec.z;
+                    break;
+                }
+                case 4:
+                {
+                    Next.x = WayVec.x;
+                    Next.y = WayVec.y - range;
+                    Next.z = WayVec.z;
+                    break;
+                }
+                case 5:
+                {
+                    Next.x = WayVec.x + range;
+                    Next.y = WayVec.y + range;
+                    Next.z = WayVec.z;
+                    break;
+                }
+                case 6:
+                {
+                    Next.x = WayVec.x - range;
+                    Next.y = WayVec.y + range;
+                    Next.z = WayVec.z;
+                    break;
+                }
+                case 7:
+                {
+                    Next.x = WayVec.x - range;
+                    Next.y = WayVec.y + range;
+                    Next.z = WayVec.z;
+                    break;
+                }
+                case 8:
+                {
+                    Next.x = WayVec.x - range;
+                    Next.y = WayVec.y - range;
+                    Next.z = WayVec.z;
+                    break;
+                }
+                case 9:
+                {
+                    Next.x = WayVec.x + range;
+                    Next.y = WayVec.y;
+                    Next.z = WayVec.z + range;
+                    break;
+                }
+                case 10:
+                {
+                    Next.x = WayVec.x - range;
+                    Next.y = WayVec.y;
+                    Next.z = WayVec.z + range;
+                    break;
+                }
+                case 11:
+                {
+                    Next.x = WayVec.x;
+                    Next.y = WayVec.y + range;
+                    Next.z = WayVec.z + range;
+                    break;
+                }
+                case 12:
+                {
+                    Next.x = WayVec.x;
+                    Next.y = WayVec.y - range;
+                    Next.z = WayVec.z + range;
+                    break;
+                }
+                case 13:
+                {
+                    Next.x = WayVec.x + range;
+                    Next.y = WayVec.y + range;
+                    Next.z = WayVec.z + range;
+                    break;
+                }
+                case 14:
+                {
+                    Next.x = WayVec.x - range;
+                    Next.y = WayVec.y + range;
+                    Next.z = WayVec.z + range;
+                    break;
+                }
+                case 15:
+                {
+                    Next.x = WayVec.x - range;
+                    Next.y = WayVec.y + range;
+                    Next.z = WayVec.z + range;
+                    break;
+                }
+                case 16:
+                {
+                    Next.x = WayVec.x - range;
+                    Next.y = WayVec.y - range;
+                    Next.z = WayVec.z + range;
+                    break;
+                }
             }
 
-            CreateWaypoint(Next, range);
+            CreateWaypoint(Next, range, 0.75f);
+            lastWP = engine->GetTime();
         }
 
         expanded[i] = true;
     }
 
-    if (magicTimer + 2.0f < engine->GetTime())
+    if (lastWP + 2.0f < engine->GetTime())
     {
-        g_analyzewaypoints = false;
-        g_waypointOn = false;
-        g_editNoclip = false;
-        g_waypoint->AnalyzeDeleteUselessWaypoints();
-        g_waypoint->Save();
-        g_waypoint->Load();
-        ServerCommand("exec addons/ebot/ebot.cfg");
-        ServerCommand("ebot wp mdl off");
-        delete[] expanded;
-        expanded = nullptr;
+        if (ebot_analyze_post_processing.GetInt() == 2)
+            OptimizeThread();
+
+        if (lastWP + 4.0f < engine->GetTime())
+        {
+            if (ebot_analyze_post_processing.GetInt() == 1)
+                OptimizeThread();
+
+            g_waypoint->AnalyzeDeleteUselessWaypoints();
+            g_analyzewaypoints = false;
+            g_waypointOn = false;
+            g_editNoclip = false;
+            g_waypoint->Save();
+            g_waypoint->Load();
+            ServerCommand("exec addons/ebot/ebot.cfg");
+            ServerCommand("ebot wp mdl off");
+            delete[] expanded;
+            expanded = nullptr;
+            AddZMCamps();
+        }
     }
 }
 
@@ -393,6 +577,9 @@ int Waypoint::FindFarest(const Vector& origin, float maxDistance)
 
 int Waypoint::FindNearest(const Vector& origin, float minDistance, const int flags)
 {
+    if (g_numWaypoints < 165)
+        return FindNearestSlow(origin, minDistance);
+
     MiniArray<int16_t> &bucket = GetWaypointsInBucket(origin);
     if (bucket.IsEmpty())
         return FindNearestSlow(origin, minDistance, flags);
@@ -444,6 +631,9 @@ int Waypoint::FindNearestSlow(const Vector& origin, float minDistance, const int
 
 int Waypoint::FindNearestToEnt(const Vector& origin, float minDistance, edict_t* entity)
 {
+    if (g_numWaypoints < 165)
+        return FindNearestToEntSlow(origin, minDistance, entity);
+
     minDistance = squaredf(minDistance);
     MiniArray<int16_t> &bucket = GetWaypointsInBucket(origin);
     if (bucket.IsEmpty())
@@ -1281,21 +1471,8 @@ Vector Waypoint::GetBottomOrigin(const Path* waypoint)
     return waypointOrigin;
 }
 
-void Waypoint::InitTypes(void)
+void Waypoint::AddZMCamps(void)
 {
-    int16_t i;
-    uint32_t flags;
-    for (i = 0; i < g_numWaypoints; i++)
-    {
-        flags = m_paths[i].flags;
-        if (flags & WAYPOINT_ZMHMCAMP)
-            m_zmHmPoints.Push(i);
-        else if (flags & WAYPOINT_HMCAMPMESH)
-            m_hmMeshPoints.Push(i);
-        else if (flags & WAYPOINT_TERRORIST)
-            m_terrorPoints.Push(i);
-    }
-
     if (!m_zmHmPoints.IsEmpty() || !ebot_auto_human_camp_points.GetBool())
         return;
     
@@ -1348,6 +1525,24 @@ void Waypoint::InitTypes(void)
             m_paths[i].flags |= WAYPOINT_ZMHMCAMP;
         }
     }
+}
+
+void Waypoint::InitTypes(void)
+{
+    int16_t i;
+    uint32_t flags;
+    for (i = 0; i < g_numWaypoints; i++)
+    {
+        flags = m_paths[i].flags;
+        if (flags & WAYPOINT_ZMHMCAMP)
+            m_zmHmPoints.Push(i);
+        else if (flags & WAYPOINT_HMCAMPMESH)
+            m_hmMeshPoints.Push(i);
+        else if (flags & WAYPOINT_TERRORIST)
+            m_terrorPoints.Push(i);
+    }
+
+    AddZMCamps();
 }
 
 void Waypoint::InitPathMatrix(void)
@@ -1799,7 +1994,7 @@ bool Waypoint::Load(void)
             Save();
         }
 
-        if (strncmp(header.author, "EfeDursun125", 12) == 0)
+        if (cstrncmp(header.author, "EfeDursun125", 12) == 0)
             sprintf(m_infoBuffer, "Using Official Waypoint File By: %s", header.author);
         else
             sprintf(m_infoBuffer, "Using Waypoint File By: %s", header.author);
@@ -1854,9 +2049,9 @@ bool Waypoint::Load(void)
 void Waypoint::Save(void)
 {
     WaypointHeader header;
-    memset(header.header, 0, sizeof(header.header));
-    memset(header.mapName, 0, sizeof(header.mapName));
-    memset(header.author, 0, sizeof(header.author));
+    cmemset(header.header, 0, sizeof(header.header));
+    cmemset(header.mapName, 0, sizeof(header.mapName));
+    cmemset(header.author, 0, sizeof(header.author));
 
     char waypointAuthor[32];
     if (!FNullEnt(g_hostEntity))
@@ -1864,7 +2059,7 @@ void Waypoint::Save(void)
     else
         sprintf(waypointAuthor, "E-Bot Waypoint Analyzer");
 
-    strcpy(header.author, waypointAuthor);
+    cstrcpy(header.author, waypointAuthor);
 
     const char* waypointFilePath = CheckSubfolderFile();
 
@@ -1876,8 +2071,8 @@ void Waypoint::Save(void)
         rf.Close();
     }
 
-    strcpy(header.header, FH_WAYPOINT_NEW);
-    strncpy(header.mapName, GetMapName(), 31);
+    cstrcpy(header.header, FH_WAYPOINT_NEW);
+    cstrncpy(header.mapName, GetMapName(), 31);
 
     header.mapName[31] = 0;
     header.fileVersion = FV_WAYPOINT;
@@ -1986,7 +2181,7 @@ bool Waypoint::IsNodeReachable(const Vector& src, const Vector& destination)
 
     // check if we go through a func_illusionary, in which case return false
     TraceHull(src, destination, TraceIgnore::Monsters, head_hull, g_hostEntity, &tr);
-    if (!FNullEnt(tr.pHit) && strcmp("func_illusionary", STRING(tr.pHit->v.classname)) == 0)
+    if (!FNullEnt(tr.pHit) && (cstrcmp("func_illusionary", STRING(tr.pHit->v.classname)) == 0 || cstrcmp("func_wall", STRING(tr.pHit->v.classname)) == 0))
         return false; // don't add pathnodes through func_illusionaries
 
     // check if this waypoint is "visible"...
@@ -1994,7 +2189,7 @@ bool Waypoint::IsNodeReachable(const Vector& src, const Vector& destination)
 
     // if waypoint is visible from current position (even behind head)...
     bool goBehind = false;
-    if (tr.flFraction >= 1.0f || (goBehind = IsBreakable(tr.pHit)) || (goBehind = (!FNullEnt(tr.pHit) && strncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0)))
+    if (tr.flFraction >= 1.0f || (goBehind = IsBreakable(tr.pHit)) || (goBehind = (!FNullEnt(tr.pHit) && cstrncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0)))
     {
         // if it's a door check if nothing blocks behind
         if (goBehind)
@@ -2071,7 +2266,7 @@ bool Waypoint::IsNodeReachableWithJump(const Vector& src, const Vector& destinat
 
     // check if we go through a func_illusionary, in which case return false
     TraceHull(src, destination, TraceIgnore::Monsters, head_hull, g_hostEntity, &tr);
-    if (!FNullEnt(tr.pHit) && strcmp("func_illusionary", STRING(tr.pHit->v.classname)) == 0)
+    if (!FNullEnt(tr.pHit) && (cstrcmp("func_illusionary", STRING(tr.pHit->v.classname)) == 0 || cstrcmp("func_wall", STRING(tr.pHit->v.classname)) == 0))
         return false; // don't add pathnodes through func_illusionaries
 
     // check if this waypoint is "visible"...
@@ -2079,7 +2274,7 @@ bool Waypoint::IsNodeReachableWithJump(const Vector& src, const Vector& destinat
 
     // if waypoint is visible from current position (even behind head)...
     bool goBehind = false;
-    if (tr.flFraction >= 1.0f || (goBehind = IsBreakable(tr.pHit)) || (goBehind = (!FNullEnt(tr.pHit) && strncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0)))
+    if (tr.flFraction >= 1.0f || (goBehind = IsBreakable(tr.pHit)) || (goBehind = (!FNullEnt(tr.pHit) && cstrncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0)))
     {
         // if it's a door check if nothing blocks behind
         if (goBehind)
@@ -2675,6 +2870,11 @@ float Waypoint::GetPathDistance(const int srcIndex, const int destIndex)
     return (m_paths[srcIndex].origin - m_paths[destIndex].origin).GetLengthSquared();
 }
 
+Vector GetPositionOnGrid(const Vector& origin)
+{
+    return Vector(static_cast<int>(origin.x / ebot_analyze_distance.GetFloat()) * ebot_analyze_distance.GetFloat(), static_cast<int>(origin.y / ebot_analyze_distance.GetFloat()) * ebot_analyze_distance.GetFloat(), origin.z);
+}
+
 // this function creates basic waypoint types on map - raeyid was here :)
 void Waypoint::CreateBasic(void)
 {
@@ -2731,7 +2931,7 @@ void Waypoint::CreateBasic(void)
     // then terrortist spawnpoints
     while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "info_player_deathmatch")))
     {
-        const Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
+        const Vector origin = GetWalkablePosition(GetPositionOnGrid(GetEntityOrigin(ent)), ent);
         if (FindNearestSlow(origin, 50.0f) == -1)
             Add(0, Vector(origin.x, origin.y, (origin.z + 36.0f)));
     }
@@ -2739,7 +2939,7 @@ void Waypoint::CreateBasic(void)
     // then add ct spawnpoints
     while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "info_player_start")))
     {
-        const Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
+        const Vector origin = GetWalkablePosition(GetPositionOnGrid(GetEntityOrigin(ent)), ent);
         if (FindNearestSlow(origin, 50.0f) == -1)
             Add(0, Vector(origin.x, origin.y, (origin.z + 36.0f)));
     }
@@ -2747,75 +2947,15 @@ void Waypoint::CreateBasic(void)
     // then vip spawnpoint
     while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "info_vip_start")))
     {
-        const Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
+        const Vector origin = GetWalkablePosition(GetPositionOnGrid(GetEntityOrigin(ent)), ent);
         if (FindNearestSlow(origin, 50.0f) == -1)
             Add(0, Vector(origin.x, origin.y, (origin.z + 36.0f)));
-    }
-
-    // hostage rescue zone
-    while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "func_hostage_rescue")))
-    {
-        const Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
-        if (FindNearestSlow(origin, 50.0f) == -1)
-            Add(4, Vector(origin.x, origin.y, (origin.z + 36.0f)));
-    }
-
-    // hostage rescue zone (same as above)
-    while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "info_hostage_rescue")))
-    {
-        const Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
-        if (FindNearestSlow(origin, 50.0f) == -1)
-            Add(4, Vector(origin.x, origin.y, (origin.z + 36.0f)));
-    }
-
-    // bombspot zone
-    while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "func_bomb_target")))
-    {
-        const Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
-        if (FindNearestSlow(origin, 50.0f) == -1)
-            Add(100, Vector(origin.x, origin.y, (origin.z + 36.0f)));
-    }
-
-    // bombspot zone (same as above)
-    while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "info_bomb_target")))
-    {
-        const Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
-        if (FindNearestSlow(origin, 50.0f) == -1)
-            Add(100, Vector(origin.x, origin.y, (origin.z + 36.0f)));
-    }
-
-    // hostage entities
-    while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "hostage_entity")))
-    {
-        // if already saved || moving skip it
-        if (ent->v.effects & EF_NODRAW || ent->v.speed > 0.0f)
-            continue;
-
-        const Vector origin = GetWalkablePosition(GetEntityOrigin(ent));
-        if (FindNearestSlow(origin, 50.0f) == -1)
-            Add(100, Vector(origin.x, origin.y, (origin.z + 36.0f)));
-    }
-
-    // vip rescue (safety) zone
-    while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "func_vip_safetyzone")))
-    {
-        const Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
-        if (FindNearestSlow(origin, 50.0f) == -1)
-            Add(100, Vector(origin.x, origin.y, (origin.z + 36.0f)));
-    }
-
-    // terrorist escape zone
-    while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "func_escapezone")))
-    {
-        const Vector origin = GetWalkablePosition(GetEntityOrigin(ent), ent);
-        if (FindNearestSlow(origin, 50.0f) == -1)
-            Add(100, Vector(origin.x, origin.y, (origin.z + 36.0f)));
     }
 
     // weapons on the map?
     while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "armoury_entity")))
     {
-        const Vector origin = GetWalkablePosition(GetEntityOrigin(ent));
+        const Vector origin = GetWalkablePosition(GetPositionOnGrid(GetEntityOrigin(ent)));
         if (FindNearestSlow(origin, 50.0f) == -1)
             Add(0, Vector(origin.x, origin.y, (origin.z + 36.0f)));
     }
@@ -2882,13 +3022,16 @@ void Waypoint::AddToBucket(const Vector& pos, const int index)
 }
 
 #define gsize 4096.0f
+#include <smmintrin.h>
 Waypoint::Bucket Waypoint::LocateBucket(const Vector& pos)
 {
+    static __m128i intResult;
+    intResult = _mm_cvttps_epi32(_mm_div_ps(_mm_set_ps(pos.z + gsize, pos.y + gsize, pos.x + gsize, 0.0f), _mm_set1_ps(MAX_WAYPOINT_BUCKET_SIZE)));
     return
     {
-        abs(static_cast<int16_t>((pos.x + gsize) / MAX_WAYPOINT_BUCKET_SIZE)),
-        abs(static_cast<int16_t>((pos.y + gsize) / MAX_WAYPOINT_BUCKET_SIZE)),
-        abs(static_cast<int16_t>((pos.z + gsize) / MAX_WAYPOINT_BUCKET_SIZE))
+        cabs16(static_cast<int16_t>(_mm_cvtsi128_si32(intResult))),
+        cabs16(static_cast<int16_t>(_mm_cvtsi128_si32(_mm_srli_si128(intResult, 4)))),
+        cabs16(static_cast<int16_t>( _mm_cvtsi128_si32(_mm_srli_si128(intResult, 8))))
     };
 }
 

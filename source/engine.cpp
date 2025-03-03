@@ -140,7 +140,7 @@ void Engine::PrintServer(const char* format, ...)
     va_start(ap, format);
     vsprintf(buffer, format, ap);
     va_end(ap);
-    strcat(buffer, "\n");
+    cstrcat(buffer, "\n");
     g_engfuncs.pfnServerPrint(buffer);
 }
 

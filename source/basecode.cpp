@@ -84,7 +84,7 @@ edict_t* Bot::FindButton(void)
 	// find the nearest button which can open our target
 	while (!FNullEnt(searchEntity = FIND_ENTITY_IN_SPHERE(searchEntity, pev->origin, 512.0f)))
 	{
-		if (strncmp("func_button", STRING(searchEntity->v.classname), 12) == 0 || strncmp("func_rot_button", STRING(searchEntity->v.classname), 16) == 0)
+		if (cstrncmp("func_button", STRING(searchEntity->v.classname), 12) == 0 || cstrncmp("func_rot_button", STRING(searchEntity->v.classname), 16) == 0)
 		{
 			distance = (pev->origin - GetEntityOrigin(searchEntity)).GetLengthSquared();
 			if (distance < nearestDistance)
@@ -284,7 +284,10 @@ bool Bot::CheckReachable(void)
 
 	if (!FNullEnt(tr.pHit))
 	{
-		if (strcmp("func_illusionary", STRING(tr.pHit->v.classname)) == 0)
+		if (cstrcmp("func_illusionary", STRING(tr.pHit->v.classname)) == 0)
+			return m_isEnemyReachable = false;
+
+		if (cstrcmp("func_wall", STRING(tr.pHit->v.classname)) == 0)
 			return m_isEnemyReachable = false;
 
 		if (GetTeam(tr.pHit) != m_team)
@@ -346,7 +349,10 @@ bool Bot::IsEnemyReachableToPosition(const Vector& origin)
 
 		if (!FNullEnt(tr.pHit))
 		{
-			if (strcmp("func_illusionary", STRING(tr.pHit->v.classname)) == 0)
+			if (cstrcmp("func_illusionary", STRING(tr.pHit->v.classname)) == 0)
+				continue;
+
+			if (cstrcmp("func_wall", STRING(tr.pHit->v.classname)) == 0)
 				continue;
 
 			if (GetTeam(tr.pHit) != m_team)
@@ -409,7 +415,10 @@ bool Bot::IsFriendReachableToPosition(const Vector& origin)
 
 		if (!FNullEnt(tr.pHit))
 		{
-			if (strcmp("func_illusionary", STRING(tr.pHit->v.classname)) == 0)
+			if (cstrcmp("func_illusionary", STRING(tr.pHit->v.classname)) == 0)
+				continue;
+
+			if (cstrcmp("func_wall", STRING(tr.pHit->v.classname)) == 0)
 				continue;
 
 			if (GetTeam(tr.pHit) != m_team)
@@ -460,7 +469,10 @@ bool Bot::CanIReachToPosition(const Vector& origin)
 
 	if (!FNullEnt(tr.pHit))
 	{
-		if (strcmp("func_illusionary", STRING(tr.pHit->v.classname)) == 0)
+		if (cstrcmp("func_illusionary", STRING(tr.pHit->v.classname)) == 0)
+			return false;
+
+		if (cstrcmp("func_wall", STRING(tr.pHit->v.classname)) == 0)
 			return false;
 
 		if (GetTeam(tr.pHit) != m_team)
@@ -599,7 +611,7 @@ void Bot::BaseUpdate(void)
 			{
 				m_isSlowThink = true;
 				CheckSlowThink();
-				m_slowThinkTimer = tempTimer + crandomfloat(0.4f, 0.6f);
+				m_slowThinkTimer = tempTimer + crandomfloat(0.9f, 1.1f);
 			}
 		}
 	}
@@ -623,7 +635,7 @@ void Bot::BaseUpdate(void)
 			CheckStuck(directionOld, m_pathInterval);
 		}
 
-		if (m_lookVelocity != nullvec)
+		if (!m_lookVelocity.IsNull())
 		{
 			m_lookAt.x += m_lookVelocity.x * m_pathInterval;
 			m_lookAt.y += m_lookVelocity.y * m_pathInterval;
@@ -738,8 +750,8 @@ void Bot::CheckSlowThink(void)
 			m_waypointTime = tempTimer + 7.0f;
 		else
 		{
-			FindWaypoint();
 			m_navNode.Clear();
+			FindWaypoint();
 		}
 	}
 	else
@@ -979,7 +991,7 @@ void Bot::LookAtAround(void)
 		m_pauseTime = engine->GetTime() + 1.0f;
 		return;
 	}
-	else if (m_hasFriendsNear && !FNullEnt(m_nearestFriend) && IsAttacking(m_nearestFriend) && strncmp(STRING(m_nearestFriend->v.viewmodel), "models/v_knife", 14) != 0)
+	else if (m_hasFriendsNear && !FNullEnt(m_nearestFriend) && IsAttacking(m_nearestFriend) && cstrncmp(STRING(m_nearestFriend->v.viewmodel), "models/v_knife", 14) != 0)
 	{
 		const Bot* bot = g_botManager->GetBot(m_nearestFriend);
 		if (bot)
@@ -1370,7 +1382,7 @@ void Bot::DebugModeMsg(void)
 			timeDebugUpdate = engine->GetTime() + 0.6f;
 		}
 
-		if (m_hasEnemiesNear && m_enemyOrigin != nullvec)
+		if (m_hasEnemiesNear && !m_enemyOrigin.IsNull())
 			engine->DrawLine(mi, EyePosition(), m_enemyOrigin, Color(255, 0, 0, 255), 10, 0, 5, 1, LINE_SIMPLE);
 		else if (m_isZombieBot && !FNullEnt(m_moveTarget))
 			engine->DrawLine(mi, EyePosition(), m_moveTarget->v.origin, Color(255, 0, 0, 255), 10, 0, 5, 1, LINE_SIMPLE);

@@ -41,7 +41,7 @@ ConVar ebot_save_bot_names("ebot_save_bot_names", "0");
 // this is a bot manager class constructor
 BotControl::BotControl(void)
 {
-	memset(m_bots, 0, sizeof(m_bots));
+	cmemset(m_bots, 0, sizeof(m_bots));
 	InitQuota();
 }
 
@@ -180,7 +180,7 @@ int BotControl::CreateBot(String name, int skill, int personality, const int tea
 	else if (ebot_nametag.GetInt() == 1 && addTag)
 		snprintf(botName, sizeof(botName), "[E-BOT] %s", outputName);
 	else
-		strncpy(botName, outputName, sizeof(botName));
+		cstrncpy(botName, outputName, sizeof(botName));
 
 	edict_t* bot = nullptr;
 	if (FNullEnt((bot = (*g_engfuncs.pfnCreateFakeClient) (botName))))
@@ -466,8 +466,8 @@ void BotControl::RemoveMenu(edict_t* ent, const int selection)
 		return;
 
 	char tempBuffer[1024], buffer[1024];
-	memset(tempBuffer, 0, sizeof(tempBuffer));
-	memset(buffer, 0, sizeof(buffer));
+	cmemset(tempBuffer, 0, sizeof(tempBuffer));
+	cmemset(buffer, 0, sizeof(buffer));
 
 	int i;
 	int validSlots = (selection == 4) ? (1 << 9) : ((1 << 8) | (1 << 9));
@@ -634,7 +634,7 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 
 	char rejectReason[128];
 	const int clientIndex = ENTINDEX(bot);
-	memset(reinterpret_cast<void*>(this), 0, sizeof(*this));
+	cmemset(reinterpret_cast<void*>(this), 0, sizeof(*this));
 
 	const int netname = bot->v.netname;
 	bot->v = {}; // reset entire the entvars structure (fix from regamedll)
@@ -715,8 +715,8 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 		m_personality = Personality::Normal;
 	}
 
-	memset(&m_ammoInClip, 1, sizeof(m_ammoInClip));
-	memset(&m_ammo, 1, sizeof(m_ammo));
+	cmemset(&m_ammoInClip, 1, sizeof(m_ammoInClip));
+	cmemset(&m_ammo, 1, sizeof(m_ammo));
 	m_currentWeapon = 0; // current weapon is not assigned at start
 
 	// assign team and class
@@ -743,21 +743,21 @@ Bot::~Bot(void)
 	int16_t i;
 	for (i = 0; i < g_botNames.Size(); i++)
 	{
-		if (strcmp(botName, name) == 0)
+		if (cstrcmp(botName, name) == 0)
 		{
 			g_botNames[i].isUsed = false;
 			break;
 		}
 
 		sprintf(botName, "[E-BOT] %s", (char*)g_botNames[i].name);
-		if (strcmp(g_botNames[i].name, name) == 0)
+		if (cstrcmp(g_botNames[i].name, name) == 0)
 		{
 			g_botNames[i].isUsed = false;
 			break;
 		}
 
 		sprintf(botName, "[E-BOT] %s (%i)", (char*)g_botNames[i].name, m_skill);
-		if (strcmp(g_botNames[i].name, name) == 0)
+		if (cstrcmp(g_botNames[i].name, name) == 0)
 		{
 			g_botNames[i].isUsed = false;
 			break;
@@ -775,8 +775,8 @@ void Bot::NewRound(void)
 	m_isAlive = IsAlive(m_myself);
 	if (!m_isAlive) // if bot died, clear all weapon stuff and force buying again
 	{
-		memset(&m_ammoInClip, 0, sizeof(m_ammoInClip));
-		memset(&m_ammo, 0, sizeof(m_ammo));
+		cmemset(&m_ammoInClip, 0, sizeof(m_ammoInClip));
+		cmemset(&m_ammo, 0, sizeof(m_ammo));
 		m_currentWeapon = 0;
 		return;
 	}
@@ -841,9 +841,9 @@ void Bot::NewRound(void)
 	ResetStuck();
 
 	// reset waypoint
-	int index = g_waypoint->FindNearestToEnt(pev->origin, 4096.0f, m_myself);
+	int index = g_waypoint->FindNearestToEntSlow(pev->origin, 4096.0f, m_myself);
 	if (!IsValidWaypoint(index))
-		index = g_waypoint->FindNearest(pev->origin);
+		index = g_waypoint->FindNearestSlow(pev->origin);
 
 	ChangeWptIndex(index);
 }

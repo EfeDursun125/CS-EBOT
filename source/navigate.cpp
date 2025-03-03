@@ -210,19 +210,16 @@ void Bot::DoWaypointNav(void)
 
 			if (pev->maxspeed > MATH_EQEPSILON)
 			{
-				const float timeToReachWaypoint = (waypointOrigin - myOrigin).GetLength() / pev->maxspeed;
-				if (timeToReachWaypoint > MATH_EQEPSILON)
+				const float timeToReachWaypoint = (((waypointOrigin - myOrigin).GetLength() / pev->maxspeed) + MATH_EQEPSILON);
+				Vector temp;
+				temp.x = (waypointOrigin.x - myOrigin.x) / timeToReachWaypoint;
+				temp.y = (waypointOrigin.y - myOrigin.y) / timeToReachWaypoint;
+				temp.z = ((waypointOrigin.z - myOrigin.z) * pev->gravity * squaredf(timeToReachWaypoint)) / timeToReachWaypoint;
+				if (!temp.IsNull())
 				{
-					Vector temp;
-					temp.x = (waypointOrigin.x - myOrigin.x) / timeToReachWaypoint;
-					temp.y = (waypointOrigin.y - myOrigin.y) / timeToReachWaypoint;
-					temp.z = ((waypointOrigin.z - myOrigin.z) * pev->gravity * squaredf(timeToReachWaypoint)) / timeToReachWaypoint;
-					if (temp != nullvec)
-					{
-						m_moveAngles.x = pev->velocity.x = temp.x;
-						m_moveAngles.y = pev->velocity.y = temp.y;
-						m_moveAngles.z = pev->velocity.z = temp.z;
-					}
+					m_moveAngles.x = pev->velocity.x = temp.x;
+					m_moveAngles.y = pev->velocity.y = temp.y;
+					m_moveAngles.z = pev->velocity.z = temp.z;
 				}
 			}
 
@@ -358,7 +355,7 @@ void Bot::DoWaypointNav(void)
 				{
 					const float speedNextFrame = speed * 1.25f;
 					const Vector vel = (m_waypoint.origin - pev->origin).Normalize2D();
-					if (vel != nullvec)
+					if (!vel.IsNull())
 					{
 						pev->velocity.x = vel.x * speedNextFrame;
 						pev->velocity.y = vel.y * speedNextFrame;
@@ -375,7 +372,7 @@ void Bot::DoWaypointNav(void)
 	{
 		TraceResult tr;
 		TraceLine(pev->origin, m_waypoint.origin, TraceIgnore::Monsters, m_myself, &tr);
-		if (!FNullEnt(tr.pHit) && strncmp(STRING(tr.pHit->v.classname), "func_door", 9) == 0)
+		if (!FNullEnt(tr.pHit) && cstrncmp(STRING(tr.pHit->v.classname), "func_door", 9) == 0)
 		{
 			// if the door is near enough...
 			const Vector origin = GetEntityOrigin(tr.pHit);
@@ -581,7 +578,7 @@ bool Bot::UpdateLiftHandling(void)
 
 	// trace line to door
 	TraceLine(pev->origin, m_waypoint.origin, TraceIgnore::Everything, m_myself, &tr);
-	if (tr.flFraction < 1.0f && (m_liftState == LiftState::None || m_liftState == LiftState::WaitingFor || m_liftState == LiftState::LookingButtonOutside) && !FNullEnt(tr.pHit) && strcmp(STRING(tr.pHit->v.classname), "func_door") == 0 && pev->groundentity != tr.pHit)
+	if (tr.flFraction < 1.0f && (m_liftState == LiftState::None || m_liftState == LiftState::WaitingFor || m_liftState == LiftState::LookingButtonOutside) && !FNullEnt(tr.pHit) && cstrcmp(STRING(tr.pHit->v.classname), "func_door") == 0 && pev->groundentity != tr.pHit)
 	{
 		if (m_liftState == LiftState::None)
 		{
@@ -598,7 +595,7 @@ bool Bot::UpdateLiftHandling(void)
 		TraceLine(m_waypoint.origin, m_waypoint.origin + Vector(0.0f, 0.0f, -54.0f), TraceIgnore::Everything, m_myself, &tr);
 
 		// if trace result shows us that it is a lift
-		if (!liftClosedDoorExists && !FNullEnt(tr.pHit) && (strcmp(STRING(tr.pHit->v.classname), "func_door") == 0 || strcmp(STRING(tr.pHit->v.classname), "func_plat") == 0 || strcmp(STRING(tr.pHit->v.classname), "func_train") == 0))
+		if (!liftClosedDoorExists && !FNullEnt(tr.pHit) && (cstrcmp(STRING(tr.pHit->v.classname), "func_door") == 0 || cstrcmp(STRING(tr.pHit->v.classname), "func_plat") == 0 || cstrcmp(STRING(tr.pHit->v.classname), "func_train") == 0))
 		{
 			if ((m_liftState == LiftState::None || m_liftState == LiftState::WaitingFor || m_liftState == LiftState::LookingButtonOutside) && tr.pHit->v.velocity.z == 0.0f)
 			{
@@ -627,7 +624,7 @@ bool Bot::UpdateLiftHandling(void)
 					if (pointer->flags & WAYPOINT_LIFT)
 					{
 						TraceLine(m_waypoint.origin, pointer->origin, TraceIgnore::Everything, m_myself, &tr);
-						if (!FNullEnt(tr.pHit) && (strcmp(STRING(tr.pHit->v.classname), "func_door") == 0 || strcmp(STRING(tr.pHit->v.classname), "func_plat") == 0 || strcmp(STRING(tr.pHit->v.classname), "func_train") == 0))
+						if (!FNullEnt(tr.pHit) && (cstrcmp(STRING(tr.pHit->v.classname), "func_door") == 0 || cstrcmp(STRING(tr.pHit->v.classname), "func_plat") == 0 || cstrcmp(STRING(tr.pHit->v.classname), "func_train") == 0))
 							m_liftEntity = tr.pHit;
 					}
 				}
@@ -1898,7 +1895,7 @@ bool Bot::CheckWaypoint(void)
 		}
 		else if (!IsOnLadder() && !IsInWater())
 		{
-			if (m_checkFallPoint[0] != nullvec && m_checkFallPoint[1] != nullvec)
+			if (!m_checkFallPoint[0].IsNull() && !m_checkFallPoint[1].IsNull())
 				m_checkFall = true;
 		}
 	}
@@ -2317,7 +2314,7 @@ void Bot::SetWaypointOrigin(void)
 			if (speed > 10.0f)
 			{
 				const Vector vel = (m_waypoint.origin - pev->origin).Normalize2D();
-				if (vel != nullvec)
+				if (!vel.IsNull())
 				{
 					pev->velocity.x = vel.x * speed;
 					pev->velocity.y = vel.y * speed;
@@ -2393,7 +2390,7 @@ bool Bot::CantMoveForward(const Vector& normal)
 	// check if the trace hit something...
 	if (tr.flFraction < 1.0f)
 	{
-		if (strncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0)
+		if (cstrncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0)
 			return false;
 
 		return true; // bot's head will hit something
@@ -2407,7 +2404,7 @@ bool Bot::CantMoveForward(const Vector& normal)
 	TraceLine(src, forward, TraceIgnore::Nothing, m_myself, &tr);
 
 	// check if the trace hit something...
-	if (tr.flFraction < 1.0f && strncmp("func_door", STRING(tr.pHit->v.classname), 9) != 0)
+	if (tr.flFraction < 1.0f && cstrncmp("func_door", STRING(tr.pHit->v.classname), 9) != 0)
 		return true; // bot's body will hit something
 
 	// bot's head is clear, check at shoulder level...
@@ -2418,7 +2415,7 @@ bool Bot::CantMoveForward(const Vector& normal)
 	TraceLine(src, forward, TraceIgnore::Nothing, m_myself, &tr);
 
 	// check if the trace hit something...
-	if (tr.flFraction < 1.0f && strncmp("func_door", STRING(tr.pHit->v.classname), 9) != 0)
+	if (tr.flFraction < 1.0f && cstrncmp("func_door", STRING(tr.pHit->v.classname), 9) != 0)
 		return true; // bot's body will hit something
 
 	// now check below waist
@@ -2430,7 +2427,7 @@ bool Bot::CantMoveForward(const Vector& normal)
 		TraceLine(src, forward, TraceIgnore::Nothing, m_myself, &tr);
 
 		// check if the trace hit something...
-		if (tr.flFraction < 1.0f && strncmp("func_door", STRING(tr.pHit->v.classname), 9) != 0)
+		if (tr.flFraction < 1.0f && cstrncmp("func_door", STRING(tr.pHit->v.classname), 9) != 0)
 			return true; // bot's body will hit something
 
 		src = pev->origin;
@@ -2439,7 +2436,7 @@ bool Bot::CantMoveForward(const Vector& normal)
 		TraceLine(src, forward, TraceIgnore::Nothing, m_myself, &tr);
 
 		// check if the trace hit something...
-		if (tr.flFraction < 1.0f && strncmp("func_door", STRING(tr.pHit->v.classname), 9) != 0)
+		if (tr.flFraction < 1.0f && cstrncmp("func_door", STRING(tr.pHit->v.classname), 9) != 0)
 			return true; // bot's body will hit something
 	}
 	else
@@ -2452,7 +2449,7 @@ bool Bot::CantMoveForward(const Vector& normal)
 		TraceLine(src, forward, TraceIgnore::Nothing, m_myself, &tr);
 
 		// check if the trace hit something...
-		if (tr.flFraction < 1.0f && strncmp("func_door", STRING(tr.pHit->v.classname), 9) != 0)
+		if (tr.flFraction < 1.0f && cstrncmp("func_door", STRING(tr.pHit->v.classname), 9) != 0)
 			return true; // bot's body will hit something
 
 		// trace from the left waist to the right forward waist pos
@@ -2462,7 +2459,7 @@ bool Bot::CantMoveForward(const Vector& normal)
 		TraceLine(src, forward, TraceIgnore::Nothing, m_myself, &tr);
 
 		// check if the trace hit something...
-		if (tr.flFraction < 1.0f && strncmp("func_door", STRING(tr.pHit->v.classname), 9) != 0)
+		if (tr.flFraction < 1.0f && cstrncmp("func_door", STRING(tr.pHit->v.classname), 9) != 0)
 			return true; // bot's body will hit something
 	}
 

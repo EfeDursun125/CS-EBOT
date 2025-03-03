@@ -236,7 +236,7 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 		}
 
 		text = tempText;
-		while (strlen(text) >= 64)
+		while (cstrlen(text) >= 64)
 		{
 			MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent);
 			WRITE_SHORT(menu->validSlots);
@@ -360,7 +360,7 @@ void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
 
 	g_isFakeCommand = true;
 	g_fakeCommandTimer = engine->GetTime() + 0.02;
-	const int length = strlen(command);
+	const int length = cstrlen(command);
 	int start, index;
 
 	while (stringIndex < length)
@@ -426,12 +426,12 @@ char* GetField(const char* string, const int fieldId, const bool endLine)
 	static char field[256];
 
 	// reset the string
-	memset(field, 0, sizeof(field));
+	cmemset(field, 0, sizeof(field));
 
 	int length, i, index = 0, fieldCount = 0, start, stop;
 
 	field[0] = 0; // reset field
-	length = strlen(string); // get length of string
+	length = cstrlen(string); // get length of string
 
 	// while we have not reached end of line
 	while (index < length && fieldCount <= fieldId)
@@ -475,7 +475,7 @@ char* GetField(const char* string, const int fieldId, const bool endLine)
 	}
 
 	if (endLine)
-		field[strlen(field) - 1] = 0;
+		field[cstrlen(field) - 1] = 0;
 
 	cstrtrim(field);
 	return &field[0]; // returns the wanted field
@@ -488,7 +488,7 @@ char* GetModName(void)
 	// ask the engine for the MOD directory path
 	// get the length of the returned string
 	GET_GAME_DIR(modName);
-	int length = strlen(modName);
+	int length = cstrlen(modName);
 
 	// format the returned string to get the last directory name
 	int stop = length - 1;
@@ -689,6 +689,9 @@ bool IsEntityWalkable(edict_t* ent)
 	if (FNullEnt(ent))
 		return false;
 
+	if (FClassnameIs(ent, "func_wall"))
+		return false;
+
 	if (FClassnameIs(ent, "func_illusionary"))
 		return false;
 
@@ -700,7 +703,6 @@ bool IsEntityWalkable(edict_t* ent)
 
 	return false;
 }
-
 
 bool IsWalkableLineClear(const Vector& from, const Vector& to)
 {
@@ -859,7 +861,7 @@ void ChatPrint(const char* format, ...)
 		return;
 	}
 
-	strcat(string, "\n");
+	cstrcat(string, "\n");
 
 	MESSAGE_BEGIN(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG));
 	WRITE_BYTE(HUD_PRINTTALK);
@@ -889,7 +891,7 @@ void ClientPrint(edict_t* ent, int dest, const char* format, ...)
 		return;
 	}
 
-	strcat(string, "\n");
+	cstrcat(string, "\n");
 
 	if (dest & 0x3ff)
 	{
@@ -931,11 +933,11 @@ char* GetEntityName(edict_t* entity)
 {
 	static char entityName[32];
 	if (!g_pGlobals || FNullEnt(entity))
-		strcpy(entityName, "nullptr");
+		cstrcpy(entityName, "nullptr");
 	else if (entity->v.flags & FL_CLIENT || entity->v.flags & FL_FAKECLIENT)
-		strncpy(entityName, STRING(entity->v.netname), sizeof(entityName));
+		cstrncpy(entityName, STRING(entity->v.netname), sizeof(entityName));
 	else
-		strncpy(entityName, STRING(entity->v.classname), sizeof(entityName));
+		cstrncpy(entityName, STRING(entity->v.classname), sizeof(entityName));
 
 	return &entityName[0];
 }
@@ -944,7 +946,7 @@ char* GetEntityName(edict_t* entity)
 char* GetMapName(void)
 {
 	static char mapName[32];
-	strncpy(mapName, STRING(g_pGlobals->mapname), sizeof(mapName));
+	cstrncpy(mapName, STRING(g_pGlobals->mapname), sizeof(mapName));
 	return &mapName[0]; // and return a pointer to it
 }
 
@@ -1034,27 +1036,27 @@ void AddLogEntry(const Log logLevel, const char* format, ...)
 	{
 	case Log::Default:
 	{
-		strncpy(levelString, "Log: ", sizeof(levelString));
+		cstrncpy(levelString, "Log: ", sizeof(levelString));
 		break;
 	}
 	case Log::Warning:
 	{
-		strncpy(levelString, "Warning: ", sizeof(levelString));
+		cstrncpy(levelString, "Warning: ", sizeof(levelString));
 		break;
 	}
 	case Log::Error:
 	{
-		strncpy(levelString, "Error: ", sizeof(levelString));
+		cstrncpy(levelString, "Error: ", sizeof(levelString));
 		break;
 	}
 	case Log::Fatal:
 	{
-		strncpy(levelString, "Critical: ", sizeof(levelString));
+		cstrncpy(levelString, "Critical: ", sizeof(levelString));
 		break;
 	}
 	case Log::Memory:
 	{
-		strncpy(levelString, "Memory Error: ", sizeof(levelString));
+		cstrncpy(levelString, "Memory Error: ", sizeof(levelString));
 		ServerPrint("unexpected memory error");
 		break;
 	}
