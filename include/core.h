@@ -405,7 +405,7 @@ public:
 struct NameItem
 {
 	char name[32];
-	bool isUsed;
+	bool isUsed{false};
 };
 
 struct WeaponSelect
@@ -439,13 +439,14 @@ struct MenuText
 // array of clients struct
 struct Clients
 {
-	MenuText* menu; // pointer to opened bot menu
-	edict_t* ent; // pointer to actual edict
-	Vector origin; // position in the world
-	int team; // bot team
-	int flags; // client flags
-	int index; // client index
-	int16_t wp; // waypoint index
+	MenuText* menu{nullptr}; // pointer to opened bot menu
+	edict_t* ent{nullptr}; // pointer to actual edict
+	Vector origin{nullvec}; // position in the world
+	int team{Team::Count}; // bot team
+	int flags{0}; // client flags
+	int index{-1}; // client index
+	int16_t wp{-1}; // waypoint index
+	bool ignore{false}; // should bots ignore this?
 };
 
 // bot creation tab
@@ -467,7 +468,7 @@ struct WeaponProperty
 	int slotID; // HUD slot (0 based)
 	int position; // slot position
 	int id; // weapon ID
-	int flags = 0; // flags
+	int flags{0}; // flags
 };
 
 // general waypoint header information structure
@@ -964,8 +965,8 @@ public:
 
 	int16_t GetFacingIndex(void);
 	int16_t FindFarest(const Vector& origin, float maxDistance = 99999.0f);
-	int16_t FindNearest(const Vector& origin, float minDistance = 99999.0f, const int flags = -1);
-	int16_t FindNearestSlow(const Vector& origin, float minDistance = 99999.0f, const int flags = -1);
+	int16_t FindNearest(const Vector& origin, float minDistance = 99999.0f);
+	int16_t FindNearestSlow(const Vector& origin, float minDistance = 99999.0f);
 	int16_t FindNearestToEnt(const Vector& origin, float minDistance, edict_t* entity);
 	int16_t FindNearestToEntSlow(const Vector& origin, float minDistance, edict_t* entity);
 	int16_t FindNearestAnalyzer(const Vector& origin, float minDistance = 99999.0f, const float range = 99999.0f);
