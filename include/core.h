@@ -61,7 +61,8 @@ enum class Process : int8_t
 	ThrowFB,
 	ThrowSM,
 	Blind,
-	UseButton
+	UseButton,
+	Override
 };
 
 // supported cs's
@@ -376,6 +377,7 @@ public:
 
 	inline bool Init(const int16_t length)
 	{
+		Destroy();
 		m_path = new(std::nothrow) int16_t[length];
 		if (m_path)
 			return true;
@@ -402,7 +404,7 @@ public:
 // botname structure definition
 struct NameItem
 {
-	String name;
+	char name[32];
 	bool isUsed;
 };
 
@@ -453,7 +455,7 @@ struct CreateItem
 	int team;
 	int member;
 	int personality;
-	String name;
+	char name[32];
 };
 
 // weapon properties structure
@@ -476,6 +478,13 @@ struct WaypointHeader
 	int32_t pointNumber;
 	char mapName[32];
 	char author[32];
+};
+
+// general matrix header information structure
+struct MatrixHeader
+{
+	int32_t fileVersion{0};
+	int32_t pointNumber{0};
 };
 
 // define general waypoint structure
@@ -517,10 +526,10 @@ public:
 	edict_t* m_ignoreEntity{nullptr}; // pointer to entity to ignore
 	edict_t* m_buttonEntity{nullptr}; // pointer to button entity
 
-	int m_currentGoalIndex{-1}; // current goal index for default modes
-	int m_currentWaypointIndex{-1}; // current waypoint index
-	int m_prevWptIndex[4]{-1}; // previous waypoint indices from waypoint find
-	int m_knownWaypointIndex[6]{-1}; // checks if bot already aimed at this waypoint
+	int16_t m_currentGoalIndex{-1}; // current goal index for default modes
+	int16_t m_currentWaypointIndex{-1}; // current waypoint index
+	int16_t m_prevWptIndex[4]{-1}; // previous waypoint indices from waypoint find
+	int16_t m_knownWaypointIndex[6]{-1}; // checks if bot already aimed at this waypoint
 
 	uint16_t m_prevTravelFlags{0}; // prev of it
 	uint16_t m_currentTravelFlags{0}; // connection flags like jumping
@@ -563,8 +572,8 @@ public:
 	float m_lookYawVel{0.0f}; // look yaw velocity
 	float m_lookPitchVel{0.0f}; // look pitch velocity
 
-	int m_zhCampPointIndex{-1}; // zombie stuff index
-	int m_myMeshWaypoint{-1}; // human mesh stuff index
+	int16_t m_zhCampPointIndex{-1}; // zombie stuff index
+	int16_t m_myMeshWaypoint{-1}; // human mesh stuff index
 
 	void DebugModeMsg(void);
 	void MoveAction(void);
@@ -591,7 +600,7 @@ public:
 	int FindGoalHuman(void);
 
 	float InFieldOfView(const Vector& dest);
-	bool IsWaypointOccupied(const int index);
+	bool IsWaypointOccupied(const int16_t index);
 	bool IsEnemyHidden(edict_t* entity);
 	bool IsEnemyInvincible(edict_t* entity);
 
@@ -603,7 +612,7 @@ public:
 	void SetStrafeSpeedNoCost(const Vector& moveDir, const float strafeSpeed);
 	void StartGame(void);
 
-	void ChangeWptIndex(const int waypointIndex);
+	void ChangeWptIndex(const int16_t waypointIndex);
 	bool IsDeadlyDrop(const Vector& targetOriginPos);
 	void SetWaypointOrigin(void);
 
@@ -625,9 +634,9 @@ public:
 	void SelectWeaponByName(const char* name);
 	int GetHighestWeapon(void);
 
-	void FindPath(int& srcIndex, int& destIndex);
-	void FindShortestPath(int& srcIndex, int& destIndex);
-	void FindEscapePath(int& srcIndex, const Vector& dangerOrigin);
+	void FindPath(int16_t& srcIndex, int16_t& destIndex);
+	void FindShortestPath(int16_t& srcIndex, int16_t& destIndex);
+	void FindEscapePath(int16_t& srcIndex, const Vector& dangerOrigin);
 	void CalculatePing(void);
 public:
 	entvars_t* pev{nullptr}; // pev
@@ -713,6 +722,10 @@ public:
 	float m_baseUpdate{0.0f};
 	float m_rpm{0.0f};
 
+	int m_overrideID{0};
+	bool m_overrideDefaultLookAI{true};
+	bool m_overrideDefaultChecks{true};
+
 	Bot(edict_t* bot, const int skill, const int personality, const int team, const int member);
 	~Bot(void);
 
@@ -751,7 +764,7 @@ public:
 	void IgnoreCollisionShortly(void);
 	void DoWaypointNav(void);
 
-	int FindWaypoint(void);
+	int16_t FindWaypoint(void);
 
 	bool IsAttacking(const edict_t* player);
 	bool CheckReachable(void);
@@ -777,6 +790,7 @@ public:
 	void ThrowSMUpdate(void);
 	void BlindUpdate(void);
 	void UseButtonUpdate(void);
+	void OverrideUpdate(void);
 
 	void DefaultEnd(void);
 	void PauseEnd(void);
@@ -786,6 +800,7 @@ public:
 	void ThrowSMEnd(void);
 	void BlindEnd(void);
 	void UseButtonEnd(void);
+	void OverrideEnd(void);
 
 	bool DefaultReq(void);
 	bool PauseReq(void);
@@ -830,12 +845,12 @@ private:
 	MiniArray<CreateItem>m_creationTab{}; // bot creation tab
 	float m_maintainTime{0.0f}; // time to maintain bot creation quota
 protected:
-	int CreateBot(String name, int skill, int personality, const int team, const int member);
+	int CreateBot(char name[32], int skill, int personality, const int team, const int member);
 public:
 	Bot* m_bots[32]{nullptr}; // all available bots
 
-	MiniArray<String>m_savedBotNames{}; // storing the bot names
-	MiniArray<String>m_avatars{}; // storing the steam ids
+	MiniArray<char*>m_savedBotNames{}; // storing the bot names
+	MiniArray<char*>m_avatars{}; // storing the steam ids
 
 	BotControl(void);
 	~BotControl(void);
@@ -853,7 +868,7 @@ public:
 	void Free(const int index);
 
 	void AddRandom(void) { AddBot("", -1, -1, -1, -1); }
-	void AddBot(const String& name, const int skill, const int personality, const int team, const int member);
+	void AddBot(char name[32], const int skill, const int personality, const int team, const int member);
 	void FillServer(int selection, const int personality = Personality::Normal, const int skill = -1, const int numToAdd = -1);
 
 	void RemoveAll(void);
@@ -866,7 +881,7 @@ public:
 
 	void ListBots(void);
 
-	int AddBotAPI(const String& name, const int skill, const int team);
+	int AddBotAPI(char name[32], const int skill, const int team);
 	static void CallGameEntity(entvars_t* vars);
 };
 
@@ -945,34 +960,34 @@ public:
 	void AnalyzeDeleteUselessWaypoints(void);
 	void InitTypes(void);
 	void AddZMCamps(void);
-	void AddPath(const int addIndex, const int pathIndex, const int type = 0);
+	void AddPath(const int16_t addIndex, const int16_t pathIndex, const int type = 0);
 
-	int GetFacingIndex(void);
-	int FindFarest(const Vector& origin, float maxDistance = 99999.0f);
-	int FindNearest(const Vector& origin, float minDistance = 99999.0f, const int flags = -1);
-	int FindNearestSlow(const Vector& origin, float minDistance = 99999.0f, const int flags = -1);
-	int FindNearestToEnt(const Vector& origin, float minDistance, edict_t* entity);
-	int FindNearestToEntSlow(const Vector& origin, float minDistance, edict_t* entity);
+	int16_t GetFacingIndex(void);
+	int16_t FindFarest(const Vector& origin, float maxDistance = 99999.0f);
+	int16_t FindNearest(const Vector& origin, float minDistance = 99999.0f, const int flags = -1);
+	int16_t FindNearestSlow(const Vector& origin, float minDistance = 99999.0f, const int flags = -1);
+	int16_t FindNearestToEnt(const Vector& origin, float minDistance, edict_t* entity);
+	int16_t FindNearestToEntSlow(const Vector& origin, float minDistance, edict_t* entity);
+	int16_t FindNearestAnalyzer(const Vector& origin, float minDistance = 99999.0f, const float range = 99999.0f);
 	void FindInRadius(const Vector& origin, const float radius, int* holdTab, int* count);
 	void FindInRadius(MiniArray <int16_t>& queueID, const float& radius, const Vector& origin);
 
 	void Add(const int flags, const Vector& waypointOrigin = nullvec);
 	void Delete(void);
-	void DeleteByIndex(int index);
+	void DeleteByIndex(int16_t index);
 	void ToggleFlags(int toggleFlag);
 	void SetRadius(const int radius);
-	bool IsConnected(const int pointA, const int pointB);
+	bool IsConnected(const int16_t pointA, const int16_t pointB);
 	bool IsConnected(const int num);
-	void CreateWaypointPath(const int dir);
+	void CreateWaypointPath(const PathConnection dir);
 	void DeletePath(void);
-	void DeletePathByIndex(int nodeFrom, int nodeTo);
+	void DeletePathByIndex(int16_t nodeFrom, int16_t nodeTo);
 	void CacheWaypoint(void);
 
 	void DeleteFlags(void);
 	void TeleportWaypoint(void);
 
-	float GetTravelTime(const float maxSpeed, const Vector& src, const Vector& origin);
-	void CalculateWayzone(const int index);
+	void CalculateWayzone(const int16_t index);
 	Vector GetBottomOrigin(const Path* waypoint);
 
 	void Sort(const int16_t self, int16_t index[], const int size = Const_MaxPathIndex);
@@ -984,27 +999,26 @@ public:
 	void SavePathMatrix(void);
 	bool LoadPathMatrix(void);
 
-	bool Reachable(edict_t* entity, const int index);
-	bool IsNodeReachable(const Vector& src, const Vector& destination);
-	bool IsNodeReachableWithJump(const Vector& src, const Vector& destination);
+	bool Reachable(edict_t* entity, const int16_t index);
+	bool IsNodeReachable(Vector src, Vector dest, const int srcFlags = 0, const int destFlags = 0, const bool up = false);
+	bool IsNodeReachableAnalyze(const Vector& src, const Vector& destination, const float range);
+	bool MustJump(const Vector src, const Vector destination);
 	void Think(void);
 	void ShowWaypointMsg(void);
 	bool NodesValid(void);
 	void CreateBasic(void);
 
-	float GetPathDistance(const int srcIndex, const int destIndex);
-
 	void InitBuckets(void);
-	void AddToBucket(const Vector& pos, const int index);
-	void EraseFromBucket(const Vector& pos, int index);
+	void AddToBucket(const Vector& pos, const int16_t index);
+	void EraseFromBucket(const Vector& pos, int16_t index);
 	Bucket LocateBucket(const Vector& pos);
 	MiniArray<int16_t>&GetWaypointsInBucket(const Vector &pos);
 
-	Path* GetPath(const int id);
-	char* GetWaypointInfo(const int id);
+	Path* GetPath(const int16_t id);
+	char* GetWaypointInfo(const int16_t id);
 	char* GetInfo(void) { return m_infoBuffer; }
 
-	void SetFindIndex(const int index);
+	void SetFindIndex(const int16_t index);
 	void SetLearnJumpWaypoint(const int mod = -1);
 
 	const char* CheckSubfolderFile(void);
@@ -1023,6 +1037,7 @@ extern float GetShootingConeDeviation(edict_t* ent, const Vector& position);
 extern bool IsLinux(void);
 extern bool TryFileOpen(char* fileName);
 extern bool IsWalkableLineClear(const Vector& from, const Vector& to);
+extern bool IsWalkableHullClear(const Vector& from, const Vector& to);
 extern bool IsDedicatedServer(void);
 extern bool IsVisible(const Vector& origin, edict_t* ent);
 extern bool IsAlive(const edict_t* ent);

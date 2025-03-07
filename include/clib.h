@@ -642,6 +642,34 @@ inline int catoi(const char* str)
 	return result;
 }
 
+inline int16_t catoi16(const char* str)
+{
+	if (!str)
+		return -1;
+
+	int16_t result = 0;
+	int16_t sign = 1;
+	int16_t i = 0;
+
+	while (str[i] == ' ')
+		i++;
+
+	if (str[i] == '-' || str[i] == '+')
+	{
+		sign = (str[i] == '-') ? -1 : 1;
+		i++;
+	}
+
+	while (str[i] >= '0' && str[i] <= '9')
+	{
+		result = result * 10 + (str[i] - '0');
+		i++;
+	}
+
+	result *= sign;
+	return result;
+}
+
 inline float catof(const char* str)
 {
 	if (!str)

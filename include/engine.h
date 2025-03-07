@@ -2464,22 +2464,22 @@ public:
         return !!(m_ent->v.effects & EF_NODRAW);
     }
 
-    inline String GetClassname(void) const
+    inline const char* GetClassname(void) const
     {
         return SDK_Utils::GetStringFromOffset(m_ent->v.classname);
     }
 
-    inline String GetModel(void) const
+    inline const char* GetModel(void) const
     {
         return IsPlayer() ? g_engfuncs.pfnInfoKeyValue(g_engfuncs.pfnGetInfoKeyBuffer(m_ent), "model") : SDK_Utils::GetStringFromOffset(m_ent->v.model);
     }
 
-    inline String GetViewModel(void) const
+    inline const char* GetViewModel(void) const
     {
         return SDK_Utils::GetStringFromOffset(m_ent->v.viewmodel);
     }
 
-    inline String GetName(void) const
+    inline const char* GetName(void) const
     {
         return SDK_Utils::GetStringFromOffset(m_ent->v.netname);
     }
@@ -2575,12 +2575,12 @@ public:
         m_ent->v.health = health;
     }
 
-    inline String GetTarget(void) const
+    inline const char* GetTarget(void) const
     {
         return SDK_Utils::GetStringFromOffset(m_ent->v.target);
     }
 
-    inline String GetTargetName(void) const
+    inline const char* GetTargetName(void) const
     {
         return SDK_Utils::GetStringFromOffset(m_ent->v.targetname);
     }
