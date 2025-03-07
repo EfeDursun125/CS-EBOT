@@ -618,30 +618,26 @@ int16_t Waypoint::FindFarest(const Vector& origin, float maxDistance)
     return index;
 }
 
-int16_t Waypoint::FindNearest(const Vector& origin, float minDistance, const int flags)
+int16_t Waypoint::FindNearest(const Vector& origin, float minDistance)
 {
     if (g_numWaypoints < 165)
         return FindNearestSlow(origin, minDistance);
 
     MiniArray<int16_t> &bucket = GetWaypointsInBucket(origin);
     if (bucket.IsEmpty())
-        return FindNearestSlow(origin, minDistance, flags);
+        return FindNearestSlow(origin, minDistance);
 
     int16_t index = -1;
     minDistance = squaredf(minDistance);
     float distance;
 
-    int16_t i, at;
+    int16_t i;
     for (i = 0; i < bucket.Size(); i++)
     {
-        at = bucket[i];
-        if (flags != -1 && !(m_paths[at].flags & flags))
-            continue;
-
-        distance = (m_paths[at].origin - origin).GetLengthSquared();
+        distance = (m_paths[bucket[i]].origin - origin).GetLengthSquared();
         if (distance < minDistance)
         {
-            index = at;
+            index = bucket[i];
             minDistance = distance;
         }
     }
@@ -649,7 +645,7 @@ int16_t Waypoint::FindNearest(const Vector& origin, float minDistance, const int
     return index;
 }
 
-int16_t Waypoint::FindNearestSlow(const Vector& origin, float minDistance, const int flags)
+int16_t Waypoint::FindNearestSlow(const Vector& origin, float minDistance)
 {
     int16_t index = -1;
     minDistance = squaredf(minDistance);
@@ -658,9 +654,6 @@ int16_t Waypoint::FindNearestSlow(const Vector& origin, float minDistance, const
     int16_t i;
     for (i = 0; i < g_numWaypoints; i++)
     {
-        if (flags != -1 && !(m_paths[i].flags & flags))
-            continue;
-
         distance = (m_paths[i].origin - origin).GetLengthSquared();
         if (distance < minDistance)
         {
@@ -685,17 +678,16 @@ int16_t Waypoint::FindNearestToEnt(const Vector& origin, float minDistance, edic
     int16_t index = -1;
     float distance;
 
-    int16_t i, at;
+    int16_t i;
     for (i = 0; i < bucket.Size(); i++)
     {
-        at = bucket[i];
-        distance = (m_paths[at].origin - origin).GetLengthSquared();
+        distance = (m_paths[bucket[i]].origin - origin).GetLengthSquared();
         if (distance < minDistance)
         {
-            if (!g_waypoint->Reachable(entity, at))
+            if (!g_waypoint->Reachable(entity, bucket[i]))
                 continue;
 
-            index = at;
+            index = bucket[i];
             minDistance = distance;
         }
     }
@@ -1625,6 +1617,9 @@ void Waypoint::InitPathMatrix(void)
 
 void Waypoint::SavePathMatrix(void)
 {
+    if (!m_distMatrix)
+        return;
+
     int16_t i, j, k;
     for (i = 0; i < g_numWaypoints; i++)
     {

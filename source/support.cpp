@@ -240,7 +240,7 @@ int Replace(char* buffer, const char oldChar, const char newChar)
     int pos = 0;
     while ((pos = Find(buffer, oldChar, pos)) >= 0 && buffer[pos])
     {
-        buffer[pos] = newChar; // FIXME: CRASH
+        buffer[pos] = newChar;
         pos++;
         number++;
     }
@@ -270,7 +270,6 @@ int Find2(char* buffer, const char* str, const int startIndex)
     return -1;
 }
 
-// FIXME: CRASH 2
 int Replace2(char* buffer, const char* oldStr, const char* newStr)
 {
     if (!buffer || !oldStr || !newStr)
@@ -310,9 +309,10 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 		return;
 
 	const int clientIndex = ENTINDEX(ent) - 1;
-	if (menu)
+	if (menu && menu->menuText)
 	{
-		char* tempText = menu->menuText;
+		char tempText[384];
+		cstrcpy(tempText, menu->menuText);
 		Replace(tempText, '\v', '\n');
 		char* text = tempText;
 

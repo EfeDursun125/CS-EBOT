@@ -841,12 +841,12 @@ void Bot::NewRound(void)
 	ResetStuck();
 
 	// reset waypoint
-	m_waypointTime = engine->GetTime() + 0.5f;
-	/*int16_t index = g_waypoint->FindNearestToEntSlow(pev->origin, 4096.0f, m_myself);
+	int16_t index = g_waypoint->FindNearestToEntSlow(pev->origin, 4096.0f, m_myself);
 	if (!IsValidWaypoint(index))
 		index = g_waypoint->FindNearestSlow(pev->origin);
 
-	ChangeWptIndex(index);*/
+	ChangeWptIndex(index);
+	m_waypointTime = engine->GetTime() + 0.5f;
 }
 
 // this function kills a bot (not just using ClientKill, but like the CSBot does)

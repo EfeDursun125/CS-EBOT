@@ -94,6 +94,9 @@ void Bot::FindFriendsAndEnemiens(void)
 		const bool needTarget = (!IsAlive(m_moveTarget) || GetTeam(m_moveTarget) == m_team);
 		for (const Clients& client : g_clients)
 		{
+			if (client.ignore)
+				continue;
+
 			if (!(client.flags & CFLAG_USED))
 				continue;
 
@@ -159,6 +162,9 @@ void Bot::FindFriendsAndEnemiens(void)
 	{
 		for (const Clients& client : g_clients)
 		{
+			if (client.ignore)
+				continue;
+			
 			if (!(client.flags & CFLAG_USED))
 				continue;
 
