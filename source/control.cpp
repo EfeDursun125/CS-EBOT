@@ -66,7 +66,7 @@ void BotControl::CallGameEntity(entvars_t* vars)
 
 // this function completely prepares bot entity (edict) for creation, creates team, skill, sets name etc, and
 // then sends result to bot constructor
-int BotControl::CreateBot(String name, int skill, int personality, const int team, const int member)
+int BotControl::CreateBot(char name[32], int skill, int personality, const int team, const int member)
 {
 	if (g_numWaypoints < 1) // don't allow creating bots with no waypoints loaded
 	{
@@ -137,7 +137,7 @@ int BotControl::CreateBot(String name, int skill, int personality, const int tea
 		sprintf(outputName, "%s", (char*)m_savedBotNames.Pop());
 		addTag = false;
 	}
-	else if (!name.GetLength())
+	else if (!name[0])
 	{
 		bool getName = false;
 		if (!g_botNames.IsEmpty())
@@ -193,7 +193,7 @@ int BotControl::CreateBot(String name, int skill, int personality, const int tea
 	m_bots[index] = new(std::nothrow) Bot(bot, skill, personality, team, member);
 	if (!m_bots[index])
 	{
-		AddLogEntry(Log::Memory, "unexpected memory error");
+		AddLogEntry(Log::Memory, "unexpected memory error -> not enough memory (%i free byte required)", sizeof(Bot));
 		return -1;
 	}
 
@@ -263,12 +263,12 @@ void BotControl::Think(void)
 }
 
 // this function putting bot creation process to queue to prevent engine crashes
-void BotControl::AddBot(const String& name, const int skill, const int personality, const int team, const int member)
+void BotControl::AddBot(char name[32], const int skill, const int personality, const int team, const int member)
 {
 	CreateItem queueID;
 
 	// fill the holder
-	queueID.name = name;
+	cstrcpy(queueID.name, name);
 	queueID.skill = skill;
 	queueID.personality = personality;
 	queueID.team = team;
@@ -283,7 +283,7 @@ void BotControl::AddBot(const String& name, const int skill, const int personali
 		ebot_quota.SetInt(botsNum);
 }
 
-int BotControl::AddBotAPI(const String& name, const int skill,const  int team)
+int BotControl::AddBotAPI(char name[32], const int skill,const  int team)
 {
 	const int botsNum = GetBotsNum() + 1;
 	if (botsNum > ebot_quota.GetInt())
@@ -768,7 +768,7 @@ Bot::~Bot(void)
 // this function initializes a bot after creation & at the start of each round
 void Bot::NewRound(void)
 {
-	// delete all allocated path nodes
+	// clear all allocated path nodes
 	m_navNode.Clear();
 
 	m_team = GetTeam(m_myself);
@@ -841,11 +841,12 @@ void Bot::NewRound(void)
 	ResetStuck();
 
 	// reset waypoint
-	int index = g_waypoint->FindNearestToEntSlow(pev->origin, 4096.0f, m_myself);
+	m_waypointTime = engine->GetTime() + 0.5f;
+	/*int16_t index = g_waypoint->FindNearestToEntSlow(pev->origin, 4096.0f, m_myself);
 	if (!IsValidWaypoint(index))
 		index = g_waypoint->FindNearestSlow(pev->origin);
 
-	ChangeWptIndex(index);
+	ChangeWptIndex(index);*/
 }
 
 // this function kills a bot (not just using ClientKill, but like the CSBot does)

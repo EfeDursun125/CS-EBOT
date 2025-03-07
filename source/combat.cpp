@@ -62,7 +62,7 @@ float GetDistance(const int start, const int goal)
 	if (g_isMatrixReady)
 		return static_cast<float>(*(g_waypoint->m_distMatrix + (start * g_numWaypoints) + goal));
 
-	return (g_waypoint->m_paths[start].origin - g_waypoint->m_paths[goal].origin).GetLength();
+	return GetVectorDistanceSSE(g_waypoint->m_paths[start].origin, g_waypoint->m_paths[goal].origin);
 }
 
 void Bot::FindFriendsAndEnemiens(void)

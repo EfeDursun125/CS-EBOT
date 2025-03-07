@@ -63,7 +63,7 @@ void ebotVersionMSG(edict_t* entity = nullptr)
 		ServerPrintNoTag(versionData);
 }
 
-int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, const String& arg2, const String& arg3, const String& arg4, const String /*&arg5*/)
+int BotCommandHandler_O(edict_t* ent, const char* arg0, const char* arg1, const char* arg2, const char* arg3, const char* arg4, const char* /*&arg5*/)
 {
 	if (cstricmp(arg0, "addbot") == 0 || cstricmp(arg0, "add") == 0 ||
 		cstricmp(arg0, "addbot_hs") == 0 || cstricmp(arg0, "addhs") == 0 ||
@@ -396,7 +396,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 
 		// show direction to specified waypoint
 		else if (cstricmp(arg1, "find") == 0)
-			g_waypoint->SetFindIndex(catoi(arg2));
+			g_waypoint->SetFindIndex(catoi16(arg2));
 
 		// opens adding waypoint menu
 		else if (cstricmp(arg1, "add") == 0)
@@ -412,7 +412,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 				ClientPrint(ent, print_withtag, "Please set mesh <number>, min 0, max 255");
 			else
 			{
-				const int index = g_waypoint->FindNearestSlow(GetEntityOrigin(g_hostEntity), 75.0f);
+				const int16_t index = g_waypoint->FindNearestSlow(GetEntityOrigin(g_hostEntity), 75.0f);
 				if (IsValidWaypoint(index))
 				{
 					g_waypoint->GetPath(index)->mesh = static_cast<uint8_t>(cabsf(catof(arg2)));
@@ -430,7 +430,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 				ClientPrint(ent, print_withtag, "Please set gravity <number>");
 			else
 			{
-				const int index = g_waypoint->FindNearestSlow(GetEntityOrigin(g_hostEntity), 75.0f);
+				const int16_t index = g_waypoint->FindNearestSlow(GetEntityOrigin(g_hostEntity), 75.0f);
 				if (IsValidWaypoint(index))
 				{
 					g_waypoint->GetPath(index)->gravity = cabsf(catof(arg2));
@@ -493,7 +493,7 @@ int BotCommandHandler_O(edict_t* ent, const String& arg0, const String& arg1, co
 		// teleport player to specified waypoint
 		else if (cstricmp(arg1, "teleport") == 0)
 		{
-			const int teleportPoint = catoi(arg2);
+			const int16_t teleportPoint = catoi16(arg2);
 			if (teleportPoint < g_numWaypoints)
 			{
 				(*g_engfuncs.pfnSetOrigin) (g_hostEntity, g_waypoint->GetPath(teleportPoint)->origin);
@@ -694,9 +694,9 @@ void LoadEntityData(void)
 				continue;
 			}
 
-			//g_clients[i].wp = g_waypoint->FindNearestToEnt(g_clients[i].origin, 99999.0f, g_clients[i].ent);
-			//if (!IsValidWaypoint(g_clients[i].wp))
-			//	g_clients[i].wp = g_waypoint->FindNearest(g_clients[i].origin, 99999.0f);
+			g_clients[i].wp = g_waypoint->FindNearestToEnt(g_clients[i].origin, 99999.0f, g_clients[i].ent);
+			if (!IsValidWaypoint(g_clients[i].wp))
+				g_clients[i].wp = g_waypoint->FindNearest(g_clients[i].origin, 99999.0f);
 
 			continue;
 		}
@@ -726,36 +726,38 @@ void InitConfig(void)
 	char command[256], line[256];
 #define SKIP_COMMENTS() if ((line[0] == '/') || (line[0] == '\r') || (line[0] == '\n') || (line[0] == 0) || (line[0] == ' ') || (line[0] == '\t')) continue;
 
-	if (!g_botNames.IsEmpty())
+	if (g_botNames.IsEmpty())
+	{
+		// NAME SYSTEM INITIALIZATION
+		if (OpenConfig("names.cfg", "Name configuration file not found.", &fp))
+		{
+			while (fp.GetBuffer(line, 255))
+			{
+				SKIP_COMMENTS();
+
+				cstrtrim(line);
+				NameItem item;
+
+				char Name[32];
+				sprintf(Name, "%s", line);
+
+				cstrcpy(item.name, Name);
+				item.isUsed = false;
+				g_botNames.Push(item);
+			}
+
+			fp.Close();
+		}
+	}
+	else
 	{
 		int16_t i;
 		for (i = 0; i < g_botNames.Size(); i++)
 			g_botNames[i].isUsed = false;
 	}
 
-	// NAME SYSTEM INITIALIZATION
-	if (g_botNames.IsEmpty() && OpenConfig("names.cfg", "Name configuration file not found.", &fp))
-	{
-		while (fp.GetBuffer(line, 255))
-		{
-			SKIP_COMMENTS();
-
-			cstrtrim(line);
-			NameItem item;
-
-			char Name[33];
-			sprintf(Name, "%s", line);
-
-			item.name = Name;
-			item.isUsed = false;
-			g_botNames.Push(item);
-		}
-
-		fp.Close();
-	}
-
 	// AVATARS INITITALIZATION
-	if (OpenConfig("avatars.cfg", "Avatars config file not found. Avatars will not be displayed.", &fp))
+	if (g_botManager->m_avatars.IsEmpty() && OpenConfig("avatars.cfg", "Avatars config file not found. Avatars will not be displayed.", &fp))
 	{
 		while (fp.GetBuffer(line, 255))
 		{
@@ -2158,10 +2160,10 @@ void ServerActivate(edict_t* pentEdictList, int edictCount, int clientMax)
 	ServerCommand("exec addons/ebot/ebot.cfg");
 
 	char buffer[1024];
-	FormatBuffer(buffer, "%s/maps/%s_ebot.cfg", GetModName(), GetMapName());
+	FormatBuffer(buffer, "addons/ebot/maps/%s.cfg", GetMapName());
 	if (TryFileOpen(buffer))
 	{
-		ServerCommand("exec maps/%s_ebot.cfg", GetMapName());
+		ServerCommand("exec addons/ebot/maps/%s.cfg", GetMapName());
 		ServerPrint("Executing Map-Specific config file");
 	}
 
@@ -2319,15 +2321,6 @@ void JustAStuff(void)
 
 	if (g_waypointOn)
 	{
-		for (const auto& bot : g_botManager->m_bots)
-		{
-			if (bot)
-			{
-				g_botManager->RemoveAll();
-				break;
-			}
-		}
-
 		g_waypoint->Think();
 
 		if (ebot_showwp.GetBool())
@@ -2365,10 +2358,10 @@ void StartFrame(void)
 	// for example if a new player joins the server, we should disconnect a bot, and if the
 	// player population decreases, we should fill the server with other bots.
 
-	if (secondTimer < engine->GetTime())
-		FrameThread();
-	else if (g_analyzewaypoints)
+	if (g_analyzewaypoints)
 		g_waypoint->Analyze();
+	else if (secondTimer < engine->GetTime())
+		FrameThread();
 	else
 		g_botManager->MaintainBotQuota();
 	
@@ -2886,7 +2879,7 @@ C_DLLEXPORT void Amxx_EBotSetEnemy(int index, int ent)
 		{
 			amxxbot->m_hasEnemiesNear = true;
 			amxxbot->m_nearestEnemy = amxxent;
-			amxxbot->m_enemyDistance = (amxxbot->pev->origin - amxxent->v.origin).GetLengthSquared();
+			amxxbot->m_enemyDistance = GetVectorDistanceSSE(amxxbot->pev->origin, amxxent->v.origin);
 		}
 	}
 }
@@ -2903,7 +2896,7 @@ C_DLLEXPORT void Amxx_EBotSetEntity(int index, int ent)
 		{
 			amxxbot->m_hasEntitiesNear = true;
 			amxxbot->m_nearestEntity = amxxent;
-			amxxbot->m_entityDistance = (amxxbot->pev->origin - amxxent->v.origin).GetLengthSquared();
+			amxxbot->m_entityDistance = GetVectorDistanceSSE(amxxbot->pev->origin, amxxent->v.origin);
 		}
 	}
 }
@@ -2920,7 +2913,7 @@ C_DLLEXPORT void Amxx_EBotSetFriend(int index, int ent)
 		{
 			amxxbot->m_hasFriendsNear = true;
 			amxxbot->m_nearestFriend = amxxent;
-			amxxbot->m_friendDistance = (amxxbot->pev->origin - amxxent->v.origin).GetLengthSquared();
+			amxxbot->m_friendDistance = GetVectorDistanceSSE(amxxbot->pev->origin, amxxent->v.origin);
 		}
 	}
 }
@@ -2971,6 +2964,149 @@ C_DLLEXPORT void Amxx_EBotSetLookAt(int index, Vector look, Vector vel)
 	}
 }
 
+C_DLLEXPORT int Amxx_EBotGetCurrentProcess(int index)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+		return static_cast<int>(amxxbot->m_currentProcess);
+
+	return -1;
+}
+
+C_DLLEXPORT int Amxx_EBotGetRememberedProcess(int index)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+		return static_cast<int>(amxxbot->m_currentProcess);
+
+	return -1;
+}
+
+C_DLLEXPORT float Amxx_EBotGetCurrentProcessTime(int index)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+		return amxxbot->m_currentProcessTime - engine->GetTime();
+
+	return -1.0f;
+}
+
+C_DLLEXPORT float Amxx_EBotGetRememberedProcessTime(int index)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+		return amxxbot->m_rememberedProcessTime - engine->GetTime();
+
+	return -1.0f;
+}
+
+C_DLLEXPORT int Amxx_EBotSetCurrentProcess(int index, int process, int remember, float time)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot && amxxbot->SetProcess(static_cast<Process>(process), "amxx api", static_cast<bool>(remember), time))
+		return 1;
+
+	return 0;
+}
+
+C_DLLEXPORT void Amxx_EBotForceCurrentProcess(int index, int process)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+	{
+		amxxbot->EndProcess(amxxbot->m_currentProcess);
+		amxxbot->m_currentProcess = static_cast<Process>(process);
+		amxxbot->m_currentProcessTime = engine->GetTime() + 9999.0f;
+		amxxbot->StartProcess(amxxbot->m_currentProcess);
+	}
+}
+
+C_DLLEXPORT void Amxx_EBotFinishCurrentProcess(int index, int process)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+		amxxbot->FinishCurrentProcess("amxx api");
+}
+
+C_DLLEXPORT int Amxx_EBotOverrideCurrentProcess(int index, int remember, float time, int customID, int defaultLookAI, int defaultChecks)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+	{
+		if (amxxbot->SetProcess(Process::Override, "amxx api", static_cast<bool>(remember), time))
+		{
+			amxxbot->m_overrideID = static_cast<bool>(customID);
+			amxxbot->m_overrideDefaultLookAI = static_cast<bool>(defaultLookAI);
+			amxxbot->m_overrideDefaultChecks = static_cast<bool>(defaultChecks);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+C_DLLEXPORT int Amxx_EBotGetOverrideProcessID(int index)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+		return amxxbot->m_overrideID;
+
+	return 0;
+}
+
+C_DLLEXPORT int Amxx_EBotHasOverrideChecks(int index)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+		return amxxbot->m_overrideDefaultChecks;
+
+	return 1;
+}
+
+C_DLLEXPORT int Amxx_EBotHasOverrideLookAI(int index)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+		return amxxbot->m_overrideDefaultLookAI;
+
+	return 1;
+}
+
+C_DLLEXPORT void Amxx_EBotForceFireWeapon(int index, float targetDistance)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+		amxxbot->FireWeapon(targetDistance);
+}
+
+C_DLLEXPORT void Amxx_EBotLookAtAround(int index)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+		amxxbot->LookAtAround();
+}
+
+C_DLLEXPORT void Amxx_EBotCallNewRound(int index)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+		amxxbot->NewRound();
+}
+
 C_DLLEXPORT void Amxx_EBotMoveTo(int index, Vector origin, int checkStuck)
 {
 	index--;
@@ -2992,7 +3128,10 @@ C_DLLEXPORT void Amxx_EBotFindPathTo(int index, int goal)
 	index--;
 	amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
-		amxxbot->FindPath(amxxbot->m_currentWaypointIndex, goal);
+	{
+		int16_t ref = static_cast<int16_t>(goal);
+		amxxbot->FindPath(amxxbot->m_currentWaypointIndex, ref);
+	}
 }
 
 DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* pGlobals)

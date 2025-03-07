@@ -38,13 +38,13 @@ int Bot::FindGoalZombie(void)
 {
 	if (g_waypoint->m_terrorPoints.IsEmpty())
 	{
-		m_currentGoalIndex = crandomint(0, g_numWaypoints - 1);
+		m_currentGoalIndex = static_cast<int16_t>(crandomint(0, g_numWaypoints - 1));
 		return m_currentGoalIndex;
 	}
 
 	if (crandomint(1, 3) == 1)
 	{
-		m_currentGoalIndex = crandomint(0, g_numWaypoints - 1);
+		m_currentGoalIndex = static_cast<int16_t>(crandomint(0, g_numWaypoints - 1));
 		return m_currentGoalIndex;
 	}
 
@@ -52,12 +52,12 @@ int Bot::FindGoalZombie(void)
 	return m_currentGoalIndex;
 }
 
-float GetWaypointDistance(const int start, const int goal)
+inline float GetWaypointDistance(const int start, const int goal)
 {
 	if (g_isMatrixReady)
 		return static_cast<float>(*(g_waypoint->m_distMatrix + (start * g_numWaypoints) + goal));
 
-	return (g_waypoint->m_paths[start].origin - g_waypoint->m_paths[goal].origin).GetLength();
+	return GetVectorDistanceSSE(g_waypoint->m_paths[start].origin, g_waypoint->m_paths[goal].origin);
 }
 
 int Bot::FindGoalHuman(void)
@@ -160,7 +160,7 @@ int Bot::FindGoalHuman(void)
 		}
 	}
 
-	m_currentGoalIndex = crandomint(0, g_numWaypoints - 1);
+	m_currentGoalIndex = static_cast<int16_t>(crandomint(0, g_numWaypoints - 1));
 	return m_currentGoalIndex;
 }
 
@@ -210,7 +210,7 @@ void Bot::DoWaypointNav(void)
 
 			if (pev->maxspeed > MATH_EQEPSILON)
 			{
-				const float timeToReachWaypoint = (((waypointOrigin - myOrigin).GetLength() / pev->maxspeed) + MATH_EQEPSILON);
+				const float timeToReachWaypoint = ((GetVectorDistanceSSE(waypointOrigin, myOrigin) / pev->maxspeed) + MATH_EQEPSILON);
 				Vector temp;
 				temp.x = (waypointOrigin.x - myOrigin.x) / timeToReachWaypoint;
 				temp.y = (waypointOrigin.y - myOrigin.y) / timeToReachWaypoint;
@@ -435,7 +435,7 @@ void Bot::DoWaypointNav(void)
 		// special detection if someone is using the ladder (to prevent to have bots-towers on ladders)
 		TraceResult tr;
 		bool foundGround = false;
-		int previousNode = 0;
+		int16_t previousNode = 0;
 		extern ConVar ebot_ignore_enemies;
 		for (const auto& client : g_clients)
 		{
@@ -996,7 +996,7 @@ inline const float HF_DistanceSquared(const int16_t& start, const int16_t& goal)
 
 inline const float HF_Distance(const int16_t& start, const int16_t& goal)
 {
-	return (g_waypoint->m_paths[start].origin - g_waypoint->m_paths[goal].origin).GetLength();
+	return GetVectorDistanceSSE(g_waypoint->m_paths[start].origin, g_waypoint->m_paths[goal].origin);
 }
 
 inline const float HF_Matrix(const int16_t& start, const int16_t& goal)
@@ -1263,7 +1263,7 @@ struct AStar
 AStar waypoints[Const_MaxWaypoints];
 
 // this function finds a path from srcIndex to destIndex
-void Bot::FindPath(int& srcIndex, int& destIndex)
+void Bot::FindPath(int16_t& srcIndex, int16_t& destIndex)
 {
 	if (g_pathTimer > engine->GetTime())
 		return;
@@ -1445,7 +1445,7 @@ void Bot::FindPath(int& srcIndex, int& destIndex)
 	// roam around poorly :(
 	if (m_navNode.IsEmpty())
 	{
-		MiniArray <int16_t> PossiblePath;
+		MiniArray<int16_t>PossiblePath;
 		for (i = 0; i < g_numWaypoints; i++)
 		{
 			if (waypoints[i].state == RouteState::Closed)
@@ -1454,7 +1454,7 @@ void Bot::FindPath(int& srcIndex, int& destIndex)
 
 		if (!PossiblePath.IsEmpty())
 		{
-			int index = PossiblePath.Random();
+			int16_t index = PossiblePath.Random();
 			FindShortestPath(srcIndex, index);
 			return;
 		}
@@ -1463,7 +1463,7 @@ void Bot::FindPath(int& srcIndex, int& destIndex)
 	}
 }
 
-void Bot::FindShortestPath(int& srcIndex, int& destIndex)
+void Bot::FindShortestPath(int16_t& srcIndex, int16_t& destIndex)
 {
 	if (srcIndex == destIndex)
 		return;
@@ -1559,7 +1559,7 @@ void Bot::FindShortestPath(int& srcIndex, int& destIndex)
 	g_pathTimer = engine->GetTime() + 0.05f;
 }
 
-void Bot::FindEscapePath(int& srcIndex, const Vector& dangerOrigin)
+void Bot::FindEscapePath(int16_t& srcIndex, const Vector& dangerOrigin)
 {
 	// if we can't find new path we will go backwards
 	m_navNode.Clear();
@@ -1570,6 +1570,9 @@ void Bot::FindEscapePath(int& srcIndex, const Vector& dangerOrigin)
 
 	if (!ebot_use_pathfinding_for_avoid.GetBool())
 		return;
+
+	// infinite loop
+	g_pathTimer = engine->GetTime() + 0.05f;
 
 	int16_t i;
 	if (!IsValidWaypoint(srcIndex))
@@ -1617,7 +1620,7 @@ void Bot::FindEscapePath(int& srcIndex, const Vector& dangerOrigin)
 		currPath = g_waypoint->m_paths[currentIndex];
 		if (!IsEnemyReachableToPosition(currPath.origin))
 		{
-			g_pathTimer = engine->GetTime() + 0.05f;
+			found = true;
 			break;
 		}
 
@@ -1684,8 +1687,6 @@ void Bot::FindEscapePath(int& srcIndex, const Vector& dangerOrigin)
 			ChangeWptIndex(m_navNode.First());
 		}
 	}
-	else
-		g_pathTimer = engine->GetTime() + 0.05f;
 }
 
 void Bot::CheckTouchEntity(edict_t* entity)
@@ -1789,11 +1790,11 @@ void Bot::CheckTouchEntity(edict_t* entity)
 	}
 }
 
-int Bot::FindWaypoint(void)
+int16_t Bot::FindWaypoint(void)
 {
 	if (m_isAlive)
 	{
-		int index;
+		int16_t index;
 		if (!m_isStuck && m_navNode.HasNext() && g_waypoint->Reachable(m_myself, m_navNode.First()))
 			index = m_navNode.First();
 		else if (!m_isStuck && g_waypoint->Reachable(m_myself, m_navNode.First()))
@@ -2350,7 +2351,7 @@ void Bot::SetWaypointOrigin(void)
 		m_waypointOrigin = m_waypoint.origin;
 }
 
-void Bot::ChangeWptIndex(const int waypointIndex)
+void Bot::ChangeWptIndex(const int16_t waypointIndex)
 {
 	m_currentWaypointIndex = waypointIndex;
 	if (!IsValidWaypoint(waypointIndex))
@@ -2368,7 +2369,7 @@ void Bot::ChangeWptIndex(const int waypointIndex)
 	SetWaypointOrigin();
 	const float speed = pev->velocity.GetLength();
 	if (speed > 10.0f)
-		m_waypointTime = engine->GetTime() + cclampf((pev->origin - m_destOrigin).GetLength() / speed, 3.0f, 12.0f);
+		m_waypointTime = engine->GetTime() + cclampf(GetVectorDistanceSSE(pev->origin, m_destOrigin) / speed, 3.0f, 12.0f);
 	else
 		m_waypointTime = engine->GetTime() + 12.0f;
 }
@@ -2825,7 +2826,7 @@ void Bot::SetStrafeSpeedNoCost(const Vector& moveDir, const float strafeSpeed)
 		m_strafeSpeed = -strafeSpeed;
 }
 
-bool Bot::IsWaypointOccupied(const int index)
+bool Bot::IsWaypointOccupied(const int16_t index)
 {
 	if (ebot_has_semiclip.GetBool())
 		return false;

@@ -708,33 +708,33 @@ int GetMaxClip(const int& id)
 {
 	switch (id)
 	{
-	case Weapon::M249:
-		return 90;
-	case Weapon::P90:
-		return 45;
-	case Weapon::Galil:
-		return 32;
-	case Weapon::Ump45:
-	case Weapon::Famas:
-		return 23;
-	case Weapon::Glock18:
-	case Weapon::FiveSeven:
-	case Weapon::G3SG1:
-		return 19;
-	case Weapon::P228:
-		return 12;
-	case Weapon::Usp:
-		return 11;
-	case Weapon::Awp:
-	case Weapon::Scout:
-		return 9;
-	case Weapon::M3:
-		return 7;
-	case Weapon::Deagle:
-	case Weapon::Xm1014:
-		return 6;
-	default:
-		return 27;
+		case Weapon::M249:
+			return 90;
+		case Weapon::P90:
+			return 45;
+		case Weapon::Galil:
+			return 32;
+		case Weapon::Ump45:
+		case Weapon::Famas:
+			return 23;
+		case Weapon::Glock18:
+		case Weapon::FiveSeven:
+		case Weapon::G3SG1:
+			return 19;
+		case Weapon::P228:
+			return 12;
+		case Weapon::Usp:
+			return 11;
+		case Weapon::Awp:
+		case Weapon::Scout:
+			return 9;
+		case Weapon::M3:
+			return 7;
+		case Weapon::Deagle:
+		case Weapon::Xm1014:
+			return 6;
+		default:
+			return 27;
 	}
 
 	return 27;
@@ -743,7 +743,6 @@ int GetMaxClip(const int& id)
 void Bot::CheckSlowThink(void)
 {
 	const float tempTimer = engine->GetTime();
-
 	if (m_waypointTime < tempTimer)
 	{
 		if (m_currentWaypointIndex == m_zhCampPointIndex || m_currentWaypointIndex == m_myMeshWaypoint)
@@ -1007,7 +1006,7 @@ void Bot::LookAtAround(void)
 		else
 		{
 			TraceResult tr;
-			const auto eyePosition = m_nearestFriend->v.origin + m_nearestFriend->v.view_ofs;
+			const Vector eyePosition = m_nearestFriend->v.origin + m_nearestFriend->v.view_ofs;
 			MakeVectors(m_nearestFriend->v.angles);
 			TraceLine(eyePosition, eyePosition + g_pGlobals->v_forward * 2000.0f, TraceIgnore::Nothing, m_nearestFriend, &tr);
 
@@ -1032,7 +1031,6 @@ void Bot::LookAtAround(void)
 	{
 		if (chanceof(m_senseChance)) // who's footsteps is this or fire sounds?
 		{
-			int index;
 			float maxDist;
 			for (const auto& client : g_clients)
 			{
@@ -1097,7 +1095,7 @@ void Bot::LookAtAround(void)
 	bestLookPos.y += crandomfloat(-1024.0f, 1024.0f);
 	bestLookPos.z += crandomfloat(-256.0f, 256.0f);
 
-	const int index = g_waypoint->FindNearest(bestLookPos, 999999.0f);
+	const int16_t index = g_waypoint->FindNearest(bestLookPos, 999999.0f);
 	if (IsValidWaypoint(index) && m_knownWaypointIndex[0] != index && m_knownWaypointIndex[1] != index && m_knownWaypointIndex[2] != index && m_knownWaypointIndex[3] != index && m_knownWaypointIndex[4] != index && m_knownWaypointIndex[5] != index)
 	{
 		const Path* pointer = g_waypoint->GetPath(index);
@@ -1242,7 +1240,7 @@ void Bot::DebugModeMsg(void)
 		return;
 
 	static float timeDebugUpdate = 0.0f;
-	static int index{}, goal;
+	static int16_t index{}, goal;
 	static Process processID{}, rememberedProcessID;
 	static edict_t* mi;
 	for (const auto& player : g_clients)

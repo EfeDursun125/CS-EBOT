@@ -210,6 +210,100 @@ Vector GetPlayerHeadOrigin(edict_t* ent)
 	return headOrigin;
 }
 
+int Find(char* buffer, const char chr, const int startIndex)
+{
+	if (!buffer)
+		return -1;
+
+    if (startIndex < 0 || startIndex >= cstrlen(buffer))
+        return -1;
+
+    char* ptr = buffer + startIndex;
+    for (; *ptr != '\0'; ++ptr)
+    {
+        if (*ptr == chr)
+            return static_cast<int>(ptr - buffer);
+    }
+
+    return -1;
+}
+
+int Replace(char* buffer, const char oldChar, const char newChar)
+{
+    if (!buffer)
+		return 0;
+
+    if (oldChar == newChar)
+		return 0;
+
+    int number = 0;
+    int pos = 0;
+    while ((pos = Find(buffer, oldChar, pos)) >= 0 && buffer[pos])
+    {
+        buffer[pos] = newChar; // FIXME: CRASH
+        pos++;
+        number++;
+    }
+
+    return number;
+}
+
+int Find2(char* buffer, const char* str, const int startIndex)
+{
+	if (!buffer)
+		return -1;
+
+    if (!str || !cstrlen(str))
+		return -1;
+
+    if (startIndex < 0 || startIndex >= cstrlen(buffer))
+		return -1;
+
+    char* ptr = buffer + startIndex;
+    int strLen = cstrlen(str);
+    for (; *ptr != '\0'; ++ptr)
+    {
+        if (cstrncmp(ptr, str, strLen) == 0)
+            return static_cast<int>(ptr - buffer);
+    }
+
+    return -1;
+}
+
+// FIXME: CRASH 2
+int Replace2(char* buffer, const char* oldStr, const char* newStr)
+{
+    if (!buffer || !oldStr || !newStr)
+		return 0;
+
+    if (cstrcmp(oldStr, newStr) == 0)
+		return 0;
+
+    int number = 0;
+    int pos = 0;
+    int oldStrLen = cstrlen(oldStr);
+    int newStrLen = cstrlen(newStr);
+    while ((pos = Find2(buffer, oldStr, pos)) >= 0)
+    {
+        if (newStrLen <= oldStrLen)
+        {
+            cmemcpy(buffer + pos, newStr, newStrLen);
+            if (newStrLen < oldStrLen)
+                cmemmove(buffer + pos + newStrLen, buffer + pos + oldStrLen, cstrlen(buffer + pos + oldStrLen) + 1);
+        }
+        else
+        {
+            cmemmove(buffer + pos + newStrLen, buffer + pos + oldStrLen, cstrlen(buffer + pos + oldStrLen) + 1);
+            cmemcpy(buffer + pos, newStr, newStrLen);
+        }
+
+        pos += newStrLen;
+        number++;
+    }
+
+    return number;
+}
+
 void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 {
 	if (!IsValidPlayer(ent) || IsValidBot(ent))
@@ -218,11 +312,9 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 	const int clientIndex = ENTINDEX(ent) - 1;
 	if (menu)
 	{
-		String tempText = String(menu->menuText);
-		tempText.Replace("\v", "\n");
-
+		char* tempText = menu->menuText;
+		Replace(tempText, '\v', '\n');
 		char* text = tempText;
-		//tempText = String(text);
 
 		// make menu looks best
 		char buffer[64];
@@ -232,7 +324,7 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 		{
 			FormatBuffer(buffer, "%d.", i);
 			FormatBuffer(buffer2, "\\r%d.\\w", i);
-			tempText.Replace(buffer, buffer2);
+			Replace2(tempText, buffer, buffer2);
 		}
 
 		text = tempText;
@@ -711,10 +803,46 @@ bool IsWalkableLineClear(const Vector& from, const Vector& to)
 	edict_t* pEntPrev = g_hostEntity;
 	Vector useFrom = from, dir;
 
-	int i;
+	int8_t i;
 	for (i = 0; i < 64; i++)
 	{
 		TraceLine(useFrom, to, TraceIgnore::Monsters, pEntIgnore, &result);
+
+		// if we hit a walkable entity, try again
+		if (result.flFraction < 1.0f && (result.pHit && IsEntityWalkable(result.pHit)))
+		{
+			if (result.pHit == pEntPrev)
+				return false; // deadlock, give up
+
+			pEntPrev = pEntIgnore;
+			pEntIgnore = result.pHit;
+
+			// start from just beyond where we hit to avoid infinite loops
+			dir = to - from;
+			dir.Normalize();
+			useFrom = result.vecEndPos + 5.0f * dir;
+		}
+		else
+			break;
+	}
+
+	if (result.flFraction >= 1.0f)
+		return true;
+
+	return false;
+}
+
+bool IsWalkableHullClear(const Vector& from, const Vector& to)
+{
+	TraceResult result;
+	edict_t* pEntIgnore = g_hostEntity;
+	edict_t* pEntPrev = g_hostEntity;
+	Vector useFrom = from, dir;
+
+	int8_t i;
+	for (i = 0; i < 64; i++)
+	{
+		TraceHull(useFrom, to, TraceIgnore::Monsters, head_hull, pEntIgnore, &result);
 
 		// if we hit a walkable entity, try again
 		if (result.flFraction < 1.0f && (result.pHit && IsEntityWalkable(result.pHit)))
@@ -1034,32 +1162,32 @@ void AddLogEntry(const Log logLevel, const char* format, ...)
 
 	switch (logLevel)
 	{
-	case Log::Default:
-	{
-		cstrncpy(levelString, "Log: ", sizeof(levelString));
-		break;
-	}
-	case Log::Warning:
-	{
-		cstrncpy(levelString, "Warning: ", sizeof(levelString));
-		break;
-	}
-	case Log::Error:
-	{
-		cstrncpy(levelString, "Error: ", sizeof(levelString));
-		break;
-	}
-	case Log::Fatal:
-	{
-		cstrncpy(levelString, "Critical: ", sizeof(levelString));
-		break;
-	}
-	case Log::Memory:
-	{
-		cstrncpy(levelString, "Memory Error: ", sizeof(levelString));
-		ServerPrint("unexpected memory error");
-		break;
-	}
+		case Log::Default:
+		{
+			cstrncpy(levelString, "Log: ", sizeof(levelString));
+			break;
+		}
+		case Log::Warning:
+		{
+			cstrncpy(levelString, "Warning: ", sizeof(levelString));
+			break;
+		}
+		case Log::Error:
+		{
+			cstrncpy(levelString, "Error: ", sizeof(levelString));
+			break;
+		}
+		case Log::Fatal:
+		{
+			cstrncpy(levelString, "Critical: ", sizeof(levelString));
+			break;
+		}
+		case Log::Memory:
+		{
+			cstrncpy(levelString, "Memory Error: ", sizeof(levelString));
+			ServerPrint("unexpected memory error");
+			break;
+		}
 	}
 
 	sprintf(logLine, "%s%s", levelString, buffer);
