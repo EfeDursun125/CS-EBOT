@@ -34,7 +34,7 @@ void Bot::DefaultUpdate(void)
 				if (m_isSlowThink && m_navNode.HasNext() && (g_waypoint->m_paths[m_navNode.Last()].origin - pev->origin).GetLengthSquared() < (g_waypoint->m_paths[m_navNode.Last()].origin - m_moveTarget->v.origin).GetLengthSquared())
 				{
 					KnifeAttack();
-					int index = g_clients[ENTINDEX(m_moveTarget) - 1].wp;
+					int16_t index = g_clients[ENTINDEX(m_moveTarget) - 1].wp;
 					if (IsValidWaypoint(index))
 					{
 						m_currentGoalIndex = index;
@@ -46,7 +46,7 @@ void Bot::DefaultUpdate(void)
 			}
 			else
 			{
-				int index = g_clients[ENTINDEX(m_moveTarget) - 1].wp;
+				int16_t index = g_clients[ENTINDEX(m_moveTarget) - 1].wp;
 				if (IsValidWaypoint(index))
 				{
 					m_currentGoalIndex = index;
@@ -62,7 +62,7 @@ void Bot::DefaultUpdate(void)
 					}
 					else
 					{
-						index = crandomint(1, g_numWaypoints - 2);
+						index = static_cast<int16_t>(crandomint(1, g_numWaypoints - 2));
 						m_currentGoalIndex = index;
 						FindPath(m_currentWaypointIndex, index);
 					}
@@ -76,7 +76,7 @@ void Bot::DefaultUpdate(void)
 			else
 			{
 				KnifeAttack();
-				int ref = FindGoalZombie();
+				int16_t ref = FindGoalZombie();
 				FindPath(m_currentWaypointIndex, ref);
 			}
 		}
