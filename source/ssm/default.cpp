@@ -10,51 +10,34 @@ void Bot::DefaultUpdate(void)
 	if (m_isZombieBot)
 	{
 		// nearest enemy never resets to nullptr, so bot always know where are alive humans
-		if (IsAlive(m_moveTarget) && GetTeam(m_moveTarget) != m_team)
+		if (IsAlive(m_nearestEnemy) && GetTeam(m_nearestEnemy) != m_team)
 		{
-			if (m_hasEnemiesNear && m_isEnemyReachable && CheckVisibility(m_nearestEnemy))
+			// path matrix returns 0 if we are on the same waypoint, so basically its reachable
+			if (m_hasEnemiesNear && (Math::FltZero(m_enemyDistance) || (m_isEnemyReachable && CheckVisibility(m_nearestEnemy))))
 			{
 				MoveTo(m_enemyOrigin + m_nearestEnemy->v.velocity * m_frameInterval);
 				LookAt(m_enemyOrigin, m_nearestEnemy->v.velocity);
 
 				if (m_isSlowThink)
 				{
+					m_navNode.Clear();
 					FindEnemyEntities();
 					FindFriendsAndEnemiens();
-					CheckReachable();
 					FindWaypoint();
+					CheckReachable();
 				}
 				else
 					KnifeAttack();
 
+				m_navNode.Stop();
 				return;
 			}
 			else if (!m_navNode.IsEmpty())
 			{
-				if (m_isSlowThink && m_navNode.HasNext() && (g_waypoint->m_paths[m_navNode.Last()].origin - pev->origin).GetLengthSquared() < (g_waypoint->m_paths[m_navNode.Last()].origin - m_moveTarget->v.origin).GetLengthSquared())
+				if (m_isSlowThink && m_navNode.HasNext() && (g_waypoint->m_paths[m_navNode.Last()].origin - pev->origin).GetLengthSquared() < (g_waypoint->m_paths[m_navNode.Last()].origin - m_nearestEnemy->v.origin).GetLengthSquared())
 				{
 					KnifeAttack();
-					int16_t index = g_clients[ENTINDEX(m_moveTarget) - 1].wp;
-					if (IsValidWaypoint(index))
-					{
-						m_currentGoalIndex = index;
-						FindPath(m_currentWaypointIndex, index);
-					}
-				}
-				else
-					FollowPath();
-			}
-			else
-			{
-				int16_t index = g_clients[ENTINDEX(m_moveTarget) - 1].wp;
-				if (IsValidWaypoint(index))
-				{
-					m_currentGoalIndex = index;
-					FindPath(m_currentWaypointIndex, index);
-				}
-				else
-				{
-					index = g_waypoint->FindNearest(m_moveTarget->v.origin);
+					int16_t index = g_clients[ENTINDEX(m_nearestEnemy) - 1].wp;
 					if (IsValidWaypoint(index))
 					{
 						m_currentGoalIndex = index;
@@ -62,7 +45,36 @@ void Bot::DefaultUpdate(void)
 					}
 					else
 					{
-						index = static_cast<int16_t>(crandomint(1, g_numWaypoints - 2));
+						index = g_waypoint->FindNearest(m_nearestEnemy->v.origin);
+						if (IsValidWaypoint(index))
+						{
+							m_currentGoalIndex = index;
+							FindPath(m_currentWaypointIndex, index);
+						}
+					}
+				}
+				else
+					FollowPath();
+			}
+			else
+			{
+				int16_t index = g_clients[ENTINDEX(m_nearestEnemy) - 1].wp;
+				if (IsValidWaypoint(index))
+				{
+					m_currentGoalIndex = index;
+					FindPath(m_currentWaypointIndex, index);
+				}
+				else
+				{
+					index = g_waypoint->FindNearest(m_nearestEnemy->v.origin);
+					if (IsValidWaypoint(index))
+					{
+						m_currentGoalIndex = index;
+						FindPath(m_currentWaypointIndex, index);
+					}
+					else
+					{
+						index = static_cast<int16_t>(crandomint(0, g_numWaypoints - 1));
 						m_currentGoalIndex = index;
 						FindPath(m_currentWaypointIndex, index);
 					}
@@ -110,7 +122,7 @@ void Bot::DefaultUpdate(void)
 			if (!m_hasEnemiesNear && !m_hasEntitiesNear && UsesSniper() && pev->fov != 90.0f)
 				m_buttons |= IN_ATTACK2;
 		}
-		else if (m_hasEnemiesNear && m_isEnemyReachable)
+		else if (m_hasEnemiesNear && (m_isEnemyReachable || Math::FltZero(m_enemyDistance)))
 		{
 			if (!m_navNode.HasNext())
 			{
@@ -133,7 +145,13 @@ void Bot::DefaultUpdate(void)
 				m_navNode.Stop();
 			}
 			else
+			{
+				// if our enemy is closer to this waypoint, just skip it otherwise we will get infected
+				if ((g_waypoint->GetPath(m_navNode.First())->origin - m_enemyOrigin).GetLengthSquared() < (g_waypoint->GetPath(m_navNode.First())->origin - pev->origin).GetLengthSquared())
+					m_navNode.Shift();
+
 				FollowPath();
+			}
 
 			return;
 		}

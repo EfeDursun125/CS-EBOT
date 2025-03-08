@@ -16,7 +16,7 @@ bool Bot::SetProcess(const Process& process, const char* debugnote, const bool r
 	if (m_currentProcess != process && IsReadyForTheProcess(process))
 	{
 		if (ebot_debug.GetBool())
-			ServerPrint("%s has got a new process from %s to %s | process started -> %s", GetEntityName(m_myself), GetProcessName(m_currentProcess), GetProcessName(process), debugnote);
+			ServerPrint("%s has got a new process %s | process started -> %s", GetEntityName(m_myself), GetProcessName(process), debugnote);
 
 		if (rememberProcess && m_currentProcess > Process::Default && IsReadyForTheProcess(m_currentProcess))
 		{
@@ -269,25 +269,55 @@ char* Bot::GetProcessName(const Process& process)
 	switch (process)
 	{
 		case Process::Default:
+		{
 			FormatBuffer(pName, "DEFAULT");
+			break;
+		}
 		case Process::Pause:
+		{
 			FormatBuffer(pName, "PAUSE");
+			break;
+		}
 		case Process::DestroyBreakable:
+		{	
 			FormatBuffer(pName, "DESTROY BREAKABLE");
+			break;
+		}
 		case Process::ThrowHE:
+		{	
 			FormatBuffer(pName, "THROW HE GRENADE");
+			break;
+		}
 		case Process::ThrowFB:
+		{	
 			FormatBuffer(pName, "THROW FB GRENADE");
+			break;
+		}
 		case Process::ThrowSM:
+		{	
 			FormatBuffer(pName, "THROW SM GRENADE");
+			break;
+		}
 		case Process::Blind:
+		{	
 			FormatBuffer(pName, "BLIND");
+			break;
+		}
 		case Process::UseButton:
+		{	
 			FormatBuffer(pName, "USE BUTTON");
+			break;
+		}
 		case Process::Override:
+		{	
 			FormatBuffer(pName, "OVERRIDE ID: %i", m_overrideID);
+			break;
+		}
 		default:
+		{	
 			FormatBuffer(pName, "UNKNOWN");
+			break;
+		}
 	}
 
 	return pName;
