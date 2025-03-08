@@ -91,7 +91,7 @@ void Bot::FindFriendsAndEnemiens(void)
 
 	if (m_isZombieBot)
 	{
-		const bool needTarget = (!IsAlive(m_moveTarget) || GetTeam(m_moveTarget) == m_team);
+		const bool needTarget = (!IsAlive(m_nearestEnemy) || GetTeam(m_nearestEnemy) == m_team);
 		for (const Clients& client : g_clients)
 		{
 			if (client.ignore)
@@ -143,14 +143,14 @@ void Bot::FindFriendsAndEnemiens(void)
 					if (!CheckVisibility(client.ent))
 					{
 						if (needTarget && ebot_zombie_wall_hack.GetBool())
-							m_moveTarget = client.ent;
+							m_nearestEnemy = client.ent;
 
 						continue;
 					}
 
 					m_enemyDistance = distance;
-					if (needTarget || m_enemyDistance < GetDistance(myWP, g_clients[ENTINDEX(m_moveTarget) - 1].wp))
-						m_moveTarget = client.ent;
+					if (needTarget || m_enemyDistance < GetDistance(myWP, g_clients[ENTINDEX(m_nearestEnemy) - 1].wp))
+						m_nearestEnemy = client.ent;
 
 					m_nearestEnemy = client.ent;
 					m_hasEnemiesNear = true;

@@ -223,6 +223,10 @@ bool Bot::CheckReachable(void)
 	if (FNullEnt(m_nearestEnemy))
 		return m_isEnemyReachable = false;
 
+	// path matrix returns 0 if we are on the same waypoint
+	if (Math::FltZero(m_enemyDistance))
+		return m_isEnemyReachable = true;
+
 	const int nearest = g_clients[ENTINDEX(m_nearestEnemy) - 1].wp;
 	if (m_currentWaypointIndex == nearest || m_prevWptIndex[0] == nearest)
 		return m_isEnemyReachable = true;
@@ -841,7 +845,7 @@ void Bot::CheckSlowThink(void)
 	}
 
 	m_isAlive = IsAlive(m_myself);
-	m_index = GetIndex();
+	m_index = GetIndex() - 1;
 
 	if (ebot_use_flare.GetBool() && !g_roundEnded && g_DelayTimer < tempTimer && !m_isZombieBot && !m_hasEnemiesNear && !FNullEnt(m_nearestEnemy))
 	{
@@ -1160,7 +1164,7 @@ void Bot::CalculatePing(void)
 	else
 		averagePing = crandomint(30, 60);
 
-	int botPing = m_basePingLevel + crandomint(averagePing - averagePing * 0.2f, averagePing + averagePing * 0.2f) + crandomint(m_difficulty + 3, m_difficulty + 6);
+	int botPing = m_basePingLevel + crandomint(averagePing - averagePing / 5, averagePing + averagePing / 5) + crandomint(m_difficulty + 3, m_difficulty + 6);
 	if (botPing < 9)
 		botPing = crandomint(9, 19);
 	else if (botPing > 133)
@@ -1173,7 +1177,7 @@ void Bot::CalculatePing(void)
 		{
 			if (!((botPing - m_pingOffset[j]) % 4))
 			{
-				m_ping[j] = (botPing - m_pingOffset[j]) * 0.25f;
+				m_ping[j] = (botPing - m_pingOffset[j]) / 4;
 				break;
 			}
 		}
@@ -1252,7 +1256,7 @@ void Bot::DebugModeMsg(void)
 		if (IsValidBot(mi))
 			continue;
 
-		if (mi->v.iuser2 != m_index)
+		if (mi->v.iuser2 != m_index + 1)
 			continue;
 
 		if (timeDebugUpdate < engine->GetTime())
@@ -1338,7 +1342,7 @@ void Bot::DebugModeMsg(void)
 
 			char outputBuffer[512];
 			sprintf(outputBuffer, "\n\n\n\n\n\n\n"
-				"\n %s \n Process: %s  RE-Process: %s \n"
+				"\n %s \n Process: %s (%i) RE-Process: %s (%i) \n"
 				"Weapon: %s  Clip: %d  Ammo: %d \n"
 				"Type: %s  Total Path: %d \n"
 				"Enemy: %s  Friend: %s \n\n"
@@ -1347,7 +1351,7 @@ void Bot::DebugModeMsg(void)
 				"Nav: %d  Next Nav: %d  Enemy Distance: %2.f \n"
 				"Move Speed: %2.f  Strafe Speed: %2.f  Velocity: %2.f \n"
 				"Stuck Time: %2.f  Stuck: %s \n",
-				GetEntityName(m_myself), processName, rememberedProcessName,
+				GetEntityName(m_myself), processName, static_cast<int>(m_currentProcess), rememberedProcessName, static_cast<int>(m_rememberedProcess),
 				&weaponName[7], GetAmmoInClip(), m_ammo[g_weaponDefs[m_currentWeapon].ammo1],
 				botType, m_navNode.Length(),
 				enemyName, friendName,
@@ -1382,8 +1386,8 @@ void Bot::DebugModeMsg(void)
 
 		if (m_hasEnemiesNear && !m_enemyOrigin.IsNull())
 			engine->DrawLine(mi, EyePosition(), m_enemyOrigin, Color(255, 0, 0, 255), 10, 0, 5, 1, LINE_SIMPLE);
-		else if (m_isZombieBot && !FNullEnt(m_moveTarget))
-			engine->DrawLine(mi, EyePosition(), m_moveTarget->v.origin, Color(255, 0, 0, 255), 10, 0, 5, 1, LINE_SIMPLE);
+		else if (m_isZombieBot && !FNullEnt(m_nearestEnemy))
+			engine->DrawLine(mi, EyePosition(), m_nearestEnemy->v.origin, Color(255, 0, 0, 255), 10, 0, 5, 1, LINE_SIMPLE);
 
 		if (m_navNode.HasNext())
 		{
@@ -1497,8 +1501,7 @@ Vector Bot::CheckThrow(const Vector& start, const Vector& end)
 	TraceHull(end, apex, TraceIgnore::Monsters, head_hull, m_myself, &tr);
 	if (tr.flFraction < 1.0f || tr.fAllSolid)
 	{
-		const float dot = -(tr.vecPlaneNormal | (apex - end).Normalize());
-		if (dot > 0.75f || tr.flFraction < 0.8f)
+		if (-(tr.vecPlaneNormal | (apex - end).Normalize()) > 0.75f || tr.flFraction < 0.8f)
 			return nullvec;
 	}
 

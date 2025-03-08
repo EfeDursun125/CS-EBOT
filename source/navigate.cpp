@@ -32,7 +32,7 @@ ConVar ebot_force_shortest_path("ebot_force_shortest_path", "0");
 ConVar ebot_pathfinder_seed_min("ebot_pathfinder_seed_min", "0.9");
 ConVar ebot_pathfinder_seed_max("ebot_pathfinder_seed_max", "1.1");
 ConVar ebot_helicopter_width("ebot_helicopter_width", "54.0");
-ConVar ebot_use_pathfinding_for_avoid("ebot_use_pathfinding_for_avoid", "0");
+ConVar ebot_use_pathfinding_for_avoid("ebot_use_pathfinding_for_avoid", "1");
 
 int Bot::FindGoalZombie(void)
 {
@@ -208,19 +208,22 @@ void Bot::DoWaypointNav(void)
 			else
 				waypointOrigin.z -= 36.0f;
 
-			if (pev->maxspeed > MATH_EQEPSILON)
+			Vector velocity = CheckThrow(myOrigin, waypointOrigin);
+			if (velocity.GetLengthSquared() < 100.0f)
+				velocity = CheckToss(myOrigin, waypointOrigin);
+			velocity = velocity + velocity * 0.45f;
+ 
+			// set the bot "grenade" velocity
+			if (velocity.GetLengthSquared() > 10.0f)
 			{
-				const float timeToReachWaypoint = ((GetVectorDistanceSSE(waypointOrigin, myOrigin) / pev->maxspeed) + MATH_EQEPSILON);
-				Vector temp;
-				temp.x = (waypointOrigin.x - myOrigin.x) / timeToReachWaypoint;
-				temp.y = (waypointOrigin.y - myOrigin.y) / timeToReachWaypoint;
-				temp.z = ((waypointOrigin.z - myOrigin.z) * pev->gravity * squaredf(timeToReachWaypoint)) / timeToReachWaypoint;
-				if (!temp.IsNull())
-				{
-					m_moveAngles.x = pev->velocity.x = temp.x;
-					m_moveAngles.y = pev->velocity.y = temp.y;
-					m_moveAngles.z = pev->velocity.z = temp.z;
-				}
+				pev->velocity.x = velocity.x;
+				pev->velocity.y = velocity.y;
+				pev->velocity.z = velocity.z * pev->gravity; // cheat
+			}
+			else
+			{
+				pev->velocity.x = (waypointOrigin.x - myOrigin.x) * (1.0f + (pev->maxspeed / 500.0f) + pev->gravity);
+				pev->velocity.y = (waypointOrigin.y - myOrigin.y) * (1.0f + (pev->maxspeed / 500.0f) + pev->gravity);
 			}
 
 			m_duckTime = engine->GetTime() + 1.25f;
@@ -1686,6 +1689,8 @@ void Bot::FindEscapePath(int16_t& srcIndex, const Vector& dangerOrigin)
 
 			ChangeWptIndex(m_navNode.First());
 		}
+		else if (!m_navNode.IsEmpty())
+			ChangeWptIndex(m_navNode.First());
 	}
 }
 

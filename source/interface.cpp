@@ -699,7 +699,11 @@ void LoadEntityData(void)
 			{
 				g_clients[i].wp = g_waypoint->FindNearestToEnt(g_clients[i].origin, 99999.0f, g_clients[i].ent);
 				if (!IsValidWaypoint(g_clients[i].wp))
+				{
 					g_clients[i].wp = g_waypoint->FindNearest(g_clients[i].origin, 99999.0f);
+					if (!IsValidWaypoint(g_clients[i].wp))
+						g_clients[i].wp = static_cast<int16_t>(crandomint(0, g_numWaypoints - 1));
+				}
 			}
 
 			continue;
@@ -2957,28 +2961,6 @@ C_DLLEXPORT int Amxx_EbotSetEntityAction(int index, int team, int action)
 	return static_cast<int>(SetEntityAction(index, team, action));
 }
 
-C_DLLEXPORT int Amxx_EBotGetMoveTarget(int index)
-{
-	index--;
-	amxxbot = g_botManager->GetBot(index);
-	if (amxxbot && !FNullEnt(amxxbot->m_moveTarget))
-		return ENTINDEX(amxxbot->m_moveTarget) - 1;
-
-	return -1;
-}
-
-C_DLLEXPORT void Amxx_EBotSetMoveTarget(int index, int ent)
-{
-	index--;
-	amxxbot = g_botManager->GetBot(index);
-	if (amxxbot)
-	{
-		amxxent = INDEXENT(ent);
-		if (!FNullEnt(amxxent) && !IsAlive(amxxent))
-			amxxbot->m_moveTarget = amxxent;
-	}
-}
-
 C_DLLEXPORT void Amxx_EBotSetLookAt(int index, Vector look, Vector vel)
 {
 	index--;
@@ -3443,7 +3425,7 @@ C_DLLEXPORT void Amxx_EBotSetCurrentWaypoint(int index, int waypoint)
 		amxxbot->ChangeWptIndex(static_cast<int16_t>(waypoint));
 }
 
-C_DLLEXPORT void Amxx_EBotGoalCurrentWaypoint(int index, int waypoint)
+C_DLLEXPORT void Amxx_EBotSetGoalWaypoint(int index, int waypoint)
 {
 	index--;
 	amxxbot = g_botManager->GetBot(index);
@@ -3451,12 +3433,22 @@ C_DLLEXPORT void Amxx_EBotGoalCurrentWaypoint(int index, int waypoint)
 		amxxbot->m_zhCampPointIndex = amxxbot->m_currentGoalIndex = static_cast<int16_t>(waypoint);
 }
 
-C_DLLEXPORT int Amxx_EBotCampWaypoint(int index)
+C_DLLEXPORT int Amxx_EBotGetCampWaypoint(int index)
 {
 	index--;
 	amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		return static_cast<int>(amxxbot->m_zhCampPointIndex);
+
+	return -1;
+}
+
+C_DLLEXPORT int Amxx_EBotGetMeshWaypoint(int index)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot)
+		return static_cast<int>(amxxbot->m_myMeshWaypoint);
 
 	return -1;
 }
@@ -3589,6 +3581,36 @@ C_DLLEXPORT float Amxx_EBotRqrtf(float value)
 C_DLLEXPORT float Amxx_EBotPowf(float a, float b)
 {
 	return cpowf(a, b);
+}
+
+C_DLLEXPORT float Amxx_EBotCsinf(float value)
+{
+	return csinf(value);
+}
+
+C_DLLEXPORT float Amxx_EBotCosf(float value)
+{
+	return ccosf(value);
+}
+
+C_DLLEXPORT float Amxx_EBotAtan2f(float x, float y)
+{
+	return catan2f(x, y);
+}
+
+C_DLLEXPORT float Amxx_EBotTanf(float value)
+{
+	return ctanf(value);
+}
+
+C_DLLEXPORT int Amxx_EBotIsCamping(int index)
+{
+	index--;
+	amxxbot = g_botManager->GetBot(index);
+	if (amxxbot && (amxxbot->m_currentWaypointIndex == amxxbot->m_zhCampPointIndex || amxxbot->m_currentWaypointIndex == amxxbot->m_myMeshWaypoint))
+		return 1;
+
+	return 0;
 }
 
 DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* pGlobals)
