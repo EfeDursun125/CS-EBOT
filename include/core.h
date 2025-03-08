@@ -706,7 +706,6 @@ public:
 	float m_enemySeeTime{0.0f};
 	float m_friendSeeTime{0.0f};
 	float m_entitySeeTime{0.0f};
-	edict_t* m_moveTarget{nullptr};
 	edict_t* m_nearestEnemy{nullptr};
 	edict_t* m_nearestFriend{nullptr};
 	edict_t* m_nearestEntity{nullptr};
