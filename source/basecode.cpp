@@ -84,7 +84,7 @@ edict_t* Bot::FindButton(void)
 	// find the nearest button which can open our target
 	while (!FNullEnt(searchEntity = FIND_ENTITY_IN_SPHERE(searchEntity, pev->origin, 512.0f)))
 	{
-		if (cstrncmp("func_button", STRING(searchEntity->v.classname), 12) == 0 || cstrncmp("func_rot_button", STRING(searchEntity->v.classname), 16) == 0)
+		if (!cstrncmp("func_button", STRING(searchEntity->v.classname), 12) || !cstrncmp("func_rot_button", STRING(searchEntity->v.classname), 16))
 		{
 			distance = (pev->origin - GetEntityOrigin(searchEntity)).GetLengthSquared();
 			if (distance < nearestDistance)
@@ -288,10 +288,10 @@ bool Bot::CheckReachable(void)
 
 	if (!FNullEnt(tr.pHit))
 	{
-		if (cstrcmp("func_illusionary", STRING(tr.pHit->v.classname)) == 0)
+		if (!cstrcmp("func_illusionary", STRING(tr.pHit->v.classname)))
 			return m_isEnemyReachable = false;
 
-		if (cstrcmp("func_wall", STRING(tr.pHit->v.classname)) == 0)
+		if (!cstrcmp("func_wall", STRING(tr.pHit->v.classname)))
 			return m_isEnemyReachable = false;
 
 		if (GetTeam(tr.pHit) != m_team)
@@ -353,10 +353,10 @@ bool Bot::IsEnemyReachableToPosition(const Vector& origin)
 
 		if (!FNullEnt(tr.pHit))
 		{
-			if (cstrcmp("func_illusionary", STRING(tr.pHit->v.classname)) == 0)
+			if (!cstrcmp("func_illusionary", STRING(tr.pHit->v.classname)))
 				continue;
 
-			if (cstrcmp("func_wall", STRING(tr.pHit->v.classname)) == 0)
+			if (!cstrcmp("func_wall", STRING(tr.pHit->v.classname)))
 				continue;
 
 			if (GetTeam(tr.pHit) != m_team)
@@ -419,10 +419,10 @@ bool Bot::IsFriendReachableToPosition(const Vector& origin)
 
 		if (!FNullEnt(tr.pHit))
 		{
-			if (cstrcmp("func_illusionary", STRING(tr.pHit->v.classname)) == 0)
+			if (!cstrcmp("func_illusionary", STRING(tr.pHit->v.classname)))
 				continue;
 
-			if (cstrcmp("func_wall", STRING(tr.pHit->v.classname)) == 0)
+			if (!cstrcmp("func_wall", STRING(tr.pHit->v.classname)))
 				continue;
 
 			if (GetTeam(tr.pHit) != m_team)
@@ -473,10 +473,10 @@ bool Bot::CanIReachToPosition(const Vector& origin)
 
 	if (!FNullEnt(tr.pHit))
 	{
-		if (cstrcmp("func_illusionary", STRING(tr.pHit->v.classname)) == 0)
+		if (!cstrcmp("func_illusionary", STRING(tr.pHit->v.classname)))
 			return false;
 
-		if (cstrcmp("func_wall", STRING(tr.pHit->v.classname)) == 0)
+		if (!cstrcmp("func_wall", STRING(tr.pHit->v.classname)))
 			return false;
 
 		if (GetTeam(tr.pHit) != m_team)
@@ -779,12 +779,12 @@ void Bot::CheckSlowThink(void)
 				WeaponSelect* selectTab = &g_weaponSelect[0];
 				int i, id;
 				int chosenWeaponIndex = -1;
-				for (i = Const_NumWeapons; i > 0; i--)
+				for (i = Const_NumWeapons; i; i--)
 				{
 					id = selectTab[i].id;
 					if (pev->weapons & (1 << id))
 					{
-						if (m_ammo[g_weaponDefs[id].ammo1] > 0 && m_ammoInClip[id] != -1 && m_ammoInClip[id] < GetMaxClip(id))
+						if (m_ammo[g_weaponDefs[id].ammo1] && m_ammoInClip[id] != -1 && m_ammoInClip[id] < GetMaxClip(id))
 						{
 							chosenWeaponIndex = i;
 							break;
@@ -834,14 +834,32 @@ void Bot::CheckSlowThink(void)
 		}
 	}
 
-	m_team = GetTeam(m_myself);
-	if (m_isZombieBot != IsZombieEntity(m_myself))
+	if (g_roundEnded)
 	{
-		m_isZombieBot = IsZombieEntity(m_myself);
-		m_navNode.Clear();
-		FindWaypoint();
-		FindEnemyEntities();
-		FindFriendsAndEnemiens();
+		m_team = Team::Terrorist;
+		m_isZombieBot = true;
+	}
+	else
+	{
+		m_team = GetTeam(m_myself);
+		if (m_isZombieBot != IsZombieEntity(m_myself))
+		{
+			m_isZombieBot = IsZombieEntity(m_myself);
+			m_navNode.Clear();
+			FindWaypoint();
+			FindEnemyEntities();
+			FindFriendsAndEnemiens();
+		}
+
+		if (!m_isZombieBot && IsValidWaypoint(m_zhCampPointIndex) && !g_waypoint->m_zmHmPoints.IsEmpty())
+		{
+			const Path zhPath = g_waypoint->m_paths[m_zhCampPointIndex];
+			if (!(zhPath.flags & WAYPOINT_ZMHMCAMP) && !(zhPath.flags & WAYPOINT_HMCAMPMESH))
+			{
+				m_zhCampPointIndex = -1;
+				FindGoalHuman();
+			}
+		}
 	}
 
 	m_isAlive = IsAlive(m_myself);

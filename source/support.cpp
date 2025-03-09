@@ -263,7 +263,7 @@ int Find2(char* buffer, const char* str, const int startIndex)
     int strLen = cstrlen(str);
     for (; *ptr != '\0'; ++ptr)
     {
-        if (cstrncmp(ptr, str, strLen) == 0)
+        if (!cstrncmp(ptr, str, strLen))
             return static_cast<int>(ptr - buffer);
     }
 
@@ -275,7 +275,7 @@ int Replace2(char* buffer, const char* oldStr, const char* newStr)
     if (!buffer || !oldStr || !newStr)
 		return 0;
 
-    if (cstrcmp(oldStr, newStr) == 0)
+    if (!cstrcmp(oldStr, newStr))
 		return 0;
 
     int number = 0;
@@ -871,7 +871,7 @@ bool IsWalkableHullClear(const Vector& from, const Vector& to)
 // return true if server is dedicated server, false otherwise
 bool IsDedicatedServer(void)
 {
-	return (IS_DEDICATED_SERVER() > 0); // ask to engine for this
+	return IS_DEDICATED_SERVER(); // ask to engine for this
 }
 
 // this function tests if a file exists by attempting to open it

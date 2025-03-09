@@ -57,7 +57,7 @@ int Bot::GetNearbyEnemiesNearPosition(const Vector& origin, const float radius)
 	return count;
 }
 
-float GetDistance(const int start, const int goal)
+inline float GetDistance(const int16_t& start, const int16_t& goal)
 {
 	if (g_isMatrixReady)
 		return static_cast<float>(*(g_waypoint->m_distMatrix + (start * g_numWaypoints) + goal));
@@ -306,12 +306,12 @@ void Bot::FireWeapon(const float distance)
 	if (m_isSlowThink)
 	{
 		char id, chosenWeaponIndex = -1;
-		for (i = Const_NumWeapons; i > 0; i--)
+		for (i = Const_NumWeapons; i; i--)
 		{
 			id = selectTab[i].id;
 			if (pev->weapons & (1 << id))
 			{
-				if (m_ammoInClip[id] > 0 && !IsWeaponBadInDistance(id, distance))
+				if (m_ammoInClip[id] && !IsWeaponBadInDistance(id, distance))
 				{
 					chosenWeaponIndex = i;
 					break;
@@ -321,12 +321,12 @@ void Bot::FireWeapon(const float distance)
 
 		if (chosenWeaponIndex == -1)
 		{
-			for (i = Const_NumWeapons; i > 0; i--)
+			for (i = Const_NumWeapons; i; i--)
 			{
 				id = selectTab[i].id;
 				if (pev->weapons & (1 << id))
 				{
-					if (m_ammo[g_weaponDefs[id].ammo1] > 0 && !IsWeaponBadInDistance(id, distance))
+					if (m_ammo[g_weaponDefs[id].ammo1] && !IsWeaponBadInDistance(id, distance))
 					{
 						chosenWeaponIndex = i;
 						break;
@@ -337,12 +337,12 @@ void Bot::FireWeapon(const float distance)
 
 		if (chosenWeaponIndex == -1)
 		{
-			for (i = Const_NumWeapons; i > 0; i--)
+			for (i = Const_NumWeapons; i; i--)
 			{
 				id = selectTab[i].id;
 				if (pev->weapons & (1 << id))
 				{
-					if (m_ammo[g_weaponDefs[id].ammo1] > 0)
+					if (m_ammo[g_weaponDefs[id].ammo1])
 					{
 						chosenWeaponIndex = i;
 						break;
@@ -584,7 +584,7 @@ void Bot::SelectBestWeapon(void)
 	int i, id;
 	const WeaponSelect* selectTab = &g_weaponSelect[0];
 	int chosenWeaponIndex = -1;
-	for (i = Const_NumWeapons; i > 0; i--)
+	for (i = Const_NumWeapons; i; i--)
 	{
 		id = selectTab[i].id;
 		if (pev->weapons & (1 << id))
@@ -613,7 +613,7 @@ int Bot::GetHighestWeapon(void)
 {
 	int i;
 	const WeaponSelect* selectTab = &g_weaponSelect[0];
-	for (i = Const_NumWeapons; i > 0; i--)
+	for (i = Const_NumWeapons; i; i--)
 	{
 		if (pev->weapons & (1 << selectTab[i].id))
 			return i;

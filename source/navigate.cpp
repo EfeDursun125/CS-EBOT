@@ -52,7 +52,7 @@ int Bot::FindGoalZombie(void)
 	return m_currentGoalIndex;
 }
 
-inline float GetWaypointDistance(const int start, const int goal)
+inline float GetWaypointDistance(const int16_t& start, const int16_t& goal)
 {
 	if (g_isMatrixReady)
 		return static_cast<float>(*(g_waypoint->m_distMatrix + (start * g_numWaypoints) + goal));
@@ -375,7 +375,7 @@ void Bot::DoWaypointNav(void)
 	{
 		TraceResult tr;
 		TraceLine(pev->origin, m_waypoint.origin, TraceIgnore::Monsters, m_myself, &tr);
-		if (!FNullEnt(tr.pHit) && cstrncmp(STRING(tr.pHit->v.classname), "func_door", 9) == 0)
+		if (!FNullEnt(tr.pHit) && !cstrncmp(STRING(tr.pHit->v.classname), "func_door", 9))
 		{
 			// if the door is near enough...
 			const Vector origin = GetEntityOrigin(tr.pHit);
@@ -581,7 +581,7 @@ bool Bot::UpdateLiftHandling(void)
 
 	// trace line to door
 	TraceLine(pev->origin, m_waypoint.origin, TraceIgnore::Everything, m_myself, &tr);
-	if (tr.flFraction < 1.0f && (m_liftState == LiftState::None || m_liftState == LiftState::WaitingFor || m_liftState == LiftState::LookingButtonOutside) && !FNullEnt(tr.pHit) && cstrcmp(STRING(tr.pHit->v.classname), "func_door") == 0 && pev->groundentity != tr.pHit)
+	if (tr.flFraction < 1.0f && (m_liftState == LiftState::None || m_liftState == LiftState::WaitingFor || m_liftState == LiftState::LookingButtonOutside) && !FNullEnt(tr.pHit) && !cstrcmp(STRING(tr.pHit->v.classname), "func_door") && pev->groundentity != tr.pHit)
 	{
 		if (m_liftState == LiftState::None)
 		{
@@ -598,9 +598,9 @@ bool Bot::UpdateLiftHandling(void)
 		TraceLine(m_waypoint.origin, m_waypoint.origin + Vector(0.0f, 0.0f, -54.0f), TraceIgnore::Everything, m_myself, &tr);
 
 		// if trace result shows us that it is a lift
-		if (!liftClosedDoorExists && !FNullEnt(tr.pHit) && (cstrcmp(STRING(tr.pHit->v.classname), "func_door") == 0 || cstrcmp(STRING(tr.pHit->v.classname), "func_plat") == 0 || cstrcmp(STRING(tr.pHit->v.classname), "func_train") == 0))
+		if (!liftClosedDoorExists && !FNullEnt(tr.pHit) && (!cstrcmp(STRING(tr.pHit->v.classname), "func_door") || !cstrcmp(STRING(tr.pHit->v.classname), "func_plat") || !cstrcmp(STRING(tr.pHit->v.classname), "func_train")))
 		{
-			if ((m_liftState == LiftState::None || m_liftState == LiftState::WaitingFor || m_liftState == LiftState::LookingButtonOutside) && tr.pHit->v.velocity.z == 0.0f)
+			if ((m_liftState == LiftState::None || m_liftState == LiftState::WaitingFor || m_liftState == LiftState::LookingButtonOutside) && Math::FltZero(tr.pHit->v.velocity.z))
 			{
 				if (cabsf(pev->origin.z - tr.vecEndPos.z) < 70.0f)
 				{
@@ -627,7 +627,7 @@ bool Bot::UpdateLiftHandling(void)
 					if (pointer->flags & WAYPOINT_LIFT)
 					{
 						TraceLine(m_waypoint.origin, pointer->origin, TraceIgnore::Everything, m_myself, &tr);
-						if (!FNullEnt(tr.pHit) && (cstrcmp(STRING(tr.pHit->v.classname), "func_door") == 0 || cstrcmp(STRING(tr.pHit->v.classname), "func_plat") == 0 || cstrcmp(STRING(tr.pHit->v.classname), "func_train") == 0))
+						if (!FNullEnt(tr.pHit) && (!cstrcmp(STRING(tr.pHit->v.classname), "func_door") || !cstrcmp(STRING(tr.pHit->v.classname), "func_plat") || !cstrcmp(STRING(tr.pHit->v.classname), "func_train")))
 							m_liftEntity = tr.pHit;
 					}
 				}
@@ -648,7 +648,7 @@ bool Bot::UpdateLiftHandling(void)
 		{
 			wait();
 
-			// need to wait our following teammate ?
+			// need to wait our following teammate?
 			bool needWaitForTeammate = false;
 
 			// if some bot is following a bot going into lift - he should take the same lift to go
@@ -683,7 +683,7 @@ bool Bot::UpdateLiftHandling(void)
 	// bot is waiting for his teammates
 	if (m_liftState == LiftState::WaitingForTeammates)
 	{
-		// need to wait our following teammate ?
+		// need to wait our following teammate?
 		bool needWaitForTeammate = false;
 
 		for (Bot* const &bot : g_botManager->m_bots)
@@ -719,18 +719,18 @@ bool Bot::UpdateLiftHandling(void)
 	{
 		edict_t* button = FindNearestButton(STRING(m_liftEntity->v.targetname));
 
-		// got a valid button entity ?
-		if (!FNullEnt(button) && pev->groundentity == m_liftEntity && m_buttonPushTime + 1.0f < time && m_liftEntity->v.velocity.z == 0.0f && IsOnFloor())
+		// got a valid button entity?
+		if (!FNullEnt(button) && pev->groundentity == m_liftEntity && m_buttonPushTime + 1.0f < time && Math::FltZero(m_liftEntity->v.velocity.z) && IsOnFloor())
 		{
 			m_buttonEntity = button;
 			SetProcess(Process::UseButton, "trying to use a button", false, time + 10.0f);
 		}
 	}
 
-	// is lift activated and bot is standing on it and lift is moving ?
+	// is lift activated and bot is standing on it and lift is moving?
 	if (m_liftState == LiftState::LookingButtonInside || m_liftState == LiftState::EnteringIn || m_liftState == LiftState::WaitingForTeammates || m_liftState == LiftState::WaitingFor)
 	{
-		if (pev->groundentity == m_liftEntity && m_liftEntity->v.velocity.z != 0.0f && IsOnFloor() && (g_waypoint->GetPath(m_prevWptIndex[0])->flags & WAYPOINT_LIFT))
+		if (pev->groundentity == m_liftEntity && !Math::FltZero(m_liftEntity->v.velocity.z) && IsOnFloor() && (g_waypoint->GetPath(m_prevWptIndex[0])->flags & WAYPOINT_LIFT))
 		{
 			m_liftState = LiftState::TravelingBy;
 			m_liftUsageTime = time + 14.0f;
@@ -769,7 +769,7 @@ bool Bot::UpdateLiftHandling(void)
 			// if we got a valid button entity
 			if (!FNullEnt(button))
 			{
-				// lift is already used ?
+				// lift is already used?
 				bool liftUsed = false;
 
 				// iterate though clients, and find if lift already used
@@ -872,7 +872,7 @@ bool Bot::UpdateLiftStates(void)
 		}
 	}
 
-	if (m_liftUsageTime < engine->GetTime() && m_liftUsageTime != 0.0f)
+	if (m_liftUsageTime < engine->GetTime() && !Math::FltZero(m_liftUsageTime))
 	{
 		m_liftEntity = nullptr;
 		m_liftState = LiftState::None;
@@ -941,7 +941,7 @@ void PriorityQueue::InsertLowest(const int16_t value, const float priority)
 	static HeapNode temp{};
 
 	child = ++m_size - 1;
-	while (child > 0)
+	while (child)
 	{
 		parent = (child - 1) / 2;
 		if (m_heap[parent].priority < m_heap[child].priority)
@@ -2012,7 +2012,7 @@ void Bot::CheckStuck(const Vector& directionNormal, const float finterval)
 			m_prevTime = engine->GetTime();
 			m_isStuck = true;
 
-			if (m_firstCollideTime == 0.0f)
+			if (Math::FltZero(m_firstCollideTime))
 				m_firstCollideTime = engine->GetTime() + 0.2f;
 		}
 		else
@@ -2020,7 +2020,7 @@ void Bot::CheckStuck(const Vector& directionNormal, const float finterval)
 			// test if there's something ahead blocking the way
 			if (!(m_waypoint.flags & WAYPOINT_LADDER) && !IsOnLadder() && CantMoveForward(directionNormal))
 			{
-				if (m_firstCollideTime == 0.0f)
+				if (Math::FltZero(m_firstCollideTime))
 					m_firstCollideTime = engine->GetTime() + 0.2f;
 				else if (m_firstCollideTime < engine->GetTime())
 					m_isStuck = true;
@@ -2396,7 +2396,7 @@ bool Bot::CantMoveForward(const Vector& normal)
 	// check if the trace hit something...
 	if (tr.flFraction < 1.0f)
 	{
-		if (cstrncmp("func_door", STRING(tr.pHit->v.classname), 9) == 0)
+		if (!cstrncmp("func_door", STRING(tr.pHit->v.classname), 9))
 			return false;
 
 		return true; // bot's head will hit something

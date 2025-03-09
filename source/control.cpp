@@ -56,6 +56,10 @@ BotControl::~BotControl(void)
 			bot = nullptr;
 		}
 	}
+
+	m_creationTab.Destroy();
+	m_savedBotNames.Destroy();
+	m_avatars.Destroy();
 }
 
 // this function calls gamedll player() function, in case to create player entity in game
@@ -743,21 +747,21 @@ Bot::~Bot(void)
 	int16_t i;
 	for (i = 0; i < g_botNames.Size(); i++)
 	{
-		if (cstrcmp(botName, name) == 0)
+		if (!cstrcmp(botName, name))
 		{
 			g_botNames[i].isUsed = false;
 			break;
 		}
 
-		sprintf(botName, "[E-BOT] %s", (char*)g_botNames[i].name);
-		if (cstrcmp(g_botNames[i].name, name) == 0)
+		sprintf(botName, "[E-BOT] %s", g_botNames[i].name);
+		if (!cstrcmp(g_botNames[i].name, name))
 		{
 			g_botNames[i].isUsed = false;
 			break;
 		}
 
-		sprintf(botName, "[E-BOT] %s (%i)", (char*)g_botNames[i].name, m_skill);
-		if (cstrcmp(g_botNames[i].name, name) == 0)
+		sprintf(botName, "[E-BOT] %s (%i)", g_botNames[i].name, m_skill);
+		if (!cstrcmp(g_botNames[i].name, name))
 		{
 			g_botNames[i].isUsed = false;
 			break;
