@@ -265,7 +265,8 @@ inline int cstrcmp(const char* str1, const char* str2)
 	int t1, t2;
 	do
 	{
-		t1 = *str1; t2 = *str2;
+		t1 = *str1;
+		t2 = *str2;
 		if (t1 != t2)
 		{
 			if (t1 > t2)
@@ -280,7 +281,7 @@ inline int cstrcmp(const char* str1, const char* str2)
 		str1++;
 		str2++;
 
-	} while (true);
+	} while(true);
 
 	return -1;
 }
@@ -738,7 +739,7 @@ private:
 	int16_t m_capacity{0};
 public:
 	MiniArray(const int16_t size = 0) : m_size(size), m_capacity(size) { m_array = new(std::nothrow) T[size]; }
-	virtual ~MiniArray(void) { Destroy(); }
+	~MiniArray(void) { Destroy(); }
 public:
 	inline bool Resize(const int16_t size, const bool reset = false)
 	{

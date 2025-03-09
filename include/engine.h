@@ -2104,12 +2104,12 @@ inline bool FStringNull(const int iString)
 
 inline bool FClassnameIs(edict_t* pent, const char* szClassname)
 {
-    return cstrcmp(STRING(VARS(pent)->classname), szClassname) == 0;
+    return !cstrcmp(STRING(VARS(pent)->classname), szClassname);
 }
 
 inline bool FClassnameIs(entvars_t* pev, const char* szClassname)
 {
-    return cstrcmp(STRING(pev->classname), szClassname) == 0;
+    return !cstrcmp(STRING(pev->classname), szClassname);
 }
 
 typedef enum

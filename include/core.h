@@ -257,7 +257,7 @@ enum class LiftState : int8_t
 #define FV_WAYPOINT 127
 
 #define Const_MaxPathIndex 8
-#define Const_MaxWaypoints 4096
+#define Const_MaxWaypoints 8192
 #define Const_NumWeapons 24
 #define Const_MaxWeapons 32
 
@@ -479,13 +479,6 @@ struct WaypointHeader
 	int32_t pointNumber;
 	char mapName[32];
 	char author[32];
-};
-
-// general matrix header information structure
-struct MatrixHeader
-{
-	int32_t fileVersion{0};
-	int32_t pointNumber{0};
 };
 
 // define general waypoint structure
@@ -972,7 +965,7 @@ public:
 	void FindInRadius(const Vector& origin, const float radius, int* holdTab, int* count);
 	void FindInRadius(MiniArray <int16_t>& queueID, const float& radius, const Vector& origin);
 
-	void Add(const int flags, const Vector& waypointOrigin = nullvec);
+	void Add(const int flags, const Vector& waypointOrigin = nullvec, const float analyzeRange = 128.0f);
 	void Delete(void);
 	void DeleteByIndex(int16_t index);
 	void ToggleFlags(int toggleFlag);
@@ -1000,18 +993,19 @@ public:
 	bool LoadPathMatrix(void);
 
 	bool Reachable(edict_t* entity, const int16_t index);
-	bool IsNodeReachable(Vector src, Vector dest, const int srcFlags = 0, const int destFlags = 0, const bool up = false);
-	bool IsNodeReachableAnalyze(const Vector& src, const Vector& destination, const float range);
+	bool IsNodeReachable(Vector src, Vector dest);
+	bool IsNodeReachableAnalyze(const Vector& src, const Vector& destination, const float range, const bool hull = true);
 	bool MustJump(const Vector src, const Vector destination);
 	void Think(void);
 	void ShowWaypointMsg(void);
 	bool NodesValid(void);
 	void CreateBasic(void);
 
+	void DestroyBuckets(void);
 	void InitBuckets(void);
-	void AddToBucket(const Vector& pos, const int16_t index);
-	void EraseFromBucket(const Vector& pos, int16_t index);
-	Bucket LocateBucket(const Vector& pos);
+	void AddToBucket(const Vector pos, const int16_t index);
+	void EraseFromBucket(const Vector pos, const int16_t index);
+	Bucket LocateBucket(const Vector pos);
 	MiniArray<int16_t>&GetWaypointsInBucket(const Vector &pos);
 
 	Path* GetPath(const int16_t id);
