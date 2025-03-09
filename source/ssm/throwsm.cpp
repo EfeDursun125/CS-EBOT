@@ -10,7 +10,7 @@ void Bot::ThrowSMUpdate(void)
 	edict_t* ent = nullptr;
 	while (!FNullEnt(ent = FIND_ENTITY_BY_CLASSNAME(ent, "grenade")))
 	{
-		if (ent->v.owner == m_myself && cstrcmp(STRING(ent->v.model) + 9, "smokegrenade.mdl") == 0)
+		if (ent->v.owner == m_myself && !cstrcmp(STRING(ent->v.model) + 9, "smokegrenade.mdl"))
 		{
 			cvar_t* maxVel = g_engfuncs.pfnCVarGetPointer("sv_maxvelocity");
 			if (maxVel)
