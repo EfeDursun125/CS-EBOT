@@ -57,5 +57,16 @@ bool Bot::ThrowFBReq(void)
 	if (!IsOnFloor())
 		return false;
 
+	if (m_hasFriendsNear && !FNullEnt(m_nearestFriend))
+	{
+		Bot* teammate = g_botManager->GetBot(m_nearestFriend);
+		if (teammate)
+		{
+			Process state = teammate->GetCurrentState();
+			if (state == Process::ThrowFB || state == Process::ThrowHE || state == Process::ThrowSM)
+				return false;
+		}
+	}
+
 	return true;
 }
