@@ -2,7 +2,7 @@
 
 void Bot::DefaultStart(void)
 {
-	m_isEnemyReachable = false;
+	
 }
 
 void Bot::DefaultUpdate(void)
@@ -15,7 +15,14 @@ void Bot::DefaultUpdate(void)
 			// path matrix returns 0 if we are on the same waypoint, so basically its reachable
 			if (m_hasEnemiesNear && (Math::FltZero(m_enemyDistance) || (m_isEnemyReachable && CheckVisibility(m_nearestEnemy))))
 			{
-				MoveTo(m_enemyOrigin + m_nearestEnemy->v.velocity * m_frameInterval);
+				Vector nextVec;
+				nextVec.x = m_enemyOrigin.x + m_nearestEnemy->v.velocity.x;
+				nextVec.y = m_enemyOrigin.y + m_nearestEnemy->v.velocity.y;
+				nextVec.z = m_enemyOrigin.z;
+				if ((pev->origin - m_enemyOrigin).GetLengthSquared2D() < (pev->origin - nextVec).GetLengthSquared2D())
+					MoveTo(nextVec);
+				else
+					MoveTo(m_enemyOrigin);
 				LookAt(m_enemyOrigin, m_nearestEnemy->v.velocity);
 
 				if (m_isSlowThink)
@@ -101,9 +108,6 @@ void Bot::DefaultUpdate(void)
 			FindFriendsAndEnemiens();
 
 			CheckReachable();
-
-			if (m_hasEnemiesNear && !FNullEnt(m_nearestEnemy) && CheckGrenadeThrow(m_nearestEnemy))
-				return;
 		}
 		else
 			UpdateLooking();
@@ -208,7 +212,7 @@ void Bot::DefaultUpdate(void)
 				if (m_currentProcessTime < time2 + 1.0f || m_currentProcessTime > time2 + 60.0f)
 				{
 					int16_t i, index, myCampPoint;
-					MiniArray <int16_t> MeshWaypoints;
+					CArray<int16_t>MeshWaypoints;
 
 					for (i = 0; i < g_waypoint->m_hmMeshPoints.Size(); i++)
 					{

@@ -137,9 +137,7 @@ void Bot::EndProcess(const Process& process)
 
 void Bot::UpdateProcess(void)
 {
-	static float time2;
-	time2 = engine->GetTime();
-
+	const float time2 = engine->GetTime();
 	switch (m_currentProcess)
 	{
 		case Process::Default:
