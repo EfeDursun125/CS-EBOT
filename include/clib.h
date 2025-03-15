@@ -748,7 +748,7 @@ public:
 			m_ptr = nullptr;
 		}
 	}
-	
+
 	inline CPtr& operator = (CPtr&) = delete;
 	inline CPtr& operator = (CPtr&& other) noexcept
 	{
@@ -821,7 +821,6 @@ private:
 	int16_t m_capacity{0};
 public:
 	CArray(const int16_t size = 0) : m_size(size), m_capacity(size) { m_array.Reset(new(std::nothrow) T[size]); }
-	~CArray(void) { Destroy(); }
 public:
 	inline bool Resize(const int16_t size, const bool reset = false)
 	{
