@@ -1,31 +1,36 @@
-# Set minimum cmake version required for compiling
 cmake_minimum_required(VERSION 3.5.1)
 
-# Set project
 project(EBOT)
 
-# Set platform name
-set(CMAKE_SYSTEM_NAME Linux)
+# Set clang++ as the default C++ compiler if available
+find_program(CMAKE_CXX_COMPILER clang++)
+if(CMAKE_CXX_COMPILER)
+    message(STATUS "Found Clang++: ${CMAKE_CXX_COMPILER} and using it as default C++ compiler")
+    set(CMAKE_CXX_COMPILER clang++)
+else()
+    message(STATUS "Clang++ not found using default C++ compiler, this might cause E-Bot crashes")
+endif()
+
+# Set clang as the default C compiler if available
+find_program(CMAKE_C_COMPILER clang)
+if(CMAKE_C_COMPILER)
+    message(STATUS "Found Clang: ${CMAKE_C_COMPILER} and using it as default C compiler")
+    set(CMAKE_C_COMPILER clang)
+else()
+    message(STATUS "Clang not found using default C compiler, this might cause E-Bot crashes")
+endif()
 
 # Set build type and library suffix
 set(CMAKE_BUILD_TYPE Release)
-
-# Set build type to shared library (.so file)
 set(CMAKE_SHARED_LIBRARY_SUFFIX ".so")
 
 # Set compiler flags
 set(CMAKE_CXX_STANDARD 11)
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g3 -Og")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3 -Og -fno-inline -fno-omit-frame-pointer")
-else()
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Ofast")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Ofast -flto -mssse3 -msse3 -msse2 -msse -mmmx -mfpmath=sse -fvisibility=hidden -fno-rtti -Wno-parentheses -pipe -mtune=generic -fomit-frame-pointer -fvisibility-inlines-hidden -funroll-loops -ffunction-sections -fdata-sections -fno-common -fshort-enums -fno-math-errno -fno-strict-aliasing")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32 -Ofast")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w -m32 -mmmx -msse -msse2 -mfpmath=sse -flto -Ofast -fvisibility=hidden -fno-exceptions -fno-rtti -Wno-parentheses -pipe -mtune=generic -fomit-frame-pointer -fvisibility-inlines-hidden -fno-stack-protector -fno-omit-frame-pointer -no-pie")
+set(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -m32")
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-endif()
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32 -fPIC")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m32 -w -fPIC -fno-stack-protector -fno-exceptions -fnothrow-opt -fsplit-stack -fpermissive")
-
+cmake_policy(SET CMP0069 NEW)
 
 # Set output directory for the library
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build/ebot)
@@ -34,16 +39,15 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build/ebot)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 
 # Source files
-file(GLOB_RECURSE EBOT_SRC
-    ${CMAKE_CURRENT_SOURCE_DIR}/../source/*.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../source/ssm/*.cpp
-)
+file(GLOB_RECURSE EBOT_SRC ${CMAKE_CURRENT_SOURCE_DIR}/../source/*.cpp)
 
 # Create the library
 add_library(${PROJECT_NAME} SHARED ${EBOT_SRC})
 
 # Link libraries
-target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_DL_LIBS})
+target_link_libraries(${PROJECT_NAME}
+    ${CMAKE_DL_LIBS}
+)
 
 # Set library properties
 set_target_properties(${PROJECT_NAME} PROPERTIES
@@ -52,14 +56,9 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     POSITION_INDEPENDENT_CODE ON
     PREFIX ""
     OUTPUT_NAME "ebot"
-    LINK_SEARCH_START_STATIC ON
-    LINK_SEARCH_END_STATIC ON
     INTERPROCEDURAL_OPTIMIZATION ON
 )
 
 # Set installation directories
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../include/ DESTINATION include)
-
-# Give some detail about the build
-message(STATUS "Current Build Flags:${CMAKE_CXX_FLAGS}")

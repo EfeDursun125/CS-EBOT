@@ -286,6 +286,7 @@
     <ClCompile Include="..\source\globals.cpp" />
     <ClCompile Include="..\source\ssm\blind.cpp" />
     <ClCompile Include="..\source\ssm\default.cpp" />
+    <ClCompile Include="..\source\ssm\override.cpp" />
     <ClCompile Include="..\source\ssm\destroybreakable.cpp" />
     <ClCompile Include="..\source\ssm\ssm.cpp" />
     <ClCompile Include="..\source\ssm\pause.cpp" />

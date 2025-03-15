@@ -21,6 +21,9 @@
     <ClCompile Include="..\source\ssm\default.cpp">
       <Filter>SSM</Filter>
     </ClCompile>
+    <ClCompile Include="..\source\ssm\override.cpp">
+      <Filter>SSM</Filter>
+    </ClCompile>
     <ClCompile Include="..\source\ssm\destroybreakable.cpp">
       <Filter>SSM</Filter>
     </ClCompile>
