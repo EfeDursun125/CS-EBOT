@@ -787,13 +787,12 @@ public:
 class BotControl : public Singleton <BotControl>
 {
 private:
-CArray<CreateItem>m_creationTab{}; // bot creation tab
+	CArray<CreateItem>m_creationTab{}; // bot creation tab
 	float m_maintainTime{0.0f}; // time to maintain bot creation quota
 protected:
 	int CreateBot(char name[32], int skill, int personality, const int team, const int member);
 public:
 	Bot* m_bots[32]{nullptr}; // all available bots
-	CArray<char*>m_savedBotNames{}; // storing the bot names
 	CArray<char*>m_avatars{}; // storing the steam ids
 
 	BotControl(void);
