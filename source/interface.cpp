@@ -32,6 +32,7 @@ ConVar ebot_version("ebot_version", PRODUCT_VERSION, VARTYPE_READONLY);
 ConVar ebot_showwp("ebot_show_waypoints", "0");
 
 ConVar ebot_analyze_create_goal_waypoints("ebot_analyze_starter_waypoints", "1");
+ConVar ebot_running_on_xash("ebot_running_on_xash", "0");
 
 float secondTimer;
 
@@ -2150,14 +2151,7 @@ void ServerActivate(edict_t* pentEdictList, int edictCount, int clientMax)
 
 	// execute main config
 	ServerCommand("exec addons/ebot/ebot.cfg");
-
-	char buffer[1024];
-	FormatBuffer(buffer, "addons/ebot/maps/%s.cfg", GetMapName());
-	if (TryFileOpen(buffer))
-	{
-		ServerCommand("exec addons/ebot/maps/%s.cfg", GetMapName());
-		ServerPrint("Executing Map-Specific config file");
-	}
+	ServerCommand("exec addons/ebot/maps/%s.cfg", GetMapName());
 
 	g_botManager->InitQuota();
 
@@ -2189,16 +2183,7 @@ void ServerDeactivate(void)
 	g_waypointOn = false;
 
 	if (g_gameVersion & Game::Xash)
-	{
-		for (Bot* const &bot : g_botManager->m_bots)
-		{
-			if (bot)
-			{
-				g_botManager->RemoveAll();
-				RETURN_META(MRES_SUPERCEDE);
-			}
-		}
-	}
+		g_botManager->RemoveAll();
 
 	RETURN_META(MRES_IGNORED);
 }
@@ -2329,6 +2314,9 @@ void FrameThread(void)
 	LoadEntityData();
 	JustAStuff();
 
+	if (ebot_running_on_xash.GetBool())
+		g_gameVersion |= Game::Xash;
+
 	if (g_gameVersion & Game::Xash)
 	{
 		const auto simulate = g_engfuncs.pfnCVarGetPointer("sv_forcesimulating");
@@ -2336,10 +2324,7 @@ void FrameThread(void)
 			g_engfuncs.pfnCVarSetFloat("sv_forcesimulating", 1.0f);
 	}
 
-	if (g_roundEnded)
-		secondTimer = engine->GetTime() + 0.1f;
-	else
-		secondTimer = engine->GetTime() + 1.0f;
+	secondTimer = engine->GetTime() + 1.0f;
 }
 
 void StartFrame(void)

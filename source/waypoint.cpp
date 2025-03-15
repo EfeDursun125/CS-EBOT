@@ -32,7 +32,6 @@
 
 ConVar ebot_analyze_distance("ebot_analyze_grid_distance", "40");
 ConVar ebot_analyze_max_jump_height("ebot_analyze_max_jump_height", "62");
-ConVar ebot_analyzer_min_fps("ebot_analyzer_min_fps", "30.0");
 ConVar ebot_analyze_auto_start("ebot_analyze_auto_start", "1");
 ConVar ebot_download_waypoints("ebot_download_waypoints", "0");
 ConVar ebot_download_waypoints_from("ebot_download_waypoints_from", "");
@@ -42,7 +41,7 @@ ConVar ebot_waypoint_size("ebot_waypoint_size", "7");
 ConVar ebot_waypoint_r("ebot_waypoint_r", "0");
 ConVar ebot_waypoint_g("ebot_waypoint_g", "255");
 ConVar ebot_waypoint_b("ebot_waypoint_b", "0");
-ConVar ebot_disable_path_matrix("ebot_disable_path_matrix", "1");
+ConVar ebot_disable_path_matrix("ebot_disable_path_matrix", "0");
 ConVar ebot_analyze_post_processing("ebot_analyze_post_processing", "0");
 
 // this function initialize the waypoint sItructures..

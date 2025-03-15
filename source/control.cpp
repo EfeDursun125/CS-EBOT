@@ -32,11 +32,10 @@ ConVar ebot_minskill("ebot_min_skill", "1");
 ConVar ebot_maxskill("ebot_max_skill", "100");
 
 ConVar ebot_nametag("ebot_name_tag", "2");
-ConVar ebot_ping("ebot_fake_ping", "1");
-ConVar ebot_display_avatar("ebot_display_avatar", "1");
+ConVar ebot_ping("ebot_fake_ping", "0");
+ConVar ebot_display_avatar("ebot_display_avatar", "0");
 
 ConVar ebot_keep_slots("ebot_keep_slots", "1");
-ConVar ebot_save_bot_names("ebot_save_bot_names", "0");
 
 // this is a bot manager class constructor
 BotControl::BotControl(void)
@@ -45,7 +44,7 @@ BotControl::BotControl(void)
 	InitQuota();
 }
 
-// this is a bot manager class destructor, do not use engine->GetMaxClients () here !!
+// this is a bot manager class destructor, do not use engine->GetMaxClients() here !!
 BotControl::~BotControl(void)
 {
 	for (auto& bot : m_bots)
@@ -58,7 +57,6 @@ BotControl::~BotControl(void)
 	}
 
 	m_creationTab.Destroy();
-	m_savedBotNames.Destroy();
 	m_avatars.Destroy();
 }
 
@@ -135,13 +133,7 @@ int BotControl::CreateBot(char name[32], int skill, int personality, const int t
 	char outputName[33];
 	bool addTag = true;
 
-	// restore the bot name
-	if (ebot_save_bot_names.GetBool() && !m_savedBotNames.IsEmpty())
-	{
-		sprintf(outputName, "%s", m_savedBotNames.Pop());
-		addTag = false;
-	}
-	else if (!name[0])
+	if (!name[0])
 	{
 		bool getName = false;
 		if (!g_botNames.IsEmpty())
@@ -442,10 +434,6 @@ void BotControl::RemoveAll(void)
 
 	m_creationTab.Destroy();
 
-	// if everyone is kicked, clear the saved bot names
-	if (ebot_save_bot_names.GetBool() && !m_savedBotNames.IsEmpty())
-		m_savedBotNames.Destroy();
-
 	// reset cvars
 	ebot_quota.SetInt(0);
 }
@@ -610,16 +598,12 @@ void BotControl::Free(void)
 		if (!bot)
 			continue;
 
-		if (ebot_save_bot_names.GetBool())
-			m_savedBotNames.Push(GetEntityName(bot->m_myself));
-
 		bot->m_navNode.Destroy();
 		delete bot;
 		bot = nullptr;
 	}
 
 	m_creationTab.Destroy();
-	m_savedBotNames.Destroy();
 	m_avatars.Destroy();
 }
 
@@ -907,9 +891,6 @@ void Bot::Kick(void)
 	const int botsNum = g_botManager->GetBotsNum() - 1;
 	if (botsNum < ebot_quota.GetInt())
 		ebot_quota.SetInt(botsNum);
-
-	if (ebot_save_bot_names.GetBool() && !g_botManager->m_savedBotNames.IsEmpty())
-		g_botManager->m_savedBotNames.PopNoReturn();
 }
 
 // this function handles the selection of teams & class
