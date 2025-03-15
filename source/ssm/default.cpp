@@ -90,6 +90,19 @@ void Bot::DefaultUpdate(void)
 		}
 		else
 		{
+			// search other bots to get valid enemy
+			if (m_isSlowThink)
+			{
+				for (auto bot : g_botManager->m_bots)
+				{
+					if (bot && bot->m_team == m_team && bot->m_hasEnemiesNear && IsAlive(bot->m_nearestEnemy) && GetTeam(bot->m_nearestEnemy) != m_team)
+					{
+						m_nearestEnemy = bot->m_nearestEnemy;
+						return;
+					}
+				}
+			}
+
 			if (!m_navNode.IsEmpty())
 				FollowPath();
 			else
