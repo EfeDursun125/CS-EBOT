@@ -331,9 +331,7 @@ int BotCommandHandler_O(edict_t* ent, const char* arg0, const char* arg1, const 
 			g_waypointOn = true;
 			ServerPrint("Waypoint Editing Enabled");
 			ServerCommand("ebot wp mdl on");
-
-			if (!g_waypoint->m_waypointDisplayTime)
-				g_waypoint->m_waypointDisplayTime = new(std::nothrow) float[Const_MaxWaypoints];
+			g_waypoint->m_waypointDisplayTime.Reset(new(std::nothrow) float[Const_MaxWaypoints]);
 		}
 
 		// enables noclip cheat
@@ -359,15 +357,9 @@ int BotCommandHandler_O(edict_t* ent, const char* arg0, const char* arg1, const 
 			g_waypointOn = false;
 			g_editNoclip = false;
 			g_hostEntity->v.movetype = MOVETYPE_WALK;
-
 			ServerPrint("Waypoint Editing Disabled");
 			ServerCommand("ebot wp mdl off");
-
-			if (g_waypoint->m_waypointDisplayTime)
-			{
-				delete[] g_waypoint->m_waypointDisplayTime;
-				g_waypoint->m_waypointDisplayTime = nullptr;
-			}
+			g_waypoint->m_waypointDisplayTime.Destroy();
 		}
 
 		// toggles displaying player models on spawn spots
@@ -1004,17 +996,15 @@ void ClientCommand(edict_t* ent)
 	// so as this is just a bot DLL, not a MOD. The purpose is not to add functionality to
 	// clients. Hence it can lack of commenting a bit, since this code is very subject to change.
 
-	if (!ent)
+	if (FNullEnt(ent))
 		RETURN_META(MRES_SUPERCEDE);
-
-	const char* command = CMD_ARGV(0);
-	const char* arg1 = CMD_ARGV(1);
 
 	static int fillServerTeam = 5;
 	static bool fillCommand = false;
-
 	if (!g_isFakeCommand && (ent == g_hostEntity || (g_clients[ENTINDEX(ent) - 1].flags & CFLAG_OWNER)))
 	{
+		const char* command = CMD_ARGV(0);
+		const char* arg1 = CMD_ARGV(1);
 		if (!cstricmp(command, "ebot"))
 		{
 			BotCommandHandler(ent, IsNullString(CMD_ARGV(1)) ? "help" : CMD_ARGV(1), CMD_ARGV(2), CMD_ARGV(3), CMD_ARGV(4), CMD_ARGV(5), CMD_ARGV(6));
@@ -1024,39 +1014,37 @@ void ClientCommand(edict_t* ent)
 		{
 			Clients* client = &g_clients[ENTINDEX(ent) - 1];
 			const int selection = catoi(arg1);
-
 			if (client->menu == &g_menus[12])
 			{
 				DisplayMenuToClient(ent, nullptr); // reset menu display
-
 				switch (selection)
 				{
-				case 1:
-				case 2:
-				case 3:
-				case 4:
-				case 5:
-				case 6:
-				case 7:
-				{
-					g_waypoint->Add(selection - 1);
-					break;
-				}
-				case 8:
-				{
-					g_waypoint->Add(100);
-					break;
-				}
-				case 9:
-				{
-					g_waypoint->SetLearnJumpWaypoint();
-					break;
-				}
-				case 10:
-				{
-					DisplayMenuToClient(ent, nullptr);
-					break;
-				}
+					case 1:
+					case 2:
+					case 3:
+					case 4:
+					case 5:
+					case 6:
+					case 7:
+					{
+						g_waypoint->Add(selection - 1);
+						break;
+					}
+					case 8:
+					{
+						g_waypoint->Add(100);
+						break;
+					}
+					case 9:
+					{
+						g_waypoint->SetLearnJumpWaypoint();
+						break;
+					}
+					case 10:
+					{
+						DisplayMenuToClient(ent, nullptr);
+						break;
+					}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1065,56 +1053,56 @@ void ClientCommand(edict_t* ent)
 			{
 				switch (selection)
 				{
-				case 1:
-				{
-					g_waypoint->ToggleFlags(WAYPOINT_FALLCHECK);
-					break;
-				}
-				case 2:
-				{
-					g_waypoint->ToggleFlags(WAYPOINT_TERRORIST);
-					break;
-				}
-				case 3:
-				{
-					g_waypoint->ToggleFlags(WAYPOINT_COUNTER);
-					break;
-				}
-				case 4:
-				{
-					g_waypoint->ToggleFlags(WAYPOINT_LIFT);
-					break;
-				}
-				case 5:
-				{
-					g_waypoint->ToggleFlags(WAYPOINT_HELICOPTER);
-					break;
-				}
-				case 6:
-				{
-					g_waypoint->ToggleFlags(WAYPOINT_ZMHMCAMP);
-					break;
-				}
-				case 7:
-				{
-					g_waypoint->DeleteFlags();
-					break;
-				}
-				case 8:
-				{
-					DisplayMenuToClient(ent, &g_menus[27]);
-					break;
-				}
-				case 9:
-				{
-					DisplayMenuToClient(ent, &g_menus[26]);
-					break;
-				}
-				case 10:
-				{
-					DisplayMenuToClient(ent, nullptr);
-					break;
-				}
+					case 1:
+					{
+						g_waypoint->ToggleFlags(WAYPOINT_FALLCHECK);
+						break;
+					}
+					case 2:
+					{
+						g_waypoint->ToggleFlags(WAYPOINT_TERRORIST);
+						break;
+					}
+					case 3:
+					{
+						g_waypoint->ToggleFlags(WAYPOINT_COUNTER);
+						break;
+					}
+					case 4:
+					{
+						g_waypoint->ToggleFlags(WAYPOINT_LIFT);
+						break;
+					}
+					case 5:
+					{
+						g_waypoint->ToggleFlags(WAYPOINT_HELICOPTER);
+						break;
+					}
+					case 6:
+					{
+						g_waypoint->ToggleFlags(WAYPOINT_ZMHMCAMP);
+						break;
+					}
+					case 7:
+					{
+						g_waypoint->DeleteFlags();
+						break;
+					}
+					case 8:
+					{
+						DisplayMenuToClient(ent, &g_menus[27]);
+						break;
+					}
+					case 9:
+					{
+						DisplayMenuToClient(ent, &g_menus[26]);
+						break;
+					}
+					case 10:
+					{
+						DisplayMenuToClient(ent, nullptr);
+						break;
+					}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1123,56 +1111,56 @@ void ClientCommand(edict_t* ent)
 			{
 				switch (selection)
 				{
-				case 1:
-				{
-					g_waypoint->ToggleFlags(WAYPOINT_USEBUTTON);
-					break;
-				}
-				case 2:
-				{
-					g_waypoint->ToggleFlags(WAYPOINT_HMCAMPMESH);
-					break;
-				}
-				case 3:
-				{
-					g_waypoint->ToggleFlags(WAYPOINT_ZOMBIEONLY);
-					break;
-				}
-				case 4:
-				{
-					g_waypoint->ToggleFlags(WAYPOINT_HUMANONLY);
-					break;
-				}
-				case 5:
-				{
-					g_waypoint->ToggleFlags(WAYPOINT_ZOMBIEPUSH);
-					break;
-				}
-				case 6:
-				{
-					g_waypoint->ToggleFlags(WAYPOINT_FALLRISK);
-					break;
-				}
-				case 7:
-				{
-					g_waypoint->ToggleFlags(WAYPOINT_SPECIFICGRAVITY);
-					break;
-				}
-				case 8:
-				{
-					DisplayMenuToClient(ent, &g_menus[13]);
-					break;
-				}
-				case 9:
-				{
-					DisplayMenuToClient(ent, &g_menus[27]);
-					break;
-				}
-				case 10:
-				{
-					DisplayMenuToClient(ent, nullptr);
-					break;
-				}
+					case 1:
+					{
+						g_waypoint->ToggleFlags(WAYPOINT_USEBUTTON);
+						break;
+					}
+					case 2:
+					{
+						g_waypoint->ToggleFlags(WAYPOINT_HMCAMPMESH);
+						break;
+					}
+					case 3:
+					{
+						g_waypoint->ToggleFlags(WAYPOINT_ZOMBIEONLY);
+						break;
+					}
+					case 4:
+					{
+						g_waypoint->ToggleFlags(WAYPOINT_HUMANONLY);
+						break;
+					}
+					case 5:
+					{
+						g_waypoint->ToggleFlags(WAYPOINT_ZOMBIEPUSH);
+						break;
+					}
+					case 6:
+					{
+						g_waypoint->ToggleFlags(WAYPOINT_FALLRISK);
+						break;
+					}
+					case 7:
+					{
+						g_waypoint->ToggleFlags(WAYPOINT_SPECIFICGRAVITY);
+						break;
+					}
+					case 8:
+					{
+						DisplayMenuToClient(ent, &g_menus[13]);
+						break;
+					}
+					case 9:
+					{
+						DisplayMenuToClient(ent, &g_menus[27]);
+						break;
+					}
+					case 10:
+					{
+						DisplayMenuToClient(ent, nullptr);
+						break;
+					}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1181,41 +1169,41 @@ void ClientCommand(edict_t* ent)
 			{
 				switch (selection)
 				{
-				case 1:
-				{
-					g_waypoint->ToggleFlags(WAYPOINT_CROUCH);
-					break;
-				}
-				case 2:
-				{
-					g_waypoint->ToggleFlags(WAYPOINT_ONLYONE);
-					break;
-				}
-				case 3:
-				{
-					g_waypoint->ToggleFlags(WAYPOINT_WAITUNTIL);
-					break;
-				}
-				case 4:
-				{
-					g_waypoint->ToggleFlags(WAYPOINT_AVOID);
-					break;
-				}
-				case 8:
-				{
-					DisplayMenuToClient(ent, &g_menus[26]);
-					break;
-				}
-				case 9:
-				{
-					DisplayMenuToClient(ent, &g_menus[13]);
-					break;
-				}
-				case 10:
-				{
-					DisplayMenuToClient(ent, nullptr);
-					break;
-				}
+					case 1:
+					{
+						g_waypoint->ToggleFlags(WAYPOINT_CROUCH);
+						break;
+					}
+					case 2:
+					{
+						g_waypoint->ToggleFlags(WAYPOINT_ONLYONE);
+						break;
+					}
+					case 3:
+					{
+						g_waypoint->ToggleFlags(WAYPOINT_WAITUNTIL);
+						break;
+					}
+					case 4:
+					{
+						g_waypoint->ToggleFlags(WAYPOINT_AVOID);
+						break;
+					}
+					case 8:
+					{
+						DisplayMenuToClient(ent, &g_menus[26]);
+						break;
+					}
+					case 9:
+					{
+						DisplayMenuToClient(ent, &g_menus[13]);
+						break;
+					}
+					case 10:
+					{
+						DisplayMenuToClient(ent, nullptr);
+						break;
+					}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1226,66 +1214,66 @@ void ClientCommand(edict_t* ent)
 
 				switch (selection)
 				{
-				case 1:
-				{
-					if (g_waypointOn)
-						ServerCommand("ebot waypoint off");
-					else
-						ServerCommand("ebot waypoint on");
-					break;
-				}
-				case 2:
-				{
-					g_waypointOn = true;
-					g_waypoint->CacheWaypoint();
-					break;
-				}
-				case 3:
-				{
-					g_waypointOn = true;
-					DisplayMenuToClient(ent, &g_menus[20]);
-					break;
-				}
-				case 4:
-				{
-					g_waypointOn = true;
-					g_waypoint->DeletePath();
-					break;
-				}
-				case 5:
-				{
-					g_waypointOn = true;
-					DisplayMenuToClient(ent, &g_menus[12]);
-					break;
-				}
-				case 6:
-				{
-					g_waypointOn = true;
-					g_waypoint->Delete();
-					break;
-				}
-				case 7:
-				{
-					g_waypointOn = true;
-					DisplayMenuToClient(ent, &g_menus[19]);
-					break;
-				}
-				case 8:
-				{
-					g_waypointOn = true;
-					DisplayMenuToClient(ent, &g_menus[11]);
-					break;
-				}
-				case 9:
-				{
-					DisplayMenuToClient(ent, &g_menus[10]);
-					break;
-				}
-				case 10:
-				{
-					DisplayMenuToClient(ent, nullptr);
-					break;
-				}
+					case 1:
+					{
+						if (g_waypointOn)
+							ServerCommand("ebot waypoint off");
+						else
+							ServerCommand("ebot waypoint on");
+						break;
+					}
+					case 2:
+					{
+						g_waypointOn = true;
+						g_waypoint->CacheWaypoint();
+						break;
+					}
+					case 3:
+					{
+						g_waypointOn = true;
+						DisplayMenuToClient(ent, &g_menus[20]);
+						break;
+					}
+					case 4:
+					{
+						g_waypointOn = true;
+						g_waypoint->DeletePath();
+						break;
+					}
+					case 5:
+					{
+						g_waypointOn = true;
+						DisplayMenuToClient(ent, &g_menus[12]);
+						break;
+					}
+					case 6:
+					{
+						g_waypointOn = true;
+						g_waypoint->Delete();
+						break;
+					}
+					case 7:
+					{
+						g_waypointOn = true;
+						DisplayMenuToClient(ent, &g_menus[19]);
+						break;
+					}
+					case 8:
+					{
+						g_waypointOn = true;
+						DisplayMenuToClient(ent, &g_menus[11]);
+						break;
+					}
+					case 9:
+					{
+						DisplayMenuToClient(ent, &g_menus[10]);
+						break;
+					}
+					case 10:
+					{
+						DisplayMenuToClient(ent, nullptr);
+						break;
+					}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1296,113 +1284,113 @@ void ClientCommand(edict_t* ent)
 
 				switch (selection)
 				{
-				case 1:
-				{
-					int terrPoints = 0;
-					int ctPoints = 0;
-					int goalPoints = 0;
-					int rescuePoints = 0;
-					int campPoints = 0;
-					int sniperPoints = 0;
-					int avoidPoints = 0;
-					int meshPoints = 0;
-					int usePoints = 0;
-
-					int i;
-					Path* pointer;
-					for (i = 0; i < g_numWaypoints; i++)
+					case 1:
 					{
-						pointer = g_waypoint->GetPath(i);
-						if (!pointer)
-							continue;
+						int16_t terrPoints = 0;
+						int16_t ctPoints = 0;
+						int16_t goalPoints = 0;
+						int16_t rescuePoints = 0;
+						int16_t campPoints = 0;
+						int16_t sniperPoints = 0;
+						int16_t avoidPoints = 0;
+						int16_t meshPoints = 0;
+						int16_t usePoints = 0;
 
-						if (pointer->flags & WAYPOINT_TERRORIST)
-							terrPoints++;
+						int16_t i;
+						Path* pointer;
+						for (i = 0; i < g_numWaypoints; i++)
+						{
+							pointer = g_waypoint->GetPath(i);
+							if (!pointer)
+								continue;
 
-						if (pointer->flags & WAYPOINT_COUNTER)
-							ctPoints++;
+							if (pointer->flags & WAYPOINT_TERRORIST)
+								terrPoints++;
 
-						if (pointer->flags & WAYPOINT_GOAL)
-							goalPoints++;
+							if (pointer->flags & WAYPOINT_COUNTER)
+								ctPoints++;
 
-						if (pointer->flags & WAYPOINT_RESCUE)
-							rescuePoints++;
+							if (pointer->flags & WAYPOINT_GOAL)
+								goalPoints++;
 
-						if (pointer->flags & WAYPOINT_CAMP)
-							campPoints++;
+							if (pointer->flags & WAYPOINT_RESCUE)
+								rescuePoints++;
 
-						if (pointer->flags & WAYPOINT_SNIPER)
-							sniperPoints++;
+							if (pointer->flags & WAYPOINT_CAMP)
+								campPoints++;
 
-						if (pointer->flags & WAYPOINT_AVOID)
-							avoidPoints++;
+							if (pointer->flags & WAYPOINT_SNIPER)
+								sniperPoints++;
 
-						if (pointer->flags & WAYPOINT_USEBUTTON)
-							usePoints++;
+							if (pointer->flags & WAYPOINT_AVOID)
+								avoidPoints++;
 
-						if (pointer->flags & WAYPOINT_HMCAMPMESH)
-							meshPoints++;
+							if (pointer->flags & WAYPOINT_USEBUTTON)
+								usePoints++;
+
+							if (pointer->flags & WAYPOINT_HMCAMPMESH)
+								meshPoints++;
+						}
+
+						ServerPrintNoTag("Waypoints: %d - T Points: %d\n"
+							"CT Points: %d - Goal Points: %d\n"
+							"Rescue Points: %d - Camp Points: %d\n"
+							"Avoid Points: %d - Sniper Points: %d\n"
+							"Use Points: %d - Mesh Points: %d", g_numWaypoints, terrPoints, ctPoints, goalPoints, rescuePoints, campPoints, avoidPoints, sniperPoints, usePoints, meshPoints);
+
+						break;
 					}
+					case 2:
+					{
+						g_waypointOn = true;
+						g_autoWaypoint &= 1;
+						g_autoWaypoint ^= 1;
 
-					ServerPrintNoTag("Waypoints: %d - T Points: %d\n"
-						"CT Points: %d - Goal Points: %d\n"
-						"Rescue Points: %d - Camp Points: %d\n"
-						"Avoid Points: %d - Sniper Points: %d\n"
-						"Use Points: %d - Mesh Points: %d", g_numWaypoints, terrPoints, ctPoints, goalPoints, rescuePoints, campPoints, avoidPoints, sniperPoints, usePoints, meshPoints);
-
-					break;
-				}
-				case 2:
-				{
-					g_waypointOn = true;
-					g_autoWaypoint &= 1;
-					g_autoWaypoint ^= 1;
-
-					CenterPrint("Auto-Waypoint %s", g_autoWaypoint ? "Enabled" : "Disabled");
-					break;
-				}
-				case 3:
-				{
-					g_waypointOn = true;
-					DisplayMenuToClient(ent, &g_menus[13]);
-					break;
-				}
-				case 4:
-				{
-					if (g_waypoint->NodesValid())
+						CenterPrint("Auto-Waypoint %s", g_autoWaypoint ? "Enabled" : "Disabled");
+						break;
+					}
+					case 3:
+					{
+						g_waypointOn = true;
+						DisplayMenuToClient(ent, &g_menus[13]);
+						break;
+					}
+					case 4:
+					{
+						if (g_waypoint->NodesValid())
+							g_waypoint->Save();
+						else
+							CenterPrint("Waypoint not saved\nThere are errors, see console");
+						break;
+					}
+					case 5:
+					{
 						g_waypoint->Save();
-					else
-						CenterPrint("Waypoint not saved\nThere are errors, see console");
-					break;
-				}
-				case 5:
-				{
-					g_waypoint->Save();
-					break;
-				}
-				case 6:
-				{
-					g_waypoint->Load();
-					break;
-				}
-				case 7:
-				{
-					if (g_waypoint->NodesValid())
-						CenterPrint("Nodes work Find");
-					else
-						CenterPrint("There are errors, see console");
-					break;
-				}
-				case 8:
-				{
-					ServerCommand("ebot wp noclip");
-					break;
-				}
-				case 9:
-				{
-					DisplayMenuToClient(ent, &g_menus[9]);
-					break;
-				}
+						break;
+					}
+					case 6:
+					{
+						g_waypoint->Load();
+						break;
+					}
+					case 7:
+					{
+						if (g_waypoint->NodesValid())
+							CenterPrint("Nodes work Find");
+						else
+							CenterPrint("There are errors, see console");
+						break;
+					}
+					case 8:
+					{
+						ServerCommand("ebot wp noclip");
+						break;
+					}
+					case 9:
+					{
+						DisplayMenuToClient(ent, &g_menus[9]);
+						break;
+					}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1412,7 +1400,6 @@ void ClientCommand(edict_t* ent)
 				g_waypointOn = true;  // turn waypoints on in case
 
 				const int16_t radiusValue[] = { 0, 8, 16, 32, 48, 64, 80, 96, 128 };
-
 				if ((selection >= 1) && (selection <= 9))
 					g_waypoint->SetRadius(radiusValue[selection - 1]);
 
@@ -1421,36 +1408,35 @@ void ClientCommand(edict_t* ent)
 			else if (client->menu == &g_menus[0])
 			{
 				DisplayMenuToClient(ent, nullptr); // reset menu display
-
 				switch (selection)
 				{
-				case 1:
-				{
-					fillCommand = false;
-					DisplayMenuToClient(ent, &g_menus[2]);
-					break;
-				}
-				case 2:
-				{
-					DisplayMenuToClient(ent, &g_menus[1]);
-					break;
-				}
-				case 3:
-				{
-					fillCommand = true;
-					DisplayMenuToClient(ent, &g_menus[6]);
-					break;
-				}
-				case 4:
-				{
-					g_botManager->KillAll();
-					break;
-				}
-				case 10:
-				{
-					DisplayMenuToClient(ent, nullptr);
-					break;
-				}
+					case 1:
+					{
+						fillCommand = false;
+						DisplayMenuToClient(ent, &g_menus[2]);
+						break;
+					}
+					case 2:
+					{
+						DisplayMenuToClient(ent, &g_menus[1]);
+						break;
+					}
+					case 3:
+					{
+						fillCommand = true;
+						DisplayMenuToClient(ent, &g_menus[6]);
+						break;
+					}
+					case 4:
+					{
+						g_botManager->KillAll();
+						break;
+					}
+					case 10:
+					{
+						DisplayMenuToClient(ent, nullptr);
+						break;
+					}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1461,36 +1447,36 @@ void ClientCommand(edict_t* ent)
 
 				switch (selection)
 				{
-				case 1:
-				{
-					g_botManager->AddRandom();
-					break;
-				}
-				case 2:
-				{
-					DisplayMenuToClient(ent, &g_menus[5]);
-					break;
-				}
-				case 3:
-				{
-					g_botManager->RemoveRandom();
-					break;
-				}
-				case 4:
-				{
-					g_botManager->RemoveAll();
-					break;
-				}
-				case 5:
-				{
-					g_botManager->RemoveMenu(ent, 1);
-					break;
-				}
-				case 10:
-				{
-					DisplayMenuToClient(ent, nullptr);
-					break;
-				}
+					case 1:
+					{
+						g_botManager->AddRandom();
+						break;
+					}
+					case 2:
+					{
+						DisplayMenuToClient(ent, &g_menus[5]);
+						break;
+					}
+					case 3:
+					{
+						g_botManager->RemoveRandom();
+						break;
+					}
+					case 4:
+					{
+						g_botManager->RemoveAll();
+						break;
+					}
+					case 5:
+					{
+						g_botManager->RemoveMenu(ent, 1);
+						break;
+					}
+					case 10:
+					{
+						DisplayMenuToClient(ent, nullptr);
+						break;
+					}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1502,42 +1488,42 @@ void ClientCommand(edict_t* ent)
 
 				switch (selection)
 				{
-				case 1:
-				{
-					DisplayMenuToClient(ent, &g_menus[3]);
-					break;
-				}
-				case 2:
-				{
-					DisplayMenuToClient(ent, &g_menus[9]);
-					break;
-				}
-				case 3:
-				{
-					DisplayMenuToClient(ent, &g_menus[4]);
-					break;
-				}
-				case 4:
-				{
-					ebot_debug.SetInt(ebot_debug.GetInt() ^ 1);
-					break;
-				}
-				case 5:
-				{
-					if (IsAlive(ent))
-						DisplayMenuToClient(ent, &g_menus[18]);
-					else
+					case 1:
 					{
-						DisplayMenuToClient(ent, nullptr); // reset menu display
-						CenterPrint("You're dead, and have no access to this menu");
+						DisplayMenuToClient(ent, &g_menus[3]);
+						break;
 					}
-					break;
-				}
-				case 10:
-				{
-					DisplayMenuToClient(ent, nullptr);
-					break;
-				}
+					case 2:
+					{
+						DisplayMenuToClient(ent, &g_menus[9]);
+						break;
+					}
+					case 3:
+					{
+						DisplayMenuToClient(ent, &g_menus[4]);
+						break;
+					}
+					case 4:
+					{
+						ebot_debug.SetInt(ebot_debug.GetInt() ^ 1);
+						break;
+					}
+					case 5:
+					{
+						if (IsAlive(ent))
+							DisplayMenuToClient(ent, &g_menus[18]);
+						else
+						{
+							DisplayMenuToClient(ent, nullptr); // reset menu display
+							CenterPrint("You're dead, and have no access to this menu");
+						}
+						break;
+					}
+					case 10:
+					{
+						DisplayMenuToClient(ent, nullptr);
+						break;
+					}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1549,15 +1535,15 @@ void ClientCommand(edict_t* ent)
 
 				switch (selection)
 				{
-				case 1:
-				case 2:
-				case 3:
-				case 4:
-				case 10:
-				{
-					DisplayMenuToClient(ent, nullptr);
-					break;
-				}
+					case 1:
+					case 2:
+					case 3:
+					case 4:
+					case 10:
+					{
+						DisplayMenuToClient(ent, nullptr);
+						break;
+					}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1565,7 +1551,6 @@ void ClientCommand(edict_t* ent)
 			else if (client->menu == &g_menus[19])
 			{
 				const float autoDistanceValue[] = { 0.0f, 100.0f, 130.0f, 160.0f, 190.0f, 220.0f, 250.0f };
-
 				if (selection >= 1 && selection <= 7)
 					g_autoPathDistance = autoDistanceValue[selection - 1];
 
@@ -1580,41 +1565,41 @@ void ClientCommand(edict_t* ent)
 			{
 				switch (selection)
 				{
-				case 1:
-				{
-					g_waypoint->CreateWaypointPath(PATHCON_OUTGOING);
-					break;
-				}
-				case 2:
-				{
-					g_waypoint->CreateWaypointPath(PATHCON_INCOMING);
-					break;
-				}
-				case 3:
-				{
-					g_waypoint->CreateWaypointPath(PATHCON_BOTHWAYS);
-					break;
-				}
-				case 4:
-				{
-					g_waypoint->CreateWaypointPath(PATHCON_JUMPING);
-					break;
-				}
-				case 5:
-				{
-					g_waypoint->CreateWaypointPath(PATHCON_BOOSTING);
-					break;
-				}
-				case 6:
-				{
-					g_waypoint->DeletePath();
-					break;
-				}
-				case 10:
-				{
-					DisplayMenuToClient(ent, nullptr);
-					break;
-				}
+					case 1:
+					{
+						g_waypoint->CreateWaypointPath(PATHCON_OUTGOING);
+						break;
+					}
+					case 2:
+					{
+						g_waypoint->CreateWaypointPath(PATHCON_INCOMING);
+						break;
+					}
+					case 3:
+					{
+						g_waypoint->CreateWaypointPath(PATHCON_BOTHWAYS);
+						break;
+					}
+					case 4:
+					{
+						g_waypoint->CreateWaypointPath(PATHCON_JUMPING);
+						break;
+					}
+					case 5:
+					{
+						g_waypoint->CreateWaypointPath(PATHCON_BOOSTING);
+						break;
+					}
+					case 6:
+					{
+						g_waypoint->DeletePath();
+						break;
+					}
+					case 10:
+					{
+						DisplayMenuToClient(ent, nullptr);
+						break;
+					}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1624,49 +1609,49 @@ void ClientCommand(edict_t* ent)
 				DisplayMenuToClient(ent, nullptr);
 				switch (selection)
 				{
-				case 1:
-				{
-					DisplayMenuToClient(ent, &g_menus[22]);  // Add Waypoint
-					break;
-				}
-				case 2:
-				{
-					DisplayMenuToClient(ent, &g_menus[13]); //Set Waypoint Flag
-					break;
-				}
-				case 3:
-				{
-					DisplayMenuToClient(ent, &g_menus[20]); // Create Path
-					break;
-				}
-				case 4:
-				{
-					DisplayMenuToClient(ent, &g_menus[11]); // Set Waypoint Radius
-					break;
-				}
-				case 5:
-				{
-					DisplayMenuToClient(ent, &g_menus[21]);
-					g_waypoint->TeleportWaypoint(); // Teleport to Waypoint
-					break;
-				}
-				case 6:
-				{
-					DisplayMenuToClient(ent, &g_menus[21]);
-					g_waypoint->Delete(); // Delete Waypoint
-					break;
-				}
-				case 9:
-				{
-					g_waypoint->Save();
-					DisplayMenuToClient(ent, &g_menus[26]);
-					break;
-				}
-				case 10:
-				{
-					DisplayMenuToClient(ent, nullptr);
-					break;
-				}
+					case 1:
+					{
+						DisplayMenuToClient(ent, &g_menus[22]);  // Add Waypoint
+						break;
+					}
+					case 2:
+					{
+						DisplayMenuToClient(ent, &g_menus[13]); //Set Waypoint Flag
+						break;
+					}
+					case 3:
+					{
+						DisplayMenuToClient(ent, &g_menus[20]); // Create Path
+						break;
+					}
+					case 4:
+					{
+						DisplayMenuToClient(ent, &g_menus[11]); // Set Waypoint Radius
+						break;
+					}
+					case 5:
+					{
+						DisplayMenuToClient(ent, &g_menus[21]);
+						g_waypoint->TeleportWaypoint(); // Teleport to Waypoint
+						break;
+					}
+					case 6:
+					{
+						DisplayMenuToClient(ent, &g_menus[21]);
+						g_waypoint->Delete(); // Delete Waypoint
+						break;
+					}
+					case 9:
+					{
+						g_waypoint->Save();
+						DisplayMenuToClient(ent, &g_menus[26]);
+						break;
+					}
+					case 10:
+					{
+						DisplayMenuToClient(ent, nullptr);
+						break;
+					}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1675,55 +1660,55 @@ void ClientCommand(edict_t* ent)
 			{
 				switch (selection)
 				{
-				case 1:
-				{
-					g_waypoint->Add(0);
-					g_waypoint->SetRadius(64);
-					break;
-				}
-				case 2:
-				case 3:
-				case 5:
-				{
-					g_waypoint->Add(selection - 1);
-					g_waypoint->SetRadius(64);
-					break;
-				}
-				case 4:
-				{
-					g_waypoint->Add(selection - 1);
-					g_waypoint->SetRadius(0);
-					break;
-				}
-				case 6:
-				{
-					g_waypoint->Add(100);
-					g_waypoint->SetRadius(32);
-					break;
-				}
-				case 7:
-				{
-					g_waypoint->Add(5);
-					g_waypoint->Add(6);
-					g_waypoint->SetRadius(0);
-					DisplayMenuToClient(ent, &g_menus[24]);
-					break;
-				}
-				case 8:
-				{
-					g_waypoint->SetLearnJumpWaypoint();
-					break;
-				}
-				case 9:
-				{
-					DisplayMenuToClient(ent, &g_menus[23]);
-					break;
-				}
-				case 10:
-				{
-					DisplayMenuToClient(ent, &g_menus[21]);
-					break;
-				}
+					case 1:
+					{
+						g_waypoint->Add(0);
+						g_waypoint->SetRadius(64);
+						break;
+					}
+					case 2:
+					case 3:
+					case 5:
+					{
+						g_waypoint->Add(selection - 1);
+						g_waypoint->SetRadius(64);
+						break;
+					}
+					case 4:
+					{
+						g_waypoint->Add(selection - 1);
+						g_waypoint->SetRadius(0);
+						break;
+					}
+					case 6:
+					{
+						g_waypoint->Add(100);
+						g_waypoint->SetRadius(32);
+						break;
+					}
+					case 7:
+					{
+						g_waypoint->Add(5);
+						g_waypoint->Add(6);
+						g_waypoint->SetRadius(0);
+						DisplayMenuToClient(ent, &g_menus[24]);
+						break;
+					}
+					case 8:
+					{
+						g_waypoint->SetLearnJumpWaypoint();
+						break;
+					}
+					case 9:
+					{
+						DisplayMenuToClient(ent, &g_menus[23]);
+						break;
+					}
+					case 10:
+					{
+						DisplayMenuToClient(ent, &g_menus[21]);
+						break;
+					}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1734,45 +1719,45 @@ void ClientCommand(edict_t* ent)
 
 				switch (selection)
 				{
-				case 1:
-				{
-					g_waypoint->Add(0);
-					g_waypoint->ToggleFlags(WAYPOINT_LIFT);
-					g_waypoint->SetRadius(0);
-					break;
-				}
-				case 2:
-				{
-					g_waypoint->Add(0);
-					g_waypoint->ToggleFlags(WAYPOINT_HELICOPTER);
-					g_waypoint->SetRadius(0);
-					DisplayMenuToClient(ent, &g_menus[24]);
-					break;
-				}
-				case 3:
-				{
-					g_waypoint->Add(0);
-					g_waypoint->ToggleFlags(WAYPOINT_ZMHMCAMP);
-					g_waypoint->SetRadius(64);
-					break;
-				}
-				case 4:
-				{
-					g_waypoint->Add(0);
-					g_waypoint->ToggleFlags(WAYPOINT_HMCAMPMESH);
-					g_waypoint->SetRadius(64);
-					break;
-				}
-				case 9:
-				{
-					DisplayMenuToClient(ent, &g_menus[22]);
-					break;
-				}
-				case 10:
-				{
-					DisplayMenuToClient(ent, &g_menus[21]);
-					break;
-				}
+					case 1:
+					{
+						g_waypoint->Add(0);
+						g_waypoint->ToggleFlags(WAYPOINT_LIFT);
+						g_waypoint->SetRadius(0);
+						break;
+					}
+					case 2:
+					{
+						g_waypoint->Add(0);
+						g_waypoint->ToggleFlags(WAYPOINT_HELICOPTER);
+						g_waypoint->SetRadius(0);
+						DisplayMenuToClient(ent, &g_menus[24]);
+						break;
+					}
+					case 3:
+					{
+						g_waypoint->Add(0);
+						g_waypoint->ToggleFlags(WAYPOINT_ZMHMCAMP);
+						g_waypoint->SetRadius(64);
+						break;
+					}
+					case 4:
+					{
+						g_waypoint->Add(0);
+						g_waypoint->ToggleFlags(WAYPOINT_HMCAMPMESH);
+						g_waypoint->SetRadius(64);
+						break;
+					}
+					case 9:
+					{
+						DisplayMenuToClient(ent, &g_menus[22]);
+						break;
+					}
+					case 10:
+					{
+						DisplayMenuToClient(ent, &g_menus[21]);
+						break;
+					}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1783,16 +1768,16 @@ void ClientCommand(edict_t* ent)
 
 				switch (selection)
 				{
-				case 1:
-				{
-					g_waypoint->ToggleFlags(WAYPOINT_TERRORIST);
-					break;
-				}
-				case 2:
-				{
-					g_waypoint->ToggleFlags(WAYPOINT_COUNTER);
-					break;
-				}
+					case 1:
+					{
+						g_waypoint->ToggleFlags(WAYPOINT_TERRORIST);
+						break;
+					}
+					case 2:
+					{
+						g_waypoint->ToggleFlags(WAYPOINT_COUNTER);
+						break;
+					}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1803,16 +1788,16 @@ void ClientCommand(edict_t* ent)
 
 				switch (selection)
 				{
-				case 1:
-				{
-					g_waypoint->Save();
-					break;
-				}
-				case 2:
-				{
-					DisplayMenuToClient(ent, &g_menus[21]);
-					break;
-				}
+					case 1:
+					{
+						g_waypoint->Save();
+						break;
+					}
+					case 2:
+					{
+						DisplayMenuToClient(ent, &g_menus[21]);
+						break;
+					}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1820,46 +1805,44 @@ void ClientCommand(edict_t* ent)
 			else if (client->menu == &g_menus[5])
 			{
 				DisplayMenuToClient(ent, nullptr); // reset menu display
-
 				client->menu = &g_menus[4];
-
 				switch (selection)
 				{
-				case 1:
-				{
-					g_storeAddbotVars[0] = crandomint(0, 20);
-					break;
-				}
-				case 2:
-				{
-					g_storeAddbotVars[0] = crandomint(20, 40);
-					break;
-				}
-				case 3:
-				{
-					g_storeAddbotVars[0] = crandomint(40, 60);
-					break;
-				}
-				case 4:
-				{
-					g_storeAddbotVars[0] = crandomint(60, 80);
-					break;
-				}
-				case 5:
-				{
-					g_storeAddbotVars[0] = crandomint(80, 99);
-					break;
-				}
-				case 6:
-				{
-					g_storeAddbotVars[0] = 100;
-					break;
-				}
-				case 10:
-				{
-					DisplayMenuToClient(ent, nullptr);
-					break;
-				}
+					case 1:
+					{
+						g_storeAddbotVars[0] = crandomint(0, 20);
+						break;
+					}
+					case 2:
+					{
+						g_storeAddbotVars[0] = crandomint(20, 40);
+						break;
+					}
+					case 3:
+					{
+						g_storeAddbotVars[0] = crandomint(40, 60);
+						break;
+					}
+					case 4:
+					{
+						g_storeAddbotVars[0] = crandomint(60, 80);
+						break;
+					}
+					case 5:
+					{
+						g_storeAddbotVars[0] = crandomint(80, 99);
+						break;
+					}
+					case 6:
+					{
+						g_storeAddbotVars[0] = 100;
+						break;
+					}
+					case 10:
+					{
+						DisplayMenuToClient(ent, nullptr);
+						break;
+					}
 				}
 
 				if (client->menu == &g_menus[4])
@@ -1873,24 +1856,24 @@ void ClientCommand(edict_t* ent)
 
 				switch (selection)
 				{
-				case 1:
-				case 2:
-				{
-					// turn off cvars if specified team
-					CVAR_SET_STRING("mp_limitteams", "0");
-					CVAR_SET_STRING("mp_autoteambalance", "0");
-				}
-				case 5:
-				{
-					fillServerTeam = selection;
-					DisplayMenuToClient(ent, &g_menus[5]);
-					break;
-				}
-				case 10:
-				{
-					DisplayMenuToClient(ent, nullptr);
-					break;
-				}
+					case 1:
+					case 2:
+					{
+						// turn off cvars if specified team
+						CVAR_SET_STRING("mp_limitteams", "0");
+						CVAR_SET_STRING("mp_autoteambalance", "0");
+					}
+					case 5:
+					{
+						fillServerTeam = selection;
+						DisplayMenuToClient(ent, &g_menus[5]);
+						break;
+					}
+					case 10:
+					{
+						DisplayMenuToClient(ent, nullptr);
+						break;
+					}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1901,16 +1884,16 @@ void ClientCommand(edict_t* ent)
 
 				switch (selection)
 				{
-				case 1:
-				case 2:
-				case 3:
-				case 4:
-					g_botManager->FillServer(fillServerTeam, selection - 2, g_storeAddbotVars[0]);
-				case 10:
-				{
-					DisplayMenuToClient(ent, nullptr);
-					break;
-				}
+					case 1:
+					case 2:
+					case 3:
+					case 4:
+						g_botManager->FillServer(fillServerTeam, selection - 2, g_storeAddbotVars[0]);
+					case 10:
+					{
+						DisplayMenuToClient(ent, nullptr);
+						break;
+					}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1921,30 +1904,30 @@ void ClientCommand(edict_t* ent)
 
 				switch (selection)
 				{
-				case 1:
-				case 2:
-				case 5:
-				{
-					g_storeAddbotVars[1] = selection;
-					if (selection == 5)
+					case 1:
+					case 2:
+					case 5:
 					{
-						g_storeAddbotVars[2] = 5;
-						g_botManager->AddBot("", g_storeAddbotVars[0], g_storeAddbotVars[3], g_storeAddbotVars[1], g_storeAddbotVars[2]);
-					}
-					else
-					{
-						if (selection == 1)
-							DisplayMenuToClient(ent, &g_menus[7]);
+						g_storeAddbotVars[1] = selection;
+						if (selection == 5)
+						{
+							g_storeAddbotVars[2] = 5;
+							g_botManager->AddBot("", g_storeAddbotVars[0], g_storeAddbotVars[3], g_storeAddbotVars[1], g_storeAddbotVars[2]);
+						}
 						else
-							DisplayMenuToClient(ent, &g_menus[8]);
+						{
+							if (selection == 1)
+								DisplayMenuToClient(ent, &g_menus[7]);
+							else
+								DisplayMenuToClient(ent, &g_menus[8]);
+						}
+						break;
 					}
-					break;
-				}
-				case 10:
-				{
-					DisplayMenuToClient(ent, nullptr);
-					break;
-				}
+					case 10:
+					{
+						DisplayMenuToClient(ent, nullptr);
+						break;
+					}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1955,20 +1938,20 @@ void ClientCommand(edict_t* ent)
 
 				switch (selection)
 				{
-				case 1:
-				case 2:
-				case 3:
-				case 4:
-				{
-					g_storeAddbotVars[3] = selection - 2;
-					DisplayMenuToClient(ent, &g_menus[6]);
-					break;
-				}
-				case 10:
-				{
-					DisplayMenuToClient(ent, nullptr);
-					break;
-				}
+					case 1:
+					case 2:
+					case 3:
+					case 4:
+					{
+						g_storeAddbotVars[3] = selection - 2;
+						DisplayMenuToClient(ent, &g_menus[6]);
+						break;
+					}
+					case 10:
+					{
+						DisplayMenuToClient(ent, nullptr);
+						break;
+					}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -1979,21 +1962,21 @@ void ClientCommand(edict_t* ent)
 
 				switch (selection)
 				{
-				case 1:
-				case 2:
-				case 3:
-				case 4:
-				case 5:
-				{
-					g_storeAddbotVars[2] = selection;
-					g_botManager->AddBot("", g_storeAddbotVars[0], g_storeAddbotVars[3], g_storeAddbotVars[1], g_storeAddbotVars[2]);
-					break;
-				}
-				case 10:
-				{
-					DisplayMenuToClient(ent, nullptr);
-					break;
-				}
+					case 1:
+					case 2:
+					case 3:
+					case 4:
+					case 5:
+					{
+						g_storeAddbotVars[2] = selection;
+						g_botManager->AddBot("", g_storeAddbotVars[0], g_storeAddbotVars[3], g_storeAddbotVars[1], g_storeAddbotVars[2]);
+						break;
+					}
+					case 10:
+					{
+						DisplayMenuToClient(ent, nullptr);
+						break;
+					}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -2004,18 +1987,18 @@ void ClientCommand(edict_t* ent)
 
 				switch (selection)
 				{
-				case 1:
-				case 2:
-				case 3:
-				case 4:
-				case 5:
-				case 6:
-				case 7:
-				case 10:
-				{
-					DisplayMenuToClient(ent, nullptr);
-					break;
-				}
+					case 1:
+					case 2:
+					case 3:
+					case 4:
+					case 5:
+					case 6:
+					case 7:
+					case 10:
+					{
+						DisplayMenuToClient(ent, nullptr);
+						break;
+					}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -2026,28 +2009,28 @@ void ClientCommand(edict_t* ent)
 
 				switch (selection)
 				{
-				case 1:
-				case 2:
-				case 3:
-				case 4:
-				case 5:
-				case 6:
-				case 7:
-				case 8:
-				{
-					g_botManager->GetBot(selection - 1)->Kick();
-					break;
-				}
-				case 9:
-				{
-					g_botManager->RemoveMenu(ent, 2);
-					break;
-				}
-				case 10:
-				{
-					DisplayMenuToClient(ent, &g_menus[2]);
-					break;
-				}
+					case 1:
+					case 2:
+					case 3:
+					case 4:
+					case 5:
+					case 6:
+					case 7:
+					case 8:
+					{
+						g_botManager->GetBot(selection - 1)->Kick();
+						break;
+					}
+					case 9:
+					{
+						g_botManager->RemoveMenu(ent, 2);
+						break;
+					}
+					case 10:
+					{
+						DisplayMenuToClient(ent, &g_menus[2]);
+						break;
+					}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -2058,28 +2041,28 @@ void ClientCommand(edict_t* ent)
 
 				switch (selection)
 				{
-				case 1:
-				case 2:
-				case 3:
-				case 4:
-				case 5:
-				case 6:
-				case 7:
-				case 8:
-				{
-					g_botManager->GetBot(selection + 8 - 1)->Kick();
-					break;
-				}
-				case 9:
-				{
-					g_botManager->RemoveMenu(ent, 3);
-					break;
-				}
-				case 10:
-				{
-					g_botManager->RemoveMenu(ent, 1);
-					break;
-				}
+					case 1:
+					case 2:
+					case 3:
+					case 4:
+					case 5:
+					case 6:
+					case 7:
+					case 8:
+					{
+						g_botManager->GetBot(selection + 8 - 1)->Kick();
+						break;
+					}
+					case 9:
+					{
+						g_botManager->RemoveMenu(ent, 3);
+						break;
+					}
+					case 10:
+					{
+						g_botManager->RemoveMenu(ent, 1);
+						break;
+					}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -2090,28 +2073,28 @@ void ClientCommand(edict_t* ent)
 
 				switch (selection)
 				{
-				case 1:
-				case 2:
-				case 3:
-				case 4:
-				case 5:
-				case 6:
-				case 7:
-				case 8:
-				{
-					g_botManager->GetBot(selection + 16 - 1)->Kick();
-					break;
-				}
-				case 9:
-				{
-					g_botManager->RemoveMenu(ent, 4);
-					break;
-				}
-				case 10:
-				{
-					g_botManager->RemoveMenu(ent, 2);
-					break;
-				}
+					case 1:
+					case 2:
+					case 3:
+					case 4:
+					case 5:
+					case 6:
+					case 7:
+					case 8:
+					{
+						g_botManager->GetBot(selection + 16 - 1)->Kick();
+						break;
+					}
+					case 9:
+					{
+						g_botManager->RemoveMenu(ent, 4);
+						break;
+					}
+					case 10:
+					{
+						g_botManager->RemoveMenu(ent, 2);
+						break;
+					}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -2122,23 +2105,23 @@ void ClientCommand(edict_t* ent)
 
 				switch (selection)
 				{
-				case 1:
-				case 2:
-				case 3:
-				case 4:
-				case 5:
-				case 6:
-				case 7:
-				case 8:
-				{
-					g_botManager->GetBot(selection + 24 - 1)->Kick();
-					break;
-				}
-				case 10:
-				{
-					g_botManager->RemoveMenu(ent, 3);
-					break;
-				}
+					case 1:
+					case 2:
+					case 3:
+					case 4:
+					case 5:
+					case 6:
+					case 7:
+					case 8:
+					{
+						g_botManager->GetBot(selection + 24 - 1)->Kick();
+						break;
+					}
+					case 10:
+					{
+						g_botManager->RemoveMenu(ent, 3);
+						break;
+					}
 				}
 
 				RETURN_META(MRES_SUPERCEDE);
@@ -2313,7 +2296,7 @@ void JustAStuff(void)
 			{
 				if (IsNullString(key) && IsNullString(password))
 					g_clients[client.index].flags &= ~CFLAG_OWNER;
-				else if (cstrcmp(password, INFOKEY_VALUE(GET_INFOKEYBUFFER(client.ent), key)) != 0)
+				else if (cstrcmp(password, INFOKEY_VALUE(GET_INFOKEYBUFFER(client.ent), key)))
 				{
 					g_clients[client.index].flags &= ~CFLAG_OWNER;
 					ServerPrint("%s had lost remote access to ebot.", GetEntityName(client.ent));
@@ -2708,8 +2691,10 @@ exportc int Meta_Query(char* ifvers, plugin_info_t** pPlugInfo, mutil_funcs_t* p
 	gpMetaUtilFuncs = pMetaUtilFuncs;
 	*pPlugInfo = &Plugin_info;
 
+	// thanks glibc version...
+#ifdef WIN32
 	// check for interface version compatibility
-	if (cstrcmp(ifvers, Plugin_info.ifvers) != 0)
+	if (cstrcmp(ifvers, Plugin_info.ifvers))
 	{
 		int metaMajor = 0, metaMinor = 0, pluginMajor = 0, pluginMinor = 0;
 
@@ -2724,7 +2709,6 @@ exportc int Meta_Query(char* ifvers, plugin_info_t** pPlugInfo, mutil_funcs_t* p
 		{
 			LOG_CONSOLE(PLID, "metamod version is too old for this plugin; update metamod");
 			LOG_MMERROR(PLID, "metamod version is too old for this plugin; update metamod");
-
 			return false;
 		}
 
@@ -2733,10 +2717,10 @@ exportc int Meta_Query(char* ifvers, plugin_info_t** pPlugInfo, mutil_funcs_t* p
 		{
 			LOG_CONSOLE(PLID, "metamod version is incompatible with this plugin; please find a newer version of this plugin");
 			LOG_MMERROR(PLID, "metamod version is incompatible with this plugin; please find a newer version of this plugin");
-
 			return false;
 		}
 	}
+#endif
 
 	return true; // tell metamod this plugin looks safe
 }
@@ -2760,7 +2744,6 @@ exportc int Meta_Attach(PLUG_LOADTIME now, metamod_funcs_t* functionTable, meta_
 	gpMetaGlobals = pMGlobals;
 	cmemcpy(functionTable, &gMetaFunctionTable, sizeof(metamod_funcs_t));
 	gpGamedllFuncs = pGamedllFuncs;
-
 	return true; // returning true enables metamod to attach this plugin
 }
 
@@ -2774,12 +2757,10 @@ exportc int Meta_Detach(PLUG_LOADTIME now, PL_UNLOAD_REASON reason)
 	{
 		LOG_CONSOLE(PLID, "%s: plugin not detaching (can't unload plugin right now)", Plugin_info.name);
 		LOG_MMERROR(PLID, "%s: plugin not detaching (can't unload plugin right now)", Plugin_info.name);
-
 		return false; // returning false prevents metamod from unloading this plugin
 	}
 
 	g_botManager->RemoveAll(); // kick all bots off this server
-
 	return true;
 }
 
@@ -3538,7 +3519,7 @@ C_DLLEXPORT int Amxx_EBotFindNearestWaypointToEntity(Vector origin, float minDis
 C_DLLEXPORT float Amxx_EBotGetWaypointDistance(int srcIndex, int destIndex)
 {
 	if (g_isMatrixReady && IsValidWaypoint(srcIndex) && IsValidWaypoint(destIndex))
-		return static_cast<float>(*(g_waypoint->m_distMatrix + (srcIndex * g_numWaypoints) + destIndex));
+		return static_cast<float>(*(g_waypoint->m_distMatrix.Get() + (srcIndex * g_numWaypoints) + destIndex));
 
 	return GetVectorDistanceSSE(g_waypoint->GetPath(srcIndex)->origin, g_waypoint->GetPath(destIndex)->origin);
 }

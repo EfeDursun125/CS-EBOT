@@ -61,6 +61,7 @@ void Engine::PushRegisteredConVarsToEngine(void)
         g_engfuncs.pfnCVarRegister(&ptr->reg);
         ptr->self->m_eptr = g_engfuncs.pfnCVarGetPointer(ptr->reg.name);
     }
+    m_regVars.Destroy();
 }
 
 void Engine::GetGameConVarsPointers(void)
@@ -76,13 +77,14 @@ const Vector& Engine::GetGlobalVector(const GlobalVector id)
 
     switch (id)
     {
-    case GLOBALVECTOR_FORWARD:
-        return g_pGlobals->v_forward;
-    case GLOBALVECTOR_RIGHT:
-        return g_pGlobals->v_right;
-    case GLOBALVECTOR_UP:
-        return g_pGlobals->v_up;
+        case GLOBALVECTOR_FORWARD:
+            return g_pGlobals->v_forward;
+        case GLOBALVECTOR_RIGHT:
+            return g_pGlobals->v_right;
+        case GLOBALVECTOR_UP:
+            return g_pGlobals->v_up;
     }
+
     return nullvec;
 }
 
@@ -93,21 +95,21 @@ void Engine::SetGlobalVector(const GlobalVector id, const Vector& newVector)
 
     switch (id)
     {
-    case GLOBALVECTOR_FORWARD:
-    {
-        g_pGlobals->v_forward = newVector;
-        break;
-    }
-    case GLOBALVECTOR_RIGHT:
-    {
-        g_pGlobals->v_right = newVector;
-        break;
-    }
-    case GLOBALVECTOR_UP:
-    {
-        g_pGlobals->v_up = newVector;
-        break;
-    }
+        case GLOBALVECTOR_FORWARD:
+        {
+            g_pGlobals->v_forward = newVector;
+            break;
+        }
+        case GLOBALVECTOR_RIGHT:
+        {
+            g_pGlobals->v_right = newVector;
+            break;
+        }
+        case GLOBALVECTOR_UP:
+        {
+            g_pGlobals->v_up = newVector;
+            break;
+        }
     }
 }
 
@@ -261,7 +263,7 @@ bool Client::IsVisible(const Vector& pos) const
 {
     TraceResult tr;
     TraceLine(GetHeadOrigin(), pos, TraceIgnore::Everything, m_ent, &tr);
-    return tr.flFraction >= 1.0f;
+    return tr.flFraction > 0.99f;
 }
 
 bool Client::HasFlag(const int clientFlags)

@@ -64,7 +64,7 @@ mutil_funcs_t* gpMetaUtilFuncs = nullptr;
 enginefuncs_t g_engfuncs;
 WeaponProperty g_weaponDefs[Const_MaxWeapons + 1];
 Clients g_clients[32];
-MiniArray <NameItem> g_botNames;
+CArray<NameItem>g_botNames;
 
 edict_t* g_worldEdict = nullptr;
 edict_t* g_hostEntity = nullptr;

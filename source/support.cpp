@@ -146,7 +146,7 @@ Vector GetEntityOrigin(edict_t* ent)
 		return nullvec;
 
 	Vector entityOrigin = ent->v.origin;
-	if (entityOrigin == nullvec)
+	if (entityOrigin.IsNull())
 		entityOrigin = ent->v.absmin + (ent->v.size * 0.5f);
 
 	return entityOrigin;
@@ -1112,7 +1112,7 @@ void RegisterCommand(const char* command, void funcPtr(void))
 		return; // reliability check
 
 	// it must be const char*
-	REG_SVR_COMMAND(command, funcPtr); // ask the engine to register this new command
+	REG_SVR_COMMAND(const_cast<char*>(command), funcPtr); // ask the engine to register this new command
 }
 
 void DetectCSVersion(void)
@@ -1201,9 +1201,9 @@ void MOD_AddLogEntry(const int mod, char* format)
 
 	if (mod == -1)
 	{
+		int i;
 		sprintf(modName, "E-BOT");
 		const int buildVersion[4] = {PRODUCT_VERSION_DWORD};
-		int i;
 		for (i = 0; i < 4; i++)
 			mod_bV16[i] = static_cast<uint16_t>(buildVersion[i]);
 	}

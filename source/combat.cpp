@@ -60,7 +60,7 @@ int Bot::GetNearbyEnemiesNearPosition(const Vector& origin, const float radius)
 inline float GetDistance(const int16_t& start, const int16_t& goal)
 {
 	if (g_isMatrixReady)
-		return static_cast<float>(*(g_waypoint->m_distMatrix + (start * g_numWaypoints) + goal));
+		return static_cast<float>(*(g_waypoint->m_distMatrix.Get() + (start * g_numWaypoints) + goal));
 
 	return GetVectorDistanceSSE(g_waypoint->m_paths[start].origin, g_waypoint->m_paths[goal].origin);
 }
@@ -85,7 +85,7 @@ void Bot::FindFriendsAndEnemiens(void)
 	float distance;
 	TraceResult tr;
 	const Vector myOrigin = EyePosition();
-	int myWP = m_currentWaypointIndex;
+	int16_t myWP = m_currentWaypointIndex;
 	if (!IsValidWaypoint(myWP))
 		myWP = g_clients[m_index].wp;
 
@@ -443,9 +443,9 @@ void Bot::KnifeAttack(void)
 		distance = m_entityDistance;
 	}
 
-	if (distance < 64.0f)
+	if (distance < 384.0f)
 		m_buttons |= IN_ATTACK;
-	else if (distance < pev->velocity.GetLength() * 0.33f)
+	else if (distance < pev->velocity.GetLength())
 		m_buttons |= IN_ATTACK2;
 
 	if (pev->origin.z > origin.z && (pev->origin - origin).GetLengthSquared2D() < squaredf(54.0f))
@@ -589,7 +589,7 @@ void Bot::SelectBestWeapon(void)
 		id = selectTab[i].id;
 		if (pev->weapons & (1 << id))
 		{
-			if (m_ammo[g_weaponDefs[id].ammo1] != 0)
+			if (m_ammo[g_weaponDefs[id].ammo1])
 			{
 				chosenWeaponIndex = i;
 				break;

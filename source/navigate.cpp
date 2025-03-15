@@ -34,7 +34,7 @@ ConVar ebot_pathfinder_seed_max("ebot_pathfinder_seed_max", "1.1");
 ConVar ebot_helicopter_width("ebot_helicopter_width", "54.0");
 ConVar ebot_use_pathfinding_for_avoid("ebot_use_pathfinding_for_avoid", "1");
 
-int Bot::FindGoalZombie(void)
+int16_t Bot::FindGoalZombie(void)
 {
 	if (g_waypoint->m_terrorPoints.IsEmpty())
 	{
@@ -55,12 +55,12 @@ int Bot::FindGoalZombie(void)
 inline float GetWaypointDistance(const int16_t& start, const int16_t& goal)
 {
 	if (g_isMatrixReady)
-		return static_cast<float>(*(g_waypoint->m_distMatrix + (start * g_numWaypoints) + goal));
+		return static_cast<float>(*(g_waypoint->m_distMatrix.Get() + (start * g_numWaypoints) + goal));
 
 	return GetVectorDistanceSSE(g_waypoint->m_paths[start].origin, g_waypoint->m_paths[goal].origin);
 }
 
-int Bot::FindGoalHuman(void)
+int16_t Bot::FindGoalHuman(void)
 {
 	if (!IsValidWaypoint(m_currentWaypointIndex))
 		FindWaypoint();
@@ -209,7 +209,7 @@ void Bot::DoWaypointNav(void)
 				waypointOrigin.z -= 36.0f;
 
 			Vector velocity = CheckThrow(myOrigin, waypointOrigin);
-			if (velocity.GetLengthSquared() < 100.0f)
+			if (velocity.GetLengthSquared() < squaredf(100.0f))
 				velocity = CheckToss(myOrigin, waypointOrigin);
 			velocity = velocity + velocity * 0.45f;
  
@@ -218,7 +218,10 @@ void Bot::DoWaypointNav(void)
 			{
 				pev->velocity.x = velocity.x;
 				pev->velocity.y = velocity.y;
-				pev->velocity.z = velocity.z * pev->gravity; // cheat
+
+				// cheat
+				if (!Math::FltZero(pev->gravity))
+					pev->velocity.z = velocity.z * pev->gravity;
 			}
 			else
 			{
@@ -303,7 +306,7 @@ void Bot::DoWaypointNav(void)
 				if ((pev->origin - right).GetLengthSquared2D() < (pev->origin - left).GetLengthSquared2D())
 				{
 					TraceLine(center, right, TraceIgnore::Nothing, m_myself, &tr);
-					if (tr.flFraction >= 1.0f)
+					if (tr.flFraction > 0.99f)
 					{
 						MoveTo(right, false);
 						return;
@@ -311,7 +314,7 @@ void Bot::DoWaypointNav(void)
 				}
 
 				TraceLine(center, left, TraceIgnore::Nothing, m_myself, &tr);
-				if (tr.flFraction >= 1.0f)
+				if (tr.flFraction > 0.99f)
 				{
 					MoveTo(left, false);
 					return;
@@ -620,7 +623,7 @@ bool Bot::UpdateLiftHandling(void)
 		{
 			if ((m_liftState == LiftState::None || m_liftState == LiftState::WaitingFor) && m_navNode.HasNext())
 			{
-				const int nextWaypoint = m_navNode.Next();
+				const int16_t nextWaypoint = m_navNode.Next();
 				if (IsValidWaypoint(nextWaypoint))
 				{
 					const Path* pointer = g_waypoint->GetPath(nextWaypoint);
@@ -1004,7 +1007,7 @@ inline const float HF_Distance(const int16_t& start, const int16_t& goal)
 
 inline const float HF_Matrix(const int16_t& start, const int16_t& goal)
 {
-	return static_cast<float>(*(g_waypoint->m_distMatrix + (start * g_numWaypoints) + goal));
+	return static_cast<float>(*(g_waypoint->m_distMatrix.Get() + (start * g_numWaypoints) + goal));
 }
 
 inline const float HF_Auto(const int16_t& start, const int16_t& goal)
@@ -1340,20 +1343,16 @@ void Bot::FindPath(int16_t& srcIndex, int16_t& destIndex)
 	int16_t currentIndex, self;
 	uint32_t flags;
 	float g, f;
+	int16_t limit = 0;
 
 	PriorityQueue openList;
 	openList.Setup();
 	openList.InsertLowest(srcIndex, srcWaypoint.g);
 	while (!openList.IsEmpty())
 	{
+		limit++;
 		currentIndex = openList.RemoveLowest();
-		if (openList.Size() >= g_numWaypoints - 1)
-		{
-			Kick();
-			return;
-		}
-
-		if (currentIndex == destIndex)
+		if (currentIndex == destIndex || limit > g_numWaypoints)
 		{
 			m_navNode.Clear();
 
@@ -1383,7 +1382,7 @@ void Bot::FindPath(int16_t& srcIndex, int16_t& destIndex)
 		{
 			self = currPath.index[i];
 			if (!IsValidWaypoint(self))
-				continue;
+				break;
 			
 			flags = g_waypoint->m_paths[self].flags;
 			if (flags)
@@ -1448,7 +1447,7 @@ void Bot::FindPath(int16_t& srcIndex, int16_t& destIndex)
 	// roam around poorly :(
 	if (m_navNode.IsEmpty())
 	{
-		MiniArray<int16_t>PossiblePath;
+		CArray<int16_t>PossiblePath;
 		for (i = 0; i < g_numWaypoints; i++)
 		{
 			if (waypoints[i].state == RouteState::Closed)
@@ -1501,20 +1500,16 @@ void Bot::FindShortestPath(int16_t& srcIndex, int16_t& destIndex)
 	uint32_t flags;
 	Path currPath;
 	float g, f;
+	int16_t limit = 0;
 
 	PriorityQueue openList;
 	openList.Setup();
 	openList.InsertLowest(srcIndex, srcWaypoint.g);
 	while (!openList.IsEmpty())
 	{
+		limit++;
 		currentIndex = openList.RemoveLowest();
-		if (openList.Size() >= g_numWaypoints - 1)
-		{
-			Kick();
-			return;
-		}
-
-		if (currentIndex == destIndex)
+		if (currentIndex == destIndex || limit > g_numWaypoints)
 		{
 			m_navNode.Clear();
 
@@ -1543,7 +1538,52 @@ void Bot::FindShortestPath(int16_t& srcIndex, int16_t& destIndex)
 		{
 			self = currPath.index[i];
 			if (!IsValidWaypoint(self))
-				continue;
+				break;
+
+			flags = g_waypoint->m_paths[self].flags;
+			if (flags)
+			{
+				if (flags & WAYPOINT_FALLCHECK)
+				{
+					TraceResult tr;
+					const Vector origin = g_waypoint->m_paths[self].origin;
+					TraceLine(origin, origin - Vector(0.0f, 0.0f, 60.0f), TraceIgnore::Nothing, m_myself, &tr);
+					if (tr.flFraction >= 1.0f)
+						continue;
+				}
+					
+				if (flags & WAYPOINT_SPECIFICGRAVITY)
+				{
+					if ((pev->gravity * engine->GetGravity()) > g_waypoint->m_paths[self].gravity)
+						continue;
+				}
+	
+				if (flags & WAYPOINT_ONLYONE)
+				{
+					bool skip = false;
+					for (Bot* const& bot : g_botManager->m_bots)
+					{
+						if (skip)
+							break;
+	
+						if (bot && bot->m_isAlive && bot->m_myself != m_myself)
+						{
+							int16_t j;
+							for (j = 0; j < bot->m_navNode.Length(); j++)
+							{
+								if (bot->m_navNode.Get(j) == self)
+								{
+									skip = true;
+									break;
+								}
+							}
+						}
+					}
+	
+					if (skip)
+						continue;
+				}
+			}
 
 			g = currWaypoint->g + hcalc(self, currentIndex);
 			f = g + hcalc(self, destIndex);
@@ -1564,17 +1604,15 @@ void Bot::FindShortestPath(int16_t& srcIndex, int16_t& destIndex)
 
 void Bot::FindEscapePath(int16_t& srcIndex, const Vector& dangerOrigin)
 {
-	// if we can't find new path we will go backwards
-	m_navNode.Clear();
-
-	// TODO: FIXME: ...
 	if (g_pathTimer > engine->GetTime())
 		return;
+
+	// if we can't find new path we will go backwards
+	m_navNode.Clear();
 
 	if (!ebot_use_pathfinding_for_avoid.GetBool())
 		return;
 
-	// infinite loop
 	g_pathTimer = engine->GetTime() + 0.05f;
 
 	int16_t i;
@@ -1607,19 +1645,21 @@ void Bot::FindEscapePath(int16_t& srcIndex, const Vector& dangerOrigin)
 	Path currPath;
 	float f, g;
 	bool found = false;
+	int16_t limit = 0;
 
 	PriorityQueue openList;
 	openList.Setup();
 	openList.InsertLowest(srcIndex, srcWaypoint.g);
 	while (!openList.IsEmpty())
 	{
-		currentIndex = openList.RemoveLowest();
-		if (openList.Size() >= g_numWaypoints - 1)
+		limit++;
+		if (limit > 125)
 		{
-			Kick();
+			g_pathTimer = engine->GetTime() + 0.15f;
 			return;
 		}
 
+		currentIndex = openList.RemoveLowest();
 		currPath = g_waypoint->m_paths[currentIndex];
 		if (!IsEnemyReachableToPosition(currPath.origin))
 		{
@@ -1636,7 +1676,7 @@ void Bot::FindEscapePath(int16_t& srcIndex, const Vector& dangerOrigin)
 		{
 			self = currPath.index[i];
 			if (!IsValidWaypoint(self))
-				continue;
+				break;
 			
 			flags = g_waypoint->m_paths[self].flags;
 			if (flags)
@@ -1653,6 +1693,32 @@ void Bot::FindEscapePath(int16_t& srcIndex, const Vector& dangerOrigin)
 				if (flags & WAYPOINT_SPECIFICGRAVITY)
 				{
 					if ((pev->gravity * engine->GetGravity()) > g_waypoint->m_paths[self].gravity)
+						continue;
+				}
+
+				if (flags & WAYPOINT_ONLYONE)
+				{
+					bool skip = false;
+					for (Bot* const& bot : g_botManager->m_bots)
+					{
+						if (skip)
+							break;
+	
+						if (bot && bot->m_isAlive && bot->m_myself != m_myself)
+						{
+							int16_t j;
+							for (j = 0; j < bot->m_navNode.Length(); j++)
+							{
+								if (bot->m_navNode.Get(j) == self)
+								{
+									skip = true;
+									break;
+								}
+							}
+						}
+					}
+	
+					if (skip)
 						continue;
 				}
 			}
@@ -1674,8 +1740,13 @@ void Bot::FindEscapePath(int16_t& srcIndex, const Vector& dangerOrigin)
 
 	if (found)
 	{
+		limit = 0;
 		do
 		{
+			limit++;
+			if (limit > 125)
+				break;
+
 			m_navNode.Add(currentIndex);
 			currentIndex = waypoints[currentIndex].parent;
 		} while (IsValidWaypoint(currentIndex));
@@ -1743,7 +1814,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 						continue;
 
 					ent = enemy->m_myself;
-					if (!ent)
+					if (FNullEnt(ent))
 						continue;
 
 					TraceHull(enemy->EyePosition(), m_breakableOrigin, TraceIgnore::Nothing, point_hull, ent, &tr);
@@ -1774,7 +1845,7 @@ void Bot::CheckTouchEntity(edict_t* entity)
 						continue;
 
 					ent = bot->m_myself;
-					if (!ent)
+					if (FNullEnt(ent))
 						continue;
 
 					if (m_myself == ent)
@@ -2410,7 +2481,7 @@ bool Bot::CantMoveForward(const Vector& normal)
 	TraceLine(src, forward, TraceIgnore::Nothing, m_myself, &tr);
 
 	// check if the trace hit something...
-	if (tr.flFraction < 1.0f && cstrncmp("func_door", STRING(tr.pHit->v.classname), 9) != 0)
+	if (tr.flFraction < 1.0f && cstrncmp("func_door", STRING(tr.pHit->v.classname), 9))
 		return true; // bot's body will hit something
 
 	// bot's head is clear, check at shoulder level...
@@ -2421,7 +2492,7 @@ bool Bot::CantMoveForward(const Vector& normal)
 	TraceLine(src, forward, TraceIgnore::Nothing, m_myself, &tr);
 
 	// check if the trace hit something...
-	if (tr.flFraction < 1.0f && cstrncmp("func_door", STRING(tr.pHit->v.classname), 9) != 0)
+	if (tr.flFraction < 1.0f && cstrncmp("func_door", STRING(tr.pHit->v.classname), 9))
 		return true; // bot's body will hit something
 
 	// now check below waist
@@ -2433,7 +2504,7 @@ bool Bot::CantMoveForward(const Vector& normal)
 		TraceLine(src, forward, TraceIgnore::Nothing, m_myself, &tr);
 
 		// check if the trace hit something...
-		if (tr.flFraction < 1.0f && cstrncmp("func_door", STRING(tr.pHit->v.classname), 9) != 0)
+		if (tr.flFraction < 1.0f && cstrncmp("func_door", STRING(tr.pHit->v.classname), 9))
 			return true; // bot's body will hit something
 
 		src = pev->origin;
@@ -2442,7 +2513,7 @@ bool Bot::CantMoveForward(const Vector& normal)
 		TraceLine(src, forward, TraceIgnore::Nothing, m_myself, &tr);
 
 		// check if the trace hit something...
-		if (tr.flFraction < 1.0f && cstrncmp("func_door", STRING(tr.pHit->v.classname), 9) != 0)
+		if (tr.flFraction < 1.0f && cstrncmp("func_door", STRING(tr.pHit->v.classname), 9))
 			return true; // bot's body will hit something
 	}
 	else
@@ -2455,7 +2526,7 @@ bool Bot::CantMoveForward(const Vector& normal)
 		TraceLine(src, forward, TraceIgnore::Nothing, m_myself, &tr);
 
 		// check if the trace hit something...
-		if (tr.flFraction < 1.0f && cstrncmp("func_door", STRING(tr.pHit->v.classname), 9) != 0)
+		if (tr.flFraction < 1.0f && cstrncmp("func_door", STRING(tr.pHit->v.classname), 9))
 			return true; // bot's body will hit something
 
 		// trace from the left waist to the right forward waist pos
@@ -2465,7 +2536,7 @@ bool Bot::CantMoveForward(const Vector& normal)
 		TraceLine(src, forward, TraceIgnore::Nothing, m_myself, &tr);
 
 		// check if the trace hit something...
-		if (tr.flFraction < 1.0f && cstrncmp("func_door", STRING(tr.pHit->v.classname), 9) != 0)
+		if (tr.flFraction < 1.0f && cstrncmp("func_door", STRING(tr.pHit->v.classname), 9))
 			return true; // bot's body will hit something
 	}
 
@@ -2542,7 +2613,7 @@ bool Bot::CanJumpUp(const Vector& normal)
 	TraceLine(src, dest, TraceIgnore::Nothing, m_myself, &tr);
 
 	// if trace hit something, return false
-	return tr.flFraction > 1.0f;
+	return tr.flFraction >= 1.0f;
 
 	// here we check if a duck jump would work...
 CheckDuckJump:
@@ -2607,7 +2678,7 @@ CheckDuckJump:
 	TraceLine(src, dest, TraceIgnore::Nothing, m_myself, &tr);
 
 	// if trace hit something, return false
-	return tr.flFraction > 1.0f;
+	return tr.flFraction >= 1.0f;
 }
 
 // this function check if bot can duck under obstacle
@@ -2653,7 +2724,7 @@ bool Bot::CanDuckUnder(const Vector& normal)
 	TraceLine(src, dest, TraceIgnore::Nothing, pev->pContainingEntity, &tr);
 
 	// if trace hit something, return false
-	return tr.flFraction > 1.0f;
+	return tr.flFraction >= 1.0f;
 }
 
 bool Bot::CheckWallOnForward(void)

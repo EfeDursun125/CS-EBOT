@@ -138,7 +138,7 @@ int BotControl::CreateBot(char name[32], int skill, int personality, const int t
 	// restore the bot name
 	if (ebot_save_bot_names.GetBool() && !m_savedBotNames.IsEmpty())
 	{
-		sprintf(outputName, "%s", (char*)m_savedBotNames.Pop());
+		sprintf(outputName, "%s", m_savedBotNames.Pop());
 		addTag = false;
 	}
 	else if (!name[0])
@@ -160,7 +160,6 @@ int BotControl::CreateBot(char name[32], int skill, int personality, const int t
 		if (getName)
 		{
 			bool nameUse = true;
-
 			while (nameUse)
 			{
 				NameItem& botName = g_botNames.Random();
@@ -168,7 +167,7 @@ int BotControl::CreateBot(char name[32], int skill, int personality, const int t
 				{
 					nameUse = false;
 					botName.isUsed = true;
-					sprintf(outputName, "%s", (char*)botName.name);
+					sprintf(outputName, "%s", botName.name);
 				}
 			}
 		}
@@ -176,7 +175,7 @@ int BotControl::CreateBot(char name[32], int skill, int personality, const int t
 			sprintf(outputName, "e-bot %i", crandomint(1, 9999)); // just pick ugly random name
 	}
 	else
-		sprintf(outputName, "%s", (char*)name);
+		sprintf(outputName, "%s", name);
 
 	char botName[64];
 	if (ebot_nametag.GetInt() == 2 && addTag)
@@ -194,6 +193,9 @@ int BotControl::CreateBot(char name[32], int skill, int personality, const int t
 	}
 
 	const int index = ENTINDEX(bot) - 1;
+	if (m_bots[index])
+		delete m_bots[index];
+
 	m_bots[index] = new(std::nothrow) Bot(bot, skill, personality, team, member);
 	if (!m_bots[index])
 	{
@@ -202,7 +204,7 @@ int BotControl::CreateBot(char name[32], int skill, int personality, const int t
 	}
 
 	const char* ebotName = GetEntityName(bot);
-	ServerPrint("Connecting E-Bot - %s | Skill %d", ebotName, skill);
+	ServerPrint("Connecting E-Bot: %s - Skill: %d", ebotName, skill);
 
 	// set values
 	m_bots[index]->m_senseChance = crandomint(10, 90);
@@ -254,8 +256,7 @@ Bot* BotControl::GetBot(edict_t* ent)
 
 void BotControl::Think(void)
 {
-	static float time2;
-	time2 = engine->GetTime();
+	const float time2 = engine->GetTime();
 	for (Bot* const &bot : m_bots)
 	{
 		if (bot && bot->m_updateTimer < time2)
@@ -469,7 +470,7 @@ void BotControl::RemoveMenu(edict_t* ent, const int selection)
 	if ((selection > 4) || (selection < 1))
 		return;
 
-	char tempBuffer[1024], buffer[1024];
+	char tempBuffer[512], buffer[512];
 	cmemset(tempBuffer, 0, sizeof(tempBuffer));
 	cmemset(buffer, 0, sizeof(buffer));
 
@@ -492,34 +493,34 @@ void BotControl::RemoveMenu(edict_t* ent, const int selection)
 
 	switch (selection)
 	{
-	case 1:
-	{
-		g_menus[14].validSlots = validSlots & static_cast<unsigned int>(-1);
-		g_menus[14].menuText = tempBuffer;
-		DisplayMenuToClient(ent, &g_menus[14]);
-		break;
-	}
-	case 2:
-	{
-		g_menus[15].validSlots = validSlots & static_cast<unsigned int>(-1);
-		g_menus[15].menuText = tempBuffer;
-		DisplayMenuToClient(ent, &g_menus[15]);
-		break;
-	}
-	case 3:
-	{
-		g_menus[16].validSlots = validSlots & static_cast<unsigned int>(-1);
-		g_menus[16].menuText = tempBuffer;
-		DisplayMenuToClient(ent, &g_menus[16]);
-		break;
-	}
-	case 4:
-	{
-		g_menus[17].validSlots = validSlots & static_cast<unsigned int>(-1);
-		g_menus[17].menuText = tempBuffer;
-		DisplayMenuToClient(ent, &g_menus[17]);
-		break;
-	}
+		case 1:
+		{
+			g_menus[14].validSlots = validSlots & static_cast<unsigned int>(-1);
+			g_menus[14].menuText = tempBuffer;
+			DisplayMenuToClient(ent, &g_menus[14]);
+			break;
+		}
+		case 2:
+		{
+			g_menus[15].validSlots = validSlots & static_cast<unsigned int>(-1);
+			g_menus[15].menuText = tempBuffer;
+			DisplayMenuToClient(ent, &g_menus[15]);
+			break;
+		}
+		case 3:
+		{
+			g_menus[16].validSlots = validSlots & static_cast<unsigned int>(-1);
+			g_menus[16].menuText = tempBuffer;
+			DisplayMenuToClient(ent, &g_menus[16]);
+			break;
+		}
+		case 4:
+		{
+			g_menus[17].validSlots = validSlots & static_cast<unsigned int>(-1);
+			g_menus[17].menuText = tempBuffer;
+			DisplayMenuToClient(ent, &g_menus[17]);
+			break;
+		}
 	}
 }
 
@@ -568,7 +569,7 @@ void BotControl::ListBots(void)
 
 		// is this player slot valid
 		if (IsValidBot(player))
-			ServerPrintNoTag("[%-3.1d] %-9.13s %-17.18s %-3.4s %-3.1d %-3.1d", client.index, GetEntityName(player), GetBot(player)->m_personality == Personality::Rusher ? "Rusher" : GetBot(player)->m_personality == Personality::Normal ? "Normal" : "Careful", GetTeam(player) != 0 ? "CT" : "TR", GetBot(player)->m_skill, static_cast<int>(player->v.frags));
+			ServerPrintNoTag("[%-3.1d] %-9.13s %-17.18s %-3.4s %-3.1d %-3.1d", client.index, GetEntityName(player), GetBot(player)->m_personality == Personality::Rusher ? "Rusher" : GetBot(player)->m_personality == Personality::Normal ? "Normal" : "Careful", GetTeam(player) ? "CT" : "TR", GetBot(player)->m_skill, static_cast<int>(player->v.frags));
 	}
 }
 
@@ -612,9 +613,14 @@ void BotControl::Free(void)
 		if (ebot_save_bot_names.GetBool())
 			m_savedBotNames.Push(GetEntityName(bot->m_myself));
 
+		bot->m_navNode.Destroy();
 		delete bot;
 		bot = nullptr;
 	}
+
+	m_creationTab.Destroy();
+	m_savedBotNames.Destroy();
+	m_avatars.Destroy();
 }
 
 // this function frees one bot selected by index (used on bot disconnect)
@@ -626,6 +632,7 @@ void BotControl::Free(const int index)
 	if (!m_bots[index])
 		return;
 
+	m_bots[index]->m_navNode.Destroy();
 	delete m_bots[index];
 	m_bots[index] = nullptr;
 }
@@ -705,18 +712,18 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 
 	switch (personality)
 	{
-	case 1:
-	{
-		m_personality = Personality::Rusher;
-		break;
-	}
-	case 2:
-	{
-		m_personality = Personality::Careful;
-		break;
-	}
-	default:
-		m_personality = Personality::Normal;
+		case 1:
+		{
+			m_personality = Personality::Rusher;
+			break;
+		}
+		case 2:
+		{
+			m_personality = Personality::Careful;
+			break;
+		}
+		default:
+			m_personality = Personality::Normal;
 	}
 
 	cmemset(&m_ammoInClip, 1, sizeof(m_ammoInClip));

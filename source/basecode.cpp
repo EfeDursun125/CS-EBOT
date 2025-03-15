@@ -131,7 +131,7 @@ bool Bot::CheckGrenadeThrow(edict_t* targetEntity)
 			if (allowThrowing && m_seeEnemyTime + 2.0f < engine->GetTime())
 			{
 				Vector enemyPredict = ((targetEntity->v.velocity * 0.5f).SkipZ() + targetOrigin);
-				int searchTab[4], count = 4;
+				int16_t searchTab[4], count = 4;
 
 				float searchRadius = targetEntity->v.velocity.GetLength2D();
 
@@ -154,7 +154,7 @@ bool Bot::CheckGrenadeThrow(edict_t* targetEntity)
 					if (src.GetLengthSquared() < squaredf(100.0f))
 						src = CheckToss(eyePosition, wpOrigin);
 
-					if (src == nullvec)
+					if (src.IsNull())
 						allowThrowing = false;
 
 					m_throw = src;
@@ -170,7 +170,7 @@ bool Bot::CheckGrenadeThrow(edict_t* targetEntity)
 	else if (grenadeToThrow == Weapon::FbGrenade && (targetOrigin - pev->origin).GetLengthSquared() < squaredf(800.0f))
 	{
 		bool allowThrowing = true;
-		MiniArray <int16_t> inRadius;
+		CArray<int16_t>inRadius;
 
 		g_waypoint->FindInRadius(inRadius, 256.0f, targetOrigin + (targetEntity->v.velocity * 0.5f).SkipZ());
 
@@ -185,7 +185,7 @@ bool Bot::CheckGrenadeThrow(edict_t* targetEntity)
 			if (src.GetLengthSquared() < squaredf(100.0f))
 				src = CheckToss(eyePosition, wpOrigin);
 
-			if (src == nullvec)
+			if (src.IsNull())
 				continue;
 
 			m_throw = src;
@@ -198,21 +198,21 @@ bool Bot::CheckGrenadeThrow(edict_t* targetEntity)
 			th = 2;
 	}
 
-	if (m_throw == nullvec)
+	if (m_throw.IsNull())
 		return false;
 
 	switch (th)
 	{
-	case 1:
-	{
-		SetProcess(Process::ThrowHE, "throwing HE grenade", false, engine->GetTime() + 5.0f);
-		break;
-	}
-	case 2:
-	{
-		SetProcess(Process::ThrowFB, "throwing FB grenade", false, engine->GetTime() + 5.0f);
-		break;
-	}
+		case 1:
+		{
+			SetProcess(Process::ThrowHE, "throwing HE grenade", false, engine->GetTime() + 5.0f);
+			break;
+		}
+		case 2:
+		{
+			SetProcess(Process::ThrowFB, "throwing FB grenade", false, engine->GetTime() + 5.0f);
+			break;
+		}
 	}
 
 	return true;
@@ -272,10 +272,6 @@ bool Bot::CheckReachable(void)
 			return m_isEnemyReachable = false;
 	}
 
-	// be smart
-	if (POINT_CONTENTS(m_nearestEnemy->v.origin) == CONTENTS_LAVA)
-		return m_isEnemyReachable = false;
-
 	TraceResult tr;
 	TraceHull(pev->origin , m_nearestEnemy->v.origin, TraceIgnore::Nothing, head_hull, m_myself, &tr);
 
@@ -296,7 +292,7 @@ bool Bot::CheckReachable(void)
 
 		if (GetTeam(tr.pHit) != m_team)
 		{
-			if (!IsDeadlyDrop(((pev->origin + m_nearestEnemy->v.origin)) * 0.5f))
+			if (!g_waypoint->MustJump(pev->origin, m_nearestEnemy->v.origin))
 				return m_isEnemyReachable = true;
 			else if (tr.flFraction >= 1.0f)
 			{
@@ -308,7 +304,7 @@ bool Bot::CheckReachable(void)
 		}
 	}
 
-	if (tr.flFraction >= 1.0f && !IsDeadlyDrop(((pev->origin + m_nearestEnemy->v.origin)) * 0.5f))
+	if (tr.flFraction >= 1.0f && !g_waypoint->MustJump(pev->origin, m_nearestEnemy->v.origin))
 		return m_isEnemyReachable = true;
 
 	return m_isEnemyReachable = false;
@@ -361,7 +357,7 @@ bool Bot::IsEnemyReachableToPosition(const Vector& origin)
 
 			if (GetTeam(tr.pHit) != m_team)
 			{
-				if (!IsDeadlyDrop(((origin + client.ent->v.origin)) * 0.5f))
+				if (!g_waypoint->MustJump(origin, client.ent->v.origin))
 					return true;
 				else if (tr.flFraction >= 1.0f)
 				{
@@ -373,7 +369,7 @@ bool Bot::IsEnemyReachableToPosition(const Vector& origin)
 			}
 		}
 
-		if (tr.flFraction >= 1.0f && (!tr.fInWater || !IsDeadlyDrop(((origin + client.ent->v.origin)) * 0.5f)))
+		if (tr.flFraction >= 1.0f && (!tr.fInWater || !g_waypoint->MustJump(origin, client.ent->v.origin)))
 			return true;
 	}
 
@@ -427,7 +423,7 @@ bool Bot::IsFriendReachableToPosition(const Vector& origin)
 
 			if (GetTeam(tr.pHit) != m_team)
 			{
-				if (!IsDeadlyDrop(((origin + client.ent->v.origin)) * 0.5f))
+				if (!g_waypoint->MustJump(origin, client.ent->v.origin))
 					return true;
 				else if (tr.flFraction >= 1.0f)
 				{
@@ -439,7 +435,7 @@ bool Bot::IsFriendReachableToPosition(const Vector& origin)
 			}
 		}
 
-		if (tr.flFraction >= 1.0f && (!tr.fInWater || !IsDeadlyDrop(((origin + client.ent->v.origin)) * 0.5f)))
+		if (tr.flFraction >= 1.0f && (!tr.fInWater || !g_waypoint->MustJump(origin, client.ent->v.origin)))
 			return true;
 	}
 
@@ -481,7 +477,7 @@ bool Bot::CanIReachToPosition(const Vector& origin)
 
 		if (GetTeam(tr.pHit) != m_team)
 		{
-			if (!IsDeadlyDrop((pev->origin + origin) * 0.5f))
+			if (!g_waypoint->MustJump(pev->origin, origin))
 				return true;
 			else if (tr.flFraction >= 1.0f)
 			{
@@ -493,7 +489,7 @@ bool Bot::CanIReachToPosition(const Vector& origin)
 		}
 	}
 
-	if (tr.flFraction >= 1.0f && (!tr.fInWater || !IsDeadlyDrop((pev->origin + origin) * 0.5f)))
+	if (tr.flFraction >= 1.0f && (!tr.fInWater || !g_waypoint->MustJump(pev->origin, origin)))
 		return true;
 
 	return false;
@@ -698,15 +694,14 @@ void Bot::BaseUpdate(void)
 	}
 }
 
-#pragma GCC push_options
-#pragma GCC optimize("O0")
 void Bot::RunPlayerMovement(void)
 {
-	m_msecVal = (engine->GetTime() - m_msecInterval) * 1000.0f;
+	m_msecVal = cclampf((engine->GetTime() - m_msecInterval) * 1000.0f, 0.0f, 255.0f);
 	m_msecInterval = engine->GetTime();
-	(*g_engfuncs.pfnRunPlayerMove) (m_myself, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, m_buttons, m_impulse, static_cast<uint8_t>(m_msecVal));
+
+	// FIXME: infinite loop
+	(*g_engfuncs.pfnRunPlayerMove) (m_myself, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, m_buttons, m_impulse, static_cast<unsigned char>(m_msecVal));
 }
-#pragma GCC pop_options
 
 int GetMaxClip(const int& id)
 {
@@ -860,19 +855,27 @@ void Bot::CheckSlowThink(void)
 				FindGoalHuman();
 			}
 		}
+
+		if (m_hasEnemiesNear)
+		{
+			if ((m_isEnemyReachable || m_currentWaypointIndex == m_zhCampPointIndex) && chanceof(ebot_use_grenade_percent.GetInt()) && !FNullEnt(m_nearestEnemy))
+				CheckGrenadeThrow(m_nearestEnemy);
+		}
+		else
+		{
+			if (ebot_use_flare.GetBool() && !g_roundEnded && g_DelayTimer < tempTimer && !m_isZombieBot && !m_hasEnemiesNear && !FNullEnt(m_nearestEnemy))
+			{
+				if (pev->weapons & (1 << Weapon::SmGrenade) && chanceof(10) && (pev->origin - m_lookAt).GetLengthSquared2D() > squaredf(256.0f))
+				{
+					m_throw = m_lookAt;
+					SetProcess(Process::ThrowSM, "throwing flare", false, tempTimer + 5.0f);
+				}
+			}
+		}
 	}
 
 	m_isAlive = IsAlive(m_myself);
 	m_index = GetIndex() - 1;
-
-	if (ebot_use_flare.GetBool() && !g_roundEnded && g_DelayTimer < tempTimer && !m_isZombieBot && !m_hasEnemiesNear && !FNullEnt(m_nearestEnemy))
-	{
-		if (pev->weapons & (1 << Weapon::SmGrenade) && chanceof(10) && (pev->origin - m_lookAt).GetLengthSquared2D() > squaredf(256.0f))
-		{
-			m_throw = m_lookAt;
-			SetProcess(Process::ThrowSM, "throwing flare", false, tempTimer + 5.0f);
-		}
-	}
 
 	// zp & biohazard flashlight support
 	if (ebot_force_flashlight.GetBool())
@@ -1012,7 +1015,7 @@ void Bot::LookAtAround(void)
 		m_pauseTime = engine->GetTime() + 1.0f;
 		return;
 	}
-	else if (m_hasFriendsNear && !FNullEnt(m_nearestFriend) && IsAttacking(m_nearestFriend) && cstrncmp(STRING(m_nearestFriend->v.viewmodel), "models/v_knife", 14) != 0)
+	else if (m_hasFriendsNear && !FNullEnt(m_nearestFriend) && IsAttacking(m_nearestFriend) && cstrncmp(STRING(m_nearestFriend->v.viewmodel), "models/v_knife", 14))
 	{
 		const Bot* bot = g_botManager->GetBot(m_nearestFriend);
 		if (bot)
@@ -1331,28 +1334,28 @@ void Bot::DebugModeMsg(void)
 				// prevent printing unknown message from known weapons
 				switch (m_currentWeapon)
 				{
-				case Weapon::HeGrenade:
-				{
-					sprintf(weaponName, "weapon_hegrenade");
-					break;
-				}
-				case Weapon::FbGrenade:
-				{
-					sprintf(weaponName, "weapon_flashbang");
-					break;
-				}
-				case Weapon::SmGrenade:
-				{
-					sprintf(weaponName, "weapon_smokegrenade");
-					break;
-				}
-				case Weapon::C4:
-				{
-					sprintf(weaponName, "weapon_c4");
-					break;
-				}
-				default:
-					sprintf(weaponName, "Unknown! (%d)", m_currentWeapon);
+					case Weapon::HeGrenade:
+					{
+						sprintf(weaponName, "weapon_hegrenade");
+						break;
+					}
+					case Weapon::FbGrenade:
+					{
+						sprintf(weaponName, "weapon_flashbang");
+						break;
+					}
+					case Weapon::SmGrenade:
+					{
+						sprintf(weaponName, "weapon_smokegrenade");
+						break;
+					}
+					case Weapon::C4:
+					{
+						sprintf(weaponName, "weapon_c4");
+						break;
+					}
+					default:
+						sprintf(weaponName, "Unknown! (%d)", m_currentWeapon);
 				}
 			}
 			else
