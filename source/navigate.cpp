@@ -1604,11 +1604,10 @@ void Bot::FindShortestPath(int16_t& srcIndex, int16_t& destIndex)
 
 void Bot::FindEscapePath(int16_t& srcIndex, const Vector& dangerOrigin)
 {
-	if (g_pathTimer > engine->GetTime())
-		return;
-
 	// if we can't find new path we will go backwards
 	m_navNode.Clear();
+	if (g_pathTimer > engine->GetTime())
+		return;
 
 	if (!ebot_use_pathfinding_for_avoid.GetBool())
 		return;
