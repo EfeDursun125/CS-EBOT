@@ -1152,7 +1152,7 @@ typedef struct enginefuncs_s
     void (*pfnSetClientMaxspeed) (const edict_t* pentEdict, float fNewMaxspeed);
     edict_t* (*pfnCreateFakeClient) (const char* netname);       // returns null if fake client can't be created
     //
-    void (*pfnRunPlayerMove) (edict_t* fakeclient, const float* viewangles, float forwardmove, float sidemove, float upmove, unsigned short buttons, uint8_t impulse, uint8_t msec);
+    void (*pfnRunPlayerMove) (edict_t* fakeclient, const float* viewangles, float forwardmove, float sidemove, float upmove, unsigned short buttons, unsigned char impulse, unsigned char msec);
     //
     int (*pfnNumberOfEntities) (void);
     char* (*pfnGetInfoKeyBuffer) (edict_t* e);  // passing in null gets the serverinfo
@@ -2277,15 +2277,8 @@ static inline void MakeVectors(const Vector& in)
 
 namespace SDK_Utils
 {
-    inline const char* GetStringFromOffset(const int offset)
-    {
-        return static_cast<const char*>(g_pGlobals->pStringBase + offset);
-    }
-
-    inline int MakeStringByOffset(const char* str)
-    {
-        return reinterpret_cast<uintptr_t>(str) - reinterpret_cast<uintptr_t>(GetStringFromOffset(0));
-    }
+    inline const char* GetStringFromOffset(const int offset) { return static_cast<const char*>(g_pGlobals->pStringBase + offset); }
+    inline int MakeStringByOffset(const char* str) { return reinterpret_cast<uintptr_t>(str) - reinterpret_cast<uintptr_t>(GetStringFromOffset(0)); }
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -2720,24 +2713,23 @@ public:
         va_end(ap);
 
         int enginePrintType = 0;
-
         switch (printType)
         {
-        case PRINT_CENTER:
-        {
-            enginePrintType = 1;
-            break;
-        }
-        case PRINT_CHAT:
-        {
-            enginePrintType = 2;
-            break;
-        }
-        case PRINT_CONSOLE:
-        {
-            enginePrintType = 0;
-            break;
-        }
+            case PRINT_CENTER:
+            {
+                enginePrintType = 1;
+                break;
+            }
+            case PRINT_CHAT:
+            {
+                enginePrintType = 2;
+                break;
+            }
+            case PRINT_CONSOLE:
+            {
+                enginePrintType = 0;
+                break;
+            }
         }
 
         cstrcat(buffer, "\n");
@@ -2793,13 +2785,10 @@ private:
         cvar_t reg;
         class ConVar* self;
     };
-    MiniArray <VarPair> m_regVars;
+    CArray<VarPair>m_regVars;
     cvar_t* m_gameVars[GVAR_NUM];
 public:
-    Engine* operator -> (void)
-    {
-        return this;
-    }
+    Engine* operator -> (void) { return this; }
 public:
     void RegisterVariable(const char* variable, const char* value, const VarType varType, ConVar* self);
     void PushRegisteredConVarsToEngine(void);

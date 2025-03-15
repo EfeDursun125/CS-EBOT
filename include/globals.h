@@ -60,7 +60,7 @@ extern WeaponProperty g_weaponDefs[Const_MaxWeapons + 1];
 
 extern Clients g_clients[32];
 extern MenuText g_menus[28];
-extern MiniArray <NameItem> g_botNames;
+extern CArray<NameItem>g_botNames;
 
 extern edict_t* g_helicopter;
 extern edict_t* g_hostEntity;

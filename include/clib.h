@@ -401,7 +401,7 @@ inline int cstricmp(const char* str1, const char* str2)
 	while (*str1 && *str2)
 	{
 		const int result = ctolower(*str1) - ctolower(*str2);
-		if (result != 0)
+		if (result)
 			return result;
 
 		str1++;
@@ -731,23 +731,105 @@ inline void cswap(T& a, T& b)
 }
 
 template <typename T>
-class MiniArray
+class CPtr
 {
 private:
-	T* m_array{nullptr};
+	T* m_ptr{nullptr};
+public:
+	CPtr(void) = default;
+	explicit CPtr(T* ptr) : m_ptr(ptr) {}
+	CPtr(CPtr&) = delete;
+	CPtr(CPtr&& other) noexcept : m_ptr(other.m_ptr) { other.m_ptr = nullptr; }
+	~CPtr(void)
+	{
+		if (m_ptr)
+		{
+			delete m_ptr;
+			m_ptr = nullptr;
+		}
+	}
+	
+	inline CPtr& operator = (CPtr&) = delete;
+	inline CPtr& operator = (CPtr&& other) noexcept
+	{
+		if (this != &other)
+		{
+			if (m_ptr)
+				delete m_ptr;
+
+			m_ptr = other.m_ptr;
+			other.m_ptr = nullptr;
+		}
+
+		return *this;
+	}
+
+	template <typename T2>
+	inline T& operator[] (T2 index) { return m_ptr[index]; }
+	inline T& operator * (void) { return *m_ptr; }
+	inline T* operator -> (void) { return m_ptr; }
+	inline bool IsAllocated(void)
+    {
+		if (m_ptr)
+			return true;
+
+		return false;
+	}
+
+	inline T* Get(void) { return m_ptr; }
+	inline T* Release(void)
+	{
+		T* ptr = m_ptr;
+		m_ptr = nullptr;
+		return ptr;
+	}
+
+	inline void Reset(T* ptr = nullptr)
+	{
+		if (m_ptr)
+		{
+			delete m_ptr;
+			m_ptr = nullptr;
+		}
+
+		m_ptr = ptr;
+	}
+
+	inline void Swap(CPtr& other) noexcept
+	{
+		const T* temp = m_ptr;
+		m_ptr = other.m_ptr;
+		other.m_ptr = temp;
+	}
+
+	inline void Destroy(void)
+	{
+		if (m_ptr)
+		{
+			delete m_ptr;
+			m_ptr = nullptr;
+		}
+	}
+};
+
+template <typename T>
+class CArray
+{
+private:
+	CPtr<T>m_array{nullptr};
 	int16_t m_size{0};
 	int16_t m_capacity{0};
 public:
-	MiniArray(const int16_t size = 0) : m_size(size), m_capacity(size) { m_array = new(std::nothrow) T[size]; }
-	~MiniArray(void) { Destroy(); }
+	CArray(const int16_t size = 0) : m_size(size), m_capacity(size) { m_array.Reset(new(std::nothrow) T[size]); }
+	~CArray(void) { Destroy(); }
 public:
 	inline bool Resize(const int16_t size, const bool reset = false)
 	{
 		if (reset)
 		{
 			Destroy();
-			m_array = new(std::nothrow) T[size];
-			if (m_array)
+			m_array.Reset(new(std::nothrow) T[size]);
+			if (m_array.IsAllocated())
 			{
 				m_capacity = size;
 				return true;
@@ -756,10 +838,10 @@ public:
 			return false;
 		}
 
-		if (!m_array)
+		if (!m_array.IsAllocated())
 		{
-			m_array = new(std::nothrow) T[size];
-			if (m_array)
+			m_array.Reset(new(std::nothrow) T[size]);
+			if (m_array.IsAllocated())
 			{
 				m_capacity = size;
 				return true;
@@ -768,8 +850,8 @@ public:
 			return false;
 		}
 
-		T* new_array = new(std::nothrow) T[size];
-		if (!new_array)
+		CPtr<T>new_array(new(std::nothrow) T[size]);
+		if (!new_array.IsAllocated())
 			return false;
 
 		size_t max;
@@ -782,21 +864,14 @@ public:
 		for (i = 0; i < max; i++)
 			new_array[i] = m_array[i];
 
-		delete[] m_array;
-		m_array = new_array;
-		new_array = nullptr;
+		m_array.Reset(new_array.Release());
 		m_capacity = size;
 		return true;
 	}
 
 	inline void Destroy(void)
 	{
-		if (m_array)
-		{
-			delete[] m_array;
-			m_array = nullptr;
-		}
-
+		m_array.Destroy();
 		m_size = 0;
 		m_capacity = 0;
 	}
@@ -809,10 +884,7 @@ public:
 		return m_array[index];
 	}
 
-	inline bool Push(const T element, const bool autoSize = true)
-	{
-		return Push(&element, autoSize);
-	}
+	inline bool Push(const T element, const bool autoSize = true) { return Push(&element, autoSize); }
 
 	inline bool Push(const T* element, const bool autoSize = true)
 	{
@@ -822,7 +894,7 @@ public:
 				return false;
 		}
 
-		if (m_array)
+		if (m_array.IsAllocated())
 		{
 			m_array[m_size] = *element;
 			m_size++;
@@ -831,14 +903,11 @@ public:
 		return true;
 	}
 
-	inline bool Has(const T element)
-	{
-		return Has(&element);
-	}
+	inline bool Has(const T element) { return Has(&element); }
 
 	inline bool Has(const T* element)
 	{
-		if (m_array)
+		if (m_array.IsAllocated())
 		{
 			int16_t i;
 			for (i = 0; i < m_size; i++)
@@ -856,7 +925,7 @@ public:
 		if (index >= m_size)
 			return;
 
-		if (m_array)
+		if (m_array.IsAllocated())
 		{
 			int16_t i;
 			for (i = index; i < m_size - 1; i++)
@@ -866,14 +935,11 @@ public:
 		}
 	}
 
-	inline bool Remove(const T element)
-	{
-		return Remove(&element);
-	}
+	inline bool Remove(const T element) { return Remove(&element); }
 
 	inline bool Remove(const T* element)
 	{
-		if (m_array && element)
+		if (element && m_array.IsAllocated())
 		{
 			int16_t i;
 			for (i = 0; i < m_size; i++)
@@ -891,7 +957,7 @@ public:
 
 	inline void Reverse(void)
 	{
-		if (m_array)
+		if (m_array.IsAllocated())
 		{
 			int16_t i;
 			const int16_t half = m_size / 2;
@@ -903,7 +969,7 @@ public:
 
 	inline T Pop(void)
 	{
-		if (m_array)
+		if (m_array.IsAllocated())
 		{
 			const T element = m_array[m_size - 1];
 			RemoveAt(m_size - 1);
@@ -913,38 +979,12 @@ public:
 		return T();
 	}
 
-	inline void PopNoReturn(void)
-	{
-		RemoveAt(m_size - 1);
-	}
-
-	inline T& Last(void)
-	{
-		return m_array[m_size - 1];
-	}
-
-	inline bool IsEmpty(void) const
-	{
-		return !m_size;
-	}
-
-	inline int16_t Size(void) const
-	{
-		return m_size;
-	}
-
-	inline int16_t Capacity(void) const
-	{
-		return m_capacity;
-	}
-
-	inline T& Random(void) const
-	{
-		return m_array[crandomint(0, m_size - 1)];
-	}
-
-	inline T& operator[] (const int index)
-	{
-		return m_array[index];
-	}
+	inline void PopNoReturn(void) { RemoveAt(m_size - 1); }
+	inline T& Last(void) { return m_array[m_size - 1]; }
+	inline bool IsEmpty(void) const { return !m_size; }
+	inline int16_t Size(void) const { return m_size; }
+	inline int16_t Capacity(void) const { return m_capacity; }
+	inline T& Random(void) { return m_array[crandomint(0, m_size - 1)]; }
+	template <typename T2>
+	inline T& operator[] (const T2 index) { return m_array[index]; }
 };

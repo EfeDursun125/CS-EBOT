@@ -2,6 +2,7 @@
 // to see glibc versions if its correct
 #ifndef WIN32
 #define _FORTIFY_SOURCE 0
+#define D__NO_ISOC23__
 __asm__(".symver fputs,fputs@GLIBC_2.0");
 __asm__(".symver abort,abort@GLIBC_2.0");
 __asm__(".symver sprintf,sprintf@GLIBC_2.0");

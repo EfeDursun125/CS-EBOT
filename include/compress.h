@@ -74,7 +74,7 @@ private:
 
             for (i = 1; i < PADDING; i++)
             {
-                if ((compare = key[i] - m_buffer[temp + i]) != 0)
+                if ((compare = key[i] - m_buffer[temp + i]))
                     break;
             }
 

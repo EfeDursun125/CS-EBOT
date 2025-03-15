@@ -321,9 +321,9 @@ namespace Math
 class Vector
 {
 public:
-    float x;
-    float y;
-    float z;
+    float x{0.0f};
+    float y{0.0f};
+    float z{0.0f};
     inline Vector(const float scaler = 0.0f) : x(scaler), y(scaler), z(scaler) {}
     inline Vector(const float inputX, const float inputY, const float inputZ) : x(inputX), y(inputY), z(inputZ) {}
     inline Vector(float* other) : x(other[0]), y(other[1]), z(other[2]) {}
@@ -891,7 +891,7 @@ public:
     //
     bool Seek(const long offset, const int origin)
     {
-        if (fseek(m_handle, offset, origin) != 0)
+        if (fseek(m_handle, offset, origin))
             return false;
 
         return true;

@@ -272,43 +272,15 @@ private:
 	bool m_follow{false};
 	int16_t m_cursor{0};
 	int16_t m_length{0};
-	int16_t* m_path{nullptr};
+	CPtr<int16_t>m_path{nullptr};
 public:
 	explicit PathManager(void) = default;
-	~PathManager(void)
-	{
-		if (m_path)
-		{
-			delete[] m_path;
-			m_path = nullptr;
-		}
-	}
 public:
-	inline int16_t& Next(void)
-	{
-		return Get(1);
-	}
-
-	inline int16_t& First(void)
-	{
-		return Get(0);
-	}
-
-	inline int16_t& Last(void)
-	{
-		return Get(Length() - 1);
-	}
-
-	inline int16_t& Get(const int16_t index)
-	{
-		return m_path[m_cursor + index];
-	}
-
-	inline void Shift(void)
-	{
-		m_cursor++;
-	}
-
+	inline int16_t& Next(void) { return Get(1); }
+	inline int16_t& First(void) { return Get(0); }
+	inline int16_t& Last(void) { return Get(Length() - 1); }
+	inline int16_t& Get(const int16_t index) { return m_path[m_cursor + index]; }
+	inline void Shift(void) { m_cursor++; }
 	inline void Reverse(void)
 	{
 		int16_t start = m_cursor;
@@ -329,19 +301,12 @@ public:
 		return m_length - m_cursor;
 	}
 
-	inline bool HasNext(void) const
-	{
-		return Length() > 1;
-	}
-
-	inline bool IsEmpty(void) const
-	{
-		return !Length();
-	}
+	inline bool HasNext(void) const { return Length() > 1; }
+	inline bool IsEmpty(void) const { return !Length(); }
 
 	inline bool Add(const int16_t waypoint)
 	{
-		if (m_path)
+		if (m_path.IsAllocated())
 		{
 			m_path[m_length] = waypoint;
 			m_length++;
@@ -361,44 +326,31 @@ public:
 	{
 		m_cursor = 0;
 		m_length = 0;
-		m_path[0] = 0;
+		if (m_path.IsAllocated())
+			m_path[0] = 0;
 	}
 
 	inline void Destroy(void)
 	{
 		m_cursor = 0;
 		m_length = 0;
-		if (m_path)
-		{
-			delete[] m_path;
-			m_path = nullptr;
-		}
+		m_path.Destroy();
 	}
 
 	inline bool Init(const int16_t length)
 	{
-		Destroy();
-		m_path = new(std::nothrow) int16_t[length];
-		if (m_path)
+		m_cursor = 0;
+		m_length = 0;
+		m_path.Reset(new(std::nothrow) int16_t[length]);
+		if (m_path.IsAllocated())
 			return true;
 
 		return false;
 	}
 
-	inline bool CanFollowPath(void)
-	{
-		return m_follow && Length();
-	}
-
-	inline void Start(void)
-	{
-		m_follow = true;
-	}
-
-	inline void Stop(void)
-	{
-		m_follow = false;
-	}
+	inline bool CanFollowPath(void) { return m_follow && Length(); }
+	inline void Start(void) { m_follow = true; }
+	inline void Stop(void) { m_follow = false; }
 };
 
 // botname structure definition
@@ -506,7 +458,7 @@ public:
 	edict_t* m_avoid{nullptr};
 	unsigned short m_buttons{0};
 	uint16_t m_oldButtons{0}; // buttons from previous frame
-	uint8_t m_impulse{0}; // bot's impulse command
+	unsigned char m_impulse{0}; // bot's impulse command
 
 	int m_tryOpenDoor{0}; // attempt's to open the door
 	LiftState m_liftState{}; // state of lift handling
@@ -590,8 +542,8 @@ public:
 
 	edict_t* FindNearestButton(const char* className);
 	edict_t* FindButton(void);
-	int FindGoalZombie(void);
-	int FindGoalHuman(void);
+	int16_t FindGoalZombie(void);
+	int16_t FindGoalHuman(void);
 
 	float InFieldOfView(const Vector& dest);
 	bool IsWaypointOccupied(const int16_t index);
@@ -835,15 +787,14 @@ public:
 class BotControl : public Singleton <BotControl>
 {
 private:
-	MiniArray<CreateItem>m_creationTab{}; // bot creation tab
+CArray<CreateItem>m_creationTab{}; // bot creation tab
 	float m_maintainTime{0.0f}; // time to maintain bot creation quota
 protected:
 	int CreateBot(char name[32], int skill, int personality, const int team, const int member);
 public:
 	Bot* m_bots[32]{nullptr}; // all available bots
-
-	MiniArray<char*>m_savedBotNames{}; // storing the bot names
-	MiniArray<char*>m_avatars{}; // storing the steam ids
+	CArray<char*>m_savedBotNames{}; // storing the bot names
+	CArray<char*>m_avatars{}; // storing the steam ids
 
 	BotControl(void);
 	~BotControl(void);
@@ -888,7 +839,7 @@ private:
 	int m_registerdMessages[NETMSG_NUM]{0};
 public:
 	NetworkMsg(void);
-	~NetworkMsg(void) { };
+	~NetworkMsg(void) { m_bot = nullptr; };
 
 	void Execute(void* p);
 	void Reset(void) { m_message = NETMSG_UNDEFINED; m_state = 0; m_bot = nullptr; };
@@ -901,9 +852,8 @@ public:
 	void SetId(const int messageType, const int messsageIdentifier) { m_registerdMessages[messageType] = messsageIdentifier; }
 };
 
-const int MAX_WAYPOINT_BUCKET_SIZE = static_cast<int>(Const_MaxWaypoints * 0.65);
-const int MAX_WAYPOINT_BUCKET_MAX = Const_MaxWaypoints * 8 / MAX_WAYPOINT_BUCKET_SIZE + 1;
-const int MAX_WAYPOINT_BUCKET_WPTS = MAX_WAYPOINT_BUCKET_SIZE / MAX_WAYPOINT_BUCKET_MAX;
+#define MAX_WAYPOINT_BUCKET_SIZE static_cast<int>(Const_MaxWaypoints * 0.65)
+#define MAX_WAYPOINT_BUCKET_MAX Const_MaxWaypoints * 8 / MAX_WAYPOINT_BUCKET_SIZE + 1
 
 // waypoint operation class
 class Waypoint : public Singleton <Waypoint>
@@ -935,15 +885,15 @@ private:
 	int16_t m_facingAtIndex{-1};
 	char m_infoBuffer[256]{"\0"};
 
-	MiniArray<int16_t>m_terrorPoints{};
-	MiniArray<int16_t>m_zmHmPoints{};
-	MiniArray<int16_t>m_hmMeshPoints{};
-	MiniArray<int16_t>m_buckets[MAX_WAYPOINT_BUCKET_MAX][MAX_WAYPOINT_BUCKET_MAX][MAX_WAYPOINT_BUCKET_MAX];
+	CArray<int16_t>m_terrorPoints{};
+	CArray<int16_t>m_zmHmPoints{};
+	CArray<int16_t>m_hmMeshPoints{};
+	CArray<int16_t>m_buckets[MAX_WAYPOINT_BUCKET_MAX][MAX_WAYPOINT_BUCKET_MAX][MAX_WAYPOINT_BUCKET_MAX];
 public:
 	struct Bucket { int16_t x, y, z; };
-	float* m_waypointDisplayTime{nullptr};
-	int16_t* m_distMatrix{nullptr};
-	MiniArray<Path>m_paths{};
+	CPtr<float>m_waypointDisplayTime{nullptr};
+	CPtr<int16_t>m_distMatrix{nullptr};
+	CArray<Path>m_paths{};
 
 	Waypoint(void);
 	~Waypoint(void);
@@ -962,8 +912,8 @@ public:
 	int16_t FindNearestToEnt(const Vector& origin, float minDistance, edict_t* entity);
 	int16_t FindNearestToEntSlow(const Vector& origin, float minDistance, edict_t* entity);
 	int16_t FindNearestAnalyzer(const Vector& origin, float minDistance = 99999.0f, const float range = 99999.0f);
-	void FindInRadius(const Vector& origin, const float radius, int* holdTab, int* count);
-	void FindInRadius(MiniArray <int16_t>& queueID, const float& radius, const Vector& origin);
+	void FindInRadius(const Vector& origin, float radius, int16_t* holdTab, int16_t* count);
+	void FindInRadius(CArray<int16_t>&queueID, const float& radius, const Vector& origin);
 
 	void Add(const int flags, const Vector& waypointOrigin = nullvec, const float analyzeRange = 128.0f);
 	void Delete(void);
@@ -983,7 +933,7 @@ public:
 	void CalculateWayzone(const int16_t index);
 	Vector GetBottomOrigin(const Path* waypoint);
 
-	void Sort(const int16_t self, int16_t index[], const int size = Const_MaxPathIndex);
+	void Sort(const int16_t self, int16_t index[], const int16_t size = static_cast<int16_t>(Const_MaxPathIndex));
 	bool Download(void);
 	bool Load(void);
 	void Save(void);
@@ -1002,11 +952,10 @@ public:
 	void CreateBasic(void);
 
 	void DestroyBuckets(void);
-	void InitBuckets(void);
 	void AddToBucket(const Vector pos, const int16_t index);
 	void EraseFromBucket(const Vector pos, const int16_t index);
 	Bucket LocateBucket(const Vector pos);
-	MiniArray<int16_t>&GetWaypointsInBucket(const Vector &pos);
+	CArray<int16_t>&GetWaypointsInBucket(const Vector &pos);
 
 	Path* GetPath(const int16_t id);
 	char* GetWaypointInfo(const int16_t id);
