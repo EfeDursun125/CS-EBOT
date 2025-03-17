@@ -49,10 +49,7 @@ extern int g_storeAddbotVars[4];
 extern int g_modelIndexLaser;
 extern int g_modelIndexArrow;
 extern char g_fakeArgv[256];
-#define entityNum 254
-extern int g_entityId[entityNum];
-extern int g_entityTeam[entityNum];
-extern int g_entityAction[entityNum];
+extern CArray<int>g_entities;
 
 extern FireDelay g_fireDelay[Const_NumWeapons + 1];
 extern WeaponSelect g_weaponSelect[Const_NumWeapons + 1];

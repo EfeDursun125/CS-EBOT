@@ -738,7 +738,6 @@ private:
 public:
 	CPtr(void) = default;
 	explicit CPtr(T* ptr) : m_ptr(ptr) {}
-	CPtr(CPtr&) = delete;
 	CPtr(CPtr&& other) noexcept : m_ptr(other.m_ptr) { other.m_ptr = nullptr; }
 	~CPtr(void)
 	{
@@ -749,7 +748,6 @@ public:
 		}
 	}
 
-	inline CPtr& operator = (CPtr&) = delete;
 	inline CPtr& operator = (CPtr&& other) noexcept
 	{
 		if (this != &other)

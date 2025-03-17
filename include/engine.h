@@ -1150,7 +1150,7 @@ typedef struct enginefuncs_s
     void (*pfnCvar_RegisterVariable) (cvar_t* variable);
     void (*pfnFadeClientVolume) (const edict_t* pentEdict, int fadePercent, int fadeOutSeconds, int holdTime, int fadeInSeconds);
     void (*pfnSetClientMaxspeed) (const edict_t* pentEdict, float fNewMaxspeed);
-    edict_t* (*pfnCreateFakeClient) (const char* netname);       // returns null if fake client can't be created
+    edict_t* (*pfnCreateFakeClient) (const char* netname); // returns null if fake client can't be created
     //
     void (*pfnRunPlayerMove) (edict_t* fakeclient, const float* viewangles, float forwardmove, float sidemove, float upmove, unsigned short buttons, unsigned char impulse, unsigned char msec);
     //
@@ -1382,7 +1382,7 @@ extern enginefuncs_t g_engfuncs;
 
 inline void MESSAGE_BEGIN(const int msg_dest, const int msg_type, const float* pOrigin = nullptr, edict_t* ed = nullptr)
 {
-    (*g_engfuncs.pfnMessageBegin) (msg_dest, msg_type, pOrigin, ed);
+    g_engfuncs.pfnMessageBegin(msg_dest, msg_type, pOrigin, ed);
 }
 
 #define MESSAGE_END      (*g_engfuncs.pfnMessageEnd)
@@ -1505,7 +1505,7 @@ typedef struct entvars_s
 
     Vector origin;
     Vector oldorigin;
-    Vector velocity{1.0f, 1.0f, 1.0f};
+    Vector velocity;
     Vector basevelocity;
     Vector clbasevelocity; // Base velocity that was passed in to server physics so
     // client can predict conveyors correctly.  Server zeroes it, so we need to store here, too.
@@ -2016,7 +2016,7 @@ inline edict_t* ENT(edict_t* pent)
 inline edict_t* ENT(const EOFFSET eoffset)
 {
     if (eoffset)
-        return (*g_engfuncs.pfnPEntityOfEntOffset) (eoffset);
+        return g_engfuncs.pfnPEntityOfEntOffset(eoffset);
 
     return 0;
 }
@@ -2029,7 +2029,7 @@ inline EOFFSET OFFSET(const EOFFSET eoffset)
 inline EOFFSET OFFSET(const edict_t* pent)
 {
     if (pent)
-        return (*g_engfuncs.pfnEntOffsetOfPEntity) (pent);
+        return g_engfuncs.pfnEntOffsetOfPEntity(pent);
 
     return 0;
 }
@@ -2062,7 +2062,7 @@ inline int ENTINDEX(edict_t* pentEdict)
     if (!pentEdict)
         return -1;
 
-    return (*g_engfuncs.pfnIndexOfEdict) (pentEdict);
+    return g_engfuncs.pfnIndexOfEdict(pentEdict);
 }
 
 inline edict_t* INDEXENT(const int iEdictNum)
@@ -2070,7 +2070,7 @@ inline edict_t* INDEXENT(const int iEdictNum)
     if (iEdictNum < 0)
         return nullptr;
 
-    return (*g_engfuncs.pfnPEntityOfEntIndex) (iEdictNum);
+    return g_engfuncs.pfnPEntityOfEntIndex(iEdictNum);
 }
 
 // Testing the three types of "entity" for nullity
@@ -2086,7 +2086,7 @@ inline bool FNullEnt(entvars_t* pev)
 
 inline bool FNullEnt(const edict_t* pent)
 {
-    return !pent || !(*g_engfuncs.pfnEntOffsetOfPEntity) (pent);
+    return !pent || !g_engfuncs.pfnEntOffsetOfPEntity(pent);
 }
 
 inline bool FStringNull(const int iString)

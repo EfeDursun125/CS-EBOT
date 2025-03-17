@@ -49,9 +49,6 @@ using namespace Math;
 #include "platform.h"
 #include "runtime.h"
 
-#define checkEntityNum 20
-#define checkEnemyNum 128
-
 enum class Process : int8_t
 {
 	Default = 0,
@@ -503,7 +500,7 @@ public:
 	int m_collStateIndex{0}; // index into collide moves
 	CollisionState m_collisionState{CollisionState::COSTATE_UNDECIDED}; // collision state
 
-	float m_msecVal{0.0f};
+	unsigned char m_msecVal{0}; // stored msec val
 	float m_msecInterval{0.0f}; // used for leon hartwig's method for msec calculation
 	float m_frameInterval{0.0f}; // bot's frame interval
 	float m_aimInterval{0.0f}; // bot's aim interval
@@ -657,6 +654,7 @@ public:
 	Vector m_enemyOrigin{nullvec};
 	Vector m_friendOrigin{nullvec};
 	Vector m_entityOrigin{nullvec};
+	int8_t m_numFriendsNear{0};
 
 	int8_t m_senseChance{50};
 
@@ -673,8 +671,6 @@ public:
 
 	Bot(edict_t* bot, const int skill, const int personality, const int team, const int member);
 	~Bot(void);
-
-	void RunPlayerMovement(void);
 
 	// NEW AI
 	void BaseUpdate(void);
@@ -1019,9 +1015,6 @@ extern void ServerPrintNoTag(const char* format, ...);
 extern void CenterPrint(const char* format, ...);
 extern void ClientPrint(edict_t* ent, int dest, const char* format, ...);
 extern void HudMessage(edict_t* ent, bool toCenter, const Color& rgb, char* format, ...);
-
-extern bool SetEntityAction(const int index, const int team, const int action);
-extern void SetEntityActionData(const int i, const int index = -1, const int team = -1, const int action = -1);
 
 extern void AddLogEntry(const Log logLevel, const char* format, ...);
 extern void MOD_AddLogEntry(const int mode, char* format);
