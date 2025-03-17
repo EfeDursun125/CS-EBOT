@@ -2008,7 +2008,7 @@ void Bot::CheckStuck(const Vector& directionNormal, const float finterval)
 	else
 	{
 		// reset path if current waypoint is too far
-		if (m_hasFriendsNear && !FNullEnt(m_nearestFriend))
+		if (m_hasFriendsNear && !ebot_has_semiclip.GetBool() && !FNullEnt(m_nearestFriend))
 		{
 			m_avoid = nullptr;
 			const int prio = GetPlayerPriority(m_myself);
