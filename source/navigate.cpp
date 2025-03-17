@@ -169,6 +169,7 @@ void Bot::MoveTo(const Vector& targetPosition, const bool checkStuck)
 	const Vector directionOld = (targetPosition + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval);
 	m_moveAngles = directionOld.ToAngles();
 	m_moveAngles.x = -m_moveAngles.x; // invert for engine
+	m_moveAngles.ClampAngles();
 	m_moveSpeed = pev->maxspeed;
 
 	if (checkStuck)
@@ -181,6 +182,7 @@ void Bot::MoveOut(const Vector& targetPosition, const bool checkStuck)
 	SetStrafeSpeed(directionOld.Normalize2D(), pev->maxspeed);
 	m_moveAngles = directionOld.ToAngles();
 	m_moveAngles.x = -m_moveAngles.x; // invert for engine
+	m_moveAngles.ClampAngles();
 	m_moveSpeed = -pev->maxspeed;
 
 	if (checkStuck)
@@ -1271,7 +1273,7 @@ AStar waypoints[Const_MaxWaypoints];
 // this function finds a path from srcIndex to destIndex
 void Bot::FindPath(int16_t& srcIndex, int16_t& destIndex)
 {
-	if (g_pathTimer > engine->GetTime())
+	if (g_pathTimer > engine->GetTime() && !m_navNode.IsEmpty())
 		return;
 
 	if (!IsValidWaypoint(srcIndex))
@@ -1604,12 +1606,13 @@ void Bot::FindShortestPath(int16_t& srcIndex, int16_t& destIndex)
 
 void Bot::FindEscapePath(int16_t& srcIndex, const Vector& dangerOrigin)
 {
-	// if we can't find new path we will go backwards
-	m_navNode.Clear();
-	if (g_pathTimer > engine->GetTime())
-		return;
-
 	if (!ebot_use_pathfinding_for_avoid.GetBool())
+	{
+		m_navNode.Clear();
+		return;
+	}
+
+	if (g_pathTimer > engine->GetTime() && !m_navNode.IsEmpty())
 		return;
 
 	g_pathTimer = engine->GetTime() + 0.05f;
@@ -2102,9 +2105,14 @@ void Bot::CheckStuck(const Vector& directionNormal, const float finterval)
 
 	if (m_isStuck)
 	{
-		m_stuckTime += finterval;
-		if (m_stuckTime > 60.0f)
-			Kill();
+		if (m_isEnemyReachable)
+			CheckReachable();
+		else
+		{
+			m_stuckTime += finterval;
+			if (m_stuckTime > 60.0f)
+				Kill();
+		}
 
 		// not yet decided what to do?
 		if (m_collisionState == COSTATE_UNDECIDED)
@@ -2380,7 +2388,7 @@ void Bot::ResetCollideState(void)
 
 void Bot::SetWaypointOrigin(void)
 {
-	if (m_currentTravelFlags & PATHFLAG_JUMP || m_waypoint.flags & WAYPOINT_FALLRISK)
+	if (m_currentTravelFlags & PATHFLAG_JUMP || m_waypoint.flags & WAYPOINT_FALLRISK || m_isStuck)
 	{
 		m_waypointOrigin = m_waypoint.origin;
 		if (!IsOnLadder())
@@ -2420,6 +2428,13 @@ void Bot::SetWaypointOrigin(void)
 			m_waypointOrigin.x = m_waypoint.origin.x + crandomfloat(-radius, radius);
 			m_waypointOrigin.y = m_waypoint.origin.y + crandomfloat(-radius, radius);
 			m_waypointOrigin.z = m_waypoint.origin.z;
+		}
+
+		if (m_numFriendsNear)
+		{
+			const float range = static_cast<float>(m_numFriendsNear * m_numFriendsNear);
+			m_waypointOrigin.x += crandomfloat(-range, range);
+			m_waypointOrigin.y += crandomfloat(-range, range);
 		}
 	}
 	else

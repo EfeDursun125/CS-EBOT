@@ -34,9 +34,8 @@ ConVar ebot_showwp("ebot_show_waypoints", "0");
 ConVar ebot_analyze_create_goal_waypoints("ebot_analyze_starter_waypoints", "1");
 ConVar ebot_running_on_xash("ebot_running_on_xash", "0");
 
-float secondTimer;
-
-Bot* bot;
+static float secondTimer{0.0f};
+static Bot* bot{nullptr};
 
 void ebotVersionMSG(edict_t* entity = nullptr)
 {
@@ -108,10 +107,6 @@ int BotCommandHandler_O(edict_t* ent, const char* arg0, const char* arg1, const 
 	else if (!cstricmp(arg0, "fillserver") || !cstricmp(arg0, "fill"))
 		g_botManager->FillServer(catoi(arg1), IsNullString(arg2) ? -1 : catoi(arg2), IsNullString(arg3) ? -1 : catoi(arg3), IsNullString(arg4) ? -1 : catoi(arg4));
 
-	// set entity action with command
-	else if (!cstricmp(arg0, "setentityaction"))
-		SetEntityAction(catoi(arg1), catoi(arg2), catoi(arg3));
-
 	// swap counter-terrorist and terrorist teams
 	else if (!cstricmp(arg0, "swaptteams") || !cstricmp(arg0, "swap"))
 	{
@@ -126,7 +121,7 @@ int BotCommandHandler_O(edict_t* ent, const char* arg0, const char* arg1, const 
 			if (IsValidBot(client.index))
 				FakeClientCommand(client.ent, "chooseteam; menuselect %d; menuselect 5", GetTeam(client.ent) == Team::Counter ? 1 : 2);
 			else
-				(*g_engfuncs.pfnClientCommand) (client.ent, "chooseteam; menuselect %d", GetTeam(client.ent) == Team::Counter ? 1 : 2);
+				g_engfuncs.pfnClientCommand(client.ent, "chooseteam; menuselect %d", GetTeam(client.ent) == Team::Counter ? 1 : 2);
 		}
 	}
 
@@ -497,7 +492,7 @@ int BotCommandHandler_O(edict_t* ent, const char* arg0, const char* arg1, const 
 			const int16_t teleportPoint = catoi16(arg2);
 			if (teleportPoint < g_numWaypoints)
 			{
-				(*g_engfuncs.pfnSetOrigin) (g_hostEntity, g_waypoint->GetPath(teleportPoint)->origin);
+				g_engfuncs.pfnSetOrigin(g_hostEntity, g_waypoint->GetPath(teleportPoint)->origin);
 				g_waypointOn = true;
 
 				ServerPrint("Player '%s' teleported to waypoint #%d (x:%.1f, y:%.1f, z:%.1f)", GetEntityName(g_hostEntity), teleportPoint, g_waypoint->GetPath(teleportPoint)->origin.x, g_waypoint->GetPath(teleportPoint)->origin.y, g_waypoint->GetPath(teleportPoint)->origin.z);
@@ -617,55 +612,14 @@ void ebot_Version_Command(void)
 	ebotVersionMSG();
 }
 
-void CheckEntityAction(void)
-{
-	int i;
-	int workEntityWork = 0;
-	edict_t* entity = nullptr;
-	char action[33], team[33];
-
-	for (i = 0; i < entityNum; i++)
-	{
-		if (g_entityId[i] == -1)
-			continue;
-
-		entity = INDEXENT(g_entityId[i]);
-		if (FNullEnt(entity) || entity->v.effects & EF_NODRAW)
-			continue;
-
-		if (g_entityAction[i] == 1)
-			sprintf(action, "Enemy");
-		else if (g_entityAction[i] == 2)
-			sprintf(action, "Need Avoid");
-		else if (g_entityAction[i] == 3)
-			sprintf(action, "Pick Up");
-
-		sprintf(team, (g_entityTeam[i] == Team::Counter) ? "CT" : (g_entityTeam[i] == Team::Terrorist) ? "TR" : "Team-%d", g_entityTeam[i]);
-
-		workEntityWork++;
-		ServerPrintNoTag("Entity Num: %d | Action: %d (%s) | Team: %d (%s) | Entity Name: %s", workEntityWork, g_entityAction[i], action, g_entityTeam[i], team, GetEntityName(entity));
-	}
-
-	ServerPrintNoTag("Total Entity Action Num: %d", workEntityWork);
-}
-
-void LoadEntityData(void)
+inline void LoadEntityData(void)
 {
 	int i;
 	Bot* bot;
 	edict_t* entity;
 
-	for (i = 0; i < entityNum; i++)
-	{
-		if (g_entityId[i] == -1)
-			continue;
-
-		entity = INDEXENT(g_entityId[i]);
-		if (!IsAlive(entity))
-			SetEntityActionData(i);
-	}
-
-	for (i = 0; i < engine->GetMaxClients(); i++)
+	const int maxClients = engine->GetMaxClients();
+	for (i = 0; i < maxClients; i++)
 	{
 		entity = INDEXENT(i + 1);
 		if (FNullEnt(entity))
@@ -799,7 +753,6 @@ void GameDLLInit(void)
 	RegisterCommand("ebot_add_tr", AddBot_TR);
 	RegisterCommand("ebot_add_ct", AddBot_CT);
 	RegisterCommand("ebot_add", AddBot);
-	RegisterCommand("ebot_entity_check", CheckEntityAction);
 	RegisterCommand("ebot", CommandHandler);
 
 	// execute main config
@@ -2259,7 +2212,7 @@ void UpdateClientData(const struct edict_s* ent, int sendweapons, struct clientd
 	RETURN_META(MRES_IGNORED);
 }
 
-void JustAStuff(void)
+inline void JustAStuff(void)
 {
 	// code below is executed only on dedicated server
 	if (IsDedicatedServer())
@@ -2309,7 +2262,7 @@ void JustAStuff(void)
 		g_waypoint->ShowWaypointMsg();
 }
 
-void FrameThread(void)
+inline void FrameThread(void)
 {
 	LoadEntityData();
 	JustAStuff();
@@ -2323,8 +2276,6 @@ void FrameThread(void)
 		if (simulate && simulate->value != 1.0f)
 			g_engfuncs.pfnCVarSetFloat("sv_forcesimulating", 1.0f);
 	}
-
-	secondTimer = engine->GetTime() + 1.0f;
 }
 
 void StartFrame(void)
@@ -2340,7 +2291,10 @@ void StartFrame(void)
 	if (g_analyzewaypoints)
 		g_waypoint->Analyze();
 	else if (secondTimer < engine->GetTime())
+	{
 		FrameThread();
+		secondTimer = engine->GetTime() + 1.0f;
+	}
 	else
 		g_botManager->MaintainBotQuota();
 	
@@ -2640,7 +2594,7 @@ exportc int GetEngineFunctions(enginefuncs_t* functionTable, int* /*interfaceVer
 		if (bot)
 		{
 			bot->pev->maxspeed = newMaxspeed * 1.06f;
-			(*g_engfuncs.pfnSetClientMaxspeed) (ent, bot->pev->maxspeed);
+			g_engfuncs.pfnSetClientMaxspeed(ent, bot->pev->maxspeed);
 			RETURN_META(MRES_SUPERCEDE);
 		}
 
@@ -2772,16 +2726,6 @@ C_DLLEXPORT int Amxx_IsEBot(int index)
 {
 	index--;
 	return (g_botManager->GetBot(index) != nullptr);
-}
-
-C_DLLEXPORT int Amxx_GetEBotIndex(int index)
-{
-	index--;
-	amxxbot = g_botManager->GetBot(index);
-	if (amxxbot)
-		return amxxbot->m_index;
-
-	return -1;
 }
 
 C_DLLEXPORT int Amxx_EBotSeesEnemy(int index)
@@ -2922,11 +2866,6 @@ C_DLLEXPORT float Amxx_EBotGetFriendDistance(int index)
 	return -1.0f;
 }
 
-C_DLLEXPORT int Amxx_EbotSetEntityAction(int index, int team, int action)
-{
-	return static_cast<int>(SetEntityAction(index, team, action));
-}
-
 C_DLLEXPORT void Amxx_EBotSetLookAt(int index, Vector look, Vector vel)
 {
 	index--;
@@ -2982,7 +2921,7 @@ C_DLLEXPORT int Amxx_EBotSetCurrentProcess(int index, int process, int remember,
 {
 	index--;
 	amxxbot = g_botManager->GetBot(index);
-	if (amxxbot && amxxbot->SetProcess(static_cast<Process>(process), "amxx api", static_cast<bool>(remember), time))
+	if (amxxbot && amxxbot->SetProcess(static_cast<Process>(process), "amxx api", static_cast<bool>(remember), engine->GetTime() + time))
 		return 1;
 
 	return 0;
@@ -3001,7 +2940,7 @@ C_DLLEXPORT void Amxx_EBotForceCurrentProcess(int index, int process)
 	}
 }
 
-C_DLLEXPORT void Amxx_EBotFinishCurrentProcess(int index, int process)
+C_DLLEXPORT void Amxx_EBotFinishCurrentProcess(int index)
 {
 	index--;
 	amxxbot = g_botManager->GetBot(index);
@@ -3015,7 +2954,7 @@ C_DLLEXPORT int Amxx_EBotOverrideCurrentProcess(int index, int remember, float t
 	amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 	{
-		if (amxxbot->SetProcess(Process::Override, "amxx api", static_cast<bool>(remember), time))
+		if (amxxbot->SetProcess(Process::Override, "amxx api", static_cast<bool>(remember), engine->GetTime() + time))
 		{
 			amxxbot->m_overrideID = static_cast<bool>(customID);
 			amxxbot->m_overrideDefaultLookAI = static_cast<bool>(defaultLookAI);
@@ -3347,8 +3286,8 @@ C_DLLEXPORT void Amxx_EBotFindPathTo(int index, int goal)
 	amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 	{
-		int16_t ref = static_cast<int16_t>(goal);
-		amxxbot->FindPath(amxxbot->m_currentWaypointIndex, ref);
+		amxxbot->m_currentGoalIndex = static_cast<int16_t>(goal);
+		amxxbot->FindPath(amxxbot->m_currentWaypointIndex, amxxbot->m_currentGoalIndex);
 	}
 }
 
@@ -3358,8 +3297,8 @@ C_DLLEXPORT void Amxx_EBotFindShortestPathTo(int index, int goal)
 	amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 	{
-		int16_t ref = static_cast<int16_t>(goal);
-		amxxbot->FindShortestPath(amxxbot->m_currentWaypointIndex, ref);
+		amxxbot->m_currentGoalIndex = static_cast<int16_t>(goal);
+		amxxbot->FindShortestPath(amxxbot->m_currentWaypointIndex, amxxbot->m_currentGoalIndex);
 	}
 }
 
@@ -3519,56 +3458,6 @@ C_DLLEXPORT int Amxx_EBotIsMatrixReady(void)
 	return static_cast<int>(g_isMatrixReady);
 }
 
-C_DLLEXPORT int Amxx_EBotGetRandomInt(int min, int max)
-{
-	return crandomint(min, max);
-}
-
-C_DLLEXPORT float Amxx_EBotGetRandomFloat(int min, int max)
-{
-	return crandomfloat(min, max);
-}
-
-C_DLLEXPORT float Amxx_EBotGetVectorDistance(Vector start, Vector end)
-{
-	return GetVectorDistanceSSE(start, end);
-}
-
-C_DLLEXPORT float Amxx_EBotSqrtf(float value)
-{
-	return csqrtf(value);
-}
-
-C_DLLEXPORT float Amxx_EBotRqrtf(float value)
-{
-	return crsqrtf(value);
-}
-
-C_DLLEXPORT float Amxx_EBotPowf(float a, float b)
-{
-	return cpowf(a, b);
-}
-
-C_DLLEXPORT float Amxx_EBotCsinf(float value)
-{
-	return csinf(value);
-}
-
-C_DLLEXPORT float Amxx_EBotCosf(float value)
-{
-	return ccosf(value);
-}
-
-C_DLLEXPORT float Amxx_EBotAtan2f(float x, float y)
-{
-	return catan2f(x, y);
-}
-
-C_DLLEXPORT float Amxx_EBotTanf(float value)
-{
-	return ctanf(value);
-}
-
 C_DLLEXPORT int Amxx_EBotIsCamping(int index)
 {
 	index--;
@@ -3577,6 +3466,27 @@ C_DLLEXPORT int Amxx_EBotIsCamping(int index)
 		return 1;
 
 	return 0;
+}
+
+C_DLLEXPORT int Amxx_EBotRegisterEnemyEntity(int index)
+{
+	if (g_entities.Push(index))
+		return 1;
+
+	return 0;
+}
+
+C_DLLEXPORT int Amxx_EBotRemoveEnemyEntity(int index)
+{
+	if (g_entities.Remove(index))
+		return 1;
+
+	return 0;
+}
+
+C_DLLEXPORT void Amxx_EBotClearRegisteredEnemyEntities(void)
+{
+	g_entities.Destroy();
 }
 
 DLL_GIVEFNPTRSTODLL GiveFnptrsToDll(enginefuncs_t* functionTable, globalvars_t* pGlobals)

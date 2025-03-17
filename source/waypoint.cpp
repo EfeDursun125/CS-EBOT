@@ -1334,7 +1334,7 @@ void Waypoint::TeleportWaypoint(void)
     if (!IsValidWaypoint(m_facingAtIndex))
         return;
     
-    (*g_engfuncs.pfnSetOrigin) (g_hostEntity, m_paths[m_facingAtIndex].origin);
+    g_engfuncs.pfnSetOrigin(g_hostEntity, m_paths[m_facingAtIndex].origin);
 }
 
 // this function allow player to manually remove a path from one waypoint to another
@@ -2503,19 +2503,22 @@ void Waypoint::Think(void)
 
 inline int GetFacingDistance(const int16_t& start, const int16_t& goal)
 {
-	if (g_isMatrixReady)
+	if (g_isMatrixReady && IsValidWaypoint(start) && IsValidWaypoint(goal))
 		return *(g_waypoint->m_distMatrix.Get() + (start * g_numWaypoints) + goal);
 
-	return static_cast<int>(GetVectorDistanceSSE(g_waypoint->m_paths[start].origin, g_waypoint->m_paths[goal].origin));
+	return static_cast<int>(GetVectorDistanceSSE(g_waypoint->GetPath(start)->origin, g_waypoint->GetPath(goal)->origin));
 }
 
 inline int GetDirectDistance(const int16_t& start, const int16_t& goal)
 {
-	return static_cast<int>(GetVectorDistanceSSE(g_waypoint->m_paths[start].origin, g_waypoint->m_paths[goal].origin));
+	return static_cast<int>(GetVectorDistanceSSE(g_waypoint->GetPath(start)->origin, g_waypoint->GetPath(goal)->origin));
 }
 
 void Waypoint::ShowWaypointMsg(void)
 {
+    if (FNullEnt(g_hostEntity))
+        return;
+
     m_facingAtIndex = GetFacingIndex();
 
     // reset the minimal distance changed before
@@ -2867,7 +2870,7 @@ bool Waypoint::NodesValid(void)
                 if (m_paths[i].index[j] > g_numWaypoints)
                 {
                     AddLogEntry(Log::Warning, "Waypoint %d connected with invalid Waypoint #%d!", i, m_paths[i].index[j]);
-                    (*g_engfuncs.pfnSetOrigin) (g_hostEntity, m_paths[i].origin);
+                    g_engfuncs.pfnSetOrigin(g_hostEntity, m_paths[i].origin);
                     haveError = true;
                 }
 
@@ -2881,7 +2884,7 @@ bool Waypoint::NodesValid(void)
             if (!IsConnected(i))
             {
                 AddLogEntry(Log::Warning, "Waypoint %d isn't connected with any other Waypoint!", i);
-                (*g_engfuncs.pfnSetOrigin) (g_hostEntity, m_paths[i].origin);
+                g_engfuncs.pfnSetOrigin(g_hostEntity, m_paths[i].origin);
                 haveError = true;
             }
         }
@@ -2893,7 +2896,7 @@ bool Waypoint::NodesValid(void)
                 if (m_paths[i].index[k] >= g_numWaypoints || m_paths[i].index[k] < -1)
                 {
                     AddLogEntry(Log::Warning, "Waypoint %d - Pathindex %d out of Range!", i, k);
-                    (*g_engfuncs.pfnSetOrigin) (g_hostEntity, m_paths[i].origin);
+                    g_engfuncs.pfnSetOrigin(g_hostEntity, m_paths[i].origin);
 
                     g_waypointOn = true;
                     g_editNoclip = true;
@@ -2903,7 +2906,7 @@ bool Waypoint::NodesValid(void)
                 else if (m_paths[i].index[k] == i)
                 {
                     AddLogEntry(Log::Warning, "Waypoint %d - Pathindex %d points to itself!", i, k);
-                    (*g_engfuncs.pfnSetOrigin) (g_hostEntity, m_paths[i].origin);
+                    g_engfuncs.pfnSetOrigin(g_hostEntity, m_paths[i].origin);
 
                     g_waypointOn = true;
                     g_editNoclip = true;

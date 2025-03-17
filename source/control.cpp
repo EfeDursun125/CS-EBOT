@@ -178,9 +178,10 @@ int BotControl::CreateBot(char name[32], int skill, int personality, const int t
 		cstrncpy(botName, outputName, sizeof(botName));
 
 	edict_t* bot = nullptr;
-	if (FNullEnt((bot = (*g_engfuncs.pfnCreateFakeClient) (botName))))
+	if (FNullEnt((bot = g_engfuncs.pfnCreateFakeClient(botName))))
 	{
-		CenterPrint(" Unable to create E-Bot, Maximum players reached (%d/%d)", engine->GetMaxClients(), engine->GetMaxClients());
+		const int maxClients = engine->GetMaxClients();
+		CenterPrint(" Unable to create E-Bot, Maximum players reached (%d/%d)", maxClients, maxClients);
 		return -2;
 	}
 
@@ -360,10 +361,6 @@ void BotControl::InitQuota(void)
 {
 	m_maintainTime = engine->GetTime() + 2.0f;
 	m_creationTab.Destroy();
-
-	int i;
-	for (i = 0; i < entityNum; i++)
-		SetEntityActionData(i);
 }
 
 // this function fill server with bots, with specified team & personality
@@ -446,7 +443,6 @@ void BotControl::RemoveFromTeam(const Team team, const bool removeAll)
 		if (bot && team == bot->m_team)
 		{
 			bot->Kick();
-
 			if (!removeAll)
 				break;
 		}
@@ -687,8 +683,7 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 
 	m_startAction = CMENU_IDLE;
 
-	// initialize msec value
-	m_msecInterval = engine->GetTime();
+	m_pathInterval = engine->GetTime();
 	m_frameInterval = engine->GetTime();
 
 	m_isAlive = false;
@@ -780,7 +775,6 @@ void Bot::NewRound(void)
 	const float time2 = engine->GetTime();
 
 	// initialize msec value
-	m_msecInterval = time2;
 	m_aimInterval = time2;
 	m_frameInterval = time2;
 	m_pathInterval = time2;
@@ -848,7 +842,7 @@ void Bot::NewRound(void)
 // base code courtesy of Lazy (from bots-united forums!)
 void Bot::Kill(void)
 {
-	edict_t* hurtEntity = (*g_engfuncs.pfnCreateNamedEntity) (MAKE_STRING("trigger_hurt"));
+	edict_t* hurtEntity = g_engfuncs.pfnCreateNamedEntity(MAKE_STRING("trigger_hurt"));
 	if (FNullEnt(hurtEntity))
 		return;
 
@@ -859,7 +853,7 @@ void Bot::Kill(void)
 	hurtEntity->v.dmgtime = 2.0f;
 	hurtEntity->v.effects |= EF_NODRAW;
 
-	(*g_engfuncs.pfnSetOrigin) (hurtEntity, Vector(-4000.0f, -4000.0f, -4000.0f));
+	g_engfuncs.pfnSetOrigin(hurtEntity, Vector(-4000.0f, -4000.0f, -4000.0f));
 
 	KeyValueData kv;
 	kv.szClassName = const_cast<char*>(g_weaponDefs[m_currentWeapon].className);
@@ -873,7 +867,7 @@ void Bot::Kill(void)
 	MDLL_Spawn(hurtEntity);
 	MDLL_Touch(hurtEntity, m_myself);
 
-	(*g_engfuncs.pfnRemoveEntity) (hurtEntity);
+	g_engfuncs.pfnRemoveEntity(hurtEntity);
 }
 
 void Bot::Kick(void)

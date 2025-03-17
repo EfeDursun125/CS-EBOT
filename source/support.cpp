@@ -51,7 +51,7 @@ void TraceLine(const Vector& start, const Vector& end, const int& ignoreFlags, e
 	if (ignoreFlags & TraceIgnore::Glass)
 		engineFlags |= 0x100;
 
-	(*g_engfuncs.pfnTraceLine) (start, end, engineFlags, ignoreEntity, ptr);
+	g_engfuncs.pfnTraceLine(start, end, engineFlags, ignoreEntity, ptr);
 }
 
 void TraceHull(const Vector& start, const Vector& end, const int& ignoreFlags, const int& hullNumber, edict_t* ignoreEntity, TraceResult* ptr)
@@ -67,7 +67,7 @@ void TraceHull(const Vector& start, const Vector& end, const int& ignoreFlags, c
 	// function allows to specify whether the trace starts "inside" an entity's polygonal model,
 	// and if so, to specify that entity in ignoreEntity in order to ignore it as an obstacle.
 
-	(*g_engfuncs.pfnTraceHull) (start, end, !!(ignoreFlags & TraceIgnore::Monsters), hullNumber, ignoreEntity, ptr);
+	g_engfuncs.pfnTraceHull(start, end, !!(ignoreFlags & TraceIgnore::Monsters), hullNumber, ignoreEntity, ptr);
 }
 
 uint16_t FixedUnsigned16(const float value, const float scale)
@@ -371,63 +371,6 @@ void FreeLibraryMemory(void)
 	g_waypoint->Initialize(); // frees waypoint data
 }
 
-bool SetEntityAction(const int index, const int team, const int action)
-{
-	if (index == -1)
-	{
-		int i;
-		for (i = 0; i < entityNum; i++)
-			SetEntityActionData(i);
-
-		return 1;
-	}
-
-	edict_t* entity = INDEXENT(index);
-	if (!IsAlive(entity))
-		return -1;
-
-	if (IsValidPlayer(entity))
-		return -1;
-
-	int i;
-	for (i = 0; i < entityNum; i++)
-	{
-		if (g_entityId[i] == index)
-		{
-			if (action != -1)
-			{
-				if (team != g_entityTeam[i] || action != g_entityAction[i])
-					SetEntityActionData(i, index, team, action);
-			}
-			else
-				SetEntityActionData(i);
-
-			return 1;
-		}
-	}
-
-	if (action == -1)
-		return -1;
-
-	for (i = 0; i < entityNum; i++)
-	{
-		if (g_entityId[i] == -1)
-		{
-			SetEntityActionData(i, index, team, action);
-			return 1;
-		}
-	}
-
-	return -1;
-}
-
-void SetEntityActionData(const int i, const int index, const int team, const int action)
-{
-	g_entityId[i] = index;
-	g_entityTeam[i] = team;
-	g_entityAction[i] = action;
-}
-
 void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
 {
 	// the purpose of this function is to provide fakeclients (bots) with the same client
@@ -711,24 +654,6 @@ int GetTeam(edict_t* ent)
 		return Team::Count;
 
 	int player_team = Team::Count;
-	if (!IsValidPlayer(ent))
-	{
-		int i;
-		for (i = 0; i < entityNum; i++)
-		{
-			if (g_entityId[i] == -1)
-				continue;
-
-			if (ent == INDEXENT(g_entityId[i]))
-			{
-				player_team = g_entityTeam[i];
-				break;
-			}
-		}
-
-		return player_team;
-	}
-
 	if (ebot_ignore_enemies.GetBool())
 		player_team = Team::Counter;
 	else
@@ -1025,10 +950,10 @@ void ClientPrint(edict_t* ent, int dest, const char* format, ...)
 	{
 		char string2[2048];
 		FormatBuffer(string2, "[E-BOT] %s", string);
-		(*g_engfuncs.pfnClientPrintf) (ent, static_cast<PRINT_TYPE>(dest &= ~0x3ff), string2);
+		g_engfuncs.pfnClientPrintf(ent, static_cast<PRINT_TYPE>(dest &= ~0x3ff), string2);
 	}
 	else
-		(*g_engfuncs.pfnClientPrintf) (ent, static_cast<PRINT_TYPE>(dest), string);
+		g_engfuncs.pfnClientPrintf(ent, static_cast<PRINT_TYPE>(dest), string);
 }
 
 // this function returns true if server is running under linux, and false otherwise returns windows

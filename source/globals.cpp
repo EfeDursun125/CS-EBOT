@@ -51,11 +51,7 @@ int g_modelIndexLaser = 0;
 int g_modelIndexArrow = 0;
 char g_fakeArgv[256];
 
-// Entity Data
-int g_entityId[entityNum];
-int g_entityTeam[entityNum];
-int g_entityAction[entityNum];
-//******
+CArray<int>g_entities;
 
 meta_globals_t* gpMetaGlobals = nullptr;
 gamedll_funcs_t* gpGamedllFuncs = nullptr;

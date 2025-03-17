@@ -629,11 +629,24 @@ void Bot::BaseUpdate(void)
 			m_moveSpeed = pev->maxspeed;
 			DoWaypointNav();
 			const Vector directionOld = ((m_destOrigin + pev->velocity * -m_pathInterval) - (pev->origin + pev->velocity * m_pathInterval)).Normalize2D();
-			m_moveAngles = directionOld.ToAngles();
-			m_moveAngles.ClampAngles();
-			m_moveAngles.x = -m_moveAngles.x; // invert for engine
+			if (directionOld.GetLengthSquared2D() > 1.0f)
+			{
+				m_moveAngles = directionOld.ToAngles();
+				m_moveAngles.x = -m_moveAngles.x; // invert for engine
+				m_moveAngles.ClampAngles();
+			}
 			CheckStuck(directionOld, m_pathInterval);
 		}
+
+		// run playermovement
+		pev->buttons = static_cast<int>(m_buttons);
+		pev->impulse = static_cast<int>(m_impulse);
+
+		m_msecVal = static_cast<unsigned char>(cclampf((tempTimer - m_msecInterval) * 1000.0f, 0.0f, 255.0f));
+		m_msecInterval = tempTimer;
+
+		// FIXME: crash
+		g_engfuncs.pfnRunPlayerMove(pev->pContainingEntity, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, m_buttons, m_impulse, m_msecVal);
 
 		if (!m_lookVelocity.IsNull())
 		{
@@ -686,21 +699,7 @@ void Bot::BaseUpdate(void)
 		pev->angles.x = -pev->v_angle.x * 0.33333333333f;
 		pev->angles.y = pev->v_angle.y;
 		pev->angles.ClampAngles();
-
-		// run playermovement
-		pev->buttons = static_cast<int>(m_buttons);
-		pev->impulse = static_cast<int>(m_impulse);
-		RunPlayerMovement();
 	}
-}
-
-void Bot::RunPlayerMovement(void)
-{
-	m_msecVal = cclampf((engine->GetTime() - m_msecInterval) * 1000.0f, 0.0f, 255.0f);
-	m_msecInterval = engine->GetTime();
-
-	// FIXME: infinite loop
-	(*g_engfuncs.pfnRunPlayerMove) (m_myself, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, m_buttons, m_impulse, static_cast<unsigned char>(m_msecVal));
 }
 
 int GetMaxClip(const int& id)

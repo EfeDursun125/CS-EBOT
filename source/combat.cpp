@@ -24,7 +24,7 @@
 
 #include "../include/core.h"
 
-ConVar ebot_zombie_wall_hack("ebot_zombie_wall_hack", "1");
+ConVar ebot_zombie_wall_hack("ebot_zombie_wall_hack", "0");
 ConVar ebot_dark_mode("ebot_dark_mode", "0");
 
 int Bot::GetNearbyFriendsNearPosition(const Vector& origin, const float radius)
@@ -59,6 +59,9 @@ int Bot::GetNearbyEnemiesNearPosition(const Vector& origin, const float radius)
 
 inline float GetDistance(const int16_t& start, const int16_t& goal)
 {
+	if (!IsValidWaypoint(start) || !IsValidWaypoint(goal))
+		return 999999999.0f;
+
 	if (g_isMatrixReady)
 		return static_cast<float>(*(g_waypoint->m_distMatrix.Get() + (start * g_numWaypoints) + goal));
 
@@ -69,6 +72,7 @@ void Bot::FindFriendsAndEnemiens(void)
 {
 	m_numEnemiesLeft = 0;
 	m_numFriendsLeft = 0;
+	m_numFriendsNear = 0;
 	m_hasEnemiesNear = false;
 	m_hasFriendsNear = false;
 	if (g_roundEnded)
@@ -122,7 +126,8 @@ void Bot::FindFriendsAndEnemiens(void)
 					TraceLine(myOrigin, client.ent->v.origin + client.ent->v.view_ofs, TraceIgnore::Everything, m_myself, &tr);
 					if (tr.flFraction < 1.0f)
 						continue;
-
+					
+					m_numFriendsNear++;
 					m_friendDistance = distance;
 					m_nearestFriend = client.ent;
 					m_hasFriendsNear = true;
@@ -190,7 +195,8 @@ void Bot::FindFriendsAndEnemiens(void)
 					TraceLine(myOrigin, client.ent->v.origin + client.ent->v.view_ofs, TraceIgnore::Everything, m_myself, &tr);
 					if (tr.flFraction < 1.0f)
 						continue;
-
+					
+					m_numFriendsNear++;
 					m_friendDistance = distance;
 					m_nearestFriend = client.ent;
 					m_hasFriendsNear = true;
@@ -249,7 +255,7 @@ void Bot::FindEnemyEntities(void)
 		m_nearestEntity = nullptr;
 		return;
 	}
-	m_enemyDistance = 999999.0f;
+	m_entityDistance = 999999.0f;
 
 	int i;
 	Vector origin;
@@ -258,29 +264,25 @@ void Bot::FindEnemyEntities(void)
 	TraceResult tr{};
 	const Vector myOrigin = EyePosition();
 
-	for (i = 0; i < entityNum; i++)
+	for (i = 0; i < g_entities.Size(); i++)
 	{
-		if (g_entityId[i] == -1 || g_entityAction[i] != 1 || m_team == g_entityTeam[i])
-			continue;
-
-		entity = INDEXENT(g_entityId[i]);
+		entity = INDEXENT(g_entities[i]);
 		if (!IsAlive(entity) || entity->v.flags & FL_NOTARGET || entity->v.effects & EF_NODRAW || entity->v.takedamage == DAMAGE_NO)
 			continue;
 
 		m_numEntitiesLeft++;
-
-		// simple check
-		origin = GetBoxOrigin(entity);
-		TraceLine(myOrigin, origin, TraceIgnore::Everything, m_myself, &tr);
-		if (tr.flFraction < 1.0f)
-		{
-			if (!FNullEnt(tr.pHit) && tr.pHit != entity)
-				continue;
-		}
-
 		distance = (myOrigin - origin).GetLengthSquared();
 		if (distance < m_entityDistance)
 		{
+			// simple check
+			origin = GetBoxOrigin(entity);
+			TraceLine(myOrigin, origin, TraceIgnore::Everything, m_myself, &tr);
+			if (tr.flFraction < 1.0f)
+			{
+				if (!FNullEnt(tr.pHit) && tr.pHit != entity)
+					continue;
+			}
+
 			m_entityDistance = distance;
 			m_nearestEntity = entity;
 			m_hasEntitiesNear = true;
