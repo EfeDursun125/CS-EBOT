@@ -12,8 +12,15 @@ void Bot::DefaultUpdate(void)
 		// nearest enemy never resets to nullptr, so bot always know where are alive humans
 		if (IsAlive(m_nearestEnemy) && GetTeam(m_nearestEnemy) != m_team)
 		{
+			if (m_isSlowThink)
+			{
+				CheckReachable();
+				if (!CheckVisibility(m_nearestEnemy))
+					m_isEnemyReachable = false;
+			}
+
 			// path matrix returns 0 if we are on the same waypoint, so basically its reachable
-			if (m_hasEnemiesNear && (Math::FltZero(m_enemyDistance) || (m_isEnemyReachable && CheckVisibility(m_nearestEnemy))))
+			if (m_hasEnemiesNear && (Math::FltZero(m_enemyDistance) || m_isEnemyReachable))
 			{
 				Vector nextVec;
 				nextVec.x = m_enemyOrigin.x + m_nearestEnemy->v.velocity.x;
@@ -31,7 +38,6 @@ void Bot::DefaultUpdate(void)
 					FindEnemyEntities();
 					FindFriendsAndEnemiens();
 					FindWaypoint();
-					CheckReachable();
 				}
 				else
 					KnifeAttack();
@@ -90,6 +96,8 @@ void Bot::DefaultUpdate(void)
 		}
 		else
 		{
+			m_isEnemyReachable = false;
+
 			// search other bots to get valid enemy
 			if (m_isSlowThink)
 			{
@@ -119,8 +127,6 @@ void Bot::DefaultUpdate(void)
 
 			FindEnemyEntities();
 			FindFriendsAndEnemiens();
-
-			CheckReachable();
 		}
 		else
 			UpdateLooking();
@@ -152,11 +158,18 @@ void Bot::DefaultUpdate(void)
 				m_currentWaypointIndex = -1;
 
 				MoveOut(m_enemyOrigin);
-				m_navNode.Stop();
+
+				if (m_navNode.IsEmpty())
+					m_navNode.Stop();
 			}
 			else if (((pev->origin - g_waypoint->m_paths[m_navNode.First()].origin).GetLengthSquared() > (m_nearestEnemy->v.origin - g_waypoint->m_paths[m_navNode.First()].origin).GetLengthSquared() ||
 				(pev->origin - g_waypoint->m_paths[m_navNode.Next()].origin).GetLengthSquared() > (m_nearestEnemy->v.origin - g_waypoint->m_paths[m_navNode.Next()].origin).GetLengthSquared()) && ::IsInViewCone(pev->origin, m_nearestEnemy))
 			{
+				// find new safe spot if possible
+				m_zhCampPointIndex = -1;
+				FindGoalHuman();
+
+				m_navNode.Clear();
 				FindEscapePath(m_currentWaypointIndex, m_nearestEnemy->v.origin);
 				MoveOut(m_enemyOrigin);
 				m_navNode.Stop();
@@ -167,7 +180,10 @@ void Bot::DefaultUpdate(void)
 				if ((g_waypoint->GetPath(m_navNode.First())->origin - m_enemyOrigin).GetLengthSquared() < (g_waypoint->GetPath(m_navNode.First())->origin - pev->origin).GetLengthSquared())
 					m_navNode.Shift();
 
-				FollowPath();
+				if (!m_navNode.IsEmpty())
+					FollowPath();
+				else
+					m_navNode.Stop();
 			}
 
 			return;
@@ -288,6 +304,17 @@ void Bot::DefaultUpdate(void)
 			FindPath(m_currentWaypointIndex, m_zhCampPointIndex);
 		else
 			m_zhCampPointIndex = FindGoalHuman();
+	}
+
+	if (m_isSlowThink && m_navNode.IsEmpty())
+	{
+		if (m_currentWaypointIndex == m_currentGoalIndex)
+		{
+			if (m_isZombieBot)
+				m_currentGoalIndex = static_cast<int16_t>(crandomint(0, g_numWaypoints - 1));
+		}
+		else
+			FindShortestPath(m_currentWaypointIndex, m_currentGoalIndex);
 	}
 }
 

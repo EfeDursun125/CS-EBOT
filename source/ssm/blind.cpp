@@ -20,8 +20,8 @@ void Bot::BlindUpdate(void)
 			const Vector directionOld = (m_lookAt + pev->velocity * -m_frameInterval) - (pev->origin + pev->velocity * m_frameInterval);
 			SetStrafeSpeed(directionOld.Normalize2D(), pev->maxspeed);
 			m_moveAngles = directionOld.ToAngles();
-			m_moveAngles.ClampAngles();
 			m_moveAngles.x = -m_moveAngles.x;
+			m_moveAngles.ClampAngles();
 			m_moveSpeed = 0.0f;
 			m_buttons |= IN_ATTACK;
 			break;
