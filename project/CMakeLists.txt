@@ -26,11 +26,16 @@ set(CMAKE_SHARED_LIBRARY_SUFFIX ".so")
 
 # Set compiler flags
 set(CMAKE_CXX_STANDARD 11)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32 -g3 -Og")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m32 -g3 -Og -fno-inline -fno-omit-frame-pointer")
+else()
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32 -Ofast")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w -m32 -mmmx -msse -msse2 -mfpmath=sse -flto -Ofast -fvisibility=hidden -fno-exceptions -fno-rtti -Wno-parentheses -pipe -mtune=generic -fomit-frame-pointer -fvisibility-inlines-hidden -fno-stack-protector -fno-omit-frame-pointer -no-pie")
 set(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -m32")
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 cmake_policy(SET CMP0069 NEW)
+endif()
 
 # Set output directory for the library
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build/ebot)
