@@ -687,7 +687,7 @@ bool IsValidPlayer(edict_t* ent)
 
 bool IsValidBot(edict_t* ent)
 {
-	if (g_botManager->GetIndex(ent) != -1)
+	if (g_botManager->GetBot(ent))
 		return true;
 
 	return false;

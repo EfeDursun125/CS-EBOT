@@ -559,7 +559,7 @@ void Bot::BaseUpdate(void)
 	if (!pev)
 		return;
 
-	if (!m_myself)
+	if (FNullEnt(m_myself))
 	{
 		m_myself = GetEntity();
 		return;
@@ -638,16 +638,6 @@ void Bot::BaseUpdate(void)
 			CheckStuck(directionOld, m_pathInterval);
 		}
 
-		// run playermovement
-		pev->buttons = static_cast<int>(m_buttons);
-		pev->impulse = static_cast<int>(m_impulse);
-
-		m_msecVal = static_cast<unsigned char>(cclampf((tempTimer - m_msecInterval) * 1000.0f, 0.0f, 255.0f));
-		m_msecInterval = tempTimer;
-
-		// FIXME: crash
-		g_engfuncs.pfnRunPlayerMove(pev->pContainingEntity, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, m_buttons, m_impulse, m_msecVal);
-
 		if (!m_lookVelocity.IsNull())
 		{
 			m_lookAt.x += m_lookVelocity.x * m_pathInterval;
@@ -689,16 +679,29 @@ void Bot::BaseUpdate(void)
 			pev->v_angle.x += m_pathInterval * m_lookPitchVel;
 		}
 
-		if (pev->v_angle.x < -89.0f)
-			pev->v_angle.x = -89.0f;
-		else if (pev->v_angle.x > 89.0f)
-			pev->v_angle.x = 89.0f;
-
 		// set the body angles to point the gun correctly
 		pev->v_angle.ClampAngles();
 		pev->angles.x = -pev->v_angle.x * 0.33333333333f;
 		pev->angles.y = pev->v_angle.y;
 		pev->angles.ClampAngles();
+
+		// run playermove
+		if (pev->flags & FL_FROZEN)
+			m_msecVal = 0;
+		else
+		{
+			m_msecVal = static_cast<uint8_t>((tempTimer - m_msecInterval) * 1000.0f);
+			if (m_msecVal > static_cast<uint8_t>(255))
+				m_msecVal = static_cast<uint8_t>(255);
+
+			pev->buttons = static_cast<int>(m_buttons);
+			pev->impulse = static_cast<int>(m_impulse);
+
+			m_msecInterval = tempTimer;
+		}
+
+		// FIXME: crash
+		g_engfuncs.pfnRunPlayerMove(m_myself, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, m_buttons, m_impulse, m_msecVal);
 	}
 }
 

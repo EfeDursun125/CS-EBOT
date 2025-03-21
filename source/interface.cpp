@@ -2586,25 +2586,10 @@ exportc int GetEngineFunctions(enginefuncs_t* functionTable, int* /*interfaceVer
 		RETURN_META_VALUE(MRES_IGNORED, 0);
 	};
 
-	functionTable->pfnSetClientMaxspeed = [](const edict_t* ent, float newMaxspeed)
-	{
-		bot = g_botManager->GetBot(const_cast<edict_t*>(ent));
-
-		// check wether it's not a bot, fair cheat :(
-		if (bot)
-		{
-			bot->pev->maxspeed = newMaxspeed * 1.06f;
-			g_engfuncs.pfnSetClientMaxspeed(ent, bot->pev->maxspeed);
-			RETURN_META(MRES_SUPERCEDE);
-		}
-
-		RETURN_META(MRES_IGNORED);
-	};
-
 	functionTable->pfnGetPlayerAuthId = [](edict_t* e) -> const char*
 	{
 		if (IsValidBot(e))
-			RETURN_META_VALUE(MRES_SUPERCEDE, "BOT");
+			RETURN_META_VALUE(MRES_SUPERCEDE, "E-BOT");
 
 		RETURN_META_VALUE(MRES_IGNORED, 0);
 	};
