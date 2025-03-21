@@ -453,9 +453,9 @@ public:
 
 	edict_t* m_myself{nullptr};
 	edict_t* m_avoid{nullptr};
-	unsigned short m_buttons{0};
+	uint16_t m_buttons{0};
 	uint16_t m_oldButtons{0}; // buttons from previous frame
-	unsigned char m_impulse{0}; // bot's impulse command
+	uint8_t m_impulse{0}; // bot's impulse command
 
 	int m_tryOpenDoor{0}; // attempt's to open the door
 	LiftState m_liftState{}; // state of lift handling
@@ -500,7 +500,7 @@ public:
 	int m_collStateIndex{0}; // index into collide moves
 	CollisionState m_collisionState{CollisionState::COSTATE_UNDECIDED}; // collision state
 
-	unsigned char m_msecVal{0}; // stored msec val
+	uint8_t m_msecVal{0}; // stored msec val
 	float m_msecInterval{0.0f}; // used for leon hartwig's method for msec calculation
 	float m_frameInterval{0.0f}; // bot's frame interval
 	float m_aimInterval{0.0f}; // bot's aim interval

@@ -854,7 +854,6 @@ enum
 
 typedef int func_t;
 
-typedef unsigned char uint8_t;
 typedef unsigned short word;
 
 #define _DEF_BYTE_
@@ -1152,7 +1151,7 @@ typedef struct enginefuncs_s
     void (*pfnSetClientMaxspeed) (const edict_t* pentEdict, float fNewMaxspeed);
     edict_t* (*pfnCreateFakeClient) (const char* netname); // returns null if fake client can't be created
     //
-    void (*pfnRunPlayerMove) (edict_t* fakeclient, const float* viewangles, float forwardmove, float sidemove, float upmove, unsigned short buttons, unsigned char impulse, unsigned char msec);
+    void (*pfnRunPlayerMove) (edict_t *fakeclient, const float *viewangles, float forwardmove, float sidemove, float upmove, uint16_t buttons, uint8_t impulse, uint8_t msec);
     //
     int (*pfnNumberOfEntities) (void);
     char* (*pfnGetInfoKeyBuffer) (edict_t* e);  // passing in null gets the serverinfo
