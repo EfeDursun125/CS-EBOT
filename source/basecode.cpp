@@ -623,19 +623,40 @@ void Bot::BaseUpdate(void)
 		if (m_pathInterval < 0.0001f)
 			return;
 
-		if (m_navNode.CanFollowPath() && CheckWaypoint())
+		// run playermove
+		if (pev->flags & FL_FROZEN)
 		{
+			m_msecVal = 0;
+			pev->buttons = 0;
+			pev->impulse = 0;
+			m_moveSpeed = 0.0f;
 			m_strafeSpeed = 0.0f;
-			m_moveSpeed = pev->maxspeed;
-			DoWaypointNav();
-			const Vector directionOld = ((m_destOrigin + pev->velocity * -m_pathInterval) - (pev->origin + pev->velocity * m_pathInterval)).Normalize2D();
-			if (directionOld.GetLengthSquared2D() > 1.0f)
+		}
+		else
+		{
+			m_msecVal = static_cast<uint8_t>((tempTimer - m_msecInterval) * 1000.0f);
+			if (m_msecVal > static_cast<uint8_t>(255))
+				m_msecVal = static_cast<uint8_t>(255);
+
+			pev->buttons = static_cast<int>(m_buttons);
+			pev->impulse = static_cast<int>(m_impulse);
+
+			m_msecInterval = tempTimer;
+
+			if (m_navNode.CanFollowPath() && CheckWaypoint())
 			{
-				m_moveAngles = directionOld.ToAngles();
-				m_moveAngles.x = -m_moveAngles.x; // invert for engine
-				m_moveAngles.ClampAngles();
+				m_strafeSpeed = 0.0f;
+				m_moveSpeed = pev->maxspeed;
+				DoWaypointNav();
+				const Vector directionOld = ((m_destOrigin + pev->velocity * -m_pathInterval) - (pev->origin + pev->velocity * m_pathInterval)).Normalize2D();
+				if (directionOld.GetLengthSquared2D() > 1.0f)
+				{
+					m_moveAngles = directionOld.ToAngles();
+					m_moveAngles.x = -m_moveAngles.x; // invert for engine
+					m_moveAngles.ClampAngles();
+				}
+				CheckStuck(directionOld, m_pathInterval);
 			}
-			CheckStuck(directionOld, m_pathInterval);
 		}
 
 		if (!m_lookVelocity.IsNull())
@@ -684,21 +705,6 @@ void Bot::BaseUpdate(void)
 		pev->angles.x = -pev->v_angle.x * 0.33333333333f;
 		pev->angles.y = pev->v_angle.y;
 		pev->angles.ClampAngles();
-
-		// run playermove
-		if (pev->flags & FL_FROZEN)
-			m_msecVal = 0;
-		else
-		{
-			m_msecVal = static_cast<uint8_t>((tempTimer - m_msecInterval) * 1000.0f);
-			if (m_msecVal > static_cast<uint8_t>(255))
-				m_msecVal = static_cast<uint8_t>(255);
-
-			pev->buttons = static_cast<int>(m_buttons);
-			pev->impulse = static_cast<int>(m_impulse);
-
-			m_msecInterval = tempTimer;
-		}
 
 		// FIXME: crash
 		g_engfuncs.pfnRunPlayerMove(m_myself, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, m_buttons, m_impulse, m_msecVal);
