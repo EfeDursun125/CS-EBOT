@@ -34,4 +34,7 @@ __asm__(".symver vfprintf,vfprintf@GLIBC_2.0");
 __asm__(".symver fread,fread@GLIBC_2.0");
 __asm__(".symver strftime,strftime@GLIBC_2.0");
 __asm__(".symver snprintf,snprintf@GLIBC_2.0");
+__asm__(".symver pthread_mutex_trylock,pthread_mutex_trylock@GLIBC_2.0");
+__asm__(".symver pthread_detach,pthread_detach@GLIBC_2.0");
+__asm__(".symver pthread_create,pthread_create@GLIBC_2.0");
 #endif
