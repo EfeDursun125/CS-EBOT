@@ -35,8 +35,6 @@ ConVar ebot_analyze_create_goal_waypoints("ebot_analyze_starter_waypoints", "1")
 ConVar ebot_running_on_xash("ebot_running_on_xash", "0");
 
 static float secondTimer{0.0f};
-static Bot* bot{nullptr};
-
 void ebotVersionMSG(edict_t* entity = nullptr)
 {
 	const int buildVersion[4] = { PRODUCT_VERSION_DWORD };
@@ -236,7 +234,7 @@ int BotCommandHandler_O(edict_t* ent, const char* arg0, const char* arg1, const 
 
 			for (const auto& bot : g_botManager->m_bots)
 			{
-				if (bot)
+				if (bot && bot->pev)
 					bot->pev->health = cabsf(catof(arg1));
 			}
 		}
@@ -253,7 +251,7 @@ int BotCommandHandler_O(edict_t* ent, const char* arg0, const char* arg1, const 
 
 			for (const auto& bot : g_botManager->m_bots)
 			{
-				if (bot)
+				if (bot && bot->pev)
 					bot->pev->gravity = gravity;
 			}
 		}
@@ -826,7 +824,7 @@ int Spawn_Post(edict_t* ent)
 		ent->v.flags &= ~FL_WORLDBRUSH; // clear the FL_WORLDBRUSH flag out of transparent ents
 
 	// reset bot
-	bot = g_botManager->GetBot(ent);
+	Bot* bot = g_botManager->GetBot(ent);
 	if (bot)
 		bot->NewRound();
 
@@ -846,7 +844,7 @@ void Touch_Post(edict_t* pentTouched, edict_t* pentOther)
 	// the two entities both have velocities, for example two players colliding, this function
 	// is called twice, once for each entity moving.
 
-	bot = g_botManager->GetBot(pentOther);
+	Bot* bot = g_botManager->GetBot(pentOther);
 	if (bot)
 		bot->CheckTouchEntity(pentTouched);
 
@@ -901,7 +899,7 @@ void ClientDisconnect(edict_t* ent)
 	const int clientIndex = ENTINDEX(ent) - 1;
 
 	// check if its a bot
-	bot = g_botManager->GetBot(clientIndex);
+	Bot* bot = g_botManager->GetBot(clientIndex);
 	if (bot && bot->m_myself == ent)
 		g_botManager->Free(clientIndex);
 
@@ -1485,7 +1483,6 @@ void ClientCommand(edict_t* ent)
 			else if (client->menu == &g_menus[18])
 			{
 				DisplayMenuToClient(ent, nullptr); // reset menu display
-				bot = nullptr;
 
 				switch (selection)
 				{
@@ -2474,7 +2471,7 @@ exportc int GetEngineFunctions(enginefuncs_t* functionTable, int* /*interfaceVer
 			}
 			else
 			{
-				bot = g_botManager->GetBot(ed);
+				Bot* bot = g_botManager->GetBot(ed);
 
 				// is this message for a bot?
 				if (bot && bot->m_myself == ed)
@@ -2589,7 +2586,7 @@ exportc int GetEngineFunctions(enginefuncs_t* functionTable, int* /*interfaceVer
 	functionTable->pfnGetPlayerAuthId = [](edict_t* e) -> const char*
 	{
 		if (IsValidBot(e))
-			RETURN_META_VALUE(MRES_SUPERCEDE, "E-BOT");
+			RETURN_META_VALUE(MRES_SUPERCEDE, "BOT");
 
 		RETURN_META_VALUE(MRES_IGNORED, 0);
 	};
@@ -2694,9 +2691,6 @@ exportc void Meta_Init(void)
 	// function to give plugin a chance to determine is plugin running under metamod or not.
 }
 
-static Bot* amxxbot{nullptr};
-static edict_t* amxxent{nullptr};
-
 C_DLLEXPORT bool Amxx_RunEBot(void)
 {
 	return true;
@@ -2716,7 +2710,7 @@ C_DLLEXPORT int Amxx_IsEBot(int index)
 C_DLLEXPORT int Amxx_EBotSeesEnemy(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot && amxxbot->m_hasEnemiesNear)
 		return 1;
 
@@ -2726,7 +2720,7 @@ C_DLLEXPORT int Amxx_EBotSeesEnemy(int index)
 C_DLLEXPORT int Amxx_EBotSeesEntity(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot && amxxbot->m_hasEntitiesNear)
 		return 1;
 
@@ -2736,7 +2730,7 @@ C_DLLEXPORT int Amxx_EBotSeesEntity(int index)
 C_DLLEXPORT int Amxx_EBotSeesFriend(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot && amxxbot->m_hasFriendsNear)
 		return 1;
 
@@ -2746,7 +2740,7 @@ C_DLLEXPORT int Amxx_EBotSeesFriend(int index)
 C_DLLEXPORT int Amxx_EBotGetEnemy(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot && !FNullEnt(amxxbot->m_nearestEnemy))
 		return ENTINDEX(amxxbot->m_nearestEnemy) - 1;
 
@@ -2756,7 +2750,7 @@ C_DLLEXPORT int Amxx_EBotGetEnemy(int index)
 C_DLLEXPORT int Amxx_EBotGetEntity(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot && !FNullEnt(amxxbot->m_nearestEntity))
 		return ENTINDEX(amxxbot->m_nearestEntity) - 1;
 
@@ -2766,7 +2760,7 @@ C_DLLEXPORT int Amxx_EBotGetEntity(int index)
 C_DLLEXPORT int Amxx_EBotGetFriend(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot && !FNullEnt(amxxbot->m_nearestFriend))
 		return ENTINDEX(amxxbot->m_nearestFriend) - 1;
 
@@ -2776,15 +2770,16 @@ C_DLLEXPORT int Amxx_EBotGetFriend(int index)
 C_DLLEXPORT void Amxx_EBotSetEnemy(int index, int ent)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 	{
-		amxxent = INDEXENT(ent);
+		edict_t* amxxent = INDEXENT(ent);
 		if (!FNullEnt(amxxent))
 		{
 			amxxbot->m_hasEnemiesNear = true;
 			amxxbot->m_nearestEnemy = amxxent;
-			amxxbot->m_enemyDistance = GetVectorDistanceSSE(amxxbot->pev->origin, amxxent->v.origin);
+			if (amxxbot->pev)
+				amxxbot->m_enemyDistance = GetVectorDistanceSSE(amxxbot->pev->origin, amxxent->v.origin);
 		}
 	}
 }
@@ -2792,15 +2787,16 @@ C_DLLEXPORT void Amxx_EBotSetEnemy(int index, int ent)
 C_DLLEXPORT void Amxx_EBotSetEntity(int index, int ent)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 	{
-		amxxent = INDEXENT(ent);
+		edict_t* amxxent = INDEXENT(ent);
 		if (!FNullEnt(amxxent))
 		{
 			amxxbot->m_hasEntitiesNear = true;
 			amxxbot->m_nearestEntity = amxxent;
-			amxxbot->m_entityDistance = GetVectorDistanceSSE(amxxbot->pev->origin, amxxent->v.origin);
+			if (amxxbot->pev)
+				amxxbot->m_entityDistance = GetVectorDistanceSSE(amxxbot->pev->origin, amxxent->v.origin);
 		}
 	}
 }
@@ -2808,15 +2804,16 @@ C_DLLEXPORT void Amxx_EBotSetEntity(int index, int ent)
 C_DLLEXPORT void Amxx_EBotSetFriend(int index, int ent)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 	{
-		amxxent = INDEXENT(ent);
+		edict_t* amxxent = INDEXENT(ent);
 		if (!FNullEnt(amxxent))
 		{
 			amxxbot->m_hasFriendsNear = true;
 			amxxbot->m_nearestFriend = amxxent;
-			amxxbot->m_friendDistance = GetVectorDistanceSSE(amxxbot->pev->origin, amxxent->v.origin);
+			if (amxxbot->pev)
+				amxxbot->m_friendDistance = GetVectorDistanceSSE(amxxbot->pev->origin, amxxent->v.origin);
 		}
 	}
 }
@@ -2824,7 +2821,7 @@ C_DLLEXPORT void Amxx_EBotSetFriend(int index, int ent)
 C_DLLEXPORT float Amxx_EBotGetEnemyDistance(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		return amxxbot->m_enemyDistance;
 
@@ -2834,7 +2831,7 @@ C_DLLEXPORT float Amxx_EBotGetEnemyDistance(int index)
 C_DLLEXPORT float Amxx_EBotGetEntityDistance(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		return amxxbot->m_entityDistance;
 
@@ -2844,7 +2841,7 @@ C_DLLEXPORT float Amxx_EBotGetEntityDistance(int index)
 C_DLLEXPORT float Amxx_EBotGetFriendDistance(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		return amxxbot->m_friendDistance;
 
@@ -2854,7 +2851,7 @@ C_DLLEXPORT float Amxx_EBotGetFriendDistance(int index)
 C_DLLEXPORT void Amxx_EBotSetLookAt(int index, Vector look, Vector vel)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 	{
 		amxxbot->LookAt(look, vel);
@@ -2865,7 +2862,7 @@ C_DLLEXPORT void Amxx_EBotSetLookAt(int index, Vector look, Vector vel)
 C_DLLEXPORT int Amxx_EBotGetCurrentProcess(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		return static_cast<int>(amxxbot->m_currentProcess);
 
@@ -2875,7 +2872,7 @@ C_DLLEXPORT int Amxx_EBotGetCurrentProcess(int index)
 C_DLLEXPORT int Amxx_EBotGetRememberedProcess(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		return static_cast<int>(amxxbot->m_currentProcess);
 
@@ -2885,7 +2882,7 @@ C_DLLEXPORT int Amxx_EBotGetRememberedProcess(int index)
 C_DLLEXPORT float Amxx_EBotGetCurrentProcessTime(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		return amxxbot->m_currentProcessTime - engine->GetTime();
 
@@ -2895,7 +2892,7 @@ C_DLLEXPORT float Amxx_EBotGetCurrentProcessTime(int index)
 C_DLLEXPORT float Amxx_EBotGetRememberedProcessTime(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		return amxxbot->m_rememberedProcessTime - engine->GetTime();
 
@@ -2905,7 +2902,7 @@ C_DLLEXPORT float Amxx_EBotGetRememberedProcessTime(int index)
 C_DLLEXPORT int Amxx_EBotSetCurrentProcess(int index, int process, int remember, float time)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot && amxxbot->SetProcess(static_cast<Process>(process), "amxx api", static_cast<bool>(remember), engine->GetTime() + time))
 		return 1;
 
@@ -2915,7 +2912,7 @@ C_DLLEXPORT int Amxx_EBotSetCurrentProcess(int index, int process, int remember,
 C_DLLEXPORT void Amxx_EBotForceCurrentProcess(int index, int process)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 	{
 		amxxbot->EndProcess(amxxbot->m_currentProcess);
@@ -2928,7 +2925,7 @@ C_DLLEXPORT void Amxx_EBotForceCurrentProcess(int index, int process)
 C_DLLEXPORT void Amxx_EBotFinishCurrentProcess(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		amxxbot->FinishCurrentProcess("amxx api");
 }
@@ -2936,7 +2933,7 @@ C_DLLEXPORT void Amxx_EBotFinishCurrentProcess(int index)
 C_DLLEXPORT int Amxx_EBotOverrideCurrentProcess(int index, int remember, float time, int customID, int defaultLookAI, int defaultChecks)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 	{
 		if (amxxbot->SetProcess(Process::Override, "amxx api", static_cast<bool>(remember), engine->GetTime() + time))
@@ -2954,7 +2951,7 @@ C_DLLEXPORT int Amxx_EBotOverrideCurrentProcess(int index, int remember, float t
 C_DLLEXPORT int Amxx_EBotGetOverrideProcessID(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		return amxxbot->m_overrideID;
 
@@ -2964,7 +2961,7 @@ C_DLLEXPORT int Amxx_EBotGetOverrideProcessID(int index)
 C_DLLEXPORT int Amxx_EBotHasOverrideChecks(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		return amxxbot->m_overrideDefaultChecks;
 
@@ -2974,7 +2971,7 @@ C_DLLEXPORT int Amxx_EBotHasOverrideChecks(int index)
 C_DLLEXPORT int Amxx_EBotHasOverrideLookAI(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		return amxxbot->m_overrideDefaultLookAI;
 
@@ -2984,7 +2981,7 @@ C_DLLEXPORT int Amxx_EBotHasOverrideLookAI(int index)
 C_DLLEXPORT void Amxx_EBotForceFireWeapon(int index, float targetDistance)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		amxxbot->FireWeapon(targetDistance);
 }
@@ -2992,7 +2989,7 @@ C_DLLEXPORT void Amxx_EBotForceFireWeapon(int index, float targetDistance)
 C_DLLEXPORT void Amxx_EBotLookAtAround(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		amxxbot->LookAtAround();
 }
@@ -3000,7 +2997,7 @@ C_DLLEXPORT void Amxx_EBotLookAtAround(int index)
 C_DLLEXPORT void Amxx_EBotCallNewRound(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		amxxbot->NewRound();
 }
@@ -3060,7 +3057,7 @@ C_DLLEXPORT int Amxx_EBotIsClientAlive(int index)
 C_DLLEXPORT int Amxx_EBotIsEnemyReachable(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		return static_cast<int>(amxxbot->m_isEnemyReachable);
 
@@ -3070,7 +3067,7 @@ C_DLLEXPORT int Amxx_EBotIsEnemyReachable(int index)
 C_DLLEXPORT void Amxx_EBotSetEnemyReachable(int index, int reachable)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		amxxbot->m_isEnemyReachable = static_cast<bool>(reachable);
 }
@@ -3078,7 +3075,7 @@ C_DLLEXPORT void Amxx_EBotSetEnemyReachable(int index, int reachable)
 C_DLLEXPORT int Amxx_EBotIsStuck(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		return static_cast<int>(amxxbot->m_isStuck);
 
@@ -3088,7 +3085,7 @@ C_DLLEXPORT int Amxx_EBotIsStuck(int index)
 C_DLLEXPORT float Amxx_EBotGetStuckTime(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		return amxxbot->m_stuckTime;
 
@@ -3098,7 +3095,7 @@ C_DLLEXPORT float Amxx_EBotGetStuckTime(int index)
 C_DLLEXPORT int Amxx_EBotGetAmmo(int index, int weapon)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot && weapon >= 0 && weapon <= Const_MaxWeapons && amxxbot->m_ammo[weapon])
 		return amxxbot->m_ammo[weapon];
 
@@ -3108,7 +3105,7 @@ C_DLLEXPORT int Amxx_EBotGetAmmo(int index, int weapon)
 C_DLLEXPORT int Amxx_EBotGetAmmoInClip(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		return amxxbot->GetAmmoInClip();
 
@@ -3118,7 +3115,7 @@ C_DLLEXPORT int Amxx_EBotGetAmmoInClip(int index)
 C_DLLEXPORT int Amxx_EBotGetCurrentWeapon(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		return amxxbot->m_currentWeapon;
 
@@ -3128,7 +3125,7 @@ C_DLLEXPORT int Amxx_EBotGetCurrentWeapon(int index)
 C_DLLEXPORT void Amxx_EBotSelectKnife(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		amxxbot->SelectKnife();
 }
@@ -3136,7 +3133,7 @@ C_DLLEXPORT void Amxx_EBotSelectKnife(int index)
 C_DLLEXPORT void Amxx_EBotBestWeapon(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		amxxbot->SelectBestWeapon();
 }
@@ -3144,7 +3141,7 @@ C_DLLEXPORT void Amxx_EBotBestWeapon(int index)
 C_DLLEXPORT int Amxx_EBotIsSlowThink(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		return static_cast<int>(amxxbot->m_isSlowThink);
 
@@ -3154,7 +3151,7 @@ C_DLLEXPORT int Amxx_EBotIsSlowThink(int index)
 C_DLLEXPORT void Amxx_EBotSetSlowThink(int index, int slowThink)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		amxxbot->m_isSlowThink = static_cast<bool>(slowThink);
 }
@@ -3162,7 +3159,7 @@ C_DLLEXPORT void Amxx_EBotSetSlowThink(int index, int slowThink)
 C_DLLEXPORT int Amxx_EBotIsZombie(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		return static_cast<int>(amxxbot->m_isZombieBot);
 
@@ -3172,7 +3169,7 @@ C_DLLEXPORT int Amxx_EBotIsZombie(int index)
 C_DLLEXPORT void Amxx_EBotSetZombie(int index, int zombie)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		amxxbot->m_isZombieBot = static_cast<bool>(zombie);
 }
@@ -3180,7 +3177,7 @@ C_DLLEXPORT void Amxx_EBotSetZombie(int index, int zombie)
 C_DLLEXPORT int Amxx_EBotIsAlive(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		return static_cast<int>(amxxbot->m_isAlive);
 
@@ -3190,7 +3187,7 @@ C_DLLEXPORT int Amxx_EBotIsAlive(int index)
 C_DLLEXPORT void Amxx_EBotSetAlive(int index, int alive)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		amxxbot->m_isAlive = static_cast<bool>(alive);
 }
@@ -3252,7 +3249,7 @@ C_DLLEXPORT void Amxx_EBotGetWaypointGravity(int index, float** gravity)
 C_DLLEXPORT void Amxx_EBotMoveTo(int index, Vector origin, int checkStuck)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		amxxbot->MoveTo(origin, checkStuck);
 }
@@ -3260,7 +3257,7 @@ C_DLLEXPORT void Amxx_EBotMoveTo(int index, Vector origin, int checkStuck)
 C_DLLEXPORT void Amxx_EBotMoveOut(int index, Vector origin, int checkStuck)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		amxxbot->MoveOut(origin, checkStuck);
 }
@@ -3268,7 +3265,7 @@ C_DLLEXPORT void Amxx_EBotMoveOut(int index, Vector origin, int checkStuck)
 C_DLLEXPORT void Amxx_EBotFindPathTo(int index, int goal)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 	{
 		amxxbot->m_currentGoalIndex = static_cast<int16_t>(goal);
@@ -3279,7 +3276,7 @@ C_DLLEXPORT void Amxx_EBotFindPathTo(int index, int goal)
 C_DLLEXPORT void Amxx_EBotFindShortestPathTo(int index, int goal)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 	{
 		amxxbot->m_currentGoalIndex = static_cast<int16_t>(goal);
@@ -3290,7 +3287,7 @@ C_DLLEXPORT void Amxx_EBotFindShortestPathTo(int index, int goal)
 C_DLLEXPORT int Amxx_EBotGetCurrentWaypoint(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		return static_cast<int>(amxxbot->m_currentWaypointIndex);
 
@@ -3300,7 +3297,7 @@ C_DLLEXPORT int Amxx_EBotGetCurrentWaypoint(int index)
 C_DLLEXPORT int Amxx_EBotGetGoalWaypoint(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		return static_cast<int>(amxxbot->m_currentGoalIndex);
 
@@ -3310,7 +3307,7 @@ C_DLLEXPORT int Amxx_EBotGetGoalWaypoint(int index)
 C_DLLEXPORT void Amxx_EBotSetCurrentWaypoint(int index, int waypoint)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		amxxbot->ChangeWptIndex(static_cast<int16_t>(waypoint));
 }
@@ -3318,7 +3315,7 @@ C_DLLEXPORT void Amxx_EBotSetCurrentWaypoint(int index, int waypoint)
 C_DLLEXPORT void Amxx_EBotSetGoalWaypoint(int index, int waypoint)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		amxxbot->m_zhCampPointIndex = amxxbot->m_currentGoalIndex = static_cast<int16_t>(waypoint);
 }
@@ -3326,7 +3323,7 @@ C_DLLEXPORT void Amxx_EBotSetGoalWaypoint(int index, int waypoint)
 C_DLLEXPORT int Amxx_EBotGetCampWaypoint(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		return static_cast<int>(amxxbot->m_zhCampPointIndex);
 
@@ -3336,7 +3333,7 @@ C_DLLEXPORT int Amxx_EBotGetCampWaypoint(int index)
 C_DLLEXPORT int Amxx_EBotGetMeshWaypoint(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		return static_cast<int>(amxxbot->m_myMeshWaypoint);
 
@@ -3346,7 +3343,7 @@ C_DLLEXPORT int Amxx_EBotGetMeshWaypoint(int index)
 C_DLLEXPORT int Amxx_EBotCanFollowPath(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		return static_cast<int>(amxxbot->m_navNode.CanFollowPath());
 
@@ -3356,7 +3353,7 @@ C_DLLEXPORT int Amxx_EBotCanFollowPath(int index)
 C_DLLEXPORT void Amxx_EBotFollowPath(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		amxxbot->FollowPath();
 }
@@ -3364,7 +3361,7 @@ C_DLLEXPORT void Amxx_EBotFollowPath(int index)
 C_DLLEXPORT void Amxx_EBotStopFollowingPath(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		amxxbot->m_navNode.Stop();
 }
@@ -3372,7 +3369,7 @@ C_DLLEXPORT void Amxx_EBotStopFollowingPath(int index)
 C_DLLEXPORT void Amxx_EBotShiftPath(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		amxxbot->m_navNode.Shift();
 }
@@ -3380,7 +3377,7 @@ C_DLLEXPORT void Amxx_EBotShiftPath(int index)
 C_DLLEXPORT void Amxx_EBotClearPath(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		amxxbot->m_navNode.Clear();
 }
@@ -3388,7 +3385,7 @@ C_DLLEXPORT void Amxx_EBotClearPath(int index)
 C_DLLEXPORT int Amxx_EBotGetPath(int index, int path)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		return static_cast<int>(amxxbot->m_navNode.Get(path));
 
@@ -3398,7 +3395,7 @@ C_DLLEXPORT int Amxx_EBotGetPath(int index, int path)
 C_DLLEXPORT int Amxx_EBotGetPathLength(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot)
 		return amxxbot->m_navNode.Length();
 
@@ -3446,7 +3443,7 @@ C_DLLEXPORT int Amxx_EBotIsMatrixReady(void)
 C_DLLEXPORT int Amxx_EBotIsCamping(int index)
 {
 	index--;
-	amxxbot = g_botManager->GetBot(index);
+	Bot* amxxbot = g_botManager->GetBot(index);
 	if (amxxbot && (amxxbot->m_currentWaypointIndex == amxxbot->m_zhCampPointIndex || amxxbot->m_currentWaypointIndex == amxxbot->m_myMeshWaypoint))
 		return 1;
 

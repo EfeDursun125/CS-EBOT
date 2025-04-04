@@ -25,6 +25,7 @@
 #include "../include/core.h"
 #include <cstddef>
 #include <sys/stat.h>
+#include "../include/tinythread.h"
 
 #ifdef PLATFORM_LINUX
 #include <cstdlib>
@@ -1669,67 +1670,84 @@ void Waypoint::InitPathMatrix(void)
     SavePathMatrix();
 }
 
+tthread::mutex calcMutex{};
+void CalculateMatrix(void* arg)
+{
+    if (calcMutex.try_lock())
+    {
+        Waypoint* wpt = static_cast<Waypoint*>(arg);
+
+        int16_t i, j, k;
+        for (i = 0; i < g_numWaypoints; i++)
+        {
+            for (j = 0; j < g_numWaypoints; j++)
+                *(wpt->m_distMatrix.Get() + i * g_numWaypoints + j) = static_cast<int16_t>(32766);
+        }
+
+        for (i = 0; i < g_numWaypoints; i++)
+        {
+            for (j = 0; j < Const_MaxPathIndex; j++)
+            {
+                if (IsValidWaypoint(wpt->m_paths[i].index[j]))
+                    *(wpt->m_distMatrix.Get() + (i * g_numWaypoints) + wpt->m_paths[i].index[j]) = static_cast<int16_t>(GetVectorDistanceSSE(wpt->m_paths[i].origin, wpt->m_paths[wpt->m_paths[i].index[j]].origin));
+            }
+        }
+
+        for (i = 0; i < g_numWaypoints; i++)
+            *(wpt->m_distMatrix.Get() + (i * g_numWaypoints) + i) = static_cast<int16_t>(0);
+
+        for (k = 0; k < g_numWaypoints; k++)
+        {
+            for (i = 0; i < g_numWaypoints; i++)
+            {
+                for (j = 0; j < g_numWaypoints; j++)
+                {
+                    if (*(wpt->m_distMatrix.Get() + (i * g_numWaypoints) + k) + *(wpt->m_distMatrix.Get() + (k * g_numWaypoints) + j) < (*(wpt->m_distMatrix.Get() + (i * g_numWaypoints) + j)))
+                        *(wpt->m_distMatrix.Get() + (i * g_numWaypoints) + j) = *(wpt->m_distMatrix.Get() + (i * g_numWaypoints) + k) + *(wpt->m_distMatrix.Get() + (k * g_numWaypoints) + j);
+                }
+            }
+        }
+
+        g_isMatrixReady = true;
+
+        char matrixFilePath[1024];
+        char* waypointDir = GetWaypointDir();
+        char* mapName = GetMapName();
+
+        // create matrix directory
+        FormatBuffer(matrixFilePath, "%smatrix", waypointDir);
+        CreatePath(matrixFilePath);
+
+        FormatBuffer(matrixFilePath, "%smatrix/%s.emt", waypointDir, mapName);
+        File fp(matrixFilePath, "wb");
+
+        // unable to open file
+        if (!fp.IsValid())
+        {
+            calcMutex.unlock();
+            return;
+        }
+
+        // write number of waypoints
+        fp.Write(&g_numWaypoints, sizeof(int16_t));
+
+        // write path & distance matrix
+        fp.Write(wpt->m_distMatrix.Get(), sizeof(int16_t), g_numWaypoints * g_numWaypoints);
+
+        // and close the file
+        fp.Close();
+
+        calcMutex.unlock();
+    }
+}
+
 void Waypoint::SavePathMatrix(void)
 {
     if (!m_distMatrix.IsAllocated())
         return;
 
-    int16_t i, j, k;
-    for (i = 0; i < g_numWaypoints; i++)
-    {
-        for (j = 0; j < g_numWaypoints; j++)
-            *(m_distMatrix.Get() + i * g_numWaypoints + j) = static_cast<int16_t>(32766);
-    }
-
-    for (i = 0; i < g_numWaypoints; i++)
-    {
-        for (j = 0; j < Const_MaxPathIndex; j++)
-        {
-            if (IsValidWaypoint(m_paths[i].index[j]))
-                *(m_distMatrix.Get() + (i * g_numWaypoints) + m_paths[i].index[j]) = static_cast<int16_t>(GetVectorDistanceSSE(m_paths[i].origin, m_paths[m_paths[i].index[j]].origin));
-        }
-    }
-
-    for (i = 0; i < g_numWaypoints; i++)
-        *(m_distMatrix.Get() + (i * g_numWaypoints) + i) = 0.0f;
-
-    for (k = 0; k < g_numWaypoints; k++)
-    {
-        for (i = 0; i < g_numWaypoints; i++)
-        {
-            for (j = 0; j < g_numWaypoints; j++)
-            {
-                if (*(m_distMatrix.Get() + (i * g_numWaypoints) + k) + *(m_distMatrix.Get() + (k * g_numWaypoints) + j) < (*(m_distMatrix.Get() + (i * g_numWaypoints) + j)))
-                    *(m_distMatrix.Get() + (i * g_numWaypoints) + j) = *(m_distMatrix.Get() + (i * g_numWaypoints) + k) + *(m_distMatrix.Get() + (k * g_numWaypoints) + j);
-            }
-        }
-    }
-
-    g_isMatrixReady = true;
-
-    char matrixFilePath[1024];
-    char* waypointDir = GetWaypointDir();
-    char* mapName = GetMapName();
-
-    // create matrix directory
-    FormatBuffer(matrixFilePath, "%smatrix", waypointDir);
-    CreatePath(matrixFilePath);
-
-    FormatBuffer(matrixFilePath, "%smatrix/%s.emt", waypointDir, mapName);
-    File fp(matrixFilePath, "wb");
-
-    // unable to open file
-    if (!fp.IsValid())
-        return;
-
-    // write number of waypoints
-    fp.Write(&g_numWaypoints, sizeof(int16_t));
-
-    // write path & distance matrix
-    fp.Write(m_distMatrix.Get(), sizeof(int16_t), g_numWaypoints * g_numWaypoints);
-
-    // and close the file
-    fp.Close();
+    tthread::thread matrixThread(&CalculateMatrix, static_cast<void*>(Waypoint::GetObjectPtr()));
+    matrixThread.detach();
 }
 
 bool Waypoint::LoadPathMatrix(void)

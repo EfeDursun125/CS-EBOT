@@ -25,6 +25,7 @@
 //
 
 #include "../include/core.h"
+#include "../include/tinythread.h"
 
 // console variables
 ConVar ebot_debug("ebot_debug", "0");
@@ -623,8 +624,7 @@ void Bot::BaseUpdate(void)
 		if (m_pathInterval < 0.0001f)
 			return;
 
-		// run playermove
-		if (pev->flags & FL_FROZEN)
+		if (pev->flags && pev->flags & FL_FROZEN)
 		{
 			m_msecVal = 0;
 			pev->buttons = 0;
