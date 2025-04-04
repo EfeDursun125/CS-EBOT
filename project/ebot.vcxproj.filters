@@ -12,6 +12,7 @@
     <ClCompile Include="..\source\support.cpp" />
     <ClCompile Include="..\source\waypoint.cpp" />
     <ClCompile Include="..\source\clib.cpp" />
+    <ClCompile Include="..\source\tinythread.cpp" />
     <ClCompile Include="..\source\ssm\ssm.cpp">
       <Filter>SSM</Filter>
     </ClCompile>
@@ -53,6 +54,8 @@
     <ClInclude Include="..\include\runtime.h" />
     <ClInclude Include="..\include\glibc.h" />
     <ClInclude Include="..\include\clib.h" />
+    <ClInclude Include="..\include\tinythread.h" />
+    <ClInclude Include="..\include\fast_mutex.h" />
     <ClInclude Include="..\include\rng.h" />
     <ClInclude Include="..\include\sse_mathfun.h" />
     <ClInclude Include="..\include\sse_mathfun_extension.h" />
