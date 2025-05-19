@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5.1)
+cmake_minimum_required(VERSION 3.16)
 
 project(EBOT)
 
@@ -8,7 +8,6 @@ execute_process(COMMAND uname -m OUTPUT_VARIABLE ARCH OUTPUT_STRIP_TRAILING_WHIT
 
 if(ARCH STREQUAL "x86_64")
     message(STATUS "Detected 64-bit host system: ${ARCH}")
-    # Check if compiling 32-bit binaries is possible
     check_cxx_compiler_flag("-m32" COMPILER_SUPPORTS_M32)
     if(NOT COMPILER_SUPPORTS_M32)
         message(WARNING "Your system is 64-bit but does not support 32-bit (-m32) compilation.")
@@ -17,66 +16,37 @@ if(ARCH STREQUAL "x86_64")
     endif()
 endif()
 
-# Set CMP0069 policy if available
-if(POLICY CMP0069)
-  cmake_policy(SET CMP0069 NEW)
-endif()
-
-# Use clang++ if available
-find_program(CLANGPP clang++)
-if(CLANGPP)
-  message(STATUS "Found Clang++: ${CLANGPP} — using as default C++ compiler")
-  set(CMAKE_CXX_COMPILER ${CLANGPP})
-else()
-  message(STATUS "Clang++ not found — using default C++ compiler")
-endif()
-
-# Use clang if available
-find_program(CLANGC clang)
-if(CLANGC)
-  message(STATUS "Found Clang: ${CLANGC} — using as default C compiler")
-  set(CMAKE_C_COMPILER ${CLANGC})
-else()
-  message(STATUS "Clang not found — using default C compiler")
-endif()
-
-# Default build type
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE Release)
-endif()
-
-# 32-bit compilation and optimization flags
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32 -g3 -Og")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m32 -g3 -Og -fno-inline -fno-omit-frame-pointer -fno-threadsafe-statics -pthread")
-else()
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32 -Ofast")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w -m32 -mmmx -msse -msse2 -mfpmath=sse -flto -Ofast -fvisibility=hidden -fno-exceptions -fno-rtti -Wno-parentheses -pipe -mtune=generic -fomit-frame-pointer -fvisibility-inlines-hidden -fno-stack-protector -fno-omit-frame-pointer -no-pie -fno-threadsafe-statics -pthread")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -m32")
-  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-endif()
-
-# Output path for the shared library
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build/ebot)
+# Compiler setup
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_SHARED_LIBRARY_SUFFIX ".so")
 
-# Include paths
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32 -g3 -Og")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m32 -g3 -Og -fno-inline -fno-omit-frame-pointer -fno-threadsafe-statics -pthread")
+else()
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32 -Ofast")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w -m32 -mmmx -msse -msse2 -mfpmath=sse -flto -Ofast -fvisibility=hidden -fno-exceptions -fno-rtti -pipe -mtune=generic -fomit-frame-pointer -fvisibility-inlines-hidden -fno-stack-protector -fno-omit-frame-pointer -no-pie -fno-threadsafe-statics -pthread")
+    set(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -m32")
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+endif()
 
-# Source files
+# Output directory
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build/ebot)
+
+# Includes and sources
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 file(GLOB_RECURSE EBOT_SRC ${CMAKE_CURRENT_SOURCE_DIR}/../source/*.cpp)
 
-# Define library
+# Build
 add_library(${PROJECT_NAME} SHARED ${EBOT_SRC})
 
-# Pthread support
+# Dependencies
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
-
-# Linking
 target_link_libraries(${PROJECT_NAME} PRIVATE m dl pthread)
 
-# Library properties
+# Target properties
 set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_STANDARD 11
     CXX_STANDARD_REQUIRED ON
@@ -86,6 +56,6 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     INTERPROCEDURAL_OPTIMIZATION ON
 )
 
-# Install targets
+# Install
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../include/ DESTINATION include)
