@@ -1,0 +1,35 @@
+name: Build For Linux 
+
+on: [push]
+
+jobs:
+  linux:
+   name: Linux-i386
+   runs-on: ubuntu-latest
+   steps:
+   - name: Checkout sources
+     uses: actions/checkout@v3
+     with:
+          fetch-depth: 0
+          submodules: recursive
+   - run: |
+           sudo apt remove containerd -y
+           sudo apt purge containerd.io -y
+           sudo apt update
+           sudo apt install docker.io -y
+           docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+           docker build --build-arg BASE_IMAGE=32bit/buntu:16.04 -t 32bit/ubuntu:16.04 -f Dockerfile.i386 .
+  
+   - name: Docker Work
+     run: |
+       docker run --rm \
+          -v /home/runner/work/CS-EBOT/CS-EBOT:/app \
+          32bit/ubuntu:16.04 \
+          bash -c "cd /app && apt update && apt install build-essential clang cmake make gcc g++ -y && cd project && cmake . && make"
+
+
+   - name: Upload artifacts
+     uses: actions/upload-artifact@v3
+     with:
+          name: ebot-linux
+          path: project/build/ebot/ebot.so
