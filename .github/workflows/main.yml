@@ -4,7 +4,7 @@ on: [push]
 
 jobs:
   linux:
-    name: Linusx
+    name: Linux-i386
     runs-on: ubuntu-latest
 
     steps:
@@ -14,7 +14,7 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      - name: Install dependencies
+      - name: Install 32-bit dependencies
         run: |
           sudo dpkg --add-architecture i386
           sudo apt update
@@ -25,9 +25,12 @@ jobs:
             gcc-multilib \
             g++-multilib \
             libc6-dev-i386 \
-            libstdc++6:i386 \
-            libgcc-12-dev:i386 \
-            make
+            libstdc++6:i386
+
+      - name: Test -m32 support manually
+        run: |
+          echo "int main() { return 0; }" > test.cpp
+          g++ -m32 test.cpp -o test32 || { echo "ERROR: 32-bit compilation failed. Check multilib setup."; exit 1; }
 
       - name: Build Project
         run: |
@@ -35,7 +38,7 @@ jobs:
           mkdir -p build
           cd build
           cmake .. -DCMAKE_BUILD_TYPE=Release
-          make -j2
+          make -j$(nproc)
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
