@@ -1,0 +1,10 @@
+FROM 32bit/ubuntu:16.04
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+                curl git ca-certificates ruby \
+                build-essential devscripts debhelper fakeroot ruby reprepro libpam0g-dev \
+                libreadline6-dev zlib1g-dev libssl-dev expect \
+                --no-install-recommends
+
+# install chef
+RUN curl -fksSL https://packages.chef.io/stable/ubuntu/10.04/chef_12.8.1-1_i386.deb -o chef_12.8.1-1_i386.deb  && dpkg -i chef_12.8.1-1_i386.deb
