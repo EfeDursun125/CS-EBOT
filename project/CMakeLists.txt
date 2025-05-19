@@ -2,6 +2,21 @@ cmake_minimum_required(VERSION 3.5.1)
 
 project(EBOT)
 
+# Check system architecture and warn if multilib is needed
+include(CheckCXXCompilerFlag)
+execute_process(COMMAND uname -m OUTPUT_VARIABLE ARCH OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+if(ARCH STREQUAL "x86_64")
+    message(STATUS "Detected 64-bit host system: ${ARCH}")
+    # Check if compiling 32-bit binaries is possible
+    check_cxx_compiler_flag("-m32" COMPILER_SUPPORTS_M32)
+    if(NOT COMPILER_SUPPORTS_M32)
+        message(WARNING "Your system is 64-bit but does not support 32-bit (-m32) compilation.")
+        message(WARNING "Make sure you have installed 'gcc-multilib' and 'g++-multilib'.")
+        message(FATAL_ERROR "Cannot proceed without 32-bit compilation support.")
+    endif()
+endif()
+
 # Set CMP0069 policy if available
 if(POLICY CMP0069)
   cmake_policy(SET CMP0069 NEW)
