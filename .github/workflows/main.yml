@@ -1,35 +1,44 @@
-name: Build For Linux 
+name: Build For Linux
 
 on: [push]
 
 jobs:
   linux:
-   name: Linux-i386
-   runs-on: ubuntu-latest
-   steps:
-   - name: Checkout sources
-     uses: actions/checkout@v4
-     with:
+    name: Linusx
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
           fetch-depth: 0
           submodules: recursive
-   - run: |
-           sudo apt remove containerd -y
-           sudo apt purge containerd.io -y
-           sudo apt update
-           sudo apt install docker.io -y
-           docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-           docker build --build-arg BASE_IMAGE=32bit/buntu:16.04 -t 32bit/ubuntu:16.04 -f Dockerfile.i386 .
-  
-   - name: Docker Work
-     run: |
-       docker run --rm \
-          -v /home/runner/work/CS-EBOT/CS-EBOT:/app \
-          32bit/ubuntu:16.04 \
-          bash -c "cd /app && apt update && apt install build-essential clang cmake make gcc g++ -y && cd project && cmake . && make"
 
+      - name: Install dependencies
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt update
+          sudo apt install -y \
+            build-essential \
+            clang \
+            cmake \
+            gcc-multilib \
+            g++-multilib \
+            libc6-dev-i386 \
+            libstdc++6:i386 \
+            libgcc-12-dev:i386 \
+            make
 
-   - name: Upload artifacts
-     uses: actions/upload-artifact@v4
-     with:
+      - name: Build Project
+        run: |
+          cd project
+          mkdir -p build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          make -j2
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
           name: ebot-linux
           path: project/build/ebot/ebot.so
