@@ -1,0 +1,47 @@
+name: Build For Linux
+
+on: [push]
+
+jobs:
+  linux:
+    name: Linux-i386
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Install 32-bit dependencies
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt update
+          sudo apt install -y \
+            build-essential \
+            clang \
+            cmake \
+            gcc-multilib \
+            g++-multilib \
+            libc6-dev-i386 \
+            libstdc++6:i386
+
+      - name: Test -m32 support manually
+        run: |
+          echo "int main() { return 0; }" > test.cpp
+          g++ -m32 test.cpp -o test32 || { echo "ERROR: 32-bit compilation failed. Check multilib setup."; exit 1; }
+
+      - name: Build Project
+        run: |
+          cd project
+          mkdir -p build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          make -j$(nproc)
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ebot-linux
+          path: project/build/ebot/ebot.so
