@@ -116,11 +116,7 @@ bool IsVisible(const Vector& origin, edict_t* ent)
 
 	TraceResult tr;
 	TraceLine(GetEntityOrigin(ent), origin, TraceIgnore::Everything, ent, &tr);
-
-	if (tr.flFraction < 1.0f)
-		return false; // line of sight is not established
-
-	return true; // line of sight is valid.
+	return (tr.flFraction >= 1.0f);
 }
 
 // return walkable position on ground
@@ -134,8 +130,8 @@ Vector GetWalkablePosition(const Vector& origin, edict_t* ent, const bool return
 
 	if (returnNullVec)
 		return nullvec; // return nullvector for check if we can't hit the ground
-	else
-		return origin; // return original origin, we cant hit to ground
+
+	return origin; // return original origin, we cant hit to ground
 }
 
 // this expanded function returns the vector origin of a bounded entity, assuming that any
@@ -212,142 +208,151 @@ Vector GetPlayerHeadOrigin(edict_t* ent)
 
 int Find(char* buffer, const char chr, const int startIndex)
 {
-	if (!buffer)
+	if (!buffer || startIndex < 0) 
 		return -1;
 
-    if (startIndex < 0 || startIndex >= cstrlen(buffer))
-        return -1;
+	int len = cstrlen(buffer);
+	if (startIndex >= len) 
+		return -1;
 
-    char* ptr = buffer + startIndex;
-    for (; *ptr != '\0'; ++ptr)
-    {
-        if (*ptr == chr)
-            return static_cast<int>(ptr - buffer);
-    }
+	char* ptr = buffer + startIndex;
+	if (!ptr && !*ptr)
+		return -1;
 
-    return -1;
+	while (*ptr != '\0')
+	{
+		if (*ptr == chr)
+			return static_cast<int>(ptr - buffer);
+
+		++ptr;
+	}
+
+	return -1;
 }
 
 int Replace(char* buffer, const char oldChar, const char newChar)
 {
-    if (!buffer)
+	if (!buffer || oldChar == newChar) 
 		return 0;
 
-    if (oldChar == newChar)
-		return 0;
+	char* ptr;
+	int number = 0;
+	for (ptr = buffer; *ptr && *ptr != '\0'; ++ptr)
+	{
+		if (*ptr == oldChar)
+		{
+			*ptr = newChar;
+			number++;
+		}
+	}
 
-    int number = 0;
-    int pos = 0;
-    while ((pos = Find(buffer, oldChar, pos)) >= 0 && buffer[pos])
-    {
-        buffer[pos] = newChar;
-        pos++;
-        number++;
-    }
-
-    return number;
+	return number;
 }
 
 int Find2(char* buffer, const char* str, const int startIndex)
 {
-	if (!buffer)
+	if (!buffer || !str || startIndex < 0) 
 		return -1;
 
-    if (!str || !cstrlen(str))
+	int len = cstrlen(buffer);
+	if (startIndex >= len)
 		return -1;
 
-    if (startIndex < 0 || startIndex >= cstrlen(buffer))
-		return -1;
+	int strLen = cstrlen(str);
+	char* ptr = buffer + startIndex;
+	while (static_cast<int>(ptr - buffer) <= (len - strLen))
+	{
+		if (!cstrncmp(ptr, str, strLen))
+			return static_cast<int>(ptr - buffer);
 
-    char* ptr = buffer + startIndex;
-    int strLen = cstrlen(str);
-    for (; *ptr != '\0'; ++ptr)
-    {
-        if (!cstrncmp(ptr, str, strLen))
-            return static_cast<int>(ptr - buffer);
-    }
+		++ptr;
+	}
 
-    return -1;
+	return -1;
 }
 
 int Replace2(char* buffer, const char* oldStr, const char* newStr)
 {
-    if (!buffer || !oldStr || !newStr)
+	if (!buffer || !oldStr || !newStr || cstrcmp(oldStr, newStr) == 0) 
 		return 0;
 
-    if (!cstrcmp(oldStr, newStr))
-		return 0;
+	int number = 0;
+	int oldStrLen = cstrlen(oldStr);
+	int newStrLen = cstrlen(newStr);
+	int index, pos, remainingLen;
 
-    int number = 0;
-    int pos = 0;
-    int oldStrLen = cstrlen(oldStr);
-    int newStrLen = cstrlen(newStr);
-    while ((pos = Find2(buffer, oldStr, pos)) >= 0)
-    {
-        if (newStrLen <= oldStrLen)
-        {
-            cmemcpy(buffer + pos, newStr, newStrLen);
-            if (newStrLen < oldStrLen)
-                cmemmove(buffer + pos + newStrLen, buffer + pos + oldStrLen, cstrlen(buffer + pos + oldStrLen) + 1);
-        }
-        else
-        {
-            cmemmove(buffer + pos + newStrLen, buffer + pos + oldStrLen, cstrlen(buffer + pos + oldStrLen) + 1);
-            cmemcpy(buffer + pos, newStr, newStrLen);
-        }
+	char* ptr, *found;
+	for (ptr = buffer; *ptr && *ptr != '\0';)
+	{
+		index = Find2(ptr, oldStr, 0); // always start at current position
+		if (index == -1)
+			break;
 
-        pos += newStrLen;
-        number++;
-    }
+		found = ptr + index;
+		if (!found)
+			break;
 
-    return number;
+		pos = found - buffer;
+		remainingLen = cstrlen(buffer + pos + oldStrLen) + 1;
+		if (newStrLen <= oldStrLen)
+		{
+			cmemcpy(buffer + pos, newStr, newStrLen);
+			if (newStrLen < oldStrLen)
+				cmemmove(buffer + pos + newStrLen, buffer + pos + oldStrLen, remainingLen);
+		}
+		else
+		{
+			cmemmove(buffer + pos + newStrLen, buffer + pos + oldStrLen, remainingLen);
+			cmemcpy(buffer + pos, newStr, newStrLen);
+		}
+
+		number++;
+		ptr = buffer + pos + newStrLen;
+	}
+
+	return number;
 }
 
 void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 {
-	if (!IsValidPlayer(ent) || IsValidBot(ent))
+	if (!IsValidPlayer(ent) || IsValidBot(ent)) 
 		return;
 
 	const int clientIndex = ENTINDEX(ent) - 1;
 	if (menu && menu->menuText)
 	{
-		char tempText[384];
+		char tempText[1024];
 		cstrcpy(tempText, menu->menuText);
 		Replace(tempText, '\v', '\n');
-		char* text = tempText;
 
-		// make menu looks best
-		char buffer[64];
-		char buffer2[64];
 		int i;
-		for (i = 0; i <= 9; i++)
+		char* text = tempText;
+		char buffer[16];
+		char buffer2[32];
+		for (i = 0; i <= 9; ++i)
 		{
 			FormatBuffer(buffer, "%d.", i);
 			FormatBuffer(buffer2, "\\r%d.\\w", i);
 			Replace2(tempText, buffer, buffer2);
 		}
 
+		int chunkSize = 0;
 		text = tempText;
-		while (cstrlen(text) >= 64)
+		while (cstrlen(text) > 0)
 		{
+			chunkSize = cmin(cstrlen(text), 64);
 			MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent);
 			WRITE_SHORT(menu->validSlots);
 			WRITE_CHAR(-1);
-			WRITE_BYTE(1);
+			WRITE_BYTE(chunkSize == 64 ? 1 : 0); // Last chunk indicator
 
-			for (i = 0; i <= 63; i++)
+			for (i = 0; i < chunkSize; ++i)
 				WRITE_CHAR(text[i]);
 
 			MESSAGE_END();
-			text += 64;
+			text += chunkSize;
 		}
 
-		MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, g_netMsg->GetId(NETMSG_SHOWMENU), nullptr, ent);
-		WRITE_SHORT(menu->validSlots);
-		WRITE_CHAR(-1);
-		WRITE_BYTE(0);
-		WRITE_STRING(text);
-		MESSAGE_END();
 		g_clients[clientIndex].menu = menu;
 	}
 	else
@@ -361,89 +366,88 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 		g_clients[clientIndex].menu = nullptr;
 	}
 
-	CLIENT_COMMAND(ent, "speak \"player/geiger1\"\n"); // Stops others from hearing menu sounds..
+	CLIENT_COMMAND(ent, "speak \"player/geiger1\"\n");
 }
 
 // this function free's all allocated memory
 void FreeLibraryMemory(void)
 {
-	g_botManager->Free();
-	g_waypoint->Initialize(); // frees waypoint data
+    if (g_botManager)
+        g_botManager->Free();
+
+    if (g_waypoint)
+        g_waypoint->Initialize();
 }
 
 void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
 {
-	// the purpose of this function is to provide fakeclients (bots) with the same client
-	// command-scripting advantages (putting multiple commands in one line between semicolons)
-	// as real players. It is an improved version of botman's FakeClientCommand, in which you
-	// supply directly the whole string as if you were typing it in the bot's "console". It
-	// is supposed to work exactly like the pfnClientCommand (server-sided client command).
-
-	if (g_isFakeCommand || g_fakeCommandTimer > engine->GetTime() || IsNullString(format) || !IsValidBot(fakeClient))
+	if (g_isFakeCommand || g_fakeCommandTimer > engine->GetTime() || IsNullString(format) || !IsValidBot(fakeClient)) 
 		return;
 
 	va_list ap;
-	static char command[256];
-	int stop, i, stringIndex = 0;
+	static char command[1024];
 
 	va_start(ap, format);
 	vsnprintf(command, sizeof(command), format, ap);
 	va_end(ap);
 
-	if (IsNullString(command))
+	if (IsNullString(command)) 
 		return;
 
 	g_isFakeCommand = true;
-	g_fakeCommandTimer = engine->GetTime() + 0.02;
-	const int length = cstrlen(command);
-	int start, index;
+	g_fakeCommandTimer = engine->GetTime() + 0.02f;
 
-	while (stringIndex < length)
+	char* current;
+	int length = cstrlen(command);
+	int start = 0, stop = 0, i, argLength, argc;
+
+	while (start < length)
 	{
-		start = stringIndex;
-		while (stringIndex < length && command[stringIndex] != ';')
-			stringIndex++;
+		stop = start;
+		while (stop <length && command[stop] != ';')
+			stop++;
 
-		if (command[stringIndex - 1] == '\n')
-			stop = stringIndex - 2;
-		else
-			stop = stringIndex - 1;
+		if (command[stop - 1] == '\n')
+			stop--;
 
-		for (i = start; i <= stop; i++)
-			g_fakeArgv[i - start] = command[i];
+		// copy current command segment to fakeArgv
+		argLength = stop - start + 1;
+		for (i = 0; i < argLength && i < 256; ++i)
+			g_fakeArgv[i] = command[start + i];
 
-		g_fakeArgv[i - start] = 0;
-		stringIndex++;
-		index = 0;
-		g_fakeArgc = 0;
+		g_fakeArgv[argLength] = '\0';
 
-		while (index < i - start)
+		// process arguments in segment
+		argc = 0;
+		current = g_fakeArgv;
+		while (*current && *current != '\0' && argc < 256)
 		{
-			while (index < i - start && g_fakeArgv[index] == ' ')
-				index++;
+			while (*current == ' ')
+				++current;
 
-			if (g_fakeArgv[index] == '"')
+			if (*current == '"')
 			{
-				index++;
-				while (index < i - start && g_fakeArgv[index] != '"')
-					index++;
+				++current;
+				while (*current != '"' && *current != '\0')
+					++current;
 
-				index++;
+				if (*current == '"') 
+					++current;
 			}
 			else
 			{
-				while (index < i - start && g_fakeArgv[index] != ' ')
-					index++;
+				while (*current != ' ' && *current != '\0')
+					++current;
 			}
 
-			g_fakeArgc++;
+			argc++;
 		}
 
+		g_fakeArgc = argc;
 		MDLL_ClientCommand(fakeClient);
+		start = stop + 1; // move to next command
 	}
 
-	g_fakeArgv[0] = 0;
-	g_fakeArgc = 0;
 	g_isFakeCommand = false;
 }
 
@@ -545,15 +549,25 @@ char* GetModName(void)
 	return &modName[0];
 }
 
-// Create a directory tree
 void CreatePath(char* path)
 {
+	int len = cstrlen(path);
+	while (len > 0 && (path[len-1] == '/' || path[len-1] == '\\'))
+		--len;
+
+	if (len < 1) 
+		return;
+
+	char* end = path + len;
+	*end = '\0'; // truncate to non-trailing separators
+
+	// create intermediate directories
 	char* ofs;
-	for (ofs = path + 1; *ofs; ofs++)
+	for (ofs = path + 1; *ofs != '\0'; ++ofs)
 	{
-		if (*ofs == '/')
+		if (*ofs == '/' || *ofs == '\\')
 		{
-			*ofs = 0;
+			*ofs = '\0';
 #ifdef PLATFORM_WIN32
 			mkdir(path);
 #else
@@ -653,20 +667,20 @@ int GetTeam(edict_t* ent)
 	if (FNullEnt(ent))
 		return Team::Count;
 
-	int player_team = Team::Count;
 	if (ebot_ignore_enemies.GetBool())
-		player_team = Team::Counter;
-	else
-	{
-		if (g_DelayTimer > engine->GetTime())
-			player_team = Team::Counter;
-		else if (g_roundEnded)
-			player_team = Team::Terrorist;
-		else
-			player_team = *(reinterpret_cast<int*>(ent->pvPrivateData) + OFFSET_TEAM) - 1;
-	}
+		return Team::Counter;
 
-	return player_team;
+	if (g_roundEnded)
+		return Team::Terrorist;
+
+	if (g_DelayTimer > engine->GetTime())
+		return Team::Counter;
+
+	int* teamPtr = reinterpret_cast<int*>(ent->pvPrivateData) + OFFSET_TEAM;
+	if (teamPtr && *teamPtr > 0) 
+		return (*teamPtr - 1);
+
+	return Team::Count;
 }
 
 bool IsZombieEntity(edict_t* ent)
@@ -679,10 +693,7 @@ bool IsValidPlayer(edict_t* ent)
 	if (FNullEnt(ent))
 		return false;
 
-	if (ent->v.flags & (FL_CLIENT | FL_FAKECLIENT))
-		return true;
-
-	return false;
+	return (ent->v.flags & (FL_CLIENT | FL_FAKECLIENT));
 }
 
 bool IsValidBot(edict_t* ent)
@@ -1177,12 +1188,13 @@ void MOD_AddLogEntry(const int mod, char* format)
 // be filled with bot pointer, else with edict pointer(!).
 bool FindNearestPlayer(void** pvHolder, edict_t* to, const float searchDistance, const bool sameTeam, const bool needBot, const bool isAlive, const bool needDrawn)
 {
-	edict_t* survive = nullptr; // pointer to temporaly & survive entity
-	float nearestPlayer = 9999999.0f; // nearest player
+	if (!pvHolder || FNullEnt(to)) 
+		return false;
 
-	const Vector toOrigin = GetEntityOrigin(to);
-	float distance;
+	Vector toOrigin = GetEntityOrigin(to);
+	float nearestPlayer = 9999999.0f, distance;
 
+	bool skipPlayer;
 	for (const auto& client : g_clients)
 	{
 		if (FNullEnt(client.ent))
@@ -1191,25 +1203,29 @@ bool FindNearestPlayer(void** pvHolder, edict_t* to, const float searchDistance,
 		if (client.ent == to)
 			continue;
 
-		if ((sameTeam && client.team != GetTeam(to)) || (isAlive && !IsAlive(client.ent)) || (needBot && !IsValidBot(client.index)) || (needDrawn && (client.ent->v.effects & EF_NODRAW)))
-			continue; // filter players with parameters
+		skipPlayer = false;
+		if (sameTeam && client.team != GetTeam(to)) 
+			skipPlayer = true;
+
+		if (isAlive && !IsAlive(client.ent)) 
+			skipPlayer = true;
+
+		if (needBot && !IsValidBot(client.index)) 
+			skipPlayer = true;
+
+		if (needDrawn && (client.ent->v.effects & EF_NODRAW))
+			skipPlayer = true;
+
+		if (skipPlayer)
+			continue;
 
 		distance = (client.ent->v.origin - toOrigin).GetLengthSquared();
 		if (distance < nearestPlayer)
 		{
 			nearestPlayer = distance;
-			survive = client.ent;
+			*pvHolder = needBot ? reinterpret_cast<void*>(g_botManager->GetBot(client.ent)) : reinterpret_cast<void*>(client.ent);
 		}
 	}
 
-	if (FNullEnt(survive))
-		return false; // nothing found
-
-	// fill the holder
-	if (needBot)
-		*pvHolder = reinterpret_cast<void*>(g_botManager->GetBot(survive));
-	else
-		*pvHolder = reinterpret_cast<void*>(survive);
-
-	return true;
+	return (*pvHolder != nullptr);
 }
