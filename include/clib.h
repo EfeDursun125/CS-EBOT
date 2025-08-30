@@ -171,75 +171,47 @@ inline int16_t cabs16(const int16_t value)
 inline float cceilf(const float value)
 {
 	float result = static_cast<float>(static_cast<int>(value));
-	if (value > 0.0f)
-	{
-		if (result < value)
-			result += 1.0f;
-	}
-	else if (value < 0.0f)
-	{
-		if (result > value)
-			result -= 1.0f;
-	}
+	if (value > 0.0f && result < value)
+		return result + 1.0f;
+
 	return result;
 }
 
 inline double cceil(const double value)
 {
 	double result = static_cast<double>(static_cast<int>(value));
-	if (value > 0.0)
-	{
-		if (result < value)
-			result += 1.0;
-	}
-	else if (value < 0.0)
-	{
-		if (result > value)
-			result -= 1.0;
-	}
+	if (value > 0.0 && result < value)
+		return result + 1.0;
+
 	return result;
 }
 
 inline float cfloorf(const float value)
 {
-	return static_cast<float>(static_cast<int>(value));
+	float result = static_cast<float>(static_cast<int>(value));
+	if (value < 0.0f && result > value)
+		return result - 1.0f;
+
+	return result;
 }
 
 inline double cfloor(const double value)
 {
-	return static_cast<double>(static_cast<int>(value));
+	double result = static_cast<double>(static_cast<int>(value));
+	if (value < 0.0 && result > value)
+		return result - 1.0;
+
+	return result;
 }
 
 inline float croundf(const float value)
 {
-	float result = static_cast<float>(static_cast<int>(value));
-	if (value < 0.0f)
-	{
-		if (result - 0.5f > value)
-			result -= 1.0f;
-	}
-	else
-	{
-		if (result + 0.5f < value)
-			result += 1.0f;
-	}
-	return result;
+	return static_cast<float>(static_cast<int>(value + (value >= 0 ? 0.5f : -0.5f)));
 }
 
 inline double cround(const double value)
 {
-	double result = static_cast<double>(static_cast<int>(value));
-	if (value < 0.0)
-	{
-		if (result - 0.5 > value)
-			result -= 1.0;
-	}
-	else
-	{
-		if (result + 0.5 < value)
-			result += 1.0;
-	}
-	return result;
+	return static_cast<double>(static_cast<int>(value + (value >= 0 ? 0.5 : -0.5)));
 }
 
 inline int cstrlen(const char* str)
@@ -421,43 +393,25 @@ inline void cstrtrim(char* string)
 	if (!string)
 		return;
 
-	char* ptr = string;
-	int length = 0, toggleFlag = 0, increment = 0;
-	while (*ptr++)
-		length++;
+	char *end = string;
+	while (*end != '\0')
+		++end;
 
-	int i;
-	for (i = length - 1; i >= 0; i--)
-	{
-		if (!cspace(string[i]))
-			break;
-		else
-		{
-			string[i] = 0;
-			length--;
-		}
-	}
+	while (end > string && cspace(*--end))
+		*end = '\0';
 
-	for (i = 0; i < length; i++)
-	{
-		if (cspace(string[i]) && !toggleFlag)
-		{
-			increment++;
+	char *start = string;
+	while (cspace(*start) && *start != '\0')
+		++start;
 
-			if (increment + i < length)
-				string[i] = string[increment + i];
-		}
-		else
-		{
-			if (!toggleFlag)
-				toggleFlag = 1;
+	if (start == string)
+		return;
 
-			if (increment)
-				string[i] = string[increment + i];
-		}
-	}
+	int i = 0;
+	while (*start != '\0')
+		string[i++] = *start++;
 
-	string[length] = 0;
+	string[i] = '\0';
 }
 
 inline char* cstrstr(char* str1, char* str2)
@@ -539,7 +493,8 @@ inline int cstrcoll(const char* str1, const char* str2)
 
 	if (*str1 == '\0' && *str2 != '\0')
 		return -1;
-	else if (*str1 != '\0' && *str2 == '\0')
+
+	if (*str1 != '\0' && *str2 == '\0')
 		return 1;
 
 	return 0;
@@ -712,13 +667,17 @@ inline float catof(const char* str)
 
 inline int charToInt(const char* str)
 {
+	if (!str)
+		return 0;
+
 	int i = 2;
 	int sum = 0;
-	while (str && str[i] != '\0')
+	while (i < SIZE_MAX && str[i] != '\0')
 	{
 		sum += static_cast<int>(str[i]);
-		i++;
+		++i;
 	}
+
 	return sum;
 }
 
