@@ -1,14 +1,11 @@
 # CS 1.6 E-BOT ![GitHub all releases](https://img.shields.io/github/downloads/EfeDursun125/CS-EBOT/total)
-[Click HERE To Join EBOT Discord Server](http://discord.gg/v7PesBamXt)
+AI Bot for Counter-Strike based on SyPB, this bot is only for zombie plague/escape and biohazard gamemodes.
 
+<a href="https://www.buymeacoffee.com/efedursun125"><img src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="efedursun125" data-color="#FFDD00" data-emoji="☕" data-font="Cookie" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff" ></a>
+
+[Click HERE To Join E-BOT Discord Community](http://discord.gg/v7PesBamXt)
+[Click HERE To Join E-BOT Steam Community](https://steamcommunity.com/groups/E125G)
 [Please Download From The Blog For Support This Project](https://ebots-for-cs.blogspot.com/)
-
-
-AI Bot for Counter-Strike based on SyPB
-
-This bot can be used for default gamemodes, deathmatch and zombie.
-
-<a href="https://www.buymeacoffee.com/efedursun125"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=efedursun125&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" /></a>
 
 # E-Bot Requires VCRedist (For Windows)
 If you see badf load on console (when you type "meta list") install this.
