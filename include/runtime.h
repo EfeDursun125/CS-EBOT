@@ -642,9 +642,8 @@ inline float GetVectorDistanceSSE(const Vector vec1, const Vector vec2)
     const __m128 v1 = _mm_set_ps(0.0f, vec1.z, vec1.y, vec1.x);
     const __m128 v2 = _mm_set_ps(0.0f, vec2.z, vec2.y, vec2.x);
     const __m128 diff = _mm_sub_ps(v1, v2);
-    const __m128 squared = _mm_mul_ps(diff, diff);
-    __m128 sum = _mm_add_ps(squared, squared);
-    sum = _mm_add_ps(sum, _mm_movehl_ps(sum, sum));
+    __m128 sum = _mm_mul_ps(diff, diff);
+    sum = _mm_add_ps(sum, _mm_movehl_ps(sum, sum)); 
     sum = _mm_add_ss(sum, _mm_shuffle_ps(sum, sum, 0x55));
     return _mm_cvtss_f32(_mm_sqrt_ss(sum));
 }

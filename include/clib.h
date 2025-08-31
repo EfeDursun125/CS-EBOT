@@ -702,7 +702,7 @@ public:
 	{
 		if (m_ptr)
 		{
-			delete m_ptr;
+			delete[] m_ptr;
 			m_ptr = nullptr;
 		}
 	}
@@ -712,7 +712,7 @@ public:
 		if (this != &other)
 		{
 			if (m_ptr)
-				delete m_ptr;
+				delete[] m_ptr;
 
 			m_ptr = other.m_ptr;
 			other.m_ptr = nullptr;
@@ -745,7 +745,7 @@ public:
 	{
 		if (m_ptr)
 		{
-			delete m_ptr;
+			delete[] m_ptr;
 			m_ptr = nullptr;
 		}
 
@@ -763,7 +763,7 @@ public:
 	{
 		if (m_ptr)
 		{
-			delete m_ptr;
+			delete[] m_ptr;
 			m_ptr = nullptr;
 		}
 	}

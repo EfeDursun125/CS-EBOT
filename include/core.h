@@ -299,7 +299,7 @@ public:
 	}
 
 	inline bool HasNext(void) const { return Length() > 1; }
-	inline bool IsEmpty(void) const { return !Length(); }
+	inline bool IsEmpty(void) const { return Length() < 1; }
 
 	inline bool Add(const int16_t waypoint)
 	{
@@ -345,7 +345,7 @@ public:
 		return false;
 	}
 
-	inline bool CanFollowPath(void) { return m_follow && Length(); }
+	inline bool CanFollowPath(void) { return m_follow && Length() > 0; }
 	inline void Start(void) { m_follow = true; }
 	inline void Stop(void) { m_follow = false; }
 };
