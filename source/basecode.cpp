@@ -143,7 +143,7 @@ bool Bot::CheckGrenadeThrow(edict_t* targetEntity)
 				// search waypoints
 				g_waypoint->FindInRadius(enemyPredict, searchRadius, searchTab, &count);
 
-				while (count)
+				while (count > 0)
 				{
 					allowThrowing = true;
 

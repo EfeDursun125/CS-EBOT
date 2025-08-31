@@ -946,7 +946,7 @@ void PriorityQueue::InsertLowest(const int16_t value, const float priority)
 	static HeapNode temp{};
 
 	child = ++m_size - 1;
-	while (child)
+	while (child > 0)
 	{
 		parent = (child - 1) / 2;
 		if (m_heap[parent].priority < m_heap[child].priority)

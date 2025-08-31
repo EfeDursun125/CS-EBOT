@@ -1676,45 +1676,76 @@ void CalculateMatrix(void* arg)
     if (calcMutex.try_lock())
     {
         Waypoint* wpt = static_cast<Waypoint*>(arg);
-
-        int16_t i, j, k;
-        for (i = 0; i < g_numWaypoints; i++)
+        if (!wpt || !wpt->m_distMatrix.IsAllocated())
         {
-            for (j = 0; j < g_numWaypoints; j++)
-                *(wpt->m_distMatrix.Get() + i * g_numWaypoints + j) = static_cast<int16_t>(32766);
+            ServerPrint("wpt or m_distMatrix is null in %s at %i", __FILE__, __LINE__);
+            calcMutex.unlock();
+            return;
         }
 
-        for (i = 0; i < g_numWaypoints; i++)
+        int16_t* distMatrix = wpt ? wpt->m_distMatrix.Get() : nullptr;
+        if (!distMatrix)
         {
-            for (j = 0; j < Const_MaxPathIndex; j++)
+            ServerPrint("distMatrix is null in %s at %i", __FILE__, __LINE__);
+            calcMutex.unlock();
+            return;
+        }
+
+        const int16_t INF = static_cast<int16_t>(32766);
+        const int16_t num = static_cast<int16_t>(g_numWaypoints);
+        const int16_t pnum = static_cast<int16_t>(Const_MaxPathIndex);
+
+        int16_t i, j, k;
+        for (i = 0; i < num; i++)
+        {
+            for (j = 0; j < num; j++)
+                *(distMatrix + i * num + j) = INF;
+        }
+
+        for (i = 0; i < num; i++)
+        {
+            for (j = 0; j < pnum; j++)
             {
                 if (IsValidWaypoint(wpt->m_paths[i].index[j]))
-                    *(wpt->m_distMatrix.Get() + (i * g_numWaypoints) + wpt->m_paths[i].index[j]) = static_cast<int16_t>(GetVectorDistanceSSE(wpt->m_paths[i].origin, wpt->m_paths[wpt->m_paths[i].index[j]].origin));
+                    *(distMatrix + (i * num) + wpt->m_paths[i].index[j]) = static_cast<int16_t>(GetVectorDistanceSSE(wpt->m_paths[i].origin, wpt->m_paths[wpt->m_paths[i].index[j]].origin));
             }
         }
 
-        for (i = 0; i < g_numWaypoints; i++)
-            *(wpt->m_distMatrix.Get() + (i * g_numWaypoints) + i) = static_cast<int16_t>(0);
+        for (i = 0; i < num; i++)
+            *(distMatrix + (i * num) + i) = static_cast<int16_t>(0);
 
-        for (k = 0; k < g_numWaypoints; k++)
+        for (k = 0; k < num; k++)
         {
-            for (i = 0; i < g_numWaypoints; i++)
+            for (i = 0; i < num; i++)
             {
-                for (j = 0; j < g_numWaypoints; j++)
+                for (j = 0; j < num; j++)
                 {
-                    if (*(wpt->m_distMatrix.Get() + (i * g_numWaypoints) + k) + *(wpt->m_distMatrix.Get() + (k * g_numWaypoints) + j) < (*(wpt->m_distMatrix.Get() + (i * g_numWaypoints) + j)))
-                        *(wpt->m_distMatrix.Get() + (i * g_numWaypoints) + j) = *(wpt->m_distMatrix.Get() + (i * g_numWaypoints) + k) + *(wpt->m_distMatrix.Get() + (k * g_numWaypoints) + j);
+                    if (*(distMatrix + (i * num) + k) + *(distMatrix + (k * num) + j) < (*(distMatrix + (i * num) + j)))
+                        *(distMatrix + (i * num) + j) = *(distMatrix + (i * num) + k) + *(distMatrix + (k * num) + j);
                 }
             }
         }
 
         g_isMatrixReady = true;
 
-        char matrixFilePath[1024];
-        char* waypointDir = GetWaypointDir();
-        char* mapName = GetMapName();
+        const char* waypointDir = GetWaypointDir();
+        if (!waypointDir)
+        {
+            ServerPrint("waypointDir is null in %s at %i", __FILE__, __LINE__);
+            calcMutex.unlock();
+            return;
+        }
+
+        const char* mapName = GetMapName();
+        if (!mapName)
+        {
+            ServerPrint("mapName is null in %s at %i", __FILE__, __LINE__);
+            calcMutex.unlock();
+            return;
+        }
 
         // create matrix directory
+        char matrixFilePath[1024];
         FormatBuffer(matrixFilePath, "%smatrix", waypointDir);
         CreatePath(matrixFilePath);
 
@@ -1752,10 +1783,21 @@ void Waypoint::SavePathMatrix(void)
 
 bool Waypoint::LoadPathMatrix(void)
 {
-    char matrixFilePath[1024];
     const char* waypointDir = GetWaypointDir();
-    const char* mapName = GetMapName();
+    if (!waypointDir)
+    {
+        ServerPrint("waypointDir is null in %s at %i", __FILE__, __LINE__);
+        return false;
+    }
 
+    const char* mapName = GetMapName();
+    if (!mapName)
+    {
+        ServerPrint("mapName is null in %s at %i", __FILE__, __LINE__);
+        return false;
+    }
+
+    char matrixFilePath[1024];
     FormatBuffer(matrixFilePath, "%smatrix/%s.emt", waypointDir, mapName);
     File fp(matrixFilePath, "rb");
 
@@ -1950,8 +1992,14 @@ bool Waypoint::Load(void)
     if (!g_waypointOn)
         m_waypointDisplayTime.Destroy();
 
-    int16_t i;
     const char* pathtofl = CheckSubfolderFile();
+    if (!pathtofl)
+    {
+        ServerPrint("pathtofl is null in %s at %i", __FILE__, __LINE__);
+        return false;
+    }
+
+    int16_t i;
     File fp(pathtofl, "rb");
     if (fp.IsValid())
     {
@@ -2150,6 +2198,13 @@ bool Waypoint::Load(void)
 
 void Waypoint::Save(void)
 {
+    const char* waypointFilePath = CheckSubfolderFile();
+    if (!waypointFilePath)
+    {
+        ServerPrint("waypointFilePath is null in %s at %i", __FILE__, __LINE__);
+        return;
+    }
+
     WaypointHeader header;
     cmemset(header.header, 0, sizeof(header.header));
     cmemset(header.mapName, 0, sizeof(header.mapName));
@@ -2162,7 +2217,6 @@ void Waypoint::Save(void)
         sprintf(waypointAuthor, "E-Bot Waypoint Analyzer");
 
     cstrcpy(header.author, waypointAuthor);
-    const char* waypointFilePath = CheckSubfolderFile();
 
     // remember the original waypoint author
     File rf(waypointFilePath, "rb");
@@ -2220,10 +2274,21 @@ void Waypoint::Save(void)
 
 const char* Waypoint::CheckSubfolderFile(void)
 {
-    static char waypointFilePath[1024];
-    char* waypointDir = GetWaypointDir();
-    char* mapName = GetMapName();
+    const char* waypointDir = GetWaypointDir();
+    if (!waypointDir)
+    {
+        ServerPrint("mapName is null in %s at %i", __FILE__, __LINE__);
+        return nullptr;
+    }
 
+    const char* mapName = GetMapName();
+    if (!mapName)
+    {
+        ServerPrint("mapName is null in %s at %i", __FILE__, __LINE__);
+        return nullptr;
+    }
+
+    static char waypointFilePath[1024];
     FormatBuffer(waypointFilePath, "%s%s.ewp", waypointDir, mapName);
     if (TryFileOpen(waypointFilePath))
         return &waypointFilePath[0];
@@ -2731,10 +2796,13 @@ void Waypoint::ShowWaypointMsg(void)
     // draw a paths, camplines and danger directions for nearest waypoint
     if (nearestDistance < squaredf(2048) && m_pathDisplayTime < engine->GetTime())
     {
-        if (!g_waypoint->m_waypointDisplayTime.IsAllocated())
-            g_waypoint->m_waypointDisplayTime.Reset(new(std::nothrow) float[Const_MaxWaypoints]);
-
         m_pathDisplayTime = engine->GetTime() + 1.0f;
+
+        if (!g_waypoint->m_waypointDisplayTime.IsAllocated())
+        {
+            g_waypoint->m_waypointDisplayTime.Reset(new(std::nothrow) float[Const_MaxWaypoints]);
+            return;
+        }
 
         // draw the connections
         int16_t i;

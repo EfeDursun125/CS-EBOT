@@ -3199,49 +3199,49 @@ C_DLLEXPORT int Amxx_EBotGetWaypointNumer(void)
 
 C_DLLEXPORT void Amxx_EBotGetWaypointOrigin(int index, Vector** origin)
 {
-	static Vector origin2;
+	Vector origin2;
 	origin2 = g_waypoint->GetPath(index)->origin;
 	*origin = &origin2;
 }
 
 C_DLLEXPORT void Amxx_EBotGetWaypointFlags(int index, int** flags)
 {
-	static int flags2;
+	int flags2;
 	flags2 = static_cast<int>(g_waypoint->GetPath(index)->flags);
 	*flags = &flags2;
 }
 
 C_DLLEXPORT void Amxx_EBotGetWaypointRadius(int index, int** radius)
 {
-	static int radius2;
+	int radius2;
 	radius2 = static_cast<int>(g_waypoint->GetPath(index)->radius);
 	*radius = &radius2;
 }
 
 C_DLLEXPORT void Amxx_EBotGetWaypointMesh(int index, int** mesh)
 {
-	static int mesh2;
+	int mesh2;
 	mesh2 = static_cast<int>(g_waypoint->GetPath(index)->mesh);
 	*mesh = &mesh2;
 }
 
 C_DLLEXPORT void Amxx_EBotGetWaypointConnections(int index2, int** coni, int num)
 {
-	static int coni2;
+	int coni2;
 	coni2 = static_cast<int>(g_waypoint->GetPath(index2)->index[num]);
 	*coni = &coni2;
 }
 
 C_DLLEXPORT void Amxx_EBotGetWaypointConnectionFlags(int index, int** coni, int num)
 {
-	static int coni2;
+	int coni2;
 	coni2 = static_cast<int>(g_waypoint->GetPath(index)->connectionFlags[num]);
 	*coni = &coni2;
 }
 
 C_DLLEXPORT void Amxx_EBotGetWaypointGravity(int index, float** gravity)
 {
-	static float gravity2;
+	float gravity2;
 	gravity2 = g_waypoint->GetPath(index)->gravity;
 	*gravity = &gravity2;
 }
