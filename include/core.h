@@ -479,8 +479,11 @@ public:
 
 	Vector m_throw{nullvec}; // origin of waypoint to throw grenades
 	Vector m_lookAt{nullvec}; // vector bot should look at
-	Vector m_lookVelocity{nullvec}; // interpolate velocity
-	bool m_updateLooking{false}; // should bot update where to look?
+	Vector m_lastAt{nullvec};
+	Vector m_lookVelocity{nullvec};
+	bool m_updateLooking{false};
+	bool m_updateY{false};
+	bool m_updateP{false};
 
 	bool m_isStuck{false}; // is bot stuck?
 	float m_prevTime{0.0f}; // time previously checked movement speed
