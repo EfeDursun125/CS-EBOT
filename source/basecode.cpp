@@ -674,9 +674,9 @@ void Bot::BaseUpdate(void)
 				m_updateY = true;
 				m_updateP = true;
 			}
-			else
+			else if (!m_updateY && !m_updateP)
 			{
-				if (!m_updateY && !m_updateP && m_lastAt != m_lookAt)
+				if (m_lastAt != m_lookAt)
 				{
 					m_updateY = true;
 					m_updateP = true;
@@ -684,8 +684,16 @@ void Bot::BaseUpdate(void)
 				}
 				else
 				{
-					g_engfuncs.pfnRunPlayerMove(m_myself, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, m_buttons, m_impulse, m_msecVal);
-					return;
+					if (IsInViewCone(m_lookAt))
+					{
+						g_engfuncs.pfnRunPlayerMove(m_myself, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, m_buttons, m_impulse, m_msecVal);
+						return;
+					}
+					else
+					{
+						m_updateY = true;
+						m_updateP = true;
+					}
 				}
 			}
 

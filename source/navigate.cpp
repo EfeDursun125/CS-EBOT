@@ -23,7 +23,7 @@
 //
 
 #include "../include/core.h"
-#include <cstring>
+const int16_t pMax = static_cast<int16_t>(Const_MaxPathIndex);
 
 ConVar ebot_zombies_as_path_cost("ebot_zombie_count_as_path_cost", "1");
 ConVar ebot_has_semiclip("ebot_has_semiclip", "0");
@@ -553,7 +553,7 @@ void Bot::DoWaypointNav(void)
 		{
 			int16_t i;
 			const int16_t destIndex = m_navNode.First();
-			for (i = 0; i < Const_MaxPathIndex; i++)
+			for (i = 0; i < pMax; i++)
 			{
 				if (m_waypoint.index[i] == destIndex)
 				{
@@ -1253,19 +1253,12 @@ inline const float GF_CostRusher(const int16_t& index, const int16_t& parent, co
 	return HF_Auto(index, parent);
 }
 
-enum class RouteState : int8_t
-{
-	New = 0,
-	Open = 1,
-	Closed = 2,
-};
-
 struct AStar
 {
 	float g{0.0f};
 	float f{0.0f};
 	int16_t parent{-1};
-	RouteState state{RouteState::New};
+	bool is_closed{false};
 };
 
 AStar waypoints[Const_MaxWaypoints];
@@ -1315,6 +1308,10 @@ void Bot::FindPath(int16_t& srcIndex, int16_t& destIndex)
 	if (!hcalc)
 		return;
 
+	Waypoint* gP = g_waypoint;
+	if (!gP)
+		return;
+
 	int seed = m_index + m_numSpawns + m_currentWeapon;
 	float min = ebot_pathfinder_seed_min.GetFloat();
 	float max = ebot_pathfinder_seed_max.GetFloat();
@@ -1330,14 +1327,13 @@ void Bot::FindPath(int16_t& srcIndex, int16_t& destIndex)
 		waypoints[i].g = 0.0f;
 		waypoints[i].f = 0.0f;
 		waypoints[i].parent = -1;
-		waypoints[i].state = RouteState::New;
+		waypoints[i].is_closed = false;
 	}
 
 	// put start waypoint into open list
 	AStar& srcWaypoint = waypoints[srcIndex];
 	srcWaypoint.g = ((gcalc(srcIndex, destIndex, 0, m_team, pev->gravity, m_isZombieBot) * crandomfloatfast(seed, min, max)));
 	srcWaypoint.f = srcWaypoint.g + hcalc(srcIndex, destIndex);
-	srcWaypoint.state = RouteState::Open;
 
 	// loop cache
 	AStar* currWaypoint;
@@ -1349,11 +1345,15 @@ void Bot::FindPath(int16_t& srcIndex, int16_t& destIndex)
 
 	PriorityQueue openList;
 	openList.Setup();
-	openList.InsertLowest(srcIndex, srcWaypoint.g);
+	openList.InsertLowest(srcIndex, srcWaypoint.f);
 	while (!openList.IsEmpty())
 	{
 		limit++;
 		currentIndex = openList.RemoveLowest();
+		currWaypoint = &waypoints[currentIndex];
+		if (currWaypoint->is_closed)
+			continue;
+
 		if (currentIndex == destIndex || limit > g_numWaypoints)
 		{
 			m_navNode.Clear();
@@ -1365,7 +1365,7 @@ void Bot::FindPath(int16_t& srcIndex, int16_t& destIndex)
 			} while (IsValidWaypoint(currentIndex));
 
 			m_navNode.Reverse();
-			if (m_navNode.HasNext() && (g_waypoint->GetPath(m_navNode.Next())->origin - pev->origin).GetLengthSquared() < (g_waypoint->GetPath(m_navNode.Next())->origin - g_waypoint->GetPath(m_navNode.First())->origin).GetLengthSquared())
+			if (m_navNode.HasNext() && (gP->GetPath(m_navNode.Next())->origin - pev->origin).GetLengthSquared() < (gP->GetPath(m_navNode.Next())->origin - gP->GetPath(m_navNode.First())->origin).GetLengthSquared())
 				m_navNode.Shift();
 
 			ChangeWptIndex(m_navNode.First());
@@ -1373,26 +1373,22 @@ void Bot::FindPath(int16_t& srcIndex, int16_t& destIndex)
 			return;
 		}
 
-		currWaypoint = &waypoints[currentIndex];
-		if (currWaypoint->state != RouteState::Open)
-			continue;
+		currWaypoint->is_closed = true;
 
-		currWaypoint->state = RouteState::Closed;
-
-		currPath = g_waypoint->m_paths[currentIndex];
-		for (i = 0; i < Const_MaxPathIndex; i++)
+		currPath = gP->m_paths[currentIndex];
+		for (i = 0; i < pMax; i++)
 		{
 			self = currPath.index[i];
 			if (!IsValidWaypoint(self))
 				break;
 			
-			flags = g_waypoint->m_paths[self].flags;
+			flags = gP->m_paths[self].flags;
 			if (flags)
 			{
 				if (flags & WAYPOINT_FALLCHECK)
 				{
 					TraceResult tr;
-					const Vector origin = g_waypoint->m_paths[self].origin;
+					const Vector origin = gP->m_paths[self].origin;
 					TraceLine(origin, origin - Vector(0.0f, 0.0f, 60.0f), TraceIgnore::Nothing, m_myself, &tr);
 					if (tr.flFraction >= 1.0f)
 						continue;
@@ -1400,7 +1396,7 @@ void Bot::FindPath(int16_t& srcIndex, int16_t& destIndex)
 				
 				if (flags & WAYPOINT_SPECIFICGRAVITY)
 				{
-					if ((pev->gravity * engine->GetGravity()) > g_waypoint->m_paths[self].gravity)
+					if ((pev->gravity * engine->GetGravity()) > gP->m_paths[self].gravity)
 						continue;
 				}
 
@@ -1435,13 +1431,12 @@ void Bot::FindPath(int16_t& srcIndex, int16_t& destIndex)
 			f = g + hcalc(self, destIndex);
 
 			childWaypoint = &waypoints[self];
-			if (childWaypoint->state == RouteState::New || childWaypoint->f > f)
+			if (!childWaypoint->is_closed && (childWaypoint->f == 0.0f || childWaypoint->f > f))
 			{
 				childWaypoint->parent = currentIndex;
-				childWaypoint->state = RouteState::Open;
 				childWaypoint->g = g;
 				childWaypoint->f = f;
-				openList.InsertLowest(self, g);
+				openList.InsertLowest(self, f);
 			}
 		}
 	}
@@ -1452,7 +1447,7 @@ void Bot::FindPath(int16_t& srcIndex, int16_t& destIndex)
 		CArray<int16_t>PossiblePath;
 		for (i = 0; i < g_numWaypoints; i++)
 		{
-			if (waypoints[i].state == RouteState::Closed)
+			if (waypoints[i].is_closed)
 				PossiblePath.Push(i);
 		}
 
@@ -1482,18 +1477,21 @@ void Bot::FindShortestPath(int16_t& srcIndex, int16_t& destIndex)
 	if (!hcalc)
 		return;
 
+	Waypoint* gP = g_waypoint;
+	if (!gP)
+		return;
+
 	int16_t i;
 	for (i = 0; i < Const_MaxWaypoints; i++)
 	{
 		waypoints[i].g = 0.0f;
 		waypoints[i].f = 0.0f;
 		waypoints[i].parent = -1;
-		waypoints[i].state = RouteState::New;
+		waypoints[i].is_closed = false;
 	}
 
 	AStar& srcWaypoint = waypoints[srcIndex];
 	srcWaypoint.f = hcalc(srcIndex, destIndex);
-	srcWaypoint.state = RouteState::Open;
 
 	// loop cache
 	AStar* currWaypoint;
@@ -1506,11 +1504,15 @@ void Bot::FindShortestPath(int16_t& srcIndex, int16_t& destIndex)
 
 	PriorityQueue openList;
 	openList.Setup();
-	openList.InsertLowest(srcIndex, srcWaypoint.g);
+	openList.InsertLowest(srcIndex, srcWaypoint.f);
 	while (!openList.IsEmpty())
 	{
 		limit++;
 		currentIndex = openList.RemoveLowest();
+		currWaypoint = &waypoints[currentIndex];
+		if (currWaypoint->is_closed)
+			continue;
+
 		if (currentIndex == destIndex || limit > g_numWaypoints)
 		{
 			m_navNode.Clear();
@@ -1522,7 +1524,7 @@ void Bot::FindShortestPath(int16_t& srcIndex, int16_t& destIndex)
 			} while (IsValidWaypoint(currentIndex));
 
 			m_navNode.Reverse();
-			if (m_navNode.HasNext() && (g_waypoint->GetPath(m_navNode.Next())->origin - pev->origin).GetLengthSquared() < (g_waypoint->GetPath(m_navNode.Next())->origin - g_waypoint->GetPath(m_navNode.First())->origin).GetLengthSquared())
+			if (m_navNode.HasNext() && (gP->GetPath(m_navNode.Next())->origin - pev->origin).GetLengthSquared() < (gP->GetPath(m_navNode.Next())->origin - gP->GetPath(m_navNode.First())->origin).GetLengthSquared())
 				m_navNode.Shift();
 
 			ChangeWptIndex(m_navNode.First());
@@ -1530,25 +1532,21 @@ void Bot::FindShortestPath(int16_t& srcIndex, int16_t& destIndex)
 			return;
 		}
 
-		currWaypoint = &waypoints[currentIndex];
-		if (currWaypoint->state != RouteState::Open)
-			continue;
-
-		currWaypoint->state = RouteState::Closed;
-		currPath = g_waypoint->m_paths[currentIndex];
-		for (i = 0; i < Const_MaxPathIndex; i++)
+		currWaypoint->is_closed = true;
+		currPath = gP->m_paths[currentIndex];
+		for (i = 0; i < pMax; i++)
 		{
 			self = currPath.index[i];
 			if (!IsValidWaypoint(self))
 				break;
 
-			flags = g_waypoint->m_paths[self].flags;
+			flags = gP->m_paths[self].flags;
 			if (flags)
 			{
 				if (flags & WAYPOINT_FALLCHECK)
 				{
 					TraceResult tr;
-					const Vector origin = g_waypoint->m_paths[self].origin;
+					const Vector origin = gP->m_paths[self].origin;
 					TraceLine(origin, origin - Vector(0.0f, 0.0f, 60.0f), TraceIgnore::Nothing, m_myself, &tr);
 					if (tr.flFraction >= 1.0f)
 						continue;
@@ -1556,7 +1554,7 @@ void Bot::FindShortestPath(int16_t& srcIndex, int16_t& destIndex)
 					
 				if (flags & WAYPOINT_SPECIFICGRAVITY)
 				{
-					if ((pev->gravity * engine->GetGravity()) > g_waypoint->m_paths[self].gravity)
+					if ((pev->gravity * engine->GetGravity()) > gP->m_paths[self].gravity)
 						continue;
 				}
 	
@@ -1590,13 +1588,12 @@ void Bot::FindShortestPath(int16_t& srcIndex, int16_t& destIndex)
 			g = currWaypoint->g + hcalc(self, currentIndex);
 			f = g + hcalc(self, destIndex);
 			childWaypoint = &waypoints[self];
-			if (childWaypoint->state == RouteState::New || childWaypoint->f > f)
+			if (!childWaypoint->is_closed && (childWaypoint->f == 0.0f || childWaypoint->f > f))
 			{
 				childWaypoint->parent = currentIndex;
-				childWaypoint->state = RouteState::Open;
 				childWaypoint->g = g;
 				childWaypoint->f = f;
-				openList.InsertLowest(self, g);
+				openList.InsertLowest(self, f);
 			}
 		}
 	}
@@ -1617,6 +1614,10 @@ void Bot::FindEscapePath(int16_t& srcIndex, const Vector& dangerOrigin)
 
 	g_pathTimer = engine->GetTime() + 0.05f;
 
+	Waypoint* gP = g_waypoint;
+	if (!gP)
+		return;
+
 	int16_t i;
 	if (!IsValidWaypoint(srcIndex))
 	{
@@ -1631,13 +1632,12 @@ void Bot::FindEscapePath(int16_t& srcIndex, const Vector& dangerOrigin)
 		waypoints[i].g = 0.0f;
 		waypoints[i].f = 0.0f;
 		waypoints[i].parent = -1;
-		waypoints[i].state = RouteState::New;
+		waypoints[i].is_closed = false;
 	}
 
 	AStar& srcWaypoint = waypoints[srcIndex];
-	srcWaypoint.g = -(g_waypoint->m_paths[srcIndex].origin - pev->origin).GetLengthSquared();
-	srcWaypoint.f = srcWaypoint.g + -(g_waypoint->m_paths[srcIndex].origin - dangerOrigin).GetLengthSquared();
-	srcWaypoint.state = RouteState::Open;
+	srcWaypoint.g = -(gP->m_paths[srcIndex].origin - pev->origin).GetLengthSquared();
+	srcWaypoint.f = srcWaypoint.g + -(gP->m_paths[srcIndex].origin - dangerOrigin).GetLengthSquared();
 
 	// loop cache
 	AStar* currWaypoint;
@@ -1651,7 +1651,7 @@ void Bot::FindEscapePath(int16_t& srcIndex, const Vector& dangerOrigin)
 
 	PriorityQueue openList;
 	openList.Setup();
-	openList.InsertLowest(srcIndex, srcWaypoint.g);
+	openList.InsertLowest(srcIndex, srcWaypoint.f);
 	while (!openList.IsEmpty())
 	{
 		limit++;
@@ -1661,32 +1661,32 @@ void Bot::FindEscapePath(int16_t& srcIndex, const Vector& dangerOrigin)
 			return;
 		}
 
+		currWaypoint = &waypoints[currentIndex];
+		if (currWaypoint->is_closed)
+			continue;
+
 		currentIndex = openList.RemoveLowest();
-		currPath = g_waypoint->m_paths[currentIndex];
+		currPath = gP->m_paths[currentIndex];
 		if (!IsEnemyReachableToPosition(currPath.origin))
 		{
 			found = true;
 			break;
 		}
 
-		currWaypoint = &waypoints[currentIndex];
-		if (currWaypoint->state != RouteState::Open)
-			continue;
-
-		currWaypoint->state = RouteState::Closed;
-		for (i = 0; i < Const_MaxPathIndex; i++)
+		currWaypoint->is_closed = true;
+		for (i = 0; i < pMax; i++)
 		{
 			self = currPath.index[i];
 			if (!IsValidWaypoint(self))
 				break;
 			
-			flags = g_waypoint->m_paths[self].flags;
+			flags = gP->m_paths[self].flags;
 			if (flags)
 			{
 				if (flags & WAYPOINT_FALLCHECK)
 				{
 					TraceResult tr;
-					const Vector origin = g_waypoint->m_paths[self].origin;
+					const Vector origin = gP->m_paths[self].origin;
 					TraceLine(origin, origin - Vector(0.0f, 0.0f, 60.0f), TraceIgnore::Nothing, m_myself, &tr);
 					if (tr.flFraction >= 1.0f)
 						continue;
@@ -1694,7 +1694,7 @@ void Bot::FindEscapePath(int16_t& srcIndex, const Vector& dangerOrigin)
 
 				if (flags & WAYPOINT_SPECIFICGRAVITY)
 				{
-					if ((pev->gravity * engine->GetGravity()) > g_waypoint->m_paths[self].gravity)
+					if ((pev->gravity * engine->GetGravity()) > gP->m_paths[self].gravity)
 						continue;
 				}
 
@@ -1725,17 +1725,16 @@ void Bot::FindEscapePath(int16_t& srcIndex, const Vector& dangerOrigin)
 				}
 			}
 
-			g = currWaypoint->g + -(g_waypoint->m_paths[self].origin - pev->origin).GetLengthSquared();
-			f = g + -(g_waypoint->m_paths[self].origin - dangerOrigin).GetLengthSquared();
+			g = currWaypoint->g + -(gP->m_paths[self].origin - pev->origin).GetLengthSquared();
+			f = g + -(gP->m_paths[self].origin - dangerOrigin).GetLengthSquared();
 			childWaypoint = &waypoints[self];
-			if (childWaypoint->state == RouteState::New || childWaypoint->f < f)
+			if (!childWaypoint->is_closed && (childWaypoint->f == 0.0f || childWaypoint->f > f))
 			{
 				// put the current child into open list
 				childWaypoint->parent = currentIndex;
-				childWaypoint->state = RouteState::Open;
 				childWaypoint->g = g;
 				childWaypoint->f = f;
-				openList.InsertLowest(self, g);
+				openList.InsertLowest(self, f);
 			}
 		}
 	}
