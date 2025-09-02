@@ -659,52 +659,82 @@ void Bot::BaseUpdate(void)
 			}
 		}
 
-		if (!m_lookVelocity.IsNull())
+		if (m_updateLooking)
 		{
-			m_lookAt.x += m_lookVelocity.x * m_pathInterval;
-			m_lookAt.y += m_lookVelocity.y * m_pathInterval;
-			m_lookAt.z += m_lookVelocity.z * m_pathInterval;
-		}
+			if (!m_lookVelocity.IsNull())
+			{
+				m_lookAt.x += m_lookVelocity.x * m_pathInterval;
+				m_lookAt.y += m_lookVelocity.y * m_pathInterval;
+				m_lookAt.z += m_lookVelocity.z * m_pathInterval;
+			}
 
-		// adjust all body and view angles to face an absolute vector
-		Vector direction = (m_lookAt - EyePosition()).ToAngles() + pev->punchangle;
-		direction.x = -direction.x; // invert for engine
+			const float lockn = 0.128f / m_pathInterval;
+			if (m_hasEnemiesNear)
+			{
+				m_updateY = true;
+				m_updateP = true;
+			}
+			else
+			{
+				if (!m_updateY && !m_updateP && m_lastAt != m_lookAt)
+				{
+					m_updateY = true;
+					m_updateP = true;
+					m_lastAt = m_lookAt;
+				}
+				else
+				{
+					g_engfuncs.pfnRunPlayerMove(m_myself, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, m_buttons, m_impulse, m_msecVal);
+					return;
+				}
+			}
 
-		const float angleDiffPitch = AngleNormalize(direction.x - pev->v_angle.x);
-		const float angleDiffYaw = AngleNormalize(direction.y - pev->v_angle.y);
-		const float lockn = 0.128f / m_pathInterval;
+			// adjust all body and view angles to face an absolute vector
+			Vector direction = (m_lookAt - EyePosition()).ToAngles() + pev->punchangle;
+			direction.x = -direction.x; // invert for engine
 
-		if (cabsf(angleDiffYaw) < lockn)
-		{
-			m_lookYawVel = 0.0f;
-			pev->v_angle.y = AngleNormalize(direction.y);
-		}
-		else
-		{
-			const float fskill = static_cast<float>(m_skill);
-			const float accelerate = fskill * 40.0f;
-			m_lookYawVel += m_pathInterval * cclampf((fskill * 4.0f * angleDiffYaw) - (fskill * 0.4f * m_lookYawVel), -accelerate, accelerate);
-			pev->v_angle.y += m_pathInterval * m_lookYawVel;
-		}
+			if (m_updateY)
+			{
+				const float angleDiffYaw = AngleNormalize(direction.y - pev->v_angle.y);
+				if (cabsf(angleDiffYaw) < lockn)
+				{
+					m_lookYawVel = 0.0f;
+					pev->v_angle.y = AngleNormalize(direction.y);
+					m_updateY = false;
+				}
+				else
+				{
+					const float fskill = static_cast<float>(m_skill);
+					const float accelerate = fskill * 40.0f;
+					m_lookYawVel += m_pathInterval * cclampf((fskill * 4.0f * angleDiffYaw) - (fskill * 0.4f * m_lookYawVel), -accelerate, accelerate);
+					pev->v_angle.y += m_pathInterval * m_lookYawVel;
+				}
+			}
+			
+			if (m_updateP)
+			{
+				const float angleDiffPitch = AngleNormalize(direction.x - pev->v_angle.x);
+				if (cabsf(angleDiffPitch) < lockn)
+				{
+					m_lookPitchVel = 0.0f;
+					pev->v_angle.x = AngleNormalize(direction.x);
+					m_updateP = false;
+				}
+				else
+				{
+					const float fskill = static_cast<float>(m_skill);
+					const float accelerate = fskill * 40.0f;
+					m_lookPitchVel += m_pathInterval * cclampf(fskill * 8.0f * angleDiffPitch - (fskill * 0.4f * m_lookPitchVel), -accelerate, accelerate);
+					pev->v_angle.x += m_pathInterval * m_lookPitchVel;
+				}
+			}
 
-		if (cabsf(angleDiffPitch) < lockn)
-		{
-			m_lookPitchVel = 0.0f;
-			pev->v_angle.x = AngleNormalize(direction.x);
+			// set the body angles to point the gun correctly
+			pev->v_angle.ClampAngles();
+			pev->angles.x = -pev->v_angle.x * 0.33333333333f;
+			pev->angles.y = pev->v_angle.y;
+			pev->angles.ClampAngles();
 		}
-		else
-		{
-			const float fskill = static_cast<float>(m_skill);
-			const float accelerate = fskill * 40.0f;
-			m_lookPitchVel += m_pathInterval * cclampf(fskill * 8.0f * angleDiffPitch - (fskill * 0.4f * m_lookPitchVel), -accelerate, accelerate);
-			pev->v_angle.x += m_pathInterval * m_lookPitchVel;
-		}
-
-		// set the body angles to point the gun correctly
-		pev->v_angle.ClampAngles();
-		pev->angles.x = -pev->v_angle.x * 0.33333333333f;
-		pev->angles.y = pev->v_angle.y;
-		pev->angles.ClampAngles();
 
 		// FIXME: crash
 		g_engfuncs.pfnRunPlayerMove(m_myself, m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, m_buttons, m_impulse, m_msecVal);
