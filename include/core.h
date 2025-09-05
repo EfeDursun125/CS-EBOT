@@ -277,20 +277,32 @@ public:
 	inline int16_t& Next(void) { return Get(1); }
 	inline int16_t& First(void) { return Get(0); }
 	inline int16_t& Last(void) { return Get(Length() - 1); }
-	inline void Shift(void) { m_cursor++; }
 	inline int16_t GetCapacity(void) { return m_capacity; }
+
+	inline void Shift(void)
+	{
+		if (m_cursor < m_length)
+			++m_cursor;
+		else
+			m_cursor = m_length;
+	}
+
 	inline int16_t& Get(const int16_t index)
 	{
-		if (m_path.IsAllocated() && (m_cursor + index) < m_capacity)
-			return m_path[m_cursor + index];
-
 		static int16_t temp = -1;
-		return temp;
+		if (!m_path.IsAllocated())
+			return temp;
+
+		const int16_t idx = m_cursor + index;
+		if (idx < static_cast<int16_t>(0) || idx >= m_length)
+			return temp;
+
+		return m_path[idx];
 	}
 
 	inline void Reverse(void)
 	{
-		if (m_path.IsAllocated() && m_length > 1)
+		if (m_path.IsAllocated() && m_length > 1 && m_cursor < m_length)
 		{
 			int16_t start = m_cursor;
 			int16_t end = m_length - 1;
@@ -322,7 +334,7 @@ public:
 		if (m_path.IsAllocated() && m_length < m_capacity)
 		{
 			m_path[m_length] = waypoint;
-			m_length++;
+			++m_length;
 			return true;
 		}
 
@@ -331,8 +343,12 @@ public:
 
 	inline void Set(const int16_t index, const int16_t waypoint)
 	{
-		if (m_path.IsAllocated() && (m_cursor + index) < m_length)
-			m_path[m_cursor + index] = waypoint;
+		if (m_path.IsAllocated())
+		{
+			const int16_t idx = m_cursor + index;
+			if (idx >= static_cast<int16_t>(0) && idx < m_length)
+				m_path[idx] = waypoint;
+		}
 	}
 
 	inline void Clear(void)
@@ -351,6 +367,9 @@ public:
 
 	inline bool Init(const int16_t length)
 	{
+		if (length <= static_cast<int16_t>(0))
+			return false;
+
 		m_cursor = 0;
 		m_length = 0;
 		m_path.Reset(new(std::nothrow) int16_t[length]);
