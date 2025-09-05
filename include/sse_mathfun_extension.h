@@ -184,8 +184,8 @@ v4sf cot_ps( v4sf x ) { return tancot_ps( x, 1 ); }
 
 _PS_CONST( atanrange_hi, 2.414213562373095 );
 _PS_CONST( atanrange_lo, 0.4142135623730950 );
-const float PIF = 3.141592653589793238;
-const float PIO2F = 1.5707963267948966192;
+constexpr float PIF = 3.141592653589793238;
+constexpr float PIO2F = 1.5707963267948966192;
 _PS_CONST( cephes_PIF, 3.141592653589793238 );
 _PS_CONST( cephes_PIO2F, 1.5707963267948966192 );
 _PS_CONST( cephes_PIO4F, 0.7853981633974483096 );

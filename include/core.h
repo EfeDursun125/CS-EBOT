@@ -253,14 +253,14 @@ enum class LiftState : int8_t
 #define FH_WAYPOINT_NEW "EBOTWP!"
 #define FV_WAYPOINT 127
 
-#define Const_MaxPathIndex 8
-#define Const_MaxWaypoints 8192
-#define Const_NumWeapons 24
-#define Const_MaxWeapons 32
+constexpr int Const_MaxPathIndex = 8;
+constexpr int Const_MaxWaypoints = 8192;
+constexpr int Const_NumWeapons = 24;
+constexpr int Const_MaxWeapons = 32;
 
 // weapon masks
-#define WeaponBits_Primary ((1 << Weapon::Xm1014) | (1 << Weapon::M3) | (1 << Weapon::Mac10) | (1 << Weapon::Ump45) | (1 << Weapon::Mp5) | (1 << Weapon::Tmp) | (1 << Weapon::P90) | (1 << Weapon::Aug) | (1 << Weapon::M4A1) | (1 << Weapon::Sg552) | (1 << Weapon::Ak47) | (1 << Weapon::Scout) | (1 << Weapon::Sg550) | (1 << Weapon::Awp) | (1 << Weapon::G3SG1) | (1 << Weapon::M249) | (1 << Weapon::Famas) | (1 << Weapon::Galil))
-#define WeaponBits_Secondary ((1 << Weapon::P228) | (1 << Weapon::Elite) | (1 << Weapon::Usp) | (1 << Weapon::Glock18) | (1 << Weapon::Deagle) | (1 << Weapon::FiveSeven))
+constexpr int WeaponBits_Primary = ((1 << Weapon::Xm1014) | (1 << Weapon::M3) | (1 << Weapon::Mac10) | (1 << Weapon::Ump45) | (1 << Weapon::Mp5) | (1 << Weapon::Tmp) | (1 << Weapon::P90) | (1 << Weapon::Aug) | (1 << Weapon::M4A1) | (1 << Weapon::Sg552) | (1 << Weapon::Ak47) | (1 << Weapon::Scout) | (1 << Weapon::Sg550) | (1 << Weapon::Awp) | (1 << Weapon::G3SG1) | (1 << Weapon::M249) | (1 << Weapon::Famas) | (1 << Weapon::Galil));
+constexpr int WeaponBits_Secondary = ((1 << Weapon::P228) | (1 << Weapon::Elite) | (1 << Weapon::Usp) | (1 << Weapon::Glock18) | (1 << Weapon::Deagle) | (1 << Weapon::FiveSeven));
 
 // this structure links waypoints returned from pathfinder
 class PathManager
@@ -269,6 +269,7 @@ private:
 	bool m_follow{false};
 	int16_t m_cursor{0};
 	int16_t m_length{0};
+	int16_t m_capacity{0};
 	CPtr<int16_t>m_path{nullptr};
 public:
 	explicit PathManager(void) = default;
@@ -276,22 +277,37 @@ public:
 	inline int16_t& Next(void) { return Get(1); }
 	inline int16_t& First(void) { return Get(0); }
 	inline int16_t& Last(void) { return Get(Length() - 1); }
-	inline int16_t& Get(const int16_t index) { return m_path[m_cursor + index]; }
 	inline void Shift(void) { m_cursor++; }
+	inline int16_t GetCapacity(void) { return m_capacity; }
+	inline int16_t& Get(const int16_t index)
+	{
+		if (m_path.IsAllocated() && (m_cursor + index) < m_capacity)
+			return m_path[m_cursor + index];
+
+		static int16_t temp = -1;
+		return temp;
+	}
+
 	inline void Reverse(void)
 	{
-		int16_t start = m_cursor;
-		int16_t end = m_length - 1;
-		while (start < end)
+		if (m_path.IsAllocated() && m_length > 1)
 		{
-			cswap(m_path[start], m_path[end]);
-			start++;
-			end--;
+			int16_t start = m_cursor;
+			int16_t end = m_length - 1;
+			while (start < end)
+			{
+				cswap(m_path[start], m_path[end]);
+				start++;
+				end--;
+			}
 		}
 	}
 
 	inline int16_t Length(void) const
 	{
+		if (m_capacity < 1)
+			return 0;
+
 		if (m_cursor >= m_length)
 			return 0;
 
@@ -303,7 +319,7 @@ public:
 
 	inline bool Add(const int16_t waypoint)
 	{
-		if (m_path.IsAllocated())
+		if (m_path.IsAllocated() && m_length < m_capacity)
 		{
 			m_path[m_length] = waypoint;
 			m_length++;
@@ -315,7 +331,7 @@ public:
 
 	inline void Set(const int16_t index, const int16_t waypoint)
 	{
-		if ((m_cursor + index) < m_length)
+		if (m_path.IsAllocated() && (m_cursor + index) < m_length)
 			m_path[m_cursor + index] = waypoint;
 	}
 
@@ -323,14 +339,13 @@ public:
 	{
 		m_cursor = 0;
 		m_length = 0;
-		if (m_path.IsAllocated())
-			m_path[0] = 0;
 	}
 
 	inline void Destroy(void)
 	{
 		m_cursor = 0;
 		m_length = 0;
+		m_capacity = 0;
 		m_path.Destroy();
 	}
 
@@ -340,7 +355,10 @@ public:
 		m_length = 0;
 		m_path.Reset(new(std::nothrow) int16_t[length]);
 		if (m_path.IsAllocated())
+		{
+			m_capacity = length;
 			return true;
+		}
 
 		return false;
 	}
@@ -850,8 +868,8 @@ public:
 	void SetId(const int messageType, const int messsageIdentifier) { m_registerdMessages[messageType] = messsageIdentifier; }
 };
 
-#define MAX_WAYPOINT_BUCKET_SIZE static_cast<int>(Const_MaxWaypoints * 0.65)
-#define MAX_WAYPOINT_BUCKET_MAX Const_MaxWaypoints * 8 / MAX_WAYPOINT_BUCKET_SIZE + 1
+constexpr int MAX_WAYPOINT_BUCKET_SIZE = static_cast<int>(Const_MaxWaypoints * 0.65);
+constexpr int MAX_WAYPOINT_BUCKET_MAX = Const_MaxWaypoints * 8 / MAX_WAYPOINT_BUCKET_SIZE + 1;
 
 // waypoint operation class
 class Waypoint : public Singleton <Waypoint>

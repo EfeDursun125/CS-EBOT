@@ -76,13 +76,6 @@ typedef unsigned short uint16_t;
 #define nullvec Vector::GetNull()
 
 //
-// Macro: InternalAssert
-//
-// Asserts expression.
-//
-#define Assert(expr)
-
-//
 // Function: FormatBuffer
 // 
 // Formats a buffer using variable arguments.
@@ -182,11 +175,11 @@ public:
     }
 };
 
-#define MATH_ONEPSILON 0.01f
-#define MATH_EQEPSILON 0.001f
-#define MATH_FLEPSILON 1.192092896e-07f
-#define MATH_D2R 0.017453292519943295f
-#define MATH_R2D 57.295779513082320876f
+constexpr float MATH_ONEPSILON = 0.01f;
+constexpr float MATH_EQEPSILON = 0.001f;
+constexpr float MATH_FLEPSILON = 1.192092896e-07f;
+constexpr float MATH_D2R = 0.017453292519943295f;
+constexpr float MATH_R2D = 57.295779513082320876f;
 
 //
 // Namespace: Math
@@ -639,9 +632,7 @@ public:
 #include <xmmintrin.h>
 inline float GetVectorDistanceSSE(const Vector vec1, const Vector vec2)
 {
-    const __m128 v1 = _mm_set_ps(0.0f, vec1.z, vec1.y, vec1.x);
-    const __m128 v2 = _mm_set_ps(0.0f, vec2.z, vec2.y, vec2.x);
-    const __m128 diff = _mm_sub_ps(v1, v2);
+    const __m128 diff = _mm_sub_ps(_mm_set_ps(0.0f, vec1.z, vec1.y, vec1.x), _mm_set_ps(0.0f, vec2.z, vec2.y, vec2.x));
     __m128 sum = _mm_mul_ps(diff, diff);
     sum = _mm_add_ps(sum, _mm_movehl_ps(sum, sum)); 
     sum = _mm_add_ss(sum, _mm_shuffle_ps(sum, sum, 0x55));

@@ -9,10 +9,10 @@
 
 #pragma once
 
-#define MAXBUF 4096
-#define PADDING 18
-#define THRESHOLD 2
-#define NIL MAXBUF
+constexpr int MAXBUF = 4096;
+constexpr int PADDING = 18;
+constexpr int THRESHOLD = 2;
+constexpr int NIL = MAXBUF;
 class Compressor
 {
 protected:

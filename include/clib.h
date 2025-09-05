@@ -781,12 +781,18 @@ public:
 public:
 	inline bool Resize(const int16_t size, const bool reset = false)
 	{
-		if (reset)
+		if (size <= 0)
 		{
 			Destroy();
+			return true;
+		}
+
+		if (reset)
+		{
 			m_array.Reset(new(std::nothrow) T[size]);
 			if (m_array.IsAllocated())
 			{
+				m_size = 0;
 				m_capacity = size;
 				return true;
 			}
@@ -799,6 +805,7 @@ public:
 			m_array.Reset(new(std::nothrow) T[size]);
 			if (m_array.IsAllocated())
 			{
+				m_size = 0;
 				m_capacity = size;
 				return true;
 			}
@@ -834,8 +841,15 @@ public:
 
 	inline T& Get(const int16_t index)
 	{
-		if (index >= m_size)
+		static T s_dummy = T();
+		if (m_size <= 0)
+			return s_dummy;
+
+		if (index < 0)
 			return m_array[0];
+
+		if (index >= m_size)
+			return m_array[m_size - 1];
 
 		return m_array[index];
 	}
@@ -878,7 +892,7 @@ public:
 
 	inline void RemoveAt(const int16_t index)
 	{
-		if (index >= m_size)
+		if (index < 0 || index >= m_size)
 			return;
 
 		if (m_array.IsAllocated())
@@ -925,7 +939,7 @@ public:
 
 	inline T Pop(void)
 	{
-		if (m_array.IsAllocated())
+		if (m_array.IsAllocated() && m_size > 0)
 		{
 			const T element = m_array[m_size - 1];
 			RemoveAt(m_size - 1);
@@ -935,12 +949,29 @@ public:
 		return T();
 	}
 
-	inline void PopNoReturn(void) { RemoveAt(m_size - 1); }
-	inline T& Last(void) { return m_array[m_size - 1]; }
-	inline bool IsEmpty(void) const { return !m_size; }
+	inline void PopNoReturn(void) { if (m_size > 0) RemoveAt(m_size - 1); }
+
+	inline T& Last(void)
+	{
+		static T s_dummy = T();
+		if (m_size > 0 && m_array.IsAllocated())
+			return m_array[m_size - 1];
+
+		return s_dummy;
+	}
+
+	inline bool IsEmpty(void) const { return m_size < 1; }
 	inline int16_t Size(void) const { return m_size; }
+	inline bool NotAllocated(void) const { return m_capacity < 1; }
 	inline int16_t Capacity(void) const { return m_capacity; }
-	inline T& Random(void) { return m_array[crandomint(0, m_size - 1)]; }
+	inline T& Random(void)
+	{
+		static T s_dummy = T();
+		if (m_size <= 0 || !m_array.IsAllocated())
+			return s_dummy;
+
+		return Get(static_cast<int16_t>(crandomint(0, m_size - 1)));
+	}
 	template <typename T2>
 	inline T& operator[] (const T2 index) { return m_array[index]; }
 };
