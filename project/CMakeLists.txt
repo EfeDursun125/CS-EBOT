@@ -1,23 +1,21 @@
 cmake_minimum_required(VERSION 3.16)
-project(EBOT)
 
 # Set clang++ as the default C++ compiler if available
-find_program(CMAKE_CXX_COMPILER clang++)
-if(CMAKE_CXX_COMPILER)
-    message(STATUS "Found Clang++: ${CMAKE_CXX_COMPILER} and using it as default C++ compiler")
-    set(CMAKE_CXX_COMPILER clang++)
-else()
-    message(STATUS "Clang++ not found using default C++ compiler, this might cause E-Bot crashes")
+find_program(CLANG_CXX clang++)
+find_program(CLANG_C clang)
+
+if(CLANG_CXX)
+    message(STATUS "Found clang++: ${CLANG_CXX}; configuring to use it")
+    # Set as cache so CMake uses it when detecting compilers
+    set(CMAKE_CXX_COMPILER ${CLANG_CXX} CACHE STRING "C++ compiler" FORCE)
 endif()
 
-# Set clang as the default C compiler if available
-find_program(CMAKE_C_COMPILER clang)
-if(CMAKE_C_COMPILER)
-    message(STATUS "Found Clang: ${CMAKE_C_COMPILER} and using it as default C compiler")
-    set(CMAKE_C_COMPILER clang)
-else()
-    message(STATUS "Clang not found using default C compiler, this might cause E-Bot crashes")
+if(CLANG_C)
+    message(STATUS "Found clang: ${CLANG_C}; configuring to use it")
+    set(CMAKE_C_COMPILER ${CLANG_C} CACHE STRING "C compiler" FORCE)
 endif()
+
+project(EBOT)
 
 # Compiler flags
 set(CMAKE_CXX_STANDARD 11)
