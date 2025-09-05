@@ -1139,7 +1139,7 @@ void MOD_AddLogEntry(const int mod, char* format)
 	{
 		int i;
 		sprintf(modName, "E-BOT");
-		const int buildVersion[4] = {PRODUCT_VERSION_DWORD};
+		constexpr int buildVersion[4] = {PRODUCT_VERSION_DWORD};
 		for (i = 0; i < 4; i++)
 			mod_bV16[i] = static_cast<uint16_t>(buildVersion[i]);
 	}

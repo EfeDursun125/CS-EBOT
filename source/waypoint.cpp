@@ -1691,40 +1691,165 @@ void CalculateMatrix(void* arg)
             return;
         }
 
-        const int16_t INF = static_cast<int16_t>(32766);
+        constexpr int16_t INF = static_cast<int16_t>(32766);
         const int16_t num = static_cast<int16_t>(g_numWaypoints);
-        const int16_t pnum = static_cast<int16_t>(Const_MaxPathIndex);
+        constexpr int16_t pnum = static_cast<int16_t>(Const_MaxPathIndex);
 
-        int16_t i, j, k;
-        for (i = 0; i < num; i++)
+        int* dist = new(std::nothrow) int[num];
+        int8_t* visited = new(std::nothrow) int8_t[num];
+        int* heapKey = new(std::nothrow) int[num + 1];
+        int16_t* heapId = new(std::nothrow) int16_t[num + 1];
+        int* position = new(std::nothrow) int[num];
+
+        if (!dist || !visited || !heapKey || !heapId || !position)
         {
-            for (j = 0; j < num; j++)
-                *(distMatrix + i * num + j) = INF;
+            if (dist)
+                delete[] dist;
+
+            if (visited)
+                delete[] visited;
+
+            if (heapKey)
+                delete[] heapKey;
+
+            if (heapId)
+                delete[] heapId;
+
+            if (position)
+                delete[] position;
+
+            ServerPrint("matrix problem in %s at %i", __FILE__, __LINE__);
+            calcMutex.unlock();
+            return;
         }
 
-        for (i = 0; i < num; i++)
-        {
-            for (j = 0; j < pnum; j++)
+        auto heapSwap = [&](int a, int b) {
+            int16_t tid = heapId[a];
+            int tkey = heapKey[a];
+            heapId[a] = heapId[b];
+            heapKey[a] = heapKey[b];
+            heapId[b] = tid;
+            heapKey[b] = tkey;
+            position[ heapId[a] ] = a;
+            position[ heapId[b] ] = b;
+        };
+
+        auto heapUp = [&](int idx) {
+            int parent;
+            while (idx > 1)
             {
-                if (IsValidWaypoint(wpt->m_paths[i].index[j]))
-                    *(distMatrix + (i * num) + wpt->m_paths[i].index[j]) = static_cast<int16_t>(GetVectorDistanceSSE(wpt->m_paths[i].origin, wpt->m_paths[wpt->m_paths[i].index[j]].origin));
+                parent = idx >> 1;
+                if (heapKey[parent] <= heapKey[idx])
+                    break;
+
+                heapSwap(parent, idx);
+                idx = parent;
             }
-        }
+        };
 
-        for (i = 0; i < num; i++)
-            *(distMatrix + (i * num) + i) = static_cast<int16_t>(0);
-
-        for (k = 0; k < num; k++)
-        {
-            for (i = 0; i < num; i++)
+        auto heapDown = [&](int idx, int heapSize) {
+            int left, right, smallest;
+            for (;;)
             {
-                for (j = 0; j < num; j++)
+                left = idx << 1;
+                right = left + 1;
+                smallest = idx;
+
+                if (left <= heapSize && heapKey[left] < heapKey[smallest])
+                    smallest = left;
+
+                if (right <= heapSize && heapKey[right] < heapKey[smallest])
+                    smallest = right;
+
+                if (smallest == idx)
+                    break;
+
+                heapSwap(smallest, idx);
+                idx = smallest;
+            }
+        };
+
+        int8_t c;
+        int16_t s, i, u, j, v;
+        int heapSize, w, nd, val;
+        for (s = 0; s < num; ++s)
+        {
+            for (i = 0; i < num; ++i)
+            {
+                dist[i] = INF;
+                visited[i] = 0;
+                position[i] = -1;
+            }
+
+            heapSize = 0;
+            dist[s] = 0;
+            heapSize = 1;
+            heapId[1] = s;
+            heapKey[1] = 0;
+            position[s] = 1;
+
+            while (heapSize > 0)
+            {
+                u = heapId[1];
+                if (heapSize > 1)
                 {
-                    if (*(distMatrix + (i * num) + k) + *(distMatrix + (k * num) + j) < (*(distMatrix + (i * num) + j)))
-                        *(distMatrix + (i * num) + j) = *(distMatrix + (i * num) + k) + *(distMatrix + (k * num) + j);
+                    heapId[1] = heapId[heapSize];
+                    heapKey[1] = heapKey[heapSize];
+                    position[heapId[1]] = 1;
+                }
+
+                position[u] = -1;
+                --heapSize;
+                heapDown(1, heapSize);
+
+                if (visited[u])
+                    continue;
+
+                visited[u] = 1;
+
+                for (c = 0; c < pnum; ++c)
+                {
+                    v = wpt->m_paths[u].index[c];
+                    if (!IsValidWaypoint(v))
+                        continue;
+
+                    w = static_cast<int>(GetVectorDistanceSSE(wpt->m_paths[u].origin, wpt->m_paths[v].origin));
+                    nd = dist[u] + w;
+                    if (nd < dist[v])
+                    {
+                        dist[v] = nd;
+                        if (position[v] == -1)
+                        {
+                            ++heapSize;
+                            heapId[heapSize] = v;
+                            heapKey[heapSize] = dist[v];
+                            position[v] = heapSize;
+                            heapUp(heapSize);
+                        }
+                        else
+                        {
+                            heapKey[position[v]] = dist[v];
+                            heapUp(position[v]);
+                        }
+                    }
                 }
             }
+
+            for (j = 0; j < num; ++j)
+            {
+                val = dist[j];
+                if (val >= INF)
+                    val = INF;
+
+                *(distMatrix + (s * num) + j) = static_cast<int16_t>(val);
+            }
         }
+
+        delete[] dist;
+        delete[] visited;
+        delete[] heapKey;
+        delete[] heapId;
+        delete[] position;
 
         g_isMatrixReady = true;
 
@@ -2845,7 +2970,7 @@ void Waypoint::ShowWaypointMsg(void)
         }
         else
         {
-            const float root = 5.0f;
+            constexpr float root = 5.0f;
             const Color& def = Color(0, 0, 255, 255);
 
             engine->DrawLineToAll(origin + Vector(root, -root, 0.0f), origin + Vector(-root, root, 0.0f), def, 5, 0, 0, 10);
@@ -3201,32 +3326,37 @@ void Waypoint::AddToBucket(const Vector pos, const int16_t index)
     m_buckets[bucket.x][bucket.y][bucket.z].Push(index);
 }
  
- void Waypoint::EraseFromBucket(const Vector pos, const int16_t index)
- {
+void Waypoint::EraseFromBucket(const Vector pos, const int16_t index)
+{
     const Bucket &bucket = LocateBucket(pos);
-    CArray<int16_t>&data = m_buckets[bucket.x][bucket.y][bucket.z];
-    int16_t i;
+    CArray<int16_t>& data = m_buckets[bucket.x][bucket.y][bucket.z];
+
+    int16_t i, last;
     for (i = 0; i < data.Size(); i++)
     {
         if (data[i] == index)
         {
-            data.RemoveAt(i);
+            last = data.Size() - static_cast<int16_t>(1);
+            if (i != last)
+                data[i] = data[last];
+
+            data.RemoveAt(last);
             break;
         }
     }
 }
 
-#define gsize 4096.0f
+constexpr __m128 gsize = _mm_set1_ps(4096.0f);
 #include <smmintrin.h>
 Waypoint::Bucket Waypoint::LocateBucket(const Vector pos)
 {
-    static __m128i intResult;
-    intResult = _mm_cvttps_epi32(_mm_div_ps(_mm_set_ps(pos.z + gsize, pos.y + gsize, pos.x + gsize, 0.0f), _mm_set1_ps(MAX_WAYPOINT_BUCKET_SIZE)));
+    constexpr __m128 invBucketSize = _mm_set1_ps(1.0f / static_cast<float>(MAX_WAYPOINT_BUCKET_SIZE));
+    const __m128i intResult = _mm_cvttps_epi32(_mm_mul_ps(_mm_add_ps(_mm_set_ps(pos.z, pos.y, pos.x, 0.0f), gsize), invBucketSize));
     return
     {
         cabs16(static_cast<int16_t>(_mm_cvtsi128_si32(intResult))),
         cabs16(static_cast<int16_t>(_mm_cvtsi128_si32(_mm_srli_si128(intResult, 4)))),
-        cabs16(static_cast<int16_t>( _mm_cvtsi128_si32(_mm_srli_si128(intResult, 8))))
+        cabs16(static_cast<int16_t>(_mm_cvtsi128_si32(_mm_srli_si128(intResult, 8))))
     };
 }
 

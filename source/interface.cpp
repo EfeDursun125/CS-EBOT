@@ -37,8 +37,8 @@ ConVar ebot_running_on_xash("ebot_running_on_xash", "0");
 static float secondTimer{0.0f};
 void ebotVersionMSG(edict_t* entity = nullptr)
 {
-	const int buildVersion[4] = { PRODUCT_VERSION_DWORD };
-	const uint16_t bV16[4] = {static_cast<uint16_t>(buildVersion[0]), static_cast<uint16_t>(buildVersion[1]), static_cast<uint16_t>(buildVersion[2]), static_cast<uint16_t>(buildVersion[3])};
+	constexpr int buildVersion[4] = { PRODUCT_VERSION_DWORD };
+	constexpr uint16_t bV16[4] = {static_cast<uint16_t>(buildVersion[0]), static_cast<uint16_t>(buildVersion[1]), static_cast<uint16_t>(buildVersion[2]), static_cast<uint16_t>(buildVersion[3])};
 
 	char versionData[1024];
 	sprintf(versionData,
@@ -1351,7 +1351,7 @@ void ClientCommand(edict_t* ent)
 			{
 				g_waypointOn = true;  // turn waypoints on in case
 
-				const int16_t radiusValue[] = { 0, 8, 16, 32, 48, 64, 80, 96, 128 };
+				constexpr int16_t radiusValue[] = { 0, 8, 16, 32, 48, 64, 80, 96, 128 };
 				if ((selection >= 1) && (selection <= 9))
 					g_waypoint->SetRadius(radiusValue[selection - 1]);
 

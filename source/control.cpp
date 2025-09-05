@@ -662,7 +662,7 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 	if (ebot_display_avatar.GetBool() && !g_botManager->m_avatars.IsEmpty())
 		SET_CLIENT_KEYVALUE(clientIndex, buffer, "*sid", g_botManager->m_avatars.Random());
 
-	if (!IsNullString(rejectReason) || !m_navNode.Init(g_numWaypoints))
+	if (!IsNullString(rejectReason))
 	{
 		const char* name = GetEntityName(bot);
 		if (!IsNullString(name))
@@ -717,8 +717,6 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 	m_myMeshWaypoint = -1;
 
 	NewRound();
-
-	const float way = static_cast<float>(g_numWaypoints);
 	g_fakeCommandTimer = engine->GetTime() + 1.0f;
 }
 
@@ -768,7 +766,6 @@ void Bot::NewRound(void)
 		cmemset(&m_ammoInClip, 0, sizeof(m_ammoInClip));
 		cmemset(&m_ammo, 0, sizeof(m_ammo));
 		m_currentWeapon = 0;
-		return;
 	}
 
 	m_numSpawns++;
@@ -830,12 +827,8 @@ void Bot::NewRound(void)
 	ResetStuck();
 
 	// reset waypoint
-	int16_t index = g_waypoint->FindNearestToEntSlow(pev->origin, 4096.0f, m_myself);
-	if (!IsValidWaypoint(index))
-		index = g_waypoint->FindNearestSlow(pev->origin);
-
-	ChangeWptIndex(index);
 	m_waypointTime = engine->GetTime() + 0.5f;
+	IgnoreCollisionShortly();
 }
 
 // this function kills a bot (not just using ClientKill, but like the CSBot does)

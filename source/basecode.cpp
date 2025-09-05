@@ -749,7 +749,7 @@ void Bot::BaseUpdate(void)
 	}
 }
 
-int GetMaxClip(const int& id)
+inline int GetMaxClip(const int& id)
 {
 	switch (id)
 	{
@@ -1311,9 +1311,9 @@ void Bot::DebugModeMsg(void)
 		return;
 
 	static float timeDebugUpdate = 0.0f;
-	static int16_t index{}, goal;
-	static Process processID{}, rememberedProcessID;
-	static edict_t* mi;
+	static int16_t index{-1}, goal{-1};
+	static Process processID{Process::Default}, rememberedProcessID{Process::Default};
+	static edict_t* mi{g_hostEntity};
 	for (const auto& player : g_clients)
 	{
 		mi = player.ent;
