@@ -891,7 +891,6 @@ void Waypoint::Add(const int flags, const Vector& waypointOrigin, const float an
         }
 
         CalculateWayzone(index);
-
         return;
     }
 
@@ -1845,11 +1844,20 @@ void CalculateMatrix(void* arg)
             }
         }
 
-        delete[] dist;
-        delete[] visited;
-        delete[] heapKey;
-        delete[] heapId;
-        delete[] position;
+        if (dist)
+            delete[] dist;
+
+        if (visited)
+            delete[] visited;
+
+        if (heapKey)
+            delete[] heapKey;
+
+        if (heapId)
+            delete[] heapId;
+
+        if (position)
+            delete[] position;
 
         g_isMatrixReady = true;
 
@@ -3346,11 +3354,12 @@ void Waypoint::EraseFromBucket(const Vector pos, const int16_t index)
     }
 }
 
-constexpr __m128 gsize = _mm_set1_ps(4096.0f);
+
 #include <smmintrin.h>
+const __m128 gsize = _mm_set1_ps(4096.0f);
+const __m128 invBucketSize = _mm_set1_ps(1.0f / static_cast<float>(MAX_WAYPOINT_BUCKET_SIZE));
 Waypoint::Bucket Waypoint::LocateBucket(const Vector pos)
 {
-    constexpr __m128 invBucketSize = _mm_set1_ps(1.0f / static_cast<float>(MAX_WAYPOINT_BUCKET_SIZE));
     const __m128i intResult = _mm_cvttps_epi32(_mm_mul_ps(_mm_add_ps(_mm_set_ps(pos.z, pos.y, pos.x, 0.0f), gsize), invBucketSize));
     return
     {
