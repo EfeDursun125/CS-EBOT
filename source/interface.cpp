@@ -325,7 +325,12 @@ int BotCommandHandler_O(edict_t* ent, const char* arg0, const char* arg1, const 
 			g_waypointOn = true;
 			ServerPrint("Waypoint Editing Enabled");
 			ServerCommand("ebot wp mdl on");
-			g_waypoint->m_waypointDisplayTime.Reset(new(std::nothrow) float[Const_MaxWaypoints]);
+			float* temp = new(std::nothrow) float[Const_MaxWaypoints];
+			if (temp)
+			{
+				if (!g_waypoint->m_waypointDisplayTime.Reset(temp, true))
+					delete[] temp;
+			}
 		}
 
 		// enables noclip cheat
@@ -2106,7 +2111,6 @@ void ServerActivate(edict_t* pentEdictList, int edictCount, int clientMax)
 	g_botManager->InitQuota();
 
 	secondTimer = 0.0f;
-	g_pathTimer = 0.0f;
 	g_fakeCommandTimer = 0.0f;
 	g_isFakeCommand = false;
 	g_waypointOn = false;
@@ -2127,7 +2131,6 @@ void ServerDeactivate(void)
 	// the loading of new bots and the new BSP data parsing there.
 
 	secondTimer = 0.0f;
-	g_pathTimer = 0.0f;
 	g_fakeCommandTimer = 0.0f;
 	g_isFakeCommand = false;
 	g_waypointOn = false;

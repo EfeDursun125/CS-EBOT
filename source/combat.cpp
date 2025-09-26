@@ -432,25 +432,18 @@ void Bot::FireWeapon(const float distance)
 void Bot::KnifeAttack(void)
 {
 	Vector origin;
-	float distance;
-
 	if (!m_hasEntitiesNear || m_enemyDistance < m_entityDistance)
-	{
 		origin = m_enemyOrigin;
-		distance = m_enemyDistance;
-	}
 	else
-	{
 		origin = m_entityOrigin;
-		distance = m_entityDistance;
-	}
 
-	if (distance < 384.0f)
+	const float distance = (pev->origin - origin).GetLengthSquared2D();
+	if (distance < squaredf(64.0f))
 		m_buttons |= IN_ATTACK;
-	else if (distance < pev->velocity.GetLength())
+	else if (distance < pev->velocity.GetLengthSquared2D())
 		m_buttons |= IN_ATTACK2;
 
-	if (pev->origin.z > origin.z && (pev->origin - origin).GetLengthSquared2D() < squaredf(54.0f))
+	if (pev->origin.z > origin.z && distance < squaredf(54.0f))
 	{
 		m_duckTime = engine->GetTime() + 1.0f;
 		m_buttons &= ~IN_JUMP;
@@ -458,7 +451,7 @@ void Bot::KnifeAttack(void)
 	else
 	{
 		m_duckTime = 0.0f;
-		if (IsOnFloor() && chanceof(15) && pev->origin.z + 150.0f < origin.z && (pev->origin - origin).GetLengthSquared2D() < squaredf(150.0f))
+		if (IsOnFloor() && chanceof(15) && pev->origin.z + 150.0f < origin.z && distance < squaredf(150.0f))
 			m_buttons |= IN_JUMP;
 	}
 }
@@ -624,7 +617,12 @@ int Bot::GetHighestWeapon(void)
 	return -1;
 }
 
+static float wpnTimer = 0.05;
 void Bot::SelectWeaponByName(const char* name)
 {
-	FakeClientCommand(m_myself, name);
+	if (wpnTimer < engine->GetTime())
+	{
+		FakeClientCommand(m_myself, name);
+		wpnTimer = engine->GetTime() + 0.05;
+	}
 }

@@ -51,6 +51,7 @@ BotControl::~BotControl(void)
 	{
 		if (bot)
 		{
+			bot->m_navNode.Destroy();
 			delete bot;
 			bot = nullptr;
 		}
@@ -187,7 +188,10 @@ int BotControl::CreateBot(char name[32], int skill, int personality, const int t
 
 	const int index = ENTINDEX(bot) - 1;
 	if (m_bots[index])
+	{
+		m_bots[index]->m_navNode.Destroy();
 		delete m_bots[index];
+	}
 
 	m_bots[index] = new(std::nothrow) Bot(bot, skill, personality, team, member);
 	if (!m_bots[index])

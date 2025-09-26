@@ -936,7 +936,7 @@ struct HeapNode
 {
 	int16_t id{0};
 	float priority{0.0f};
-}; CArray<HeapNode>heapNode{1};
+}; CArray<HeapNode>heapNode{2};
 
 class PriorityQueue
 {
@@ -1294,20 +1294,13 @@ struct AStar
 	float f{0.0f};
 	int16_t parent{-1};
 	bool is_closed{false};
-}; CArray<AStar>waypoints{1};
+}; CArray<AStar>waypoints{2};
 
 // this function finds a path from srcIndex to destIndex
 void Bot::FindPath(int16_t& srcIndex, int16_t& destIndex)
 {
-	if (g_pathTimer > engine->GetTime() && !m_navNode.IsEmpty())
-		return;
-
 	if (!IsValidWaypoint(srcIndex))
-	{
 		srcIndex = FindWaypoint();
-		if (!IsValidWaypoint(srcIndex))
-			return;
-	}
 
 	if (ebot_force_shortest_path.GetBool() || g_numWaypoints > 2048)
 	{
@@ -1320,24 +1313,19 @@ void Bot::FindPath(int16_t& srcIndex, int16_t& destIndex)
 
 	if (waypoints.NotAllocated())
 	{
-		g_pathTimer = engine->GetTime() + 0.05f;
 		waypoints.Resize(g_numWaypoints, true);
 		return;
 	}
 
 	if (waypoints.Capacity() != g_numWaypoints)
 	{
-		g_pathTimer = engine->GetTime() + 0.05f;
 		waypoints.Resize(g_numWaypoints, true);
 		return;
 	}
 
 	PriorityQueue openList;
 	if (!openList.Setup())
-	{
-		g_pathTimer = engine->GetTime() + 0.05f;
 		return;
-	}
 
 	const float (*hcalc) (const int16_t&, const int16_t&) = nullptr;
 	const float (*gcalc) (const int16_t&, const int16_t&, const uint32_t&, const int8_t&, const float&, const bool&) = nullptr;
@@ -1386,7 +1374,7 @@ void Bot::FindPath(int16_t& srcIndex, int16_t& destIndex)
 
 	// put start waypoint into open list
 	AStar& srcWaypoint = waypoints[srcIndex];
-	srcWaypoint.g = ((gcalc(srcIndex, destIndex, 0, m_team, pev->gravity, m_isZombieBot) * crandomfloatfast(seed, min, max)));
+	srcWaypoint.g = 0.0f;
 	srcWaypoint.f = srcWaypoint.g + hcalc(srcIndex, destIndex);
 
 	// loop cache
@@ -1395,20 +1383,22 @@ void Bot::FindPath(int16_t& srcIndex, int16_t& destIndex)
 	int16_t currentIndex, self;
 	uint32_t flags;
 	float g, f;
-	int16_t limit = 0;
 
 	openList.InsertLowest(srcIndex, srcWaypoint.f);
 	while (!openList.IsEmpty())
 	{
-		limit++;
 		currentIndex = openList.RemoveLowest();
-		currWaypoint = &waypoints[currentIndex];
-		if (currWaypoint->is_closed)
-			continue;
-
-		if (currentIndex == destIndex || limit > g_numWaypoints)
+		if (currentIndex == destIndex)
 		{
-			if (!m_navNode.Init(openList.Size()))
+			int16_t pathLength = 0;
+			int16_t tempIndex = currentIndex;
+			while (IsValidWaypoint(tempIndex))
+			{
+				pathLength++;
+				tempIndex = waypoints[tempIndex].parent;
+			}
+
+			if (!m_navNode.Init(pathLength))
 				m_navNode.Clear();
 
 			do
@@ -1424,9 +1414,12 @@ void Bot::FindPath(int16_t& srcIndex, int16_t& destIndex)
 				m_navNode.Shift();
 
 			ChangeWptIndex(m_navNode.First());
-			g_pathTimer = engine->GetTime() + 0.05f;
 			return;
 		}
+
+		currWaypoint = &waypoints[currentIndex];
+		if (currWaypoint->is_closed)
+			continue;
 
 		currWaypoint->is_closed = true;
 
@@ -1524,24 +1517,19 @@ void Bot::FindShortestPath(int16_t& srcIndex, int16_t& destIndex)
 
 	if (waypoints.NotAllocated())
 	{
-		g_pathTimer = engine->GetTime() + 0.05f;
 		waypoints.Resize(g_numWaypoints, true);
 		return;
 	}
 
 	if (waypoints.Capacity() != g_numWaypoints)
 	{
-		g_pathTimer = engine->GetTime() + 0.05f;
 		waypoints.Resize(g_numWaypoints, true);
 		return;
 	}
 
 	PriorityQueue openList;
 	if (!openList.Setup())
-	{
-		g_pathTimer = engine->GetTime() + 0.05f;
 		return;
-	}
 
 	const float (*hcalc) (const int16_t&, const int16_t&) = nullptr;
 
@@ -1576,20 +1564,22 @@ void Bot::FindShortestPath(int16_t& srcIndex, int16_t& destIndex)
 	uint32_t flags;
 	Path currPath;
 	float g, f;
-	int16_t limit = 0;
 
 	openList.InsertLowest(srcIndex, srcWaypoint.f);
 	while (!openList.IsEmpty())
 	{
-		limit++;
 		currentIndex = openList.RemoveLowest();
-		currWaypoint = &waypoints[currentIndex];
-		if (currWaypoint->is_closed)
-			continue;
-
-		if (currentIndex == destIndex || limit > g_numWaypoints)
+		if (currentIndex == srcIndex)
 		{
-			if (!m_navNode.Init(openList.Size()))
+			int16_t pathLength = 0;
+			int16_t tempIndex = currentIndex;
+			while (IsValidWaypoint(tempIndex))
+			{
+				pathLength++;
+				tempIndex = waypoints[tempIndex].parent;
+			}
+
+			if (!m_navNode.Init(pathLength))
 				m_navNode.Clear();
 
 			do
@@ -1605,9 +1595,12 @@ void Bot::FindShortestPath(int16_t& srcIndex, int16_t& destIndex)
 				m_navNode.Shift();
 
 			ChangeWptIndex(m_navNode.First());
-			g_pathTimer = engine->GetTime() + 0.05f;
 			return;
 		}
+
+		currWaypoint = &waypoints[currentIndex];
+		if (currWaypoint->is_closed)
+			continue;
 
 		currWaypoint->is_closed = true;
 		currPath = gP->m_paths[currentIndex];
@@ -1674,8 +1667,6 @@ void Bot::FindShortestPath(int16_t& srcIndex, int16_t& destIndex)
 			}
 		}
 	}
-
-	g_pathTimer = engine->GetTime() + 0.05f;
 }
 
 void Bot::FindEscapePath(int16_t& srcIndex, const Vector& dangerOrigin)
@@ -1685,184 +1676,193 @@ void Bot::FindEscapePath(int16_t& srcIndex, const Vector& dangerOrigin)
 		m_navNode.Clear();
 		return;
 	}
+    
+    if (waypoints.NotAllocated())
+    {
+        waypoints.Resize(g_numWaypoints, true);
+        return;
+    }
 
-	if (g_pathTimer > engine->GetTime() && !m_navNode.IsEmpty())
-		return;
+    if (waypoints.Capacity() != g_numWaypoints)
+    {
+        waypoints.Resize(g_numWaypoints, true);
+        return;
+    }
 
-	g_pathTimer = engine->GetTime() + 0.05f;
+    PriorityQueue openList;
+    if (!openList.Setup())
+        return;
 
-	if (waypoints.NotAllocated())
-	{
-		waypoints.Resize(g_numWaypoints, true);
-		return;
-	}
+    Waypoint* gP = g_waypoint;
+    if (!gP)
+        return;
 
-	if (waypoints.Capacity() != g_numWaypoints)
-	{
-		waypoints.Resize(g_numWaypoints, true);
-		return;
-	}
+    if (!IsValidWaypoint(srcIndex))
+    {
+        srcIndex = FindWaypoint();
+        return;
+    }
 
-	PriorityQueue openList;
-	if (!openList.Setup())
-		return;
+    int16_t i;
+    for (i = 0; i < g_numWaypoints; i++)
+    {
+        waypoints[i].g = FLT_MAX;
+        waypoints[i].f = FLT_MAX;
+        waypoints[i].parent = -1;
+        waypoints[i].is_closed = false;
+    }
 
-	Waypoint* gP = g_waypoint;
-	if (!gP)
-		return;
-
-	int16_t i;
-	if (!IsValidWaypoint(srcIndex))
-	{
-		i = FindWaypoint();
-		srcIndex = i;
-		if (!IsValidWaypoint(srcIndex))
-			return;
-	}
-
-	for (i = 0; i < g_numWaypoints; i++)
-	{
-		waypoints[i].g = 0.0f;
-		waypoints[i].f = 0.0f;
-		waypoints[i].parent = -1;
-		waypoints[i].is_closed = false;
-	}
-
-	AStar& srcWaypoint = waypoints[srcIndex];
-	srcWaypoint.g = -(gP->m_paths[srcIndex].origin - pev->origin).GetLengthSquared();
-	srcWaypoint.f = srcWaypoint.g + -(gP->m_paths[srcIndex].origin - dangerOrigin).GetLengthSquared();
-
-	// loop cache
-	AStar* currWaypoint;
-	AStar* childWaypoint;
-	int16_t currentIndex, self;
-	uint32_t flags;
+	int16_t currentIndex, neighborIndex;
+	AStar* currWaypoint, *childWaypoint;
 	Path currPath;
-	float f, g;
-	bool found = false;
-	int16_t limit = 0;
+	uint32_t flags;
 
-	openList.InsertLowest(srcIndex, srcWaypoint.f);
-	while (!openList.IsEmpty())
-	{
-		limit++;
-		if (limit > 125)
+    AStar& srcWaypoint = waypoints[srcIndex];
+    const Vector& srcPos = gP->m_paths[srcIndex].origin;
+    srcWaypoint.g = (srcPos - pev->origin).GetLengthSquared();
+    float dangerDistance = (srcPos - dangerOrigin).GetLengthSquared();
+    srcWaypoint.f = srcWaypoint.g - dangerDistance;
+
+    openList.InsertLowest(srcIndex, srcWaypoint.f);
+
+    bool found = false;
+    int16_t foundIndex = -1;
+    int16_t iterations = 0;
+    const int16_t maxIterations = 150;
+    while (!openList.IsEmpty() && iterations < maxIterations)
+    {
+        iterations++;
+        currentIndex = openList.RemoveLowest();
+        currWaypoint = &waypoints[currentIndex];
+        if (currWaypoint->is_closed)
+            continue;
+
+        currWaypoint->is_closed = true;
+        currPath = gP->m_paths[currentIndex];
+        if (!IsEnemyReachableToPosition(currPath.origin))
+        {
+            found = true;
+            foundIndex = currentIndex;
+            break;
+        }
+
+        for (i = 0; i < pMax; i++)
+        {
+            neighborIndex = currPath.index[i];
+            if (!IsValidWaypoint(neighborIndex))
+                break;
+
+            childWaypoint = &waypoints[neighborIndex];
+            if (childWaypoint->is_closed)
+                continue;
+
+            flags = gP->m_paths[neighborIndex].flags;
+            if (flags)
+            {
+                if (flags & WAYPOINT_FALLCHECK)
+                {
+                    TraceResult tr;
+                    const Vector origin = gP->m_paths[neighborIndex].origin;
+                    TraceLine(origin, origin - Vector(0.0f, 0.0f, 60.0f), TraceIgnore::Nothing, m_myself, &tr);
+                    if (tr.flFraction >= 1.0f)
+                        continue;
+                }
+                
+                if (flags & WAYPOINT_SPECIFICGRAVITY)
+                {
+                    if ((pev->gravity * engine->GetGravity()) > gP->m_paths[neighborIndex].gravity)
+                        continue;
+                }
+
+                if (flags & WAYPOINT_ONLYONE)
+                {
+                    bool skip = false;
+                    for (Bot* const& bot : g_botManager->m_bots)
+                    {
+                        if (skip) break;
+                        if (bot && bot->m_isAlive && bot->m_myself != m_myself)
+                        {
+                            for (int16_t j = 0; j < bot->m_navNode.Length(); j++)
+                            {
+                                if (bot->m_navNode.Get(j) == neighborIndex)
+                                {
+                                    skip = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if (skip)
+                        continue;
+                }
+            }
+
+            const Vector& neighborPos = gP->m_paths[neighborIndex].origin;
+            float dangerDist = (neighborPos - dangerOrigin).GetLengthSquared();
+            float dangerPenalty = 0.0f;
+            constexpr float safeDist = 512.0f * 512.0f;
+            if (dangerDist < safeDist)
+                dangerPenalty = (safeDist - dangerDist) * 2.0f;
+            
+            float g = currWaypoint->g + (currPath.origin - neighborPos).GetLengthSquared() + dangerPenalty;
+            float f = g + -dangerDist;
+            if (!childWaypoint->is_closed && (childWaypoint->f == 0.0f || childWaypoint->f > f))
+            {
+                childWaypoint->parent = currentIndex;
+                childWaypoint->g = g;
+                childWaypoint->f = f;
+                openList.InsertLowest(neighborIndex, f);
+            }
+        }
+    }
+
+    if (found && IsValidWaypoint(foundIndex))
+    {
+        int16_t pathLength = 0;
+        int16_t tempIndex = foundIndex;
+        while (IsValidWaypoint(tempIndex) && pathLength < maxIterations)
+        {
+            pathLength++;
+            tempIndex = waypoints[tempIndex].parent;
+        }
+
+        if (pathLength > m_navNode.GetCapacity())
+        {
+            if (!m_navNode.Init(pathLength + 5))
+            {
+                m_navNode.Clear();
+                return;
+            }
+        }
+        else
+            m_navNode.Clear();
+
+        int16_t currentIndex = foundIndex;
+        int16_t safetyCounter = 0;
+        
+        do
 		{
-			g_pathTimer = engine->GetTime() + 0.15f;
-			return;
-		}
+            safetyCounter++;
+            if (safetyCounter > pathLength + 10) // Güvenlik
+                break;
+                
+            if (!m_navNode.Add(currentIndex))
+                break;
+                
+            currentIndex = waypoints[currentIndex].parent;
+        } while (IsValidWaypoint(currentIndex));
 
-		currWaypoint = &waypoints[currentIndex];
-		if (currWaypoint->is_closed)
-			continue;
-
-		currentIndex = openList.RemoveLowest();
-		currPath = gP->m_paths[currentIndex];
-		if (!IsEnemyReachableToPosition(currPath.origin))
-		{
-			found = true;
-			break;
-		}
-
-		currWaypoint->is_closed = true;
-		for (i = 0; i < pMax; i++)
-		{
-			self = currPath.index[i];
-			if (!IsValidWaypoint(self))
-				break;
-			
-			flags = gP->m_paths[self].flags;
-			if (flags)
-			{
-				if (flags & WAYPOINT_FALLCHECK)
-				{
-					TraceResult tr;
-					const Vector origin = gP->m_paths[self].origin;
-					TraceLine(origin, origin - Vector(0.0f, 0.0f, 60.0f), TraceIgnore::Nothing, m_myself, &tr);
-					if (tr.flFraction >= 1.0f)
-						continue;
-				}
-
-				if (flags & WAYPOINT_SPECIFICGRAVITY)
-				{
-					if ((pev->gravity * engine->GetGravity()) > gP->m_paths[self].gravity)
-						continue;
-				}
-
-				if (flags & WAYPOINT_ONLYONE)
-				{
-					bool skip = false;
-					for (Bot* const& bot : g_botManager->m_bots)
-					{
-						if (skip)
-							break;
-	
-						if (bot && bot->m_isAlive && bot->m_myself != m_myself)
-						{
-							int16_t j;
-							for (j = 0; j < bot->m_navNode.Length(); j++)
-							{
-								if (bot->m_navNode.Get(j) == self)
-								{
-									skip = true;
-									break;
-								}
-							}
-						}
-					}
-	
-					if (skip)
-						continue;
-				}
-			}
-
-			g = currWaypoint->g + -(gP->m_paths[self].origin - pev->origin).GetLengthSquared();
-			f = g + -(gP->m_paths[self].origin - dangerOrigin).GetLengthSquared();
-			childWaypoint = &waypoints[self];
-			if (!childWaypoint->is_closed && (childWaypoint->f == 0.0f || childWaypoint->f > f))
-			{
-				// put the current child into open list
-				childWaypoint->parent = currentIndex;
-				childWaypoint->g = g;
-				childWaypoint->f = f;
-				openList.InsertLowest(self, f);
-			}
-		}
-	}
-
-	if (found)
-	{
-		if (m_navNode.GetCapacity() < openList.Size())
-		{
-			if (!m_navNode.Init(openList.Size()))
-				m_navNode.Clear();
-		}
-
-		limit = 0;
-		do
-		{
-			limit++;
-			if (limit > 125)
-				break;
-
-			if (!m_navNode.Add(currentIndex))
-				break;
-
-			currentIndex = waypoints[currentIndex].parent;
-		} while (IsValidWaypoint(currentIndex));
-
-		// at least get 2
-		if (m_navNode.HasNext())
-		{
-			m_navNode.Reverse();
-			if ((g_waypoint->GetPath(m_navNode.Next())->origin - pev->origin).GetLengthSquared() < (g_waypoint->GetPath(m_navNode.Next())->origin - g_waypoint->GetPath(m_navNode.First())->origin).GetLengthSquared())
-				m_navNode.Shift();
-
-			ChangeWptIndex(m_navNode.First());
-		}
-		else if (!m_navNode.IsEmpty())
-			ChangeWptIndex(m_navNode.First());
-	}
+        if (m_navNode.Length() > 1)
+        {
+            m_navNode.Reverse();
+            if ((gP->GetPath(m_navNode.Next())->origin - pev->origin).GetLengthSquared() <  (gP->GetPath(m_navNode.First())->origin - pev->origin).GetLengthSquared())
+                m_navNode.Shift();
+            
+            ChangeWptIndex(m_navNode.First());
+        }
+        else if (!m_navNode.IsEmpty())
+            ChangeWptIndex(m_navNode.First());
+    }
 }
 
 void Bot::CheckTouchEntity(edict_t* entity)
@@ -1973,7 +1973,7 @@ int16_t Bot::FindWaypoint(void)
 		int16_t index;
 		if (!m_isStuck && m_navNode.HasNext() && g_waypoint->Reachable(m_myself, m_navNode.First()))
 			index = m_navNode.First();
-		else if (!m_isStuck && g_waypoint->Reachable(m_myself, m_navNode.First()))
+		else if (!m_isStuck && g_waypoint->Reachable(m_myself, g_clients[m_index].wp))
 			index = g_clients[m_index].wp;
 		else
 		{
@@ -1990,7 +1990,7 @@ int16_t Bot::FindWaypoint(void)
 }
 
 // return priority of player (0 = max pri)
-int GetPlayerPriority(edict_t* player)
+inline int GetPlayerPriority(edict_t* player)
 {
 	// human players have highest priority
 	const Bot* bot = g_botManager->GetBot(player);
@@ -2225,16 +2225,19 @@ void Bot::CheckStuck(const Vector& directionNormal, const float finterval)
 			else
 			{
 				bits |= COPROBE_STRAFE;
-				if (g_numWaypoints > 1024)
+				if (pev->maxspeed > 20.0f)
 				{
-					if (chanceof(70))
+					if (g_numWaypoints > 1024)
+					{
+						if (chanceof(70))
+							bits |= COPROBE_DUCK;
+					}
+					else if (chanceof(10))
 						bits |= COPROBE_DUCK;
-				}
-				else if (chanceof(10))
-					bits |= COPROBE_DUCK;
 
-				if (chanceof(35))
-					bits |= COPROBE_JUMP;
+					if (chanceof(35))
+						bits |= COPROBE_JUMP;
+				}
 			}
 
 			// collision check allowed if not flying through the air
@@ -2411,6 +2414,9 @@ void Bot::CheckStuck(const Vector& directionNormal, const float finterval)
 				{
 					case COSTATE_JUMP:
 					{
+						if (pev->maxspeed < 20.0f)
+							break;
+
 						if (m_isZombieBot && pev->flags & FL_DUCKING)
 						{
 							m_moveSpeed = pev->maxspeed;
@@ -2423,6 +2429,9 @@ void Bot::CheckStuck(const Vector& directionNormal, const float finterval)
 					}
 					case COSTATE_DUCK:
 					{
+						if (pev->maxspeed < 20.0f)
+							break;
+
 						m_buttons |= IN_DUCK;
 						break;
 					}

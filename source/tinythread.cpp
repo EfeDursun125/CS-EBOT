@@ -187,6 +187,8 @@ void * thread::wrapper_function(void * aArg)
 {
   // Get thread wrapper information
   _thread_wrapper * tw = (_thread_wrapper *) aArg;
+  if (!tw)
+    return 0;
 
   /*try
   {
@@ -212,7 +214,9 @@ void * thread::wrapper_function(void * aArg)
 thread::thread(void (*aFunction)(void *), void * aArg)
 {
   // Fill out the thread startup information (passed to the thread wrapper)
-  _thread_wrapper * tw = new _thread_wrapper(aFunction, aArg);
+  _thread_wrapper * tw = new(std::nothrow) _thread_wrapper(aFunction, aArg);
+  if (!tw)
+    return;
 
   // Create the thread
 #if defined(_TTHREAD_WIN32_)

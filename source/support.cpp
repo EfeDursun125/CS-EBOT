@@ -593,6 +593,11 @@ void RoundInit(void)
 	{
 		extern ConVar ebot_has_semiclip;
 		ebot_has_semiclip.SetInt(1);
+
+		// this fool value is 0 by default...
+		sc = g_engfuncs.pfnCVarGetPointer("semiclip_knife_trace");
+		if (sc && sc->value != 3.0f)
+			g_engfuncs.pfnCVarSetFloat("semiclip_knife_trace", 3.0f); // fixes bot knife trace
 	}
 
 	if (ebot_zp_delay_custom.GetFloat() > 0.0f)
@@ -664,19 +669,19 @@ bool IsBreakable(edict_t* ent)
 // new get team off set, return player true team
 int GetTeam(edict_t* ent)
 {
+	if (g_roundEnded)
+		return Team::Terrorist;
+
 	if (FNullEnt(ent))
 		return Team::Count;
 
 	if (ebot_ignore_enemies.GetBool())
 		return Team::Counter;
 
-	if (g_roundEnded)
-		return Team::Terrorist;
-
 	if (g_DelayTimer > engine->GetTime())
 		return Team::Counter;
 
-	int* teamPtr = reinterpret_cast<int*>(ent->pvPrivateData) + OFFSET_TEAM;
+	const int* teamPtr = reinterpret_cast<int*>(ent->pvPrivateData) + OFFSET_TEAM;
 	if (teamPtr && *teamPtr > 0) 
 		return (*teamPtr - 1);
 

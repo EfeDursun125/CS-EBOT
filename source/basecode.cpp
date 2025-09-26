@@ -25,7 +25,6 @@
 //
 
 #include "../include/core.h"
-#include "../include/tinythread.h"
 
 // console variables
 ConVar ebot_debug("ebot_debug", "0");
@@ -713,8 +712,8 @@ void Bot::BaseUpdate(void)
 				else
 				{
 					const float fskill = static_cast<float>(m_skill);
-					const float accelerate = fskill * 40.0f;
-					m_lookYawVel += m_pathInterval * cclampf((fskill * 4.0f * angleDiffYaw) - (fskill * 0.4f * m_lookYawVel), -accelerate, accelerate);
+					const float accelerate = fskill * 60.0f;
+					m_lookYawVel += m_pathInterval * cclampf((fskill * 6.0f * angleDiffYaw) - (fskill * 0.6f * m_lookYawVel), -accelerate, accelerate);
 					pev->v_angle.y += m_pathInterval * m_lookYawVel;
 				}
 			}
@@ -731,8 +730,8 @@ void Bot::BaseUpdate(void)
 				else
 				{
 					const float fskill = static_cast<float>(m_skill);
-					const float accelerate = fskill * 40.0f;
-					m_lookPitchVel += m_pathInterval * cclampf(fskill * 8.0f * angleDiffPitch - (fskill * 0.4f * m_lookPitchVel), -accelerate, accelerate);
+					const float accelerate = fskill * 60.0f;
+					m_lookPitchVel += m_pathInterval * cclampf(fskill * 12.0f * angleDiffPitch - (fskill * 1.2f * m_lookPitchVel), -accelerate, accelerate);
 					pev->v_angle.x += m_pathInterval * m_lookPitchVel;
 				}
 			}
@@ -790,12 +789,13 @@ void Bot::CheckSlowThink(void)
 	const float tempTimer = engine->GetTime();
 	if (m_waypointTime < tempTimer)
 	{
-		if (m_currentWaypointIndex == m_zhCampPointIndex || m_currentWaypointIndex == m_myMeshWaypoint)
+		if ((m_currentWaypointIndex == m_zhCampPointIndex || m_currentWaypointIndex == m_myMeshWaypoint) && IsValidWaypoint(m_currentWaypointIndex))
 			m_waypointTime = tempTimer + 7.0f;
 		else
 		{
 			m_navNode.Clear();
 			FindWaypoint();
+			return;
 		}
 	}
 	else
@@ -879,6 +879,9 @@ void Bot::CheckSlowThink(void)
 	{
 		m_team = Team::Terrorist;
 		m_isZombieBot = true;
+		m_hasEnemiesNear = false;
+		m_hasFriendsNear = false;
+		m_nearestEnemy = nullptr;
 	}
 	else
 	{

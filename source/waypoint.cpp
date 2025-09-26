@@ -345,7 +345,16 @@ void AnalyzeThread(void)
     // guarantee to have it
     if (!expanded.IsAllocated())
     {
-        expanded.Reset(new(std::nothrow) bool[Const_MaxWaypoints]);
+        bool* temp = new(std::nothrow) bool[Const_MaxWaypoints];
+        if (!temp)
+            return;
+
+        if (!expanded.Reset(temp))
+        {
+            delete[] temp;
+            return;
+        }
+
         if (!expanded.IsAllocated())
             return;
 
@@ -1654,7 +1663,16 @@ void Waypoint::InitPathMatrix(void)
     if (ebot_disable_path_matrix.GetBool())
         return;
 
-    m_distMatrix.Reset(new(std::nothrow) int16_t[g_numWaypoints * g_numWaypoints]);
+    int16_t* temp = new(std::nothrow) int16_t[g_numWaypoints * g_numWaypoints];
+    if (!temp)
+        return;
+
+    if (!m_distMatrix.Reset(temp))
+    {
+        delete[] temp;
+        return;
+    }
+
     if (!m_distMatrix.IsAllocated())
         return;
 
@@ -2933,7 +2951,10 @@ void Waypoint::ShowWaypointMsg(void)
 
         if (!g_waypoint->m_waypointDisplayTime.IsAllocated())
         {
-            g_waypoint->m_waypointDisplayTime.Reset(new(std::nothrow) float[Const_MaxWaypoints]);
+            float* temp = new(std::nothrow) float[Const_MaxWaypoints];
+            if (temp && !g_waypoint->m_waypointDisplayTime.Reset(temp))
+                delete[] temp;
+
             return;
         }
 
@@ -3356,8 +3377,8 @@ void Waypoint::EraseFromBucket(const Vector pos, const int16_t index)
 
 
 #include <smmintrin.h>
-constexpr __m128 gsize = _mm_set1_ps(4096.0f);
-constexpr __m128 invBucketSize = _mm_set1_ps(1.0f / static_cast<float>(MAX_WAYPOINT_BUCKET_SIZE));
+const __m128 gsize = _mm_set1_ps(4096.0f);
+const __m128 invBucketSize = _mm_set1_ps(1.0f / static_cast<float>(MAX_WAYPOINT_BUCKET_SIZE));
 Waypoint::Bucket Waypoint::LocateBucket(const Vector pos)
 {
     const __m128i intResult = _mm_cvttps_epi32(_mm_mul_ps(_mm_add_ps(_mm_set_ps(pos.z, pos.y, pos.x, 0.0f), gsize), invBucketSize));

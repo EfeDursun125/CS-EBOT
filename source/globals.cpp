@@ -39,7 +39,6 @@ bool g_isMatrixReady = false;
 float g_autoPathDistance = 250.0f;
 float g_fakePingUpdate = 0.0f;
 float g_DelayTimer = 0.0f;
-float g_pathTimer = 0.0f;
 float g_fakeCommandTimer = 0.0f;
 
 int g_storeAddbotVars[4];

@@ -45,7 +45,7 @@ void Engine::RegisterVariable(const char* variable, const char* value, const Var
 
     newVariable.reg.flags = engineFlags;
     newVariable.self = self;
-    m_regVars.Push(&newVariable);
+    m_regVars.Push(newVariable);
 }
 
 void Engine::PushRegisteredConVarsToEngine(void)
