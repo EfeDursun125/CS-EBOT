@@ -289,7 +289,7 @@ public:
 
 	inline int16_t& Get(const int16_t index)
 	{
-		static int16_t temp = -1;
+		thread_local int16_t temp = -1;
 		if (!m_path.IsAllocated())
 			return temp;
 
@@ -353,8 +353,8 @@ public:
 
 	inline void Clear(void)
 	{
-		m_cursor = 0;
-		m_length = 0;
+		m_cursor = m_capacity;
+		m_length = m_capacity;
 	}
 
 	inline void Destroy(void)
@@ -366,21 +366,34 @@ public:
 	}
 
 	inline bool Init(const int16_t length)
-	{
-		if (length <= static_cast<int16_t>(0))
-			return false;
+    {
+        if (length <= 0)
+            return false;
 
-		m_cursor = 0;
-		m_length = 0;
-		m_path.Reset(new(std::nothrow) int16_t[length]);
-		if (m_path.IsAllocated())
-		{
-			m_capacity = length;
-			return true;
-		}
+        if (m_path.IsAllocated())
+            m_path.Destroy();
 
-		return false;
-	}
+        m_cursor = 0;
+        m_length = 0;
+        m_capacity = 0;
+        m_follow = false;
+
+        int16_t* newPath = new(std::nothrow) int16_t[length];
+        if (!newPath)
+            return false;
+
+        m_path.Reset(newPath, true);
+        if (m_path.IsAllocated())
+        {
+            m_capacity = length;
+            return true;
+        }
+
+		if (newPath)
+			delete[] newPath;
+
+        return false;
+    }
 
 	inline bool CanFollowPath(void) { return m_follow && Length() > 0; }
 	inline void Start(void) { m_follow = true; }
@@ -508,8 +521,8 @@ public:
 
 	int16_t m_currentGoalIndex{-1}; // current goal index for default modes
 	int16_t m_currentWaypointIndex{-1}; // current waypoint index
-	int16_t m_prevWptIndex[4]{-1}; // previous waypoint indices from waypoint find
-	int16_t m_knownWaypointIndex[6]{-1}; // checks if bot already aimed at this waypoint
+	int16_t m_prevWptIndex[4]{-1, -1, -1, -1}; // previous waypoint indices from waypoint find
+	int16_t m_knownWaypointIndex[6]{-1, -1, -1, -1,- 1, -1}; // checks if bot already aimed at this waypoint
 
 	uint16_t m_prevTravelFlags{0}; // prev of it
 	uint16_t m_currentTravelFlags{0}; // connection flags like jumping
@@ -536,7 +549,7 @@ public:
 	float m_probeTime{0.0f}; // time of probing different moves
 	float m_lastCollTime{0.0f}; // time until next collision check
 	int m_collisionProbeBits{0}; // bits of possible collision moves
-	int m_collideMoves[3]{0}; // sorted array of movements
+	int m_collideMoves[3]{0, 0, 0}; // sorted array of movements
 	int m_collStateIndex{0}; // index into collide moves
 	CollisionState m_collisionState{CollisionState::COSTATE_UNDECIDED}; // collision state
 
@@ -648,8 +661,8 @@ public:
 	Vector m_destOrigin{nullvec}; // origin of move destination
 	Vector m_waypointOrigin{nullvec}; // post waypoint origin, m_waypoint.origin returns center
 
-	int m_pingOffset[2]{0}; // offset for faking pings
-	int m_ping[3]{0}; // bots pings in scoreboard
+	int m_pingOffset[2]{0, 0}; // offset for faking pings
+	int m_ping[3]{0, 0, 0}; // bots pings in scoreboard
 	bool m_isEnemyReachable{false}; // direct line to enemy
 
 	float m_seeEnemyTime{0.0f}; // time bot sees enemy
@@ -660,15 +673,15 @@ public:
 	float m_firePause{0.0f}; // time to pause firing
 
 	int m_currentWeapon{0}; // one current weapon for each bot
-	int m_ammoInClip[Const_MaxWeapons + 1]{0}; // ammo in clip for each weapons
-	int m_ammo[Const_MaxWeapons + 1]{0}; // total ammo amounts
+	int m_ammoInClip[Const_MaxWeapons + 1]{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+	int m_ammo[Const_MaxWeapons + 1]{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 	Path m_waypoint{}; // current waypoint
 	float m_waypointTime{0.0f}; // avg reach time
 	PathManager m_navNode{}; // pointer to current node from path
 
 	bool m_checkFall{false}; // check bot fall
-	Vector m_checkFallPoint[2]{nullvec}; // check fall point
+	Vector m_checkFallPoint[2]{nullvec, nullvec}; // check fall point
 
 	// NEW VARS
 	Process m_currentProcess{Process::Default};
@@ -823,13 +836,13 @@ public:
 class BotControl : public Singleton <BotControl>
 {
 private:
-	CArray<CreateItem>m_creationTab{}; // bot creation tab
+	CArray<CreateItem>m_creationTab; // bot creation tab
 	float m_maintainTime{0.0f}; // time to maintain bot creation quota
 protected:
 	int CreateBot(char name[32], int skill, int personality, const int team, const int member);
 public:
-	Bot* m_bots[32]{nullptr}; // all available bots
-	CArray<char*>m_avatars{}; // storing the steam ids
+	Bot* m_bots[32]{nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr}; // all available bots
+	CArray<char*>m_avatars; // storing the steam ids
 
 	BotControl(void);
 	~BotControl(void);
@@ -871,7 +884,7 @@ private:
 	Bot* m_bot{nullptr};
 	int8_t m_state{0};
 	int m_message{0};
-	int m_registerdMessages[NETMSG_NUM]{0};
+	int m_registerdMessages[NETMSG_NUM]{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 public:
 	NetworkMsg(void);
 	~NetworkMsg(void) { m_bot = nullptr; };
@@ -920,15 +933,15 @@ private:
 	int16_t m_facingAtIndex{-1};
 	char m_infoBuffer[256]{"\0"};
 
-	CArray<int16_t>m_terrorPoints{};
-	CArray<int16_t>m_zmHmPoints{};
-	CArray<int16_t>m_hmMeshPoints{};
+	CArray<int16_t>m_terrorPoints;
+	CArray<int16_t>m_zmHmPoints;
+	CArray<int16_t>m_hmMeshPoints;
 	CArray<int16_t>m_buckets[MAX_WAYPOINT_BUCKET_MAX][MAX_WAYPOINT_BUCKET_MAX][MAX_WAYPOINT_BUCKET_MAX];
 public:
 	struct Bucket { int16_t x, y, z; };
 	CPtr<float>m_waypointDisplayTime{nullptr};
 	CPtr<int16_t>m_distMatrix{nullptr};
-	CArray<Path>m_paths{};
+	CArray<Path>m_paths;
 
 	Waypoint(void);
 	~Waypoint(void);

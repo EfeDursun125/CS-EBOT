@@ -39,7 +39,6 @@ extern bool g_isMatrixReady;
 extern float g_autoPathDistance;
 extern float g_fakePingUpdate;
 extern float g_DelayTimer;
-extern float g_pathTimer;
 extern float g_fakeCommandTimer;
 
 extern int16_t g_numWaypoints;

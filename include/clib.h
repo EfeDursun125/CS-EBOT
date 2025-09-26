@@ -1,5 +1,8 @@
 #pragma once
+#include <cstdint>
+#include <cstdio>
 #include <stdint.h>
+#include <utility>
 #include "rng.h"
 #ifndef WIN32
 #include <limits.h>
@@ -694,78 +697,88 @@ class CPtr
 {
 private:
 	T* m_ptr{nullptr};
+	bool m_isArray{true};
+	static bool isAligned(void* ptr) { return (reinterpret_cast<uintptr_t>(ptr) & (alignof(T) - 1)) == 0; }
 public:
 	CPtr(void) = default;
-	explicit CPtr(T* ptr) : m_ptr(ptr) {}
-	CPtr(CPtr&& other) noexcept : m_ptr(other.m_ptr) { other.m_ptr = nullptr; }
-	~CPtr(void)
+	explicit CPtr(T* ptr, bool isArray = true) : m_ptr(ptr), m_isArray(isArray) {}
+	~CPtr(void) { Reset(); }
+
+	CPtr(const CPtr&) = delete;
+	CPtr& operator=(const CPtr&) = delete;
+
+	CPtr(CPtr&& other) noexcept : m_ptr(other.m_ptr), m_isArray(other.m_isArray)
 	{
-		if (m_ptr)
-		{
-			delete[] m_ptr;
-			m_ptr = nullptr;
-		}
+		other.m_ptr = nullptr;
+		other.m_isArray = false;
 	}
 
-	inline CPtr& operator = (CPtr&& other) noexcept
+	CPtr& operator=(CPtr&& other) noexcept
 	{
 		if (this != &other)
 		{
-			if (m_ptr)
-				delete[] m_ptr;
-
+			Reset();
 			m_ptr = other.m_ptr;
+			m_isArray = other.m_isArray;
 			other.m_ptr = nullptr;
+			other.m_isArray = false;
 		}
 
 		return *this;
 	}
 
-	template <typename T2>
-	inline T& operator[] (T2 index) { return m_ptr[index]; }
-	inline T& operator * (void) { return *m_ptr; }
-	inline T* operator -> (void) { return m_ptr; }
-	inline bool IsAllocated(void)
-    {
-		if (m_ptr)
-			return true;
-
-		return false;
-	}
-
-	inline T* Get(void) { return m_ptr; }
-	inline T* Release(void)
-	{
-		T* ptr = m_ptr;
-		m_ptr = nullptr;
-		return ptr;
-	}
-
-	inline void Reset(T* ptr = nullptr)
+	bool Reset(T* ptr = nullptr, bool isArray = true)
 	{
 		if (m_ptr)
 		{
-			delete[] m_ptr;
-			m_ptr = nullptr;
+			if (!isAligned(m_ptr))
+			{
+				printf("Unaligned memory detected in %s at %i", __FILE__, __LINE__);
+				return false;
+			}
+
+			if (m_isArray)
+				delete[] m_ptr;
+			else
+				delete m_ptr;
 		}
 
 		m_ptr = ptr;
+		m_isArray = isArray;
+		return true;
 	}
 
-	inline void Swap(CPtr& other) noexcept
+	T* Release(void)
 	{
-		const T* temp = m_ptr;
-		m_ptr = other.m_ptr;
-		other.m_ptr = temp;
+		T* ptr = m_ptr;
+		m_ptr = nullptr;
+		m_isArray = false;
+		return ptr;
 	}
 
-	inline void Destroy(void)
+	void Destroy(void)
 	{
-		if (m_ptr)
-		{
-			delete[] m_ptr;
-			m_ptr = nullptr;
-		}
+		Reset();
+	}
+
+	bool IsAllocated(void) const
+	{
+		return m_ptr != nullptr;
+	}
+
+	T& operator[](size_t index)
+	{
+		return m_ptr[index];
+	}
+
+	const T& operator[](size_t index) const
+	{
+		return m_ptr[index];
+	}
+
+	T* Get(void) const
+	{
+		return m_ptr;
 	}
 };
 
@@ -777,19 +790,101 @@ private:
 	int16_t m_size{0};
 	int16_t m_capacity{0};
 public:
-	CArray(const int16_t size = 0) : m_size(size), m_capacity(size) { m_array.Reset(new(std::nothrow) T[size]); }
-public:
+	CArray(const int16_t size = 0) : m_size(size), m_capacity(size)
+	{
+		if (size > 0)
+		{
+			T* temp = new(std::nothrow) T[size];
+			if (temp)
+			{
+				if (!m_array.Reset(temp))
+					delete[] temp;
+
+				if (m_array.IsAllocated())
+				{
+					m_size = size;
+					m_capacity = size;
+				}
+			}
+		}
+	}
+
+	CArray(const CArray& other) : m_size(0), m_capacity(0)
+	{
+		if (other.m_size > 0)
+		{
+			if (!Resize(other.m_size))
+				return;
+			
+			int16_t i;
+			for (i = 0; i < other.m_size; ++i)
+				m_array[i] = other.m_array[i];
+
+			m_size = other.m_size;
+		}
+	}
+
+	CArray& operator=(const CArray& other)
+	{
+		if (this != &other)
+		{
+			CArray temp(other);
+			Swap(temp);
+		}
+
+		return *this;
+	}
+
+	CArray(CArray&& other) noexcept : m_array(std::move(other.m_array)), m_size(other.m_size), m_capacity(other.m_capacity)
+	{
+		other.m_size = 0;
+		other.m_capacity = 0;
+	}
+
+	CArray& operator=(CArray&& other) noexcept
+	{
+		if (this != &other)
+		{
+			Destroy();
+			m_array = std::move(other.m_array);
+			m_size = other.m_size;
+			m_capacity = other.m_capacity;
+			other.m_size = 0;
+			other.m_capacity = 0;
+		}
+
+		return *this;
+	}
+
+	void Swap(CArray& other) noexcept
+	{
+		cswap(m_array, other.m_array);
+		cswap(m_size, other.m_size);
+		cswap(m_capacity, other.m_capacity);
+	}
+
 	inline bool Resize(const int16_t size, const bool reset = false)
 	{
-		if (size <= 0)
+		if (size < 0)
+			return false;
+
+		if (size == 0)
 		{
 			Destroy();
 			return true;
 		}
 
-		if (reset)
+		T* newMemory = new(std::nothrow) T[size];
+		if (!newMemory)
+			return false;
+
+		CPtr<T> temp_ptr(newMemory, true);
+		if (!temp_ptr.IsAllocated())
+			return false;
+
+		if (reset || !m_array.IsAllocated())
 		{
-			m_array.Reset(new(std::nothrow) T[size]);
+			m_array.Reset(temp_ptr.Release());
 			if (m_array.IsAllocated())
 			{
 				m_size = 0;
@@ -800,35 +895,14 @@ public:
 			return false;
 		}
 
-		if (!m_array.IsAllocated())
-		{
-			m_array.Reset(new(std::nothrow) T[size]);
-			if (m_array.IsAllocated())
-			{
-				m_size = 0;
-				m_capacity = size;
-				return true;
-			}
+		int16_t i;
+		const int16_t copy_count = cmin(m_size, size);
+		for (i = 0; i < copy_count; ++i)
+			temp_ptr[i] = std::move(m_array[i]);
 
-			return false;
-		}
-
-		CPtr<T>new_array(new(std::nothrow) T[size]);
-		if (!new_array.IsAllocated())
-			return false;
-
-		size_t max;
-		if (m_size > size)
-			max = size;
-		else
-			max = m_size;
-
-		size_t i;
-		for (i = 0; i < max; i++)
-			new_array[i] = m_array[i];
-
-		m_array.Reset(new_array.Release());
+		m_array = std::move(temp_ptr);
 		m_capacity = size;
+		m_size = (reset || size < m_size) ? size : m_size;
 		return true;
 	}
 
@@ -853,23 +927,36 @@ public:
 
 		return m_array[index];
 	}
-
-	inline bool Push(const T element, const bool autoSize = true) { return Push(&element, autoSize); }
-
-	inline bool Push(const T* element, const bool autoSize = true)
+	
+	inline bool Push(const T& element, const bool autoSize = true)
 	{
 		if (m_size >= m_capacity)
 		{
-			if (!autoSize || !Resize(m_size + 1, false))
+			if (!autoSize)
+				return false;
+
+			if (!Resize((m_capacity == 0) ? 1 : m_capacity * 2))
 				return false;
 		}
 
-		if (m_array.IsAllocated())
+		m_array[m_size] = element;
+		m_size++;
+		return true;
+	}
+
+	inline bool Push(T&& element, const bool autoSize = true)
+	{
+		if (m_size >= m_capacity)
 		{
-			m_array[m_size] = *element;
-			m_size++;
+			if (!autoSize)
+				return false;
+	
+			if (!Resize((m_capacity == 0) ? 1 : m_capacity * 2))
+				return false;
 		}
 
+		m_array[m_size] = std::move(element);
+		m_size++;
 		return true;
 	}
 
@@ -899,7 +986,7 @@ public:
 		{
 			int16_t i;
 			for (i = index; i < m_size - 1; i++)
-				m_array[i] = m_array[i + 1];
+				m_array[i] = std::move(m_array[i + 1]);
 
 			m_size--;
 		}
@@ -941,23 +1028,27 @@ public:
 	{
 		if (m_array.IsAllocated() && m_size > 0)
 		{
-			const T element = m_array[m_size - 1];
-			RemoveAt(m_size - 1);
+			T element = std::move(m_array[m_size - 1]);
+			m_size--;
 			return element;
 		}
 
 		return T();
 	}
 
-	inline void PopNoReturn(void) { if (m_size > 0) RemoveAt(m_size - 1); }
+	inline void PopNoReturn(void)
+	{
+		if (m_size > 0)
+			RemoveAt(m_size - 1);
+	}
 
 	inline T& Last(void)
 	{
-		static T s_dummy = T();
+		thread_local T dummy{};
 		if (m_size > 0 && m_array.IsAllocated())
 			return m_array[m_size - 1];
 
-		return s_dummy;
+		return dummy;
 	}
 
 	inline bool IsEmpty(void) const { return m_size < 1; }
@@ -966,9 +1057,9 @@ public:
 	inline int16_t Capacity(void) const { return m_capacity; }
 	inline T& Random(void)
 	{
-		static T s_dummy = T();
+		thread_local T dummy{};
 		if (m_size <= 0 || !m_array.IsAllocated())
-			return s_dummy;
+			return dummy;
 
 		return Get(static_cast<int16_t>(crandomint(0, m_size - 1)));
 	}
