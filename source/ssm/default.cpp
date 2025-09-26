@@ -154,7 +154,7 @@ void Bot::DefaultUpdate(void)
 				FindGoalHuman();
 
 				// use known waypoint first, then switch to auto
-				FindEscapePath(m_currentWaypointIndex, m_nearestEnemy->v.origin);
+				FindEscapePath(m_currentWaypointIndex, m_enemyOrigin);
 				m_currentWaypointIndex = -1;
 
 				MoveOut(m_enemyOrigin);
@@ -162,15 +162,15 @@ void Bot::DefaultUpdate(void)
 				if (m_navNode.IsEmpty())
 					m_navNode.Stop();
 			}
-			else if (((pev->origin - g_waypoint->m_paths[m_navNode.First()].origin).GetLengthSquared() > (m_nearestEnemy->v.origin - g_waypoint->m_paths[m_navNode.First()].origin).GetLengthSquared() ||
-				(pev->origin - g_waypoint->m_paths[m_navNode.Next()].origin).GetLengthSquared() > (m_nearestEnemy->v.origin - g_waypoint->m_paths[m_navNode.Next()].origin).GetLengthSquared()) && ::IsInViewCone(pev->origin, m_nearestEnemy))
+			else if (((pev->origin - g_waypoint->m_paths[m_navNode.First()].origin).GetLengthSquared() > ((m_nearestEnemy->v.origin + m_nearestEnemy->v.velocity) - g_waypoint->m_paths[m_navNode.First()].origin).GetLengthSquared() ||
+				(pev->origin - g_waypoint->m_paths[m_navNode.Next()].origin).GetLengthSquared() > ((m_nearestEnemy->v.origin + m_nearestEnemy->v.velocity) - g_waypoint->m_paths[m_navNode.Next()].origin).GetLengthSquared()) && ::IsInViewCone(pev->origin, m_nearestEnemy))
 			{
 				// find new safe spot if possible
 				m_zhCampPointIndex = -1;
 				FindGoalHuman();
 
 				m_navNode.Clear();
-				FindEscapePath(m_currentWaypointIndex, m_nearestEnemy->v.origin);
+				FindEscapePath(m_currentWaypointIndex, m_enemyOrigin);
 				MoveOut(m_enemyOrigin);
 				m_navNode.Stop();
 			}
@@ -298,12 +298,15 @@ void Bot::DefaultUpdate(void)
 					m_duckTime = engine->GetTime() + 1.0f;
 			}
 		}
-		else if (!m_navNode.IsEmpty())
-			FollowPath();
-		else if (IsValidWaypoint(m_zhCampPointIndex))
-			FindPath(m_currentWaypointIndex, m_zhCampPointIndex);
 		else
-			m_zhCampPointIndex = FindGoalHuman();
+		{
+			if (m_navNode.HasNext())
+				FollowPath();
+			else if (IsValidWaypoint(m_zhCampPointIndex))
+				FindPath(m_currentWaypointIndex, m_zhCampPointIndex);
+			else
+				m_zhCampPointIndex = FindGoalHuman();
+		}
 	}
 
 	if (m_isSlowThink && m_navNode.IsEmpty())
