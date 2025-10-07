@@ -570,7 +570,7 @@ class atomic_flag {
         : "%eax", "memory"
       );
   #elif defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64))
-      int *ptrFlag = &mFlag;
+      volatile int *ptrFlag = &mFlag;
       __asm {
         mov eax,1
         mov ecx,ptrFlag
@@ -618,7 +618,7 @@ class atomic_flag {
         : "%eax", "memory"
       );
   #elif defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64))
-      int *ptrFlag = &mFlag;
+      volatile int *ptrFlag = &mFlag;
       __asm {
         mov eax,0
         mov ecx,ptrFlag
