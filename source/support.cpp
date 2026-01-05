@@ -372,11 +372,11 @@ void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 // this function free's all allocated memory
 void FreeLibraryMemory(void)
 {
-    if (g_botManager)
-        g_botManager->Free();
+	if (g_botManager)
+		g_botManager->Free();
 
-    if (g_waypoint)
-        g_waypoint->Initialize();
+	if (g_waypoint)
+		g_waypoint->Initialize();
 }
 
 void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
@@ -1039,7 +1039,7 @@ bool OpenConfig(const char* fileName, const char* errorIfNotExists, File* outFil
 char* GetWaypointDir(void)
 {
 	static char wpDir[1024];
-    sprintf(wpDir, "%s/addons/ebot/waypoints/", GetModName());
+	sprintf(wpDir, "%s/addons/ebot/waypoints/", GetModName());
 	return &wpDir[0];
 }
 

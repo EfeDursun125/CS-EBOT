@@ -77,11 +77,11 @@ int BotControl::CreateBot(char name[32], int skill, int personality, const int t
 		{
 			extern ConVar ebot_analyze_auto_start;
 			if (ebot_analyze_auto_start.GetBool())
-        	{
-            	g_waypoint->CreateBasic();
-            	g_analyzewaypoints = true;
+			{
+				g_waypoint->CreateBasic();
+				g_analyzewaypoints = true;
 				return -1;
-        	}
+			}
 		}
 
 		ServerPrint("No any waypoints for this map, Cannot Add E-BOT");
@@ -773,6 +773,7 @@ void Bot::NewRound(void)
 	}
 
 	m_numSpawns++;
+	m_sidePreference = crandomfloat(-1.0f, 1.0f);
 	const float time2 = engine->GetTime();
 
 	// initialize msec value

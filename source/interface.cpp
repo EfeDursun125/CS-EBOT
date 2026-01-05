@@ -172,51 +172,51 @@ int BotCommandHandler_O(edict_t* ent, const char* arg0, const char* arg1, const 
 	else if (!cstricmp(arg0, "?") || !cstricmp(arg0, "help"))
 	{
 		ClientPrint(ent, print_console, "E-Bot Commands:");
-		ClientPrint(ent, print_console, "ebot version            - display version information");
-		ClientPrint(ent, print_console, "ebot about              - show bot about information");
-		//ClientPrint (ent, print_console, "ebot add                - create a e-bot in current game.");
-		ClientPrint(ent, print_console, "ebot fill               - fill the server with random e-bots");
-		ClientPrint(ent, print_console, "ebot kickall            - disconnects all e-bots from current game");
-		ClientPrint(ent, print_console, "ebot killbots           - kills all e-bots in current game");
-		ClientPrint(ent, print_console, "ebot kick               - disconnect one random e-bot from game");
-		ClientPrint(ent, print_console, "ebot weaponmode         - select e-bot weapon mode");
-		ClientPrint(ent, print_console, "ebot votemap            - allows dead e-bots to vote for specific map");
-		ClientPrint(ent, print_console, "ebot cmenu              - displaying e-bots command menu");
-		ClientPrint(ent, print_console, "ebot_add                - adds a e-bot in current game");
+		ClientPrint(ent, print_console, "ebot version			- display version information");
+		ClientPrint(ent, print_console, "ebot about			  - show bot about information");
+		//ClientPrint (ent, print_console, "ebot add				- create a e-bot in current game.");
+		ClientPrint(ent, print_console, "ebot fill			   - fill the server with random e-bots");
+		ClientPrint(ent, print_console, "ebot kickall			- disconnects all e-bots from current game");
+		ClientPrint(ent, print_console, "ebot killbots		   - kills all e-bots in current game");
+		ClientPrint(ent, print_console, "ebot kick			   - disconnect one random e-bot from game");
+		ClientPrint(ent, print_console, "ebot weaponmode		 - select e-bot weapon mode");
+		ClientPrint(ent, print_console, "ebot votemap			- allows dead e-bots to vote for specific map");
+		ClientPrint(ent, print_console, "ebot cmenu			  - displaying e-bots command menu");
+		ClientPrint(ent, print_console, "ebot_add				- adds a e-bot in current game");
 
 		if (!cstricmp(arg1, "full") || !cstricmp(arg1, "f") || !cstricmp(arg1, "?"))
 		{
-			ClientPrint(ent, print_console, "ebot_add_t              - creates one random e-bot to terrorist team");
-			ClientPrint(ent, print_console, "ebot_add_ct             - creates one random e-bot to ct team");
-			ClientPrint(ent, print_console, "ebot kick_t             - disconnect one random e-bot from terrorist team");
-			ClientPrint(ent, print_console, "ebot kick_ct            - disconnect one random e-bot from ct team");
-			ClientPrint(ent, print_console, "ebot kill_t             - kills all e-bots on terrorist team");
-			ClientPrint(ent, print_console, "ebot kill_ct            - kills all e-bots on ct team");
-			ClientPrint(ent, print_console, "ebot list               - display list of e-bots currently playing");
-			ClientPrint(ent, print_console, "ebot order              - execute specific command on specified e-bot");
-			ClientPrint(ent, print_console, "ebot time               - displays current time on server");
-			ClientPrint(ent, print_console, "ebot deletewp           - delete waypoint file from hard disk (permanently)");
+			ClientPrint(ent, print_console, "ebot_add_t			  - creates one random e-bot to terrorist team");
+			ClientPrint(ent, print_console, "ebot_add_ct			 - creates one random e-bot to ct team");
+			ClientPrint(ent, print_console, "ebot kick_t			 - disconnect one random e-bot from terrorist team");
+			ClientPrint(ent, print_console, "ebot kick_ct			- disconnect one random e-bot from ct team");
+			ClientPrint(ent, print_console, "ebot kill_t			 - kills all e-bots on terrorist team");
+			ClientPrint(ent, print_console, "ebot kill_ct			- kills all e-bots on ct team");
+			ClientPrint(ent, print_console, "ebot list			   - display list of e-bots currently playing");
+			ClientPrint(ent, print_console, "ebot order			  - execute specific command on specified e-bot");
+			ClientPrint(ent, print_console, "ebot time			   - displays current time on server");
+			ClientPrint(ent, print_console, "ebot deletewp		   - delete waypoint file from hard disk (permanently)");
 
 			if (!IsDedicatedServer())
 			{
-				ServerPrintNoTag("ebot autowp            - toggle autowppointing");
-				ServerPrintNoTag("ebot wp                - toggle waypoint showing");
-				ServerPrintNoTag("ebot wp on noclip      - enable noclip cheat");
+				ServerPrintNoTag("ebot autowp			- toggle autowppointing");
+				ServerPrintNoTag("ebot wp				- toggle waypoint showing");
+				ServerPrintNoTag("ebot wp on noclip	  - enable noclip cheat");
 				ServerPrintNoTag("ebot wp save nocheck   - save waypoints without checking");
-				ServerPrintNoTag("ebot wp add            - open menu for waypoint creation");
-				ServerPrintNoTag("ebot wp menu           - open main waypoint menu");
-				ServerPrintNoTag("ebot wp addbasic       - creates basic waypoints on map");
-				ServerPrintNoTag("ebot wp find           - show direction to specified waypoint");
-				ServerPrintNoTag("ebot wp load           - wload the waypoint file from hard disk");
-				ServerPrintNoTag("ebot wp check          - checks if all waypoints connections are valid");
-				ServerPrintNoTag("ebot wp cache          - cache nearest waypoint");
-				ServerPrintNoTag("ebot wp teleport       - teleport hostile to specified waypoint");
-				ServerPrintNoTag("ebot wp setradius      - manually sets the wayzone radius for this waypoint");
+				ServerPrintNoTag("ebot wp add			- open menu for waypoint creation");
+				ServerPrintNoTag("ebot wp menu		   - open main waypoint menu");
+				ServerPrintNoTag("ebot wp addbasic	   - creates basic waypoints on map");
+				ServerPrintNoTag("ebot wp find		   - show direction to specified waypoint");
+				ServerPrintNoTag("ebot wp load		   - wload the waypoint file from hard disk");
+				ServerPrintNoTag("ebot wp check		  - checks if all waypoints connections are valid");
+				ServerPrintNoTag("ebot wp cache		  - cache nearest waypoint");
+				ServerPrintNoTag("ebot wp teleport	   - teleport hostile to specified waypoint");
+				ServerPrintNoTag("ebot wp setradius	  - manually sets the wayzone radius for this waypoint");
 				ServerPrintNoTag("ebot path autodistance - opens menu for setting autopath maximum distance");
-				ServerPrintNoTag("ebot path cache        - remember the nearest to player waypoint");
-				ServerPrintNoTag("ebot path create       - opens menu for path creation");
-				ServerPrintNoTag("ebot path delete       - delete path from cached to nearest waypoint");
-				ServerPrintNoTag("ebot path create_in    - creating incoming path connection");
+				ServerPrintNoTag("ebot path cache		- remember the nearest to player waypoint");
+				ServerPrintNoTag("ebot path create	   - opens menu for path creation");
+				ServerPrintNoTag("ebot path delete	   - delete path from cached to nearest waypoint");
+				ServerPrintNoTag("ebot path create_in	- creating incoming path connection");
 				ServerPrintNoTag("ebot path create_out   - creating outgoing path connection");
 				ServerPrintNoTag("ebot path create_both  - creating both-ways path connection");
 			}
@@ -777,10 +777,10 @@ int Spawn(edict_t* ent)
 		{
 			if (!cstrcmp(entityClassname, "worldspawn"))
 			{
-				PRECACHE_SOUND("weapons/xbow_hit1.wav");      // waypoint add
+				PRECACHE_SOUND("weapons/xbow_hit1.wav");	  // waypoint add
 				PRECACHE_SOUND("weapons/mine_activate.wav");  // waypoint delete
-				PRECACHE_SOUND("common/wpn_hudoff.wav");      // path add/delete start
-				PRECACHE_SOUND("common/wpn_hudon.wav");       // path add/delete done
+				PRECACHE_SOUND("common/wpn_hudoff.wav");	  // path add/delete start
+				PRECACHE_SOUND("common/wpn_hudon.wav");	   // path add/delete done
 				PRECACHE_SOUND("common/wpn_moveselect.wav");  // path add/delete cancel
 				PRECACHE_SOUND("common/wpn_denyselect.wav");  // path add/delete error
 
@@ -2129,6 +2129,9 @@ void ServerDeactivate(void)
 	// space we m'allocated for our BSP data, since a new map means new BSP data to interpret. In
 	// any case, when the new map will be booting, ServerActivate() will be called, so we'll do
 	// the loading of new bots and the new BSP data parsing there.
+
+	// signal matrix calculation thread to stop
+	g_isMatrixCalculating = false;
 
 	secondTimer = 0.0f;
 	g_fakeCommandTimer = 0.0f;
