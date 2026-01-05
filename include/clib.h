@@ -18,10 +18,10 @@ extern int16_t g_numWaypoints;
 template <typename T>
 inline bool IsValidWaypoint(const T index)
 {
-    if (index < 0 || index >= static_cast<T>(g_numWaypoints))
-        return false;
+	if (index < 0 || index >= static_cast<T>(g_numWaypoints))
+		return false;
 
-    return true;
+	return true;
 }
 #include <stdarg.h>
 

@@ -31,26 +31,26 @@ PRODUCTVERSION PRODUCT_VERSION_DWORD
 FILEOS 0x40004
 FILETYPE 0x2
 {  
-    BLOCK "StringFileInfo"
-    {
-      BLOCK "040904E4"
-      {   
-          VALUE "CompanyName",       PRODUCT_AUTHOR        "\0"
-          VALUE "FileDescription",   PRODUCT_DESCRIPTION   "\0"
-          VALUE "FileVersion",       PRODUCT_VERSION       "\0"
-          VALUE "OriginalFilename",  PRODUCT_ORIGINAL_NAME "\0"
-          VALUE "LegalCopyright",    PRODUCT_COPYRIGHT     "\0"
-          VALUE "LegalTrademarks",   PRODUCT_LEGAL         "\0"
-          VALUE "ProductName",       PRODUCT_NAME          "\0"
-		  VALUE "ProductVersion",    PRODUCT_VERSION PRODUCT_DEV_VERSION_FORTEST       "\0"
-          VALUE "SpecialBuild",      PRODUCT_OPT_TYPE      "\0"
-          VALUE "InternalName",      PRODUCT_INTERNAL_NAME "\0"
-      }
-    }
+	BLOCK "StringFileInfo"
+	{
+	  BLOCK "040904E4"
+	  {   
+		  VALUE "CompanyName",	   PRODUCT_AUTHOR		"\0"
+		  VALUE "FileDescription",   PRODUCT_DESCRIPTION   "\0"
+		  VALUE "FileVersion",	   PRODUCT_VERSION	   "\0"
+		  VALUE "OriginalFilename",  PRODUCT_ORIGINAL_NAME "\0"
+		  VALUE "LegalCopyright",	PRODUCT_COPYRIGHT	 "\0"
+		  VALUE "LegalTrademarks",   PRODUCT_LEGAL		 "\0"
+		  VALUE "ProductName",	   PRODUCT_NAME		  "\0"
+		  VALUE "ProductVersion",	PRODUCT_VERSION PRODUCT_DEV_VERSION_FORTEST	   "\0"
+		  VALUE "SpecialBuild",	  PRODUCT_OPT_TYPE	  "\0"
+		  VALUE "InternalName",	  PRODUCT_INTERNAL_NAME "\0"
+	  }
+	}
 #ifndef NOLANGINFO
-    BLOCK "VarFileInfo"
-    {
-        VALUE "Translation", 0x400, 1252
-    }
+	BLOCK "VarFileInfo"
+	{
+		VALUE "Translation", 0x400, 1252
+	}
 #endif
 }

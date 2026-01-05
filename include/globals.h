@@ -35,6 +35,7 @@ extern bool g_analyzeputrequirescrouch;
 extern bool g_hasDoors;
 extern bool g_isFakeCommand;
 extern bool g_isMatrixReady;
+extern bool g_isMatrixCalculating;
 
 extern float g_autoPathDistance;
 extern float g_fakePingUpdate;

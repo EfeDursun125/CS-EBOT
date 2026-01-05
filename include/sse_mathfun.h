@@ -23,11 +23,11 @@
   freely, subject to the following restrictions:
 
   1. The origin of this software must not be misrepresented; you must not
-     claim that you wrote the original software. If you use this software
-     in a product, an acknowledgment in the product documentation would be
-     appreciated but is not required.
+	 claim that you wrote the original software. If you use this software
+	 in a product, an acknowledgment in the product documentation would be
+	 appreciated but is not required.
   2. Altered source versions must be plainly marked as such, and must not be
-     misrepresented as being the original software.
+	 misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 
   (this is the zlib license)
@@ -155,16 +155,16 @@ typedef __m64 v2si;   // vector of 2 int (mmx)
 #define VELEM(type,a,n)			(((type*)&a)[n])
 
 /* declare some SSE constants -- why can't I figure a better way to do that? */
-#define _PS_CONST(Name, Val)                                            \
+#define _PS_CONST(Name, Val)											\
   static const ALIGN16_BEG float _ps_##Name[4] ALIGN16_END = { (const float)(Val), (const float)(Val), (const float)(Val), (const float)(Val) }
-#define _PI32_CONST(Name, Val)                                            \
+#define _PI32_CONST(Name, Val)											\
   static const ALIGN16_BEG int _pi32_##Name[4] ALIGN16_END = { Val, Val, Val, Val }
-#define _PS_CONST_TYPE(Name, Type, Val)                                 \
+#define _PS_CONST_TYPE(Name, Type, Val)								 \
   static const ALIGN16_BEG Type _ps_##Name[4] ALIGN16_END = { (int)Val, (int)Val, (int)Val, (int)Val }
 
-#define _PD_CONST(Name, Val)                                            \
+#define _PD_CONST(Name, Val)											\
 	static const ALIGN16_BEG double _pd_##Name[2] ALIGN16_END = { (const double)(Val), (const double)(Val) }
-#define _PD_CONST_TYPE(Name, Type, Val)                                 \
+#define _PD_CONST_TYPE(Name, Type, Val)								 \
 	static const ALIGN16_BEG Type _pd_##Name[2] ALIGN16_END = { (long long int)Val, (long long int)Val }
 
 #pragma mark code section
@@ -227,8 +227,8 @@ inline __m128 my_movehl_ps(__m128 a, const __m128 b) {
 			"movhlps %2,%0\n\t"
 			: "=x" (a)
 			: "0" (a), "x"(b)
-	    );
-	return a;                                 }
+		);
+	return a;								 }
 #warning "redefined _mm_movehl_ps (see gcc bug 21179)"
 #define _mm_movehl_ps my_movehl_ps
 
@@ -237,15 +237,15 @@ inline __m128 my_cmplt_ps(__m128 a, const __m128 b) {
 			"cmpltps %2,%0\n\t"
 			: "=x" (a)
 			: "0" (a), "x"(b)
-	    );
+		);
 	return a;
-                  }
+				  }
 inline __m128 my_cmpgt_ps(__m128 a, const __m128 b) {
 	asm (
 			"cmpnleps %2,%0\n\t"
 			: "=x" (a)
 			: "0" (a), "x"(b)
-	    );
+		);
 	return a;
 }
 inline __m128 my_cmpeq_ps(__m128 a, const __m128 b) {
@@ -253,7 +253,7 @@ inline __m128 my_cmpeq_ps(__m128 a, const __m128 b) {
 			"cmpeqps %2,%0\n\t"
 			: "=x" (a)
 			: "0" (a), "x"(b)
-	    );
+		);
 	return a;
 }
 #warning "redefined _mm_cmpxx_ps functions..."
@@ -268,14 +268,14 @@ typedef union xmm_mm_union {
   __m64 mm[2];
 } xmm_mm_union;
 
-#define COPY_XMM_TO_MM(xmm_, mm0_, mm1_) {          \
-    xmm_mm_union u; u.xmm = xmm_;                   \
-    mm0_ = u.mm[0];                                 \
-    mm1_ = u.mm[1];                                 \
+#define COPY_XMM_TO_MM(xmm_, mm0_, mm1_) {		  \
+	xmm_mm_union u; u.xmm = xmm_;				   \
+	mm0_ = u.mm[0];								 \
+	mm1_ = u.mm[1];								 \
 }
 
-#define COPY_MM_TO_XMM(mm0_, mm1_, xmm_) {                         \
-    xmm_mm_union u; u.mm[0]=mm0_; u.mm[1]=mm1_; xmm_ = u.xmm;      \
+#define COPY_MM_TO_XMM(mm0_, mm1_, xmm_) {						 \
+	xmm_mm_union u; u.mm[0]=mm0_; u.mm[1]=mm1_; xmm_ = u.xmm;	  \
   }
 
 #endif // USE_SSE2
@@ -324,10 +324,10 @@ static inline v4sf log_ps(v4sf x)
   e = _mm_add_ps(e, one);
 
   /* part2:
-     if( x < SQRTHF ) {
-       e -= 1;
-       x = x + x - 1.0;
-     } else { x = x - 1.0; }
+	 if( x < SQRTHF ) {
+	   e -= 1;
+	   x = x + x - 1.0;
+	 } else { x = x - 1.0; }
   */
   {
 	  v4sf z, y;
@@ -556,10 +556,10 @@ static inline v4sf sin_ps(v4sf x)
   emm0 = _mm_and_si128(emm2, *(v4si*)_pi32_4);
   emm0 = _mm_slli_epi32(emm0, 29);
   /* get the polynom selection mask
-     there is one polynom for 0 <= x <= Pi/4
-     and another one for Pi/4<x<=Pi/2
+	 there is one polynom for 0 <= x <= Pi/4
+	 and another one for Pi/4<x<=Pi/2
 
-     Both branches will be computed.
+	 Both branches will be computed.
   */
   emm2 = _mm_and_si128(emm2, *(v4si*)_pi32_2);
   emm2 = _mm_cmpeq_epi32(emm2, _MM_SETZERO_SI128());
@@ -595,7 +595,7 @@ static inline v4sf sin_ps(v4sf x)
 #endif
 
   /* The magic pass: "Extended precision modular arithmetic"
-     x = ((x - y * DP1) - y * DP2) - y * DP3; */
+	 x = ((x - y * DP1) - y * DP2) - y * DP3; */
   xmm1 = *(v4sf*)_ps_minus_cephes_DP1;
   xmm2 = *(v4sf*)_ps_minus_cephes_DP2;
   xmm3 = *(v4sf*)_ps_minus_cephes_DP3;
@@ -697,7 +697,7 @@ static inline v4sf cos_ps(v4sf x)
   mm3 = _mm_sub_pi32(mm3, *(v2si*)_pi32_2);
 
   /* get the swap sign flag in mm0:mm1 and the
-     polynom selection mask in mm2:mm3 */
+	 polynom selection mask in mm2:mm3 */
 
   mm0 = _mm_andnot_si64(mm2, *(v2si*)_pi32_4);
   mm1 = _mm_andnot_si64(mm3, *(v2si*)_pi32_4);
@@ -715,7 +715,7 @@ static inline v4sf cos_ps(v4sf x)
   _mm_empty(); /* good-bye mmx */
 #endif
   /* The magic pass: "Extended precision modular arithmetic"
-     x = ((x - y * DP1) - y * DP2) - y * DP3; */
+	 x = ((x - y * DP1) - y * DP2) - y * DP3; */
   xmm1 = *(v4sf*)_ps_minus_cephes_DP1;
   xmm2 = *(v4sf*)_ps_minus_cephes_DP2;
   xmm3 = *(v4sf*)_ps_minus_cephes_DP3;
@@ -840,7 +840,7 @@ static inline void sincos_ps(v4sf x, v4sf *s, v4sf *c)
 #endif
 
   /* The magic pass: "Extended precision modular arithmetic"
-     x = ((x - y * DP1) - y * DP2) - y * DP3; */
+	 x = ((x - y * DP1) - y * DP2) - y * DP3; */
 #ifdef __GNUC__
 	x += y * ( *(v4sf*)_ps_minus_cephes_DP1 + *(v4sf*)_ps_minus_cephes_DP2 + *(v4sf*)_ps_minus_cephes_DP3 );
 #else
@@ -1034,12 +1034,12 @@ static inline void sincos_pd(v2df x, v2df *s, v2df *c)
 				 _mm_sub_pd(
 					  _mm_mul_pd(
 						   _mm_add_pd(
-							    _mm_mul_pd(
+								_mm_mul_pd(
 									_mm_add_pd(
 											 _mm_mul_pd(*(v2df*)_pd_coscof_p0, z),
 											 *(v2df*)_pd_coscof_p1 ),
 									z ),
-							    *(v2df*)_pd_coscof_p2 ),
+								*(v2df*)_pd_coscof_p2 ),
 						   z ),
 					  *(v2df*)_pd_0p5 ),
 				 z ),
@@ -1056,12 +1056,12 @@ static inline void sincos_pd(v2df x, v2df *s, v2df *c)
 			 _mm_add_pd(
 				  _mm_mul_pd(
 					   _mm_add_pd(
-						    _mm_mul_pd(
+							_mm_mul_pd(
 								_mm_add_pd(
 										 _mm_mul_pd(*(v2df*)_pd_sincof_p0, z ),
 										 *(v2df*)_pd_sincof_p1 ),
 								z ),
-						    *(v2df*)_pd_sincof_p2 ),
+							*(v2df*)_pd_sincof_p2 ),
 					   z ),
 				  *(v2df*)_pd_1 ),
 			 x );

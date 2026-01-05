@@ -50,15 +50,15 @@
 #ifndef PRODUCT_OPT_TYPE
 #if defined (_DEBUG)
 #   if defined (_AFXDLL)
-#      define PRODUCT_OPT_TYPE "Debug Build (CRT)"
+#	  define PRODUCT_OPT_TYPE "Debug Build (CRT)"
 #   else
-#      define PRODUCT_OPT_TYPE "Debug Build"
+#	  define PRODUCT_OPT_TYPE "Debug Build"
 #   endif
 #elif defined (NDEBUG)
 #   if defined (_AFXDLL)
-#      define PRODUCT_OPT_TYPE "Optimized Build (CRT)"
+#	  define PRODUCT_OPT_TYPE "Optimized Build (CRT)"
 #   else
-#      define PRODUCT_OPT_TYPE "Optimized Build"
+#	  define PRODUCT_OPT_TYPE "Optimized Build"
 #   endif
 #else
 #   define PRODUCT_OPT_TYPE "Default Release"
