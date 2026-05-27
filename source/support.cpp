@@ -1,4 +1,4 @@
-﻿//
+//
 // Copyright (c) 2003-2009, by Yet Another POD-Bot Development Team.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -85,7 +85,7 @@ bool IsAlive(const edict_t* ent)
 	if (FNullEnt(ent))
 		return false;
 
-	return !ent->v.deadflag && ent->v.health > 0.0f && ent->v.movetype != MOVETYPE_NOCLIP;
+	return !ent->v.deadflag && ent->v.health > 0.0f && ent->v.movetype != MOVETYPE_NOCLIP && ent->v.solid != SOLID_NOT;
 }
 
 float GetShootingConeDeviation(edict_t* ent, const Vector& position)
@@ -208,11 +208,11 @@ Vector GetPlayerHeadOrigin(edict_t* ent)
 
 int Find(char* buffer, const char chr, const int startIndex)
 {
-	if (!buffer || startIndex < 0) 
+	if (!buffer || startIndex < 0)
 		return -1;
 
 	int len = cstrlen(buffer);
-	if (startIndex >= len) 
+	if (startIndex >= len)
 		return -1;
 
 	char* ptr = buffer + startIndex;
@@ -232,7 +232,7 @@ int Find(char* buffer, const char chr, const int startIndex)
 
 int Replace(char* buffer, const char oldChar, const char newChar)
 {
-	if (!buffer || oldChar == newChar) 
+	if (!buffer || oldChar == newChar)
 		return 0;
 
 	char* ptr;
@@ -251,7 +251,7 @@ int Replace(char* buffer, const char oldChar, const char newChar)
 
 int Find2(char* buffer, const char* str, const int startIndex)
 {
-	if (!buffer || !str || startIndex < 0) 
+	if (!buffer || !str || startIndex < 0)
 		return -1;
 
 	int len = cstrlen(buffer);
@@ -273,7 +273,7 @@ int Find2(char* buffer, const char* str, const int startIndex)
 
 int Replace2(char* buffer, const char* oldStr, const char* newStr)
 {
-	if (!buffer || !oldStr || !newStr || cstrcmp(oldStr, newStr) == 0) 
+	if (!buffer || !oldStr || !newStr || cstrcmp(oldStr, newStr) == 0)
 		return 0;
 
 	int number = 0;
@@ -315,14 +315,17 @@ int Replace2(char* buffer, const char* oldStr, const char* newStr)
 
 void DisplayMenuToClient(edict_t* ent, MenuText* menu)
 {
-	if (!IsValidPlayer(ent) || IsValidBot(ent)) 
+	if (!IsValidPlayer(ent) || IsValidBot(ent))
 		return;
 
 	const int clientIndex = ENTINDEX(ent) - 1;
+	if (clientIndex < 0 || clientIndex >= engine->GetMaxClients())
+		return;
+
 	if (menu && menu->menuText)
 	{
 		char tempText[1024];
-		cstrcpy(tempText, menu->menuText);
+		snprintf(tempText, sizeof(tempText), "%s", menu->menuText);
 		Replace(tempText, '\v', '\n');
 
 		int i;
@@ -381,7 +384,7 @@ void FreeLibraryMemory(void)
 
 void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
 {
-	if (g_isFakeCommand || g_fakeCommandTimer > engine->GetTime() || IsNullString(format) || !IsValidBot(fakeClient)) 
+	if (g_isFakeCommand || g_fakeCommandTimer > engine->GetTime() || IsNullString(format) || !IsValidBot(fakeClient))
 		return;
 
 	va_list ap;
@@ -391,7 +394,7 @@ void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
 	vsnprintf(command, sizeof(command), format, ap);
 	va_end(ap);
 
-	if (IsNullString(command)) 
+	if (IsNullString(command))
 		return;
 
 	g_isFakeCommand = true;
@@ -399,7 +402,7 @@ void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
 
 	char* current;
 	int length = cstrlen(command);
-	int start = 0, stop = 0, i, argLength, argc;
+	int start = 0, stop = 0, i, argLength, argc, copyLength;
 
 	while (start < length)
 	{
@@ -407,15 +410,22 @@ void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
 		while (stop <length && command[stop] != ';')
 			stop++;
 
-		if (command[stop - 1] == '\n')
+		if (stop > start && command[stop - 1] == '\n')
 			stop--;
 
 		// copy current command segment to fakeArgv
-		argLength = stop - start + 1;
-		for (i = 0; i < argLength && i < 256; ++i)
+		argLength = stop - start;
+		if (argLength <= 0)
+		{
+			start = stop + 1;
+			continue;
+		}
+
+		copyLength = cmin(argLength, static_cast<int>(sizeof(g_fakeArgv)) - 1);
+		for (i = 0; i < copyLength; ++i)
 			g_fakeArgv[i] = command[start + i];
 
-		g_fakeArgv[argLength] = '\0';
+		g_fakeArgv[copyLength] = '\0';
 
 		// process arguments in segment
 		argc = 0;
@@ -431,7 +441,7 @@ void FakeClientCommand(edict_t* fakeClient, const char* format, ...)
 				while (*current != '"' && *current != '\0')
 					++current;
 
-				if (*current == '"') 
+				if (*current == '"')
 					++current;
 			}
 			else
@@ -503,10 +513,12 @@ char* GetField(const char* string, const int fieldId, const bool endLine)
 		// is this field we just processed the wanted one ?
 		if (fieldCount == fieldId)
 		{
-			for (i = start; i <= stop; i++)
-				field[i - start] = string[i]; // store the field value in a string
+			const int fieldSize = stop - start + 1;
+			const int copyLength = cclamp(fieldSize, 0, static_cast<int>(sizeof(field)) - 1);
+			for (i = 0; i < copyLength; i++)
+				field[i] = string[start + i]; // store the field value in a string
 
-			field[i - start] = 0; // terminate the string
+			field[copyLength] = 0; // terminate the string
 			break; // and stop parsing
 		}
 
@@ -514,7 +526,11 @@ char* GetField(const char* string, const int fieldId, const bool endLine)
 	}
 
 	if (endLine)
-		field[cstrlen(field) - 1] = 0;
+	{
+		const int fieldLength = cstrlen(field);
+		if (fieldLength > 0)
+			field[fieldLength - 1] = 0;
+	}
 
 	cstrtrim(field);
 	return &field[0]; // returns the wanted field
@@ -555,7 +571,7 @@ void CreatePath(char* path)
 	while (len > 0 && (path[len-1] == '/' || path[len-1] == '\\'))
 		--len;
 
-	if (len < 1) 
+	if (len < 1)
 		return;
 
 	char* end = path + len;
@@ -681,8 +697,11 @@ int GetTeam(edict_t* ent)
 	if (g_DelayTimer > engine->GetTime())
 		return Team::Counter;
 
+	if (!ent->pvPrivateData)
+		return Team::Count;
+
 	const int* teamPtr = reinterpret_cast<int*>(ent->pvPrivateData) + OFFSET_TEAM;
-	if (teamPtr && *teamPtr > 0) 
+	if (teamPtr && *teamPtr && *teamPtr > 0)
 		return (*teamPtr - 1);
 
 	return Team::Count;
@@ -839,7 +858,7 @@ void HudMessage(edict_t* ent, const bool toCenter, const Color& rgb, char* forma
 	char buffer[1024];
 
 	va_start(ap, format);
-	vsprintf(buffer, format, ap);
+	vsnprintf(buffer, sizeof(buffer), format, ap);
 	va_end(ap);
 
 	MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, nullptr, ent);
@@ -871,7 +890,7 @@ void ServerPrint(const char* format, ...)
 
 	va_list ap;
 	va_start(ap, format);
-	vsprintf(string, format, ap);
+	vsnprintf(string, sizeof(string), format, ap);
 	va_end(ap);
 
 	FormatBuffer(string2, "[%s] %s\n", PRODUCT_LOGTAG, string);
@@ -885,7 +904,7 @@ void ServerPrintNoTag(const char* format, ...)
 
 	va_list ap;
 	va_start(ap, format);
-	vsprintf(string, format, ap);
+	vsnprintf(string, sizeof(string), format, ap);
 	va_end(ap);
 
 	FormatBuffer(string2, "%s\n", string);
@@ -898,12 +917,12 @@ void CenterPrint(const char* format, ...)
 
 	va_list ap;
 	va_start(ap, format);
-	vsprintf(string, format, ap);
+	vsnprintf(string, sizeof(string), format, ap);
 	va_end(ap);
 
 	if (IsDedicatedServer())
 	{
-		ServerPrint(string);
+		ServerPrint("%s", string);
 		return;
 	}
 
@@ -921,16 +940,16 @@ void ChatPrint(const char* format, ...)
 
 	va_list ap;
 	va_start(ap, format);
-	vsprintf(string, format, ap);
+	vsnprintf(string, sizeof(string), format, ap);
 	va_end(ap);
 
 	if (IsDedicatedServer())
 	{
-		ServerPrint(string);
+		ServerPrint("%s", string);
 		return;
 	}
 
-	cstrcat(string, "\n");
+	cstrcat(string, sizeof(string), "\n");
 
 	MESSAGE_BEGIN(MSG_BROADCAST, g_netMsg->GetId(NETMSG_TEXTMSG));
 	WRITE_BYTE(HUD_PRINTTALK);
@@ -947,20 +966,20 @@ void ClientPrint(edict_t* ent, int dest, const char* format, ...)
 
 	va_list ap;
 	va_start(ap, format);
-	vsprintf(string, format, ap);
+	vsnprintf(string, sizeof(string), format, ap);
 	va_end(ap);
 
 	if (FNullEnt(ent) || ent == g_hostEntity)
 	{
 		if (dest & 0x3ff)
-			ServerPrint(string);
+			ServerPrint("%s", string);
 		else
-			ServerPrintNoTag(string);
+			ServerPrintNoTag("%s", string);
 
 		return;
 	}
 
-	cstrcat(string, "\n");
+	cstrcat(string, sizeof(string), "\n");
 
 	if (dest & 0x3ff)
 	{
@@ -991,7 +1010,7 @@ void ServerCommand(const char* format, ...)
 	// concatenate all the arguments in one string
 	va_list ap;
 	va_start(ap, format);
-	vsprintf(string, format, ap);
+	vsnprintf(string, sizeof(string), format, ap);
 	va_end(ap);
 
 	FormatBuffer(string2, "%s\n", string);
@@ -1002,7 +1021,7 @@ char* GetEntityName(edict_t* entity)
 {
 	static char entityName[32];
 	if (!g_pGlobals || FNullEnt(entity))
-		cstrcpy(entityName, "nullptr");
+		cstrcpy(entityName, sizeof(entityName), "nullptr");
 	else if (entity->v.flags & FL_CLIENT || entity->v.flags & FL_FAKECLIENT)
 		cstrncpy(entityName, STRING(entity->v.netname), sizeof(entityName));
 	else
@@ -1039,7 +1058,7 @@ bool OpenConfig(const char* fileName, const char* errorIfNotExists, File* outFil
 char* GetWaypointDir(void)
 {
 	static char wpDir[1024];
-	sprintf(wpDir, "%s/addons/ebot/waypoints/", GetModName());
+	snprintf(wpDir, sizeof(wpDir), "%s/addons/ebot/waypoints/", GetModName());
 	return &wpDir[0];
 }
 
@@ -1098,7 +1117,7 @@ void AddLogEntry(const Log logLevel, const char* format, ...)
 
 	va_list ap;
 	va_start(ap, format);
-	vsprintf(buffer, format, ap);
+	vsnprintf(buffer, sizeof(buffer), format, ap);
 	va_end(ap);
 
 	switch (logLevel)
@@ -1131,7 +1150,7 @@ void AddLogEntry(const Log logLevel, const char* format, ...)
 		}
 	}
 
-	sprintf(logLine, "%s%s", levelString, buffer);
+	snprintf(logLine, sizeof(logLine), "%s%s", levelString, buffer);
 	MOD_AddLogEntry(-1, logLine);
 }
 
@@ -1143,14 +1162,14 @@ void MOD_AddLogEntry(const int mod, char* format)
 	if (mod == -1)
 	{
 		int i;
-		sprintf(modName, "E-BOT");
+		snprintf(modName, sizeof(modName), "E-BOT");
 		constexpr int buildVersion[4] = {PRODUCT_VERSION_DWORD};
 		for (i = 0; i < 4; i++)
 			mod_bV16[i] = static_cast<uint16_t>(buildVersion[i]);
 	}
 
 	ServerPrintNoTag("[%s Log] %s", modName, format);
-	sprintf(buildVersionName, "%s_build_%u_%u_%u_%u.txt", modName, mod_bV16[0], mod_bV16[1], mod_bV16[2], mod_bV16[3]);
+	snprintf(buildVersionName, sizeof(buildVersionName), "%s_build_%u_%u_%u_%u.txt", modName, mod_bV16[0], mod_bV16[1], mod_bV16[2], mod_bV16[3]);
 
 	// if logs folder deleted, it will result a crash... so create it again before writing logs...
 	char buffer[1024];
@@ -1166,8 +1185,8 @@ void MOD_AddLogEntry(const int mod, char* format)
 	if (!checkLogFP.IsValid())
 	{
 		fp.Printf("---------- %s Log \n", modName);
-		fp.Printf("---------- %s Version: %u.%u  \n", modName, mod_bV16[0], mod_bV16[1]);
-		fp.Printf("---------- %s Build: %u.%u.%u.%u  \n", modName, mod_bV16[0], mod_bV16[1], mod_bV16[2], mod_bV16[3]);
+		fp.Printf("---------- %s Version: %u.%u	\n", modName, mod_bV16[0], mod_bV16[1]);
+		fp.Printf("---------- %s Build: %u.%u.%u.%u	\n", modName, mod_bV16[0], mod_bV16[1], mod_bV16[2], mod_bV16[3]);
 		fp.Printf("----------------------------- \n\n");
 	}
 
@@ -1178,7 +1197,7 @@ void MOD_AddLogEntry(const int mod, char* format)
 	time_t tickTime = time(&tickTime);
 	tm* time = localtime(&tickTime);
 
-	sprintf(logLine, "[%02d:%02d:%02d] %s", time->tm_hour, time->tm_min, time->tm_sec, format);
+	snprintf(logLine, sizeof(logLine), "[%02d:%02d:%02d] %s", time->tm_hour, time->tm_min, time->tm_sec, format);
 	fp.Printf("%s\n", logLine);
 
 	if (mod != -1)
@@ -1193,7 +1212,7 @@ void MOD_AddLogEntry(const int mod, char* format)
 // be filled with bot pointer, else with edict pointer(!).
 bool FindNearestPlayer(void** pvHolder, edict_t* to, const float searchDistance, const bool sameTeam, const bool needBot, const bool isAlive, const bool needDrawn)
 {
-	if (!pvHolder || FNullEnt(to)) 
+	if (!pvHolder || FNullEnt(to))
 		return false;
 
 	Vector toOrigin = GetEntityOrigin(to);
@@ -1209,13 +1228,13 @@ bool FindNearestPlayer(void** pvHolder, edict_t* to, const float searchDistance,
 			continue;
 
 		skipPlayer = false;
-		if (sameTeam && client.team != GetTeam(to)) 
+		if (sameTeam && client.team != GetTeam(to))
 			skipPlayer = true;
 
-		if (isAlive && !IsAlive(client.ent)) 
+		if (isAlive && !IsAlive(client.ent))
 			skipPlayer = true;
 
-		if (needBot && !IsValidBot(client.index)) 
+		if (needBot && !IsValidBot(client.index))
 			skipPlayer = true;
 
 		if (needDrawn && (client.ent->v.effects & EF_NODRAW))

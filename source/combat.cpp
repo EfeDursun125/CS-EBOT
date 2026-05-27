@@ -32,7 +32,7 @@ int Bot::GetNearbyFriendsNearPosition(const Vector& origin, const float radius)
 	int count = 0;
 	for (const Clients& client : g_clients)
 	{
-		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != m_team || client.ent == m_myself)
+		if (!(client.flags & CFLAG_USED) || !(client.flags & CFLAG_ALIVE) || client.team != m_team || client.ent == GetEntity())
 			continue;
 
 		if ((client.origin - origin).GetLengthSquared() < radius)
@@ -107,7 +107,7 @@ void Bot::FindFriendsAndEnemiens(void)
 			if (!(client.flags & CFLAG_ALIVE))
 				continue;
 
-			if (client.ent == m_myself)
+			if (client.ent == GetEntity())
 				continue;
 
 			if (!IsAlive(client.ent))
@@ -123,7 +123,7 @@ void Bot::FindFriendsAndEnemiens(void)
 				if (distance < m_friendDistance)
 				{
 					// simple check
-					TraceLine(myOrigin, client.ent->v.origin + client.ent->v.view_ofs, TraceIgnore::Everything, m_myself, &tr);
+					TraceLine(myOrigin, client.ent->v.origin + client.ent->v.view_ofs, TraceIgnore::Everything, GetEntity(), &tr);
 					if (tr.flFraction < 1.0f)
 						continue;
 					
@@ -176,7 +176,7 @@ void Bot::FindFriendsAndEnemiens(void)
 			if (!(client.flags & CFLAG_ALIVE))
 				continue;
 
-			if (client.ent == m_myself)
+			if (client.ent == GetEntity())
 				continue;
 
 			if (!IsAlive(client.ent))
@@ -192,7 +192,7 @@ void Bot::FindFriendsAndEnemiens(void)
 				if (distance < m_friendDistance)
 				{
 					// simple check
-					TraceLine(myOrigin, client.ent->v.origin + client.ent->v.view_ofs, TraceIgnore::Everything, m_myself, &tr);
+					TraceLine(myOrigin, client.ent->v.origin + client.ent->v.view_ofs, TraceIgnore::Everything, GetEntity(), &tr);
 					if (tr.flFraction < 1.0f)
 						continue;
 					
@@ -276,7 +276,7 @@ void Bot::FindEnemyEntities(void)
 		{
 			// simple check
 			origin = GetBoxOrigin(entity);
-			TraceLine(myOrigin, origin, TraceIgnore::Everything, m_myself, &tr);
+			TraceLine(myOrigin, origin, TraceIgnore::Everything, GetEntity(), &tr);
 			if (tr.flFraction < 1.0f)
 			{
 				if (!FNullEnt(tr.pHit) && tr.pHit != entity)
@@ -622,7 +622,7 @@ void Bot::SelectWeaponByName(const char* name)
 {
 	if (wpnTimer < engine->GetTime())
 	{
-		FakeClientCommand(m_myself, name);
+		FakeClientCommand(GetEntity(), name);
 		wpnTimer = engine->GetTime() + 0.05;
 	}
 }

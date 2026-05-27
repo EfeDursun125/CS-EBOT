@@ -136,39 +136,231 @@ int BotControl::CreateBot(char name[32], int skill, int personality, const int t
 
 	if (!name[0])
 	{
-		bool getName = false;
-		if (!g_botNames.IsEmpty())
-		{
-			int16_t i;
-			for (i = 0; i < g_botNames.Size(); i++)
-			{
-				if (!g_botNames[i].isUsed)
-				{
-					getName = true;
-					break;
-				}
-			}
-		}
-
-		if (getName)
-		{
-			bool nameUse = true;
-			while (nameUse)
-			{
-				NameItem& botName = g_botNames.Random();
-				if (!botName.isUsed)
-				{
-					nameUse = false;
-					botName.isUsed = true;
-					sprintf(outputName, "%s", botName.name);
-				}
-			}
-		}
+		if (g_botNames.IsEmpty())
+			snprintf(outputName, sizeof(outputName), "e-bot %i", crandomint(1, 9999));
 		else
-			sprintf(outputName, "e-bot %i", crandomint(1, 9999)); // just pick ugly random name
+		{
+			char bName[64];
+			bool nameUnique = false;
+			int attempts = 0;
+
+			auto isPureLowercaseSingleWord = [](const char* str) -> bool {
+				if (!str || str[0] == '\0')
+					return false;
+				for (int i = 0; str[i] != '\0'; i++)
+				{
+					if (str[i] < 'a' || str[i] > 'z')
+						return false;
+				}
+				return true;
+			};
+
+			while (!nameUnique && attempts < 15)
+			{
+				attempts++;
+				bName[0] = '\0';
+
+				int idx = crandomint(0, g_botNames.Size() - 1);
+				const char* baseName = g_botNames[idx].name;
+
+				if (!isPureLowercaseSingleWord(baseName))
+				{
+					snprintf(bName, sizeof(bName), "%s", baseName);
+				}
+				else
+				{
+					if (crandomfloat(0.0f, 1.0f) < 0.55f)
+					{
+						int safety = 0;
+						int idx2 = crandomint(0, g_botNames.Size() - 1);
+						while (safety < 20)
+						{
+							if (idx2 != idx && isPureLowercaseSingleWord(g_botNames[idx2].name))
+								break;
+							idx2 = crandomint(0, g_botNames.Size() - 1);
+							safety++;
+						}
+
+						const char* n1 = baseName;
+						const char* n2 = isPureLowercaseSingleWord(g_botNames[idx2].name) ? g_botNames[idx2].name : "";
+
+						if (n2[0] != '\0')
+						{
+							const char* sep = " ";
+							float sepRand = crandomfloat(0.0f, 1.0f);
+
+							if (sepRand < 0.15f)
+								sep = "_";
+							else if (sepRand < 0.18f)
+								sep = "";
+							else if (sepRand < 0.20f)
+								sep = "-";
+
+							snprintf(bName, sizeof(bName), "%s%s%s", n1, sep, n2);
+						}
+						else
+						{
+							snprintf(bName, sizeof(bName), "%s", n1);
+						}
+					}
+					else
+					{
+						snprintf(bName, sizeof(bName), "%s", baseName);
+					}
+
+					if (crandomfloat(0.0f, 1.0f) < 0.18f)
+					{
+						int num;
+						float nr = crandomfloat(0.0f, 1.0f);
+
+						if (nr < 0.15f)
+							num = 69;
+						else if (nr < 0.30f)
+							num = 420;
+						else if (nr < 0.40f)
+							num = 666;
+						else if (nr < 0.50f)
+							num = 777;
+						else
+							num = crandomint(0, 9999);
+
+						char numStr[32];
+						if (crandomfloat(0.0f, 1.0f) < 0.5f)
+							snprintf(numStr, sizeof(numStr), "%d", num);
+						else
+							snprintf(numStr, sizeof(numStr), "_%d", num);
+
+						int len = cstrlen(bName);
+						if (len + cstrlen(numStr) < static_cast<int>(sizeof(bName)) - 1)
+							cstrcat(bName, sizeof(bName), numStr);
+					}
+
+					if (crandomfloat(0.0f, 1.0f) < 0.04f)
+					{
+						const char* wrappers[] = {
+							"xxX", "Xxx", "xXx", "xx", "XX", "xX", "Xx", "[]", "<>", "--", "__", "-->", "<--", ".."
+						};
+						int wIdx = crandomint(0, 13);
+						const char* w = wrappers[wIdx];
+						int wLen = cstrlen(w);
+						if (wLen >= 2)
+						{
+							char tempName[128];
+							snprintf(tempName, sizeof(tempName), "%s%s%c", w, bName, w[1]);
+							cstrncpy(bName, tempName, sizeof(bName));
+						}
+					}
+					else if (crandomfloat(0.0f, 1.0f) < 0.03f)
+					{
+						const char* suffixes[] = {
+							".exe", ".dll", ".zip", ".rar", ".com", ".net"
+						};
+						int sIdx = crandomint(0, 5);
+						const char* suf = suffixes[sIdx];
+						int len = cstrlen(bName);
+						if (len + cstrlen(suf) < static_cast<int>(sizeof(bName)) - 1)
+							cstrcat(bName, sizeof(bName), suf);
+					}
+
+					// Typo / mutation
+					if (crandomfloat(0.0f, 1.0f) < 0.01f && cstrlen(bName) > 3)
+					{
+						int mode = crandomint(0, 2);
+						int bNameLen = cstrlen(bName);
+						if (mode == 0)
+						{
+							int index = crandomint(0, bNameLen - 1);
+							for (int j = index; j < bNameLen; j++)
+								bName[j] = bName[j + 1];
+						}
+						else if (mode == 1)
+						{
+							int index = crandomint(0, bNameLen - 1);
+							if (bNameLen + 1 < static_cast<int>(sizeof(bName)) - 1)
+							{
+								for (int j = bNameLen; j > index; j--)
+									bName[j + 1] = bName[j];
+								bName[index + 1] = bName[index];
+								bName[bNameLen + 1] = '\0';
+							}
+						}
+						else
+						{
+							const char* letters = "abcdefghijklmnopqrstuvwxyz";
+							int index = crandomint(0, bNameLen - 1);
+							if ((bName[index] >= 'a' && bName[index] <= 'z') || (bName[index] >= 'A' && bName[index] <= 'Z'))
+							{
+								bName[index] = letters[crandomint(0, 25)];
+							}
+						}
+					}
+
+					float caseRand = crandomfloat(0.0f, 1.0f);
+					int bNameLen = cstrlen(bName);
+					if (caseRand < 0.10f)
+					{
+						for (int j = 0; j < bNameLen; j++)
+						{
+							if (bName[j] >= 'a' && bName[j] <= 'z')
+								bName[j] -= 32;
+						}
+					}
+					else if (caseRand < 0.20f)
+					{
+						bool nextUpper = true;
+						for (int j = 0; j < bNameLen; j++)
+						{
+							if (bName[j] == ' ' || bName[j] == '_' || bName[j] == '-')
+								nextUpper = true;
+							else if (nextUpper)
+							{
+								if (bName[j] >= 'a' && bName[j] <= 'z')
+									bName[j] -= 32;
+								nextUpper = false;
+							}
+							else
+							{
+								if (bName[j] >= 'A' && bName[j] <= 'Z')
+									bName[j] += 32;
+							}
+						}
+					}
+					else if (caseRand < 0.28f)
+					{
+						for (int j = 0; j < bNameLen; j++)
+						{
+							if (((bName[j] >= 'a' && bName[j] <= 'z') || (bName[j] >= 'A' && bName[j] <= 'Z')) && crandomfloat(0.0f, 1.0f) < 0.35f)
+							{
+								if (bName[j] >= 'a' && bName[j] <= 'z')
+									bName[j] -= 32;
+							}
+						}
+					}
+				}
+
+				if (cstrlen(bName) > 22)
+					bName[22] = '\0';
+
+				nameUnique = true;
+				for (const auto &client : g_clients)
+				{
+					if (IsValidPlayer(client.ent))
+					{
+						const char* clientName = GetEntityName(client.ent);
+						if (clientName && !cstricmp(clientName, bName))
+						{
+							nameUnique = false;
+							break;
+						}
+					}
+				}
+			}
+
+			snprintf(outputName, sizeof(outputName), "%s", bName);
+		}
 	}
 	else
-		sprintf(outputName, "%s", name);
+		snprintf(outputName, sizeof(outputName), "%s", name);
 
 	char botName[64];
 	if (ebot_nametag.GetInt() == 2 && addTag)
@@ -191,6 +383,7 @@ int BotControl::CreateBot(char name[32], int skill, int personality, const int t
 	{
 		m_bots[index]->m_navNode.Destroy();
 		delete m_bots[index];
+		m_bots[index] = nullptr;
 	}
 
 	m_bots[index] = new(std::nothrow) Bot(bot, skill, personality, team, member);
@@ -270,7 +463,7 @@ void BotControl::AddBot(char name[32], const int skill, const int personality, c
 	CreateItem queueID;
 
 	// fill the holder
-	cstrcpy(queueID.name, name);
+	cstrcpy(queueID.name, sizeof(queueID.name), name);
 	queueID.skill = skill;
 	queueID.personality = personality;
 	queueID.team = team;
@@ -285,7 +478,7 @@ void BotControl::AddBot(char name[32], const int skill, const int personality, c
 		ebot_quota.SetInt(botsNum);
 }
 
-int BotControl::AddBotAPI(char name[32], const int skill,const  int team)
+int BotControl::AddBotAPI(char name[32], const int skill,const	int team)
 {
 	const int botsNum = GetBotsNum() + 1;
 	if (botsNum > ebot_quota.GetInt())
@@ -387,17 +580,17 @@ void BotControl::FillServer(int selection, const int personality, const int skil
 
 	const char teamDescs[6][12] =
 	{
-	   "",
-	   {"Terrorists"},
-	   {"CTs"},
-	   "",
-	   "",
-	   {"Random"},
+		 "",
+		 {"Terrorists"},
+		 {"CTs"},
+		 "",
+		 "",
+		 {"Random"},
 	};
 
 	const int toAdd = numToAdd == -1 ? (maxClients - (getHumansNum + getBotsNum)) : numToAdd;
 	int i, randomizedSkill;
-	for (i = 0; i <= toAdd; i++)
+	for (i = 0; i < toAdd; i++)
 	{
 		// since we got constant skill from menu (since creation process call automatic), we need to manually randomize skill here, on given skill there
 		randomizedSkill = 0;
@@ -461,23 +654,39 @@ void BotControl::RemoveMenu(edict_t* ent, const int selection)
 	char tempBuffer[512], buffer[512];
 	cmemset(tempBuffer, 0, sizeof(tempBuffer));
 	cmemset(buffer, 0, sizeof(buffer));
-
+	
 	int i;
+	int bufferLength = 0;
 	int validSlots = (selection == 4) ? (1 << 9) : ((1 << 8) | (1 << 9));
 	for (i = ((selection - 1) * 8); i < selection * 8; ++i)
 	{
-		if (m_bots[i] && !FNullEnt(m_bots[i]->m_myself))
+		const int itemNumber = i - ((selection - 1) * 8) + 1;
+		int writtenChars = 0;
+
+		if (m_bots[i] && !FNullEnt(m_bots[i]->GetEntity()))
 		{
 			validSlots |= 1 << (i - ((selection - 1) * 8));
-			sprintf(buffer, "%s %1.1d. %s%s\n", buffer, i - ((selection - 1) * 8) + 1, GetEntityName(m_bots[i]->m_myself), GetTeam(m_bots[i]->m_myself) == Team::Counter ? " \\y(CT)\\w" : " \\r(T)\\w");
+			writtenChars = snprintf(buffer + bufferLength, sizeof(buffer) - bufferLength, " %1.1d. %s%s\n", itemNumber, GetEntityName(m_bots[i]->GetEntity()), GetTeam(m_bots[i]->GetEntity()) == Team::Counter ? " \\y(CT)\\w" : " \\r(T)\\w");
 		}
+
 		else if (!FNullEnt(g_clients[i].ent))
-			sprintf(buffer, "%s %1.1d.\\d %s (Not E-BOT) \\w\n", buffer, i - ((selection - 1) * 8) + 1, GetEntityName(g_clients[i].ent));
+			writtenChars = snprintf(buffer + bufferLength, sizeof(buffer) - bufferLength, " %1.1d.\\d %s (Not E-BOT) \\w\n", itemNumber, GetEntityName(g_clients[i].ent));
 		else
-			sprintf(buffer, "%s %1.1d.\\d Null \\w\n", buffer, i - ((selection - 1) * 8) + 1);
+			writtenChars = snprintf(buffer + bufferLength, sizeof(buffer) - bufferLength, " %1.1d.\\d Null \\w\n", itemNumber);
+
+		if (writtenChars < 0)
+			break;
+
+		if (writtenChars >= static_cast<int>(sizeof(buffer) - bufferLength))
+		{
+			bufferLength = static_cast<int>(sizeof(buffer)) - 1;
+			break;
+		}
+
+		bufferLength += writtenChars;
 	}
 
-	sprintf(tempBuffer, "\\yE-BOT Remove Menu (%d/4):\\w\n\n%s\n%s 0. Back", selection, buffer, (selection == 4) ? "" : " 9. More...\n");
+	snprintf(tempBuffer, sizeof(tempBuffer), "\\yE-BOT Remove Menu (%d/4):\\w\n\n%s\n%s 0. Back", selection, buffer, (selection == 4) ? "" : " 9. More...\n");
 
 	switch (selection)
 	{
@@ -595,12 +804,12 @@ void BotControl::Free(void)
 {
 	for (auto& bot : m_bots)
 	{
-		if (!bot)
-			continue;
-
-		bot->m_navNode.Destroy();
-		delete bot;
-		bot = nullptr;
+		if (bot)
+		{
+			bot->m_navNode.Destroy();
+			delete bot;
+			bot = nullptr;
+		}
 	}
 
 	m_creationTab.Destroy();
@@ -627,23 +836,26 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 	if (!bot)
 		return;
 
+	// CRITICAL FIX: DO NOT memset 'this'!
+	// It corrupts the class vtable and members, causing crashes during round restart or player think
+	// Default values are now safely initialized in the class declaration
+
 	char rejectReason[128];
+
 	const int clientIndex = ENTINDEX(bot);
-	cmemset(reinterpret_cast<void*>(this), 0, sizeof(*this));
-
-	const int netname = bot->v.netname;
-	bot->v = {}; // reset entire the entvars structure (fix from regamedll)
-
-	// restore containing entity, name and client flags
-	bot->v.pContainingEntity = bot;
-	bot->v.flags = FL_FAKECLIENT | FL_CLIENT;
-	bot->v.netname = netname;
-
 	pev = &bot->v;
-	if (bot->pvPrivateData)
-		FREE_PRIVATE(bot);
 
-	bot->pvPrivateData = nullptr;
+	// free entity private data correctly on spawn to prevent memory leaks/dangling pointers
+	if (bot->pvPrivateData != nullptr)
+	{
+		if (g_engfuncs.pfnFreeEntPrivateData != nullptr)
+		{
+			g_engfuncs.pfnFreeEntPrivateData(bot);
+			bot->pvPrivateData = nullptr;
+		}
+	}
+	else
+		bot->pvPrivateData = nullptr;
 
 	// create the player entity by calling MOD's player function
 	BotControl::CallGameEntity(&bot->v);
@@ -679,9 +891,10 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 	}
 
 	MDLL_ClientPutInServer(bot);
+	bot->v.flags |= FL_FAKECLIENT;
 
 	// initialize all the variables for this bot...
-	m_notStarted = true;  // hasn't joined game yet
+	m_notStarted = true;	// hasn't joined game yet
 	m_difficulty = ebot_difficulty.GetInt(); // set difficulty
 	m_basePingLevel = crandomint(11, 111);
 
@@ -709,8 +922,11 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 			m_personality = Personality::Normal;
 	}
 
-	cmemset(&m_ammoInClip, 1, sizeof(m_ammoInClip));
-	cmemset(&m_ammo, 1, sizeof(m_ammo));
+	for (int i = 0; i <= Const_MaxWeapons; i++)
+	{
+		m_ammoInClip[i] = 0;
+		m_ammo[i] = 0;
+	}
 	m_currentWeapon = 0; // current weapon is not assigned at start
 
 	// assign team and class
@@ -726,30 +942,30 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 
 Bot::~Bot(void)
 {
+	const char* name = GetEntityName(GetEntity());
 	m_navNode.Destroy();
-	const char* name = GetEntityName(m_myself);
 	if (IsNullString(name))
 		return;
 
-	char botName[64];
 	int16_t i;
+	char botName[64];
 	for (i = 0; i < g_botNames.Size(); i++)
 	{
+		if (!cstrcmp(g_botNames[i].name, name))
+		{
+			g_botNames[i].isUsed = false;
+			break;
+		}
+
+		snprintf(botName, sizeof(botName), "[E-BOT] %s", g_botNames[i].name);
 		if (!cstrcmp(botName, name))
 		{
 			g_botNames[i].isUsed = false;
 			break;
 		}
 
-		sprintf(botName, "[E-BOT] %s", g_botNames[i].name);
-		if (!cstrcmp(g_botNames[i].name, name))
-		{
-			g_botNames[i].isUsed = false;
-			break;
-		}
-
-		sprintf(botName, "[E-BOT] %s (%i)", g_botNames[i].name, m_skill);
-		if (!cstrcmp(g_botNames[i].name, name))
+		snprintf(botName, sizeof(botName), "[E-BOT] %s (%i)", g_botNames[i].name, m_skill);
+		if (!cstrcmp(botName, name))
 		{
 			g_botNames[i].isUsed = false;
 			break;
@@ -763,12 +979,17 @@ void Bot::NewRound(void)
 	// clear all allocated path nodes
 	m_navNode.Clear();
 
-	m_team = GetTeam(m_myself);
-	m_isAlive = IsAlive(m_myself);
-	if (!m_isAlive) // if bot died, clear all weapon stuff and force buying again
+	m_team = GetTeam(GetEntity());
+	m_isAlive = IsAlive(GetEntity());
+	if (m_isAlive)
+		m_notStarted = false;
+	else // if bot died, clear all weapon stuff and force buying again
 	{
-		cmemset(&m_ammoInClip, 0, sizeof(m_ammoInClip));
-		cmemset(&m_ammo, 0, sizeof(m_ammo));
+		for (int i = 0; i <= Const_MaxWeapons; i++)
+		{
+			m_ammoInClip[i] = 0;
+			m_ammo[i] = 0;
+		}
 		m_currentWeapon = 0;
 	}
 
@@ -797,9 +1018,15 @@ void Bot::NewRound(void)
 	m_hasEnemiesNear = false;
 	m_hasEntitiesNear = false;
 	m_hasFriendsNear = false;
+	m_nearestEnemy = nullptr;
+	m_nearestFriend = nullptr;
+	m_nearestEntity = nullptr;
+	m_avoid = nullptr;
+	m_waiting = nullptr;
+	m_wpnTimer = 0.0f;
 
-	m_team = GetTeam(m_myself);
-	m_isZombieBot = IsZombieEntity(m_myself);
+	m_team = GetTeam(GetEntity());
+	m_isZombieBot = IsZombieEntity(GetEntity());
 
 	m_prevTravelFlags = 0;
 	m_currentTravelFlags = 0;
@@ -844,8 +1071,17 @@ void Bot::Kill(void)
 	if (FNullEnt(hurtEntity))
 		return;
 
-	hurtEntity->v.classname = MAKE_STRING(g_weaponDefs[m_currentWeapon].className);
-	hurtEntity->v.dmg_inflictor = m_myself;
+	// CRITICAL FIX: Validate m_currentWeapon bounds.
+	// Out-of-bounds g_weaponDefs access causes corrupted classname in trigger_hurt.
+	// This corrupts the CWeaponBox and crashes the engine (CWeaponBox::Kill) on round restart.
+	const char* weaponClassName = "worldspawn";
+	if (m_currentWeapon > 0 && m_currentWeapon < Const_MaxWeapons && !IsNullString(g_weaponDefs[m_currentWeapon].className))
+	{
+		weaponClassName = g_weaponDefs[m_currentWeapon].className;
+	}
+
+	hurtEntity->v.classname = MAKE_STRING(weaponClassName);
+	hurtEntity->v.dmg_inflictor = GetEntity();
 	hurtEntity->v.dmg = 999999.0f;
 	hurtEntity->v.dmg_take = 1.0f;
 	hurtEntity->v.dmgtime = 2.0f;
@@ -854,7 +1090,7 @@ void Bot::Kill(void)
 	g_engfuncs.pfnSetOrigin(hurtEntity, Vector(-4000.0f, -4000.0f, -4000.0f));
 
 	KeyValueData kv;
-	kv.szClassName = const_cast<char*>(g_weaponDefs[m_currentWeapon].className);
+	kv.szClassName = const_cast<char*>(weaponClassName);
 	kv.szKeyName = "damagetype";
 	char buffer[32];
 	FormatBuffer(buffer, "%d", (1 << 4));
@@ -863,14 +1099,14 @@ void Bot::Kill(void)
 
 	MDLL_KeyValue(hurtEntity, &kv);
 	MDLL_Spawn(hurtEntity);
-	MDLL_Touch(hurtEntity, m_myself);
+	MDLL_Touch(hurtEntity, GetEntity());
 
 	g_engfuncs.pfnRemoveEntity(hurtEntity);
 }
 
 void Bot::Kick(void)
 {
-	const char* myName = GetEntityName(m_myself);
+	const char* myName = GetEntityName(GetEntity());
 	if (IsNullString(myName))
 		return;
 
@@ -889,7 +1125,7 @@ void Bot::Kick(void)
 void Bot::StartGame(void)
 {
 	// check if something has assigned team to us
-	if ((m_team == Team::Terrorist || m_team == Team::Counter) && IsAlive(m_myself))
+	if ((m_team == Team::Terrorist || m_team == Team::Counter) && IsAlive(GetEntity()))
 	{
 		m_notStarted = false;
 		m_startAction = CMENU_IDLE;
@@ -918,7 +1154,7 @@ void Bot::StartGame(void)
 
 		// select the team the bot wishes to join...
 		g_fakeCommandTimer = 0.0f;
-		FakeClientCommand(m_myself, "menuselect %d", m_wantedTeam);
+		FakeClientCommand(GetEntity(), "menuselect %d", m_wantedTeam);
 		m_startAction = CMENU_TEAM; // switch to team
 	}
 
@@ -928,7 +1164,7 @@ void Bot::StartGame(void)
 
 		// select the class the bot wishes to use...
 		g_fakeCommandTimer = 0.0f;
-		FakeClientCommand(m_myself, "menuselect %d", m_wantedClass);
+		FakeClientCommand(GetEntity(), "menuselect %d", m_wantedClass);
 
 		// bot has now joined the game (doesn't need to be started)
 		m_notStarted = false;

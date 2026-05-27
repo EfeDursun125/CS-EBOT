@@ -61,6 +61,7 @@ void Engine::PushRegisteredConVarsToEngine(void)
 		g_engfuncs.pfnCVarRegister(&ptr->reg);
 		ptr->self->m_eptr = g_engfuncs.pfnCVarGetPointer(ptr->reg.name);
 	}
+
 	m_regVars.Destroy();
 }
 
@@ -72,17 +73,17 @@ void Engine::GetGameConVarsPointers(void)
 
 const Vector& Engine::GetGlobalVector(const GlobalVector id)
 {
-	if (!g_pGlobals)
-		return nullvec;
-
-	switch (id)
+	if (g_pGlobals)
 	{
-		case GLOBALVECTOR_FORWARD:
-			return g_pGlobals->v_forward;
-		case GLOBALVECTOR_RIGHT:
-			return g_pGlobals->v_right;
-		case GLOBALVECTOR_UP:
-			return g_pGlobals->v_up;
+		switch (id)
+		{
+			case GLOBALVECTOR_FORWARD:
+				return g_pGlobals->v_forward;
+			case GLOBALVECTOR_RIGHT:
+				return g_pGlobals->v_right;
+			case GLOBALVECTOR_UP:
+				return g_pGlobals->v_up;
+		}
 	}
 
 	return nullvec;
@@ -90,25 +91,25 @@ const Vector& Engine::GetGlobalVector(const GlobalVector id)
 
 void Engine::SetGlobalVector(const GlobalVector id, const Vector& newVector)
 {
-	if (!g_pGlobals)
-		return;
-
-	switch (id)
+	if (g_pGlobals)
 	{
-		case GLOBALVECTOR_FORWARD:
+		switch (id)
 		{
-			g_pGlobals->v_forward = newVector;
-			break;
-		}
-		case GLOBALVECTOR_RIGHT:
-		{
-			g_pGlobals->v_right = newVector;
-			break;
-		}
-		case GLOBALVECTOR_UP:
-		{
-			g_pGlobals->v_up = newVector;
-			break;
+			case GLOBALVECTOR_FORWARD:
+			{
+				g_pGlobals->v_forward = newVector;
+				break;
+			}
+			case GLOBALVECTOR_RIGHT:
+			{
+				g_pGlobals->v_right = newVector;
+				break;
+			}
+			case GLOBALVECTOR_UP:
+			{
+				g_pGlobals->v_up = newVector;
+				break;
+			}
 		}
 	}
 }
@@ -140,15 +141,15 @@ void Engine::PrintServer(const char* format, ...)
 	char buffer[1024];
 	va_list ap;
 	va_start(ap, format);
-	vsprintf(buffer, format, ap);
+	vsnprintf(buffer, sizeof(buffer), format, ap);
 	va_end(ap);
-	cstrcat(buffer, "\n");
+	cstrcat(buffer, sizeof(buffer), "\n");
 	g_engfuncs.pfnServerPrint(buffer);
 }
 
 int Engine::GetMaxClients(void)
 {
-	if (g_pGlobals)
+	if (g_pGlobals && g_pGlobals->maxClients && g_pGlobals->maxClients < 32)
 		return g_pGlobals->maxClients;
 
 	return 32;
@@ -156,7 +157,7 @@ int Engine::GetMaxClients(void)
 
 float Engine::GetTime(void)
 {
-	if (g_pGlobals)
+	if (g_pGlobals && g_pGlobals->time)
 		return g_pGlobals->time;
 
 	return 1.0f;
@@ -171,7 +172,10 @@ const Entity& Engine::GetEntityByIndex(const int index)
 
 const Client& Engine::GetClientByIndex(const int index)
 {
-	return m_clients[index];
+	if (index >= 0 || index < 32)
+		return m_clients[index];
+
+	return m_clients[0];
 }
 
 void Engine::MaintainClients(void)
@@ -278,7 +282,7 @@ Vector Client::GetOrigin(void) const
 
 bool Client::IsAlive(void) const
 {
-	return !!(m_flags & CLIENT_ALIVE | CLIENT_VALID);
+	return !!(m_flags & (CLIENT_ALIVE | CLIENT_VALID));
 }
 
 void Client::Maintain(const Entity& ent)

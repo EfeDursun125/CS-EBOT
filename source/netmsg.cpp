@@ -19,8 +19,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 //
-// $Id:$
-//
 
 #include "../include/core.h"
 
@@ -45,15 +43,9 @@ inline void RoundEndMessage(void)
 	}
 }
 
-#define PTR_TO_BYTE(in) *reinterpret_cast<uint8_t*>(in)
-#define PTR_TO_FLT(in) *reinterpret_cast<float*>(in)
-#define PTR_TO_INT(in) *reinterpret_cast<int*>(in)
-#define PTR_TO_STR(in) reinterpret_cast<char*>(in)
-
 NetworkMsg::NetworkMsg(void)
 {
 	m_message = NETMSG_UNDEFINED;
-	m_state = 0;
 	m_bot = nullptr;
 
 	for (auto& message : m_registerdMessages)
@@ -66,350 +58,254 @@ void NetworkMsg::HandleMessageIfRequired(const int messageType, const int requir
 		SetMessage(requiredType);
 }
 
-void NetworkMsg::Execute(void* p)
+void NetworkMsg::Execute(void)
 {
 	if (m_message == NETMSG_UNDEFINED)
-		return; // no message or not for bot, return
+		return;
 
-	// some needed variables
-	static uint8_t r = 0, g = 0, b = 0;
-
-	static int index = 0, numPlayers = 0;
-	static int state = 0, id = 0;
-
-	static WeaponProperty weaponProp;
-	static char* x;
-
-	// now starts of netmessage execution
 	switch (m_message)
 	{
 		case NETMSG_VGUI:
 		{
-			// this message is sent when a VGUI menu is displayed
-			if (!m_state)
+			if (m_args.Size() < 1)
+				break;
+
+			const int menuType = m_args[0].longVal;
+			switch (menuType)
 			{
-				switch (PTR_TO_INT(p))
+				case GMENU_TEAM:
 				{
-					case GMENU_TEAM:
-					{
-						if (m_bot)
-							m_bot->m_startAction = CMENU_TEAM;
-						break;
-					}
-					case GMENU_TERRORIST:
-					case GMENU_COUNTER:
-					{
-						if (m_bot)
-							m_bot->m_startAction = CMENU_CLASS;
-						break;
-					}
+					if (m_bot)
+						m_bot->m_startAction = CMENU_TEAM;
+					break;
+				}
+				case GMENU_TERRORIST:
+				case GMENU_COUNTER:
+				{
+					if (m_bot)
+						m_bot->m_startAction = CMENU_CLASS;
+					break;
 				}
 			}
 			break;
 		}
+
 		case NETMSG_SHOWMENU:
 		{
-			// this message is sent when a text menu is displayed
-			if (m_state < 3) // ignore first 3 fields of message
+			if (m_args.Size() < 4 || !m_bot)
 				break;
 
-			if (m_bot)
-			{
-				x = PTR_TO_STR(p);
-				if (!x)
-					break;
+			const char* x = m_args[3].strVal;
+			if (!x)
+				break;
 
-				switch (x[1])
+			switch (x[1])
+			{
+				case 'T':
 				{
-					case 'T':
+					switch (charToInt(const_cast<char*>(x)))
 					{
-						switch (charToInt(x))
+						case 1010:
+						case 1616:
 						{
-							case 1010:
-							{
-								m_bot->m_startAction = CMENU_TEAM;
-								break;
-							}
-							case 1616:
-							{
-								m_bot->m_startAction = CMENU_TEAM;
-								break;
-							}
-							case 1593:
-							{
-								m_bot->m_startAction = CMENU_CLASS;
-								break;
-							}
+							m_bot->m_startAction = CMENU_TEAM;
+							break;
 						}
-						break;
-					}
-					case 'I':
-					{
-						switch (charToInt(x))
-						{
-							case 1866:
-							{
-								m_bot->m_startAction = CMENU_TEAM;
-								break;
-							}
-							case 1260:
-							{
-								m_bot->m_startAction = CMENU_TEAM;
-								break;
-							}
-							case 1594:
-							{
-								m_bot->m_startAction = CMENU_TEAM;
-								break;
-							}
-							case 2200:
-							{
-								m_bot->m_startAction = CMENU_TEAM;
-								break;
-							}
-						}
-						break;
-					}
-					case 'C':
-					{
-						if (charToInt(x) == 787)
+						case 1593:
 						{
 							m_bot->m_startAction = CMENU_CLASS;
 							break;
 						}
-						break;
 					}
+					break;
+				}
+				case 'I':
+				{
+					switch (charToInt(const_cast<char*>(x)))
+					{
+						case 1866:
+						case 1260:
+						case 1594:
+						case 2200:
+						{
+							m_bot->m_startAction = CMENU_TEAM;
+							break;
+						}
+					}
+					break;
+				}
+				case 'C':
+				{
+					if (charToInt(const_cast<char*>(x)) == 787)
+					{
+						m_bot->m_startAction = CMENU_CLASS;
+					}
+					break;
 				}
 			}
-
 			break;
 		}
+
 		case NETMSG_WLIST:
 		{
-			// this message is sent when a client joins the game. All of the weapons are sent with the weapon ID and information about what ammo is used
-			switch (m_state)
-			{
-				case 0:
-				{
-					cstrcpy(weaponProp.className, PTR_TO_STR(p));
-					break;
-				}
-				case 1:
-				{
-					weaponProp.ammo1 = PTR_TO_INT(p); // ammo index 1
-					break;
-				}
-				case 2:
-				{
-					weaponProp.ammo1Max = PTR_TO_INT(p); // max ammo 1
-					break;
-				}
-				case 5:
-				{
-					weaponProp.slotID = PTR_TO_INT(p); // slot for this weapon
-					break;
-				}
-				case 6:
-				{
-					weaponProp.position = PTR_TO_INT(p); // position in slot
-					break;
-				}
-				case 7:
-				{
-					weaponProp.id = PTR_TO_INT(p); // weapon ID
-					break;
-				}
-				case 8:
-				{
-					if (weaponProp.id >= 0 && weaponProp.id < Const_MaxWeapons)
-					{
-						weaponProp.flags = PTR_TO_INT(p);
-						g_weaponDefs[weaponProp.id] = weaponProp; // store away this weapon with it's ammo information...
-					}
+			if (m_args.Size() < 9)
+				break;
 
-					break;
-				}
+			WeaponProperty weaponProp;
+			cstrcpy(weaponProp.className, sizeof(weaponProp.className), m_args[0].strVal);
+			weaponProp.ammo1 = m_args[1].longVal;
+			weaponProp.ammo1Max = m_args[2].longVal;
+			weaponProp.slotID = m_args[5].longVal;
+			weaponProp.position = m_args[6].longVal;
+			weaponProp.id = m_args[7].longVal;
+			weaponProp.flags = m_args[8].longVal;
+
+			if (weaponProp.id >= 0 && weaponProp.id < Const_MaxWeapons)
+			{
+				g_weaponDefs[weaponProp.id] = weaponProp;
 			}
 			break;
 		}
+
 		case NETMSG_CURWEAPON:
 		{
-			// this message is sent when a weapon is selected (either by the bot chosing a weapon or by the server auto assigning the bot a weapon). In CS it's also called when Ammo is increased/decreased
-			switch (m_state)
+			if (m_args.Size() < 3 || !m_bot)
+				break;
+
+			const int state = m_args[0].longVal;
+			const int id = m_args[1].longVal;
+			const int clip = m_args[2].longVal;
+
+			if (id >= 0 && id < Const_MaxWeapons)
 			{
-				case 0:
-				{
-					state = PTR_TO_INT(p); // state of the current weapon (WTF???)
-					break;
-				}
-				case 1:
-				{
-					id = PTR_TO_INT(p); // weapon ID of current weapon
-					break;
-				}
-				case 2:
-				{
-					if (m_bot)
-					{
-						if (state != 0)
-							m_bot->m_currentWeapon = id;
-						m_bot->m_ammoInClip[id] = PTR_TO_INT(p);
-					}
-					break;
-				}
+				if (state != 0)
+					m_bot->m_currentWeapon = id;
+				m_bot->m_ammoInClip[id] = clip;
 			}
 			break;
 		}
+
 		case NETMSG_AMMOX:
 		{
-			switch (m_state)
+			if (m_args.Size() < 2 || !m_bot)
+				break;
+
+			const int index = m_args[0].longVal;
+			const int value = m_args[1].longVal;
+			if (index >= 0 && index < Const_MaxWeapons)
 			{
-				case 0:
-				{
-					index = PTR_TO_INT(p); // ammo index (for type of ammo)
-					break;
-				}
-				case 1:
-				{
-					if (m_bot)
-						m_bot->m_ammo[index] = PTR_TO_INT(p);
-					break;
-				}
+				m_bot->m_ammo[index] = value;
 			}
 			break;
 		}
+
 		case NETMSG_AMMOPICK:
 		{
-			// this message is sent when the bot picks up some ammo (AmmoX messages are also sent so this message is probably
-			// not really necessary except it allows the HUD to draw pictures of ammo that have been picked up
-			// The bots don't really need pictures since they don't have any eyes anyway
-			switch (m_state)
+			if (m_args.Size() < 2 || !m_bot)
+				break;
+
+			const int index = m_args[0].longVal;
+			const int value = m_args[1].longVal;
+			if (index >= 0 && index < Const_MaxWeapons)
 			{
-				case 0:
-				{
-					index = PTR_TO_INT(p);
-					break;
-				}
-				case 1:
-				{
-					if (m_bot)
-						m_bot->m_ammo[index] = PTR_TO_INT(p);
-					break;
-				}
+				m_bot->m_ammo[index] = value;
 			}
 			break;
 		}
+
 		case NETMSG_DAMAGE:
 		{
-			// this message gets sent when the bots are getting damaged
-			if (m_state == 2)
-			{
-				if (m_bot)
-					m_bot->IgnoreCollisionShortly();
-			}
+			if (m_args.Size() < 3 || !m_bot)
+				break;
+
+			m_bot->IgnoreCollisionShortly();
 			break;
 		}
+
 		case NETMSG_DEATH:
 		{
-			// this message sends on death
-			if (m_state == 1)
+			if (m_args.Size() < 2)
+				break;
+
+			const int victimerIndex = m_args[1].longVal;
+			Bot* victimer = g_botManager->GetBot(victimerIndex - 1);
+			if (victimer)
 			{
-				Bot* victimer = g_botManager->GetBot(PTR_TO_INT(p));
-				if (victimer)
-				{
-					victimer->m_isAlive = false;
-					victimer->m_navNode.Clear();
-					cmemset(&victimer->m_ammoInClip, 0, sizeof(victimer->m_ammoInClip));
-					cmemset(&victimer->m_ammo, 0, sizeof(victimer->m_ammo));
-					victimer->m_currentWeapon = 0;
-				}
+				// CRITICAL FIX: DO NOT reset ammo/weapons here when bot dies.
+				// Resetting them now causes nullptr crash during CHalfLifeMultiplay::PlayerThink or CBasePlayer::PreThink
+				// because CS GameDLL is still transitioning the bot to spectator mode.
+				// Re-init must only happen during stable phases (NewRound).
+				victimer->m_isAlive = false;
+				victimer->m_navNode.Destroy();
+				victimer->m_currentWeapon = 0;
 			}
 			break;
 		}
-		case NETMSG_SCREENFADE: // this message gets sent when the screen fades (flashbang)
+
+		case NETMSG_SCREENFADE:
 		{
-			switch (m_state)
-			{
-				case 3:
-				{
-					r = PTR_TO_BYTE(p);
-					break;
-				}
-				case 4:
-				{
-					g = PTR_TO_BYTE(p);
-					break;
-				}
-				case 5:
-				{
-					b = PTR_TO_BYTE(p);
-					break;
-				}
-				case 6:
-				{
-					if (m_bot)
-						m_bot->TakeBlinded(Vector(r, g, b), PTR_TO_BYTE(p));
-					break;
-				}
-			}
+			if (m_args.Size() < 7 || !m_bot)
+				break;
+
+			const uint8_t r = m_args[3].longVal;
+			const uint8_t g = m_args[4].longVal;
+			const uint8_t b = m_args[5].longVal;
+			const uint8_t alpha = m_args[6].longVal;
+
+			m_bot->TakeBlinded(Vector(r, g, b), alpha);
 			break;
 		}
-		case NETMSG_HLTV: // round restart in steam cs
+
+		case NETMSG_HLTV:
 		{
-			switch (m_state)
-			{
-				case 0:
-				{
-					numPlayers = PTR_TO_INT(p);
-					break;
-				}
-				case 1:
-				{
-					if (!numPlayers && !PTR_TO_INT(p))
-						RoundInit();
-					break;
-				}
-			}
+			if (m_args.Size() < 2)
+				break;
+
+			const int numPlayers = m_args[0].longVal;
+			const int fov = m_args[1].longVal;
+
+			if (!numPlayers && !fov)
+				RoundInit();
 			break;
 		}
+
 		case NETMSG_TEXTMSG:
 		{
-			if (m_state)
-			{
-				x = PTR_TO_STR(p);
-				if (!x)
-					break;
+			if (m_args.Size() < 2)
+				break;
 
-				switch (x[1])
+			const char* x = m_args[1].strVal;
+			if (!x)
+				break;
+
+			switch (x[1])
+			{
+				case 'C':
 				{
-					case 'C':
-					{
-						if (!cstrncmp(x, "#CTs_Win", 9))
-							RoundEndMessage();
-						break;
-					}
-					case 'T':
-					{
-						if (!cstrncmp(x, "#Terrorists_Win", 16))
-							RoundEndMessage();
-						break;
-					}
-					case 'R':
-					{
-						if (!cstrncmp(x, "#Round_Draw", 12))
-							RoundEndMessage();
-						break;
-					}
-					case 'G':
-					{
-						if (!cstrncmp(x, "#Game_Commencing", 17) || !cstrncmp(x, "#Game_will_restart_in", 22))
-							RoundEndMessage();
-						break;
-					}
+					if (!cstrncmp(x, "#CTs_Win", 9))
+						RoundEndMessage();
+					break;
+				}
+				case 'T':
+				{
+					if (!cstrncmp(x, "#Terrorists_Win", 16))
+						RoundEndMessage();
+					break;
+				}
+				case 'R':
+				{
+					if (!cstrncmp(x, "#Round_Draw", 12))
+						RoundEndMessage();
+					break;
+				}
+				case 'G':
+				{
+					if (!cstrncmp(x, "#Game_Commencing", 17) || !cstrncmp(x, "#Game_will_restart_in", 22))
+						RoundEndMessage();
+					break;
 				}
 			}
 			break;
 		}
 	}
-	m_state++; // and finally update network message state
 }
