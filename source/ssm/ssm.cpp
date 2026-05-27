@@ -16,7 +16,7 @@ bool Bot::SetProcess(const Process& process, const char* debugnote, const bool r
 	if (m_currentProcess != process && IsReadyForTheProcess(process))
 	{
 		if (ebot_debug.GetBool())
-			ServerPrint("%s has got a new process %s | process started -> %s", GetEntityName(m_myself), GetProcessName(process), debugnote);
+			ServerPrint("%s has got a new process %s | process started -> %s", GetEntityName(GetEntity()), GetProcessName(process), debugnote);
 
 		if (rememberProcess && m_currentProcess > Process::Default && IsReadyForTheProcess(m_currentProcess))
 		{
@@ -192,7 +192,7 @@ void Bot::UpdateProcess(void)
 	if (m_currentProcess > Process::Default && m_currentProcessTime < time2)
 	{
 		if (ebot_debug.GetBool())
-			ServerPrint("%s is cancelled %s process -> timed out.", GetEntityName(m_myself), GetProcessName(m_currentProcess));
+			ServerPrint("%s is cancelled %s process -> timed out.", GetEntityName(GetEntity()), GetProcessName(m_currentProcess));
 
 		EndProcess(m_currentProcess);
 
@@ -216,7 +216,7 @@ void Bot::FinishCurrentProcess(const char* debugNote)
 	if (m_currentProcess > Process::Default)
 	{
 		if (ebot_debug.GetBool())
-			ServerPrint("%s is cancelled %s process -> %s", GetEntityName(m_myself), GetProcessName(m_currentProcess), debugNote);
+			ServerPrint("%s is cancelled %s process -> %s", GetEntityName(GetEntity()), GetProcessName(m_currentProcess), debugNote);
 
 		EndProcess(m_currentProcess);
 

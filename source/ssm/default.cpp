@@ -2,7 +2,7 @@
 
 void Bot::DefaultStart(void)
 {
-	
+
 }
 
 void Bot::DefaultUpdate(void)
@@ -155,36 +155,48 @@ void Bot::DefaultUpdate(void)
 
 				// use known waypoint first, then switch to auto
 				FindEscapePath(m_currentWaypointIndex, m_enemyOrigin);
-				m_currentWaypointIndex = -1;
-
-				MoveOut(m_enemyOrigin);
 
 				if (m_navNode.IsEmpty())
+				{
+					MoveOut(m_enemyOrigin);
 					m_navNode.Stop();
-			}
-			else if (((pev->origin - g_waypoint->m_paths[m_navNode.First()].origin).GetLengthSquared() > ((m_nearestEnemy->v.origin + m_nearestEnemy->v.velocity) - g_waypoint->m_paths[m_navNode.First()].origin).GetLengthSquared() ||
-				(pev->origin - g_waypoint->m_paths[m_navNode.Next()].origin).GetLengthSquared() > ((m_nearestEnemy->v.origin + m_nearestEnemy->v.velocity) - g_waypoint->m_paths[m_navNode.Next()].origin).GetLengthSquared()) && ::IsInViewCone(pev->origin, m_nearestEnemy))
-			{
-				// find new safe spot if possible
-				m_zhCampPointIndex = -1;
-				FindGoalHuman();
+				}
+				else
+					FollowPath();
 
-				m_navNode.Clear();
-				FindEscapePath(m_currentWaypointIndex, m_enemyOrigin);
+				m_currentWaypointIndex = -1;
+			}
+			else if (m_navNode.Length() > 1)
+			{
+				const int16_t firstWP = m_navNode.First();
+				const int16_t nextWP = m_navNode.Next();
+				if (IsValidWaypoint(firstWP) && IsValidWaypoint(nextWP) && ((pev->origin - g_waypoint->m_paths[firstWP].origin).GetLengthSquared() > ((m_nearestEnemy->v.origin + m_nearestEnemy->v.velocity) - g_waypoint->m_paths[firstWP].origin).GetLengthSquared() || (pev->origin - g_waypoint->m_paths[nextWP].origin).GetLengthSquared() > ((m_nearestEnemy->v.origin + m_nearestEnemy->v.velocity) - g_waypoint->m_paths[nextWP].origin).GetLengthSquared()) && ::IsInViewCone(pev->origin, m_nearestEnemy))
+				{
+					// find new safe spot if possible
+					m_zhCampPointIndex = -1;
+					FindGoalHuman();
+
+					m_navNode.Clear();
+					FindEscapePath(m_currentWaypointIndex, m_enemyOrigin);
+					MoveOut(m_enemyOrigin);
+					m_navNode.Stop();
+
+					return;
+				}
+			}
+
+			// if our enemy is closer to this waypoint, just skip it otherwise we will get infected
+			const int16_t firstWP = m_navNode.First();
+			if (IsValidWaypoint(firstWP) && (g_waypoint->m_paths[firstWP].origin - m_enemyOrigin).GetLengthSquared() < (g_waypoint->m_paths[firstWP].origin - pev->origin).GetLengthSquared())
+				m_navNode.Shift();
+
+			if (m_navNode.IsEmpty())
+			{
 				MoveOut(m_enemyOrigin);
 				m_navNode.Stop();
 			}
 			else
-			{
-				// if our enemy is closer to this waypoint, just skip it otherwise we will get infected
-				if ((g_waypoint->GetPath(m_navNode.First())->origin - m_enemyOrigin).GetLengthSquared() < (g_waypoint->GetPath(m_navNode.First())->origin - pev->origin).GetLengthSquared())
-					m_navNode.Shift();
-
-				if (!m_navNode.IsEmpty())
-					FollowPath();
-				else
-					m_navNode.Stop();
-			}
+				FollowPath();
 
 			return;
 		}
@@ -282,19 +294,19 @@ void Bot::DefaultUpdate(void)
 			if (m_hasEnemiesNear && m_currentWeapon != Weapon::Knife && m_personality != Personality::Rusher && pev->velocity.GetLengthSquared2D() < 20.0f)
 			{
 				bool crouch = true;
-				if (m_currentWeapon != Weapon::M3 ||
-					m_currentWeapon != Weapon::Xm1014 ||
-					m_currentWeapon != Weapon::G3SG1 ||
-					m_currentWeapon != Weapon::Scout ||
-					m_currentWeapon != Weapon::Awp ||
-					m_currentWeapon != Weapon::M249 ||
+				if (m_currentWeapon != Weapon::M3 &&
+					m_currentWeapon != Weapon::Xm1014 &&
+					m_currentWeapon != Weapon::G3SG1 &&
+					m_currentWeapon != Weapon::Scout &&
+					m_currentWeapon != Weapon::Awp &&
+					m_currentWeapon != Weapon::M249 &&
 					m_currentWeapon != Weapon::Sg550)
 					crouch = false;
 
 				if (m_personality == Personality::Normal && m_enemyDistance < 512.0f)
 					crouch = false;
 
-				if (crouch && IsVisible(m_enemyOrigin, m_myself))
+				if (crouch && IsVisible(m_enemyOrigin, GetEntity()))
 					m_duckTime = engine->GetTime() + 1.0f;
 			}
 		}

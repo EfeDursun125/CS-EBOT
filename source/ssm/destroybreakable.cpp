@@ -20,7 +20,7 @@ void Bot::DestroyBreakableUpdate(void)
 	LookAt(m_breakableOrigin);
 	if (pev->origin.z > m_breakableOrigin.z)
 		m_duckTime = engine->GetTime() + 1.0f;
-	else if (!IsVisible(m_breakableOrigin, m_myself))
+	else if (!IsVisible(m_breakableOrigin, GetEntity()))
 		m_duckTime = engine->GetTime() + 1.0f;
 
 	if (!m_isZombieBot && m_currentWeapon != Weapon::Knife)

@@ -22,7 +22,7 @@ void Bot::UseButtonUpdate(void)
 			if (g_gameVersion & Game::Xash)
 				pev->buttons |= IN_USE;
 			else
-				MDLL_Use(m_buttonEntity, m_myself);
+				MDLL_Use(m_buttonEntity, GetEntity());
 
 			FinishCurrentProcess("i have pushed the button");
 			return;
