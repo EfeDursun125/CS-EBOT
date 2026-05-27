@@ -49,19 +49,19 @@
 // product optimization type (we're not using crt builds anymore)
 #ifndef PRODUCT_OPT_TYPE
 #if defined (_DEBUG)
-#   if defined (_AFXDLL)
-#	  define PRODUCT_OPT_TYPE "Debug Build (CRT)"
-#   else
-#	  define PRODUCT_OPT_TYPE "Debug Build"
-#   endif
+#	 if defined (_AFXDLL)
+#		define PRODUCT_OPT_TYPE "Debug Build (CRT)"
+#	 else
+#		define PRODUCT_OPT_TYPE "Debug Build"
+#	 endif
 #elif defined (NDEBUG)
-#   if defined (_AFXDLL)
-#	  define PRODUCT_OPT_TYPE "Optimized Build (CRT)"
-#   else
-#	  define PRODUCT_OPT_TYPE "Optimized Build"
-#   endif
+#	 if defined (_AFXDLL)
+#		define PRODUCT_OPT_TYPE "Optimized Build (CRT)"
+#	 else
+#		define PRODUCT_OPT_TYPE "Optimized Build"
+#	 endif
 #else
-#   define PRODUCT_OPT_TYPE "Default Release"
+#	 define PRODUCT_OPT_TYPE "Default Release"
 #endif
 #endif
 

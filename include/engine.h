@@ -27,41 +27,41 @@
 #endif
 
 // Maximum and minimum representable values
-#define  INT8_MAX	SCHAR_MAX
-#define  INT16_MAX   SHRT_MAX
-#define  INT32_MAX   LONG_MAX
-#define  INT64_MAX  (((int64)~0) >> 1)
+#define	INT8_MAX	SCHAR_MAX
+#define	INT16_MAX	 SHRT_MAX
+#define	INT32_MAX	 LONG_MAX
+#define	INT64_MAX	(((int64)~0) >> 1)
 
-#define  INT8_MIN	SCHAR_MIN
-#define  INT16_MIN   SHRT_MIN
-#define  INT32_MIN   LONG_MIN
-#define  INT64_MIN  (((int64)1) << 63)
+#define	INT8_MIN	SCHAR_MIN
+#define	INT16_MIN	 SHRT_MIN
+#define	INT32_MIN	 LONG_MIN
+#define	INT64_MIN	(((int64)1) << 63)
 
-#define  UINT8_MAX  ((uint8)~0)
-#define  UINT16_MAX ((uint16)~0)
-#define  UINT32_MAX ((uint32)~0)
-#define  UINT64_MAX ((uint64)~0)
+#define	UINT8_MAX	((uint8)~0)
+#define	UINT16_MAX ((uint16)~0)
+#define	UINT32_MAX ((uint32)~0)
+#define	UINT64_MAX ((uint64)~0)
 
-#define  UINT8_MIN   0
-#define  UINT16_MIN  0
-#define  UINT32_MIN  0
-#define  UINT64_MIN  0
+#define	UINT8_MIN	 0
+#define	UINT16_MIN	0
+#define	UINT32_MIN	0
+#define	UINT64_MIN	0
 
-#ifndef  UINT_MIN
-#define  UINT_MIN	UINT32_MIN
+#ifndef	UINT_MIN
+#define	UINT_MIN	UINT32_MIN
 #endif
 
-#define  FLOAT32_MAX FLT_MAX
-#define  FLOAT64_MAX DBL_MAX
+#define	FLOAT32_MAX FLT_MAX
+#define	FLOAT64_MAX DBL_MAX
 
-#define  FLOAT32_MIN FLT_MIN
-#define  FLOAT64_MIN DBL_MIN
+#define	FLOAT32_MIN FLT_MIN
+#define	FLOAT64_MIN DBL_MIN
 
 // portability / compiler settings
 #if defined(_WIN32) && !defined(WINDED)
 
 #if defined(_M_IX86)
-#define __i386__   1
+#define __i386__	 1
 #endif
 
 #elif __linux__
@@ -74,46 +74,46 @@ typedef void* HINSTANCE;
 
 // Defines MAX_PATH
 #ifndef MAX_PATH
-#define MAX_PATH  260
+#define MAX_PATH	260
 #endif
 
 // Used to step into the debugger
-#define  DebuggerBreak()  __asm { int 3 }
+#define	DebuggerBreak()	__asm { int 3 }
 
 // C functions for external declarations that call the appropriate C++ methods
 #ifndef EXPORT
 #ifdef _WIN32
 #define EXPORT __declspec( dllexport )
 #else
-#define EXPORT				  /* */
+#define EXPORT					/* */
 #endif
 #endif
 
 #ifdef _WIN32
 // Used for dll exporting and importing
-#define  DLL_EXPORT   extern "C" __declspec( dllexport )
-#define  DLL_IMPORT   extern "C" __declspec( dllimport )
+#define	DLL_EXPORT	 extern "C" __declspec( dllexport )
+#define	DLL_IMPORT	 extern "C" __declspec( dllimport )
 
 // Can't use extern "C" when DLL exporting a class
-#define  DLL_CLASS_EXPORT   __declspec( dllexport )
-#define  DLL_CLASS_IMPORT   __declspec( dllimport )
+#define	DLL_CLASS_EXPORT	 __declspec( dllexport )
+#define	DLL_CLASS_IMPORT	 __declspec( dllimport )
 
 // Can't use extern "C" when DLL exporting a global
-#define  DLL_GLOBAL_EXPORT   extern __declspec( dllexport )
-#define  DLL_GLOBAL_IMPORT   extern __declspec( dllimport )
+#define	DLL_GLOBAL_EXPORT	 extern __declspec( dllexport )
+#define	DLL_GLOBAL_IMPORT	 extern __declspec( dllimport )
 #elif defined __linux__
 
 // Used for dll exporting and importing
-#define  DLL_EXPORT   extern "C"
-#define  DLL_IMPORT   extern "C"
+#define	DLL_EXPORT	 extern "C"
+#define	DLL_IMPORT	 extern "C"
 
 // Can't use extern "C" when DLL exporting a class
-#define  DLL_CLASS_EXPORT
-#define  DLL_CLASS_IMPORT
+#define	DLL_CLASS_EXPORT
+#define	DLL_CLASS_IMPORT
 
 // Can't use extern "C" when DLL exporting a global
-#define  DLL_GLOBAL_EXPORT   extern
-#define  DLL_GLOBAL_IMPORT   extern
+#define	DLL_GLOBAL_EXPORT	 extern
+#define	DLL_GLOBAL_IMPORT	 extern
 
 #else
 #error "Unsupported Platform."
@@ -127,32 +127,32 @@ typedef void* HINSTANCE;
 
 // Used for standard calling conventions
 #ifdef _WIN32
-#define  STDCALL			__stdcall
-#define  FASTCALL			__fastcall
+#define	STDCALL			__stdcall
+#define	FASTCALL			__fastcall
 #ifndef FORCEINLINE
-#define  FORCEINLINE		 __forceinline
+#define	FORCEINLINE		 __forceinline
 #endif
 #else
-#define  STDCALL
-#define  FASTCALL
-#define  FORCEINLINE		 inline
+#define	STDCALL
+#define	FASTCALL
+#define	FORCEINLINE		 inline
 #endif
 
 // Force a function call site -not- to inlined. (useful for profiling)
 #define DONT_INLINE(a) (((int)(a)+1)?(a):(a))
 
 // Pass hints to the compiler to prevent it from generating unnessecary / stupid code
-// in certain situations.  Several compilers other than MSVC also have an equivilent 
+// in certain situations.	Several compilers other than MSVC also have an equivilent 
 // construct.
 //
 // Essentially the 'Hint' is that the condition specified is assumed to be true at 
-// that point in the compilation.  If '0' is passed, then the compiler assumes that
+// that point in the compilation.	If '0' is passed, then the compiler assumes that
 // any subsequent code in the same 'basic block' is unreachable, and thus usually 
 // removed.
 #ifdef _MSC_VER
-#define HINT(THE_HINT)   __assume((THE_HINT))
+#define HINT(THE_HINT)	 __assume((THE_HINT))
 #else
-#define HINT(THE_HINT)   0
+#define HINT(THE_HINT)	 0
 #endif
 
 // Marks the codepath from here until the next branch entry point as unreachable,
@@ -172,99 +172,99 @@ typedef void* HINSTANCE;
 // Most came from server.h
 
 // edict->flags
-#define FL_FLY			   (1 << 0)   // Changes the SV_Movestep() behavior to not need to be on ground
-#define FL_SWIM			  (1 << 1)   // Changes the SV_Movestep() behavior to not need to be on ground (but stay in water)
-#define FL_CONVEYOR		  (1 << 2)
+#define FL_FLY				 (1 << 0)	 // Changes the SV_Movestep() behavior to not need to be on ground
+#define FL_SWIM				(1 << 1)	 // Changes the SV_Movestep() behavior to not need to be on ground (but stay in water)
+#define FL_CONVEYOR			(1 << 2)
 #define FL_CLIENT			(1 << 3)
-#define FL_INWATER		   (1 << 4)
-#define FL_MONSTER		   (1 << 5)
-#define FL_GODMODE		   (1 << 6)
-#define FL_NOTARGET		  (1 << 7)
-#define FL_SKIPLOCALHOST	 (1 << 8)   // Don't send entity to local host, it's predicting this entity itself
-#define FL_ONGROUND		  (1 << 9)   // At rest / on the ground
-#define FL_PARTIALGROUND	 (1 << 10)  // not all corners are valid
-#define FL_WATERJUMP		 (1 << 11)  // player jumping out of water
-#define FL_FROZEN			(1 << 12)  // Player is frozen for 3rd person camera
-#define FL_FAKECLIENT		(1 << 13)  // JAC: fake client, simulated server side; don't send network messages to them
-#define FL_DUCKING		   (1 << 14)  // Player flag -- Player is fully crouched
-#define FL_FLOAT			 (1 << 15)  // Apply floating force to this entity when in water
-#define FL_GRAPHED		   (1 << 16)  // worldgraph has this ent listed as something that blocks a connection
+#define FL_INWATER			 (1 << 4)
+#define FL_MONSTER			 (1 << 5)
+#define FL_GODMODE			 (1 << 6)
+#define FL_NOTARGET			(1 << 7)
+#define FL_SKIPLOCALHOST	 (1 << 8)	 // Don't send entity to local host, it's predicting this entity itself
+#define FL_ONGROUND			(1 << 9)	 // At rest / on the ground
+#define FL_PARTIALGROUND	 (1 << 10)	// not all corners are valid
+#define FL_WATERJUMP		 (1 << 11)	// player jumping out of water
+#define FL_FROZEN			(1 << 12)	// Player is frozen for 3rd person camera
+#define FL_FAKECLIENT		(1 << 13)	// JAC: fake client, simulated server side; don't send network messages to them
+#define FL_DUCKING			 (1 << 14)	// Player flag -- Player is fully crouched
+#define FL_FLOAT			 (1 << 15)	// Apply floating force to this entity when in water
+#define FL_GRAPHED			 (1 << 16)	// worldgraph has this ent listed as something that blocks a connection
 
 // UNDONE: Do we need these?
-#define FL_IMMUNE_WATER	  (1 << 17)
-#define FL_IMMUNE_SLIME	  (1 << 18)
-#define FL_IMMUNE_LAVA	   (1 << 19)
+#define FL_IMMUNE_WATER		(1 << 17)
+#define FL_IMMUNE_SLIME		(1 << 18)
+#define FL_IMMUNE_LAVA		 (1 << 19)
 
-#define FL_PROXY			 (1 << 20)  // This is a spectator proxy
-#define FL_ALWAYSTHINK	   (1 << 21)  // Brush model flag -- call think every frame regardless of nextthink - ltime (for constantly changing velocity/path)
-#define FL_BASEVELOCITY	  (1 << 22)  // Base velocity has been applied this frame (used to convert base velocity into momentum)
-#define FL_MONSTERCLIP	   (1 << 23)  // Only collide in with monsters who have FL_MONSTERCLIP set
-#define FL_ONTRAIN		   (1 << 24)  // Player is _controlling_ a train, so movement commands should be ignored on client during prediction.
-#define FL_WORLDBRUSH		(1 << 25)  // Not moveable/removeable brush entity (really part of the world, but represented as an entity for transparency or something)
-#define FL_SPECTATOR		 (1 << 26)  // This client is a spectator, don't run touch functions, etc.
-#define FL_CUSTOMENTITY	  (1 << 29)  // This is a custom entity
-#define FL_KILLME			(1 << 30)  // This entity is marked for death -- This allows the engine to kill ents at the appropriate time
-#define FL_DORMANT		   (1 << 31)  // Entity is dormant, no updates to client
+#define FL_PROXY			 (1 << 20)	// This is a spectator proxy
+#define FL_ALWAYSTHINK		 (1 << 21)	// Brush model flag -- call think every frame regardless of nextthink - ltime (for constantly changing velocity/path)
+#define FL_BASEVELOCITY		(1 << 22)	// Base velocity has been applied this frame (used to convert base velocity into momentum)
+#define FL_MONSTERCLIP		 (1 << 23)	// Only collide in with monsters who have FL_MONSTERCLIP set
+#define FL_ONTRAIN			 (1 << 24)	// Player is _controlling_ a train, so movement commands should be ignored on client during prediction.
+#define FL_WORLDBRUSH		(1 << 25)	// Not moveable/removeable brush entity (really part of the world, but represented as an entity for transparency or something)
+#define FL_SPECTATOR		 (1 << 26)	// This client is a spectator, don't run touch functions, etc.
+#define FL_CUSTOMENTITY		(1 << 29)	// This is a custom entity
+#define FL_KILLME			(1 << 30)	// This entity is marked for death -- This allows the engine to kill ents at the appropriate time
+#define FL_DORMANT			 (1 << 31)	// Entity is dormant, no updates to client
 
 // Goes into globalvars_t.trace_flags
-#define FTRACE_SIMPLEBOX	 (1 << 0)   // Traceline with a simple box
+#define FTRACE_SIMPLEBOX	 (1 << 0)	 // Traceline with a simple box
 
 // walkmove modes
-#define WALKMOVE_NORMAL	   0 // normal walkmove
+#define WALKMOVE_NORMAL		 0 // normal walkmove
 #define WALKMOVE_WORLDONLY	1 // doesn't hit ANY entities, no matter what the solid type
 #define WALKMOVE_CHECKONLY	2 // move, but don't touch triggers
 
 // edict->movetype values
-#define MOVETYPE_NONE		   0	   // never moves
-#define MOVETYPE_WALK		   3	   // Player only - moving on the ground
-#define MOVETYPE_STEP		   4	   // gravity, special edge handling -- monsters use this
-#define MOVETYPE_FLY			5	   // No gravity, but still collides with stuff
-#define MOVETYPE_TOSS		   6	   // gravity/collisions
-#define MOVETYPE_PUSH		   7	   // no clip to world, push and crush
-#define MOVETYPE_NOCLIP		 8	   // No gravity, no collisions, still do velocity/avelocity
-#define MOVETYPE_FLYMISSILE	 9	   // extra size to monsters
-#define MOVETYPE_BOUNCE		 10	  // Just like Toss, but reflect velocity when contacting surfaces
-#define MOVETYPE_BOUNCEMISSILE  11	  // bounce w/o gravity
-#define MOVETYPE_FOLLOW		 12	  // track movement of aiment
-#define MOVETYPE_PUSHSTEP	   13	  // BSP model that needs physics/world collisions (uses nearest hull for world collision)
+#define MOVETYPE_NONE			 0		 // never moves
+#define MOVETYPE_WALK			 3		 // Player only - moving on the ground
+#define MOVETYPE_STEP			 4		 // gravity, special edge handling -- monsters use this
+#define MOVETYPE_FLY			5		 // No gravity, but still collides with stuff
+#define MOVETYPE_TOSS			 6		 // gravity/collisions
+#define MOVETYPE_PUSH			 7		 // no clip to world, push and crush
+#define MOVETYPE_NOCLIP		 8		 // No gravity, no collisions, still do velocity/avelocity
+#define MOVETYPE_FLYMISSILE	 9		 // extra size to monsters
+#define MOVETYPE_BOUNCE		 10		// Just like Toss, but reflect velocity when contacting surfaces
+#define MOVETYPE_BOUNCEMISSILE	11		// bounce w/o gravity
+#define MOVETYPE_FOLLOW		 12		// track movement of aiment
+#define MOVETYPE_PUSHSTEP		 13		// BSP model that needs physics/world collisions (uses nearest hull for world collision)
 
 // edict->solid values
 // NOTE: Some movetypes will cause collisions independent of SOLID_NOT/SOLID_TRIGGER when the entity moves
 // SOLID only effects OTHER entities colliding with this one when they move - UGH!
-#define	SOLID_NOT				0   // no interaction with other objects
-#define	SOLID_TRIGGER			1   // touch on edge, but not blocking
-#define	SOLID_BBOX			   2   // touch on edge, block
-#define	SOLID_SLIDEBOX		   3   // touch on edge, but not an onground
-#define	SOLID_BSP				4   // bsp clip, touch on edge, block
+#define	SOLID_NOT				0	 // no interaction with other objects
+#define	SOLID_TRIGGER			1	 // touch on edge, but not blocking
+#define	SOLID_BBOX				 2	 // touch on edge, block
+#define	SOLID_SLIDEBOX			 3	 // touch on edge, but not an onground
+#define	SOLID_BSP				4	 // bsp clip, touch on edge, block
 
 // edict->deadflag values
-#define	DEAD_NO			  0	   // alive
-#define	DEAD_DYING		   1	   // playing death animation or still falling off of a ledge waiting to hit ground
-#define	DEAD_DEAD			2	   // dead. lying still.
+#define	DEAD_NO				0		 // alive
+#define	DEAD_DYING			 1		 // playing death animation or still falling off of a ledge waiting to hit ground
+#define	DEAD_DEAD			2		 // dead. lying still.
 #define DEAD_RESPAWNABLE		3
 #define DEAD_DISCARDBODY		4
 
 #define	DAMAGE_NO			0
-#define	DAMAGE_YES		   1
-#define	DAMAGE_AIM		   2
+#define	DAMAGE_YES			 1
+#define	DAMAGE_AIM			 2
 
 // entity effects
-#define	EF_BRIGHTFIELD	   1	   // swirling cloud of particles
-#define	EF_MUZZLEFLASH	   2	   // single frame ELIGHT on entity attachment 0
-#define	EF_BRIGHTLIGHT	   4	   // DLIGHT centered at entity origin
-#define	EF_DIMLIGHT		  8	   // player flashlight
-#define EF_INVLIGHT			 16	  // get lighting from ceiling
-#define EF_NOINTERP			 32	  // don't interpolate the next frame
-#define EF_LIGHT				64	  // rocket flare glow sprite
-#define EF_NODRAW			   128	 // don't draw entity
+#define	EF_BRIGHTFIELD		 1		 // swirling cloud of particles
+#define	EF_MUZZLEFLASH		 2		 // single frame ELIGHT on entity attachment 0
+#define	EF_BRIGHTLIGHT		 4		 // DLIGHT centered at entity origin
+#define	EF_DIMLIGHT			8		 // player flashlight
+#define EF_INVLIGHT			 16		// get lighting from ceiling
+#define EF_NOINTERP			 32		// don't interpolate the next frame
+#define EF_LIGHT				64		// rocket flare glow sprite
+#define EF_NODRAW				 128	 // don't draw entity
 
 // entity flags
-#define EFLAG_SLERP			 1	   // do studio interpolation of this entity
+#define EFLAG_SLERP			 1		 // do studio interpolation of this entity
 
 //
 // temp entity events
 //
-#define	TE_BEAMPOINTS		0	   // beam effect between two points
+#define	TE_BEAMPOINTS		0		 // beam effect between two points
 // coord coord coord (start position) 
 // coord coord coord (end position) 
 // short (sprite index) 
@@ -290,7 +290,7 @@ typedef void* HINSTANCE;
 // byte (brightness)
 // byte (scroll speed in 0.1's)
 
-#define	TE_GUNSHOT		  2		// particle effect plus ricochet sound
+#define	TE_GUNSHOT			2		// particle effect plus ricochet sound
 // coord coord coord (position) 
 
 #define	TE_EXPLOSION		3		// additive sprite, 2 dynamic lights, flickering particles, explosion sound, move vertically 8 pps
@@ -301,11 +301,11 @@ typedef void* HINSTANCE;
 // byte (flags)
 //
 // The Explosion effect has some flags to control performance/aesthetic features:
-#define TE_EXPLFLAG_NONE		0	   // all flags clear makes default Half-Life explosion
-#define TE_EXPLFLAG_NOADDITIVE  1	   // sprite will be drawn opaque (ensure that the sprite you send is a non-additive sprite)
-#define TE_EXPLFLAG_NODLIGHTS   2	   // do not render dynamic lights
-#define TE_EXPLFLAG_NOSOUND	 4	   // do not play client explosion sound
-#define TE_EXPLFLAG_NOPARTICLES 8	   // do not draw particles
+#define TE_EXPLFLAG_NONE		0		 // all flags clear makes default Half-Life explosion
+#define TE_EXPLFLAG_NOADDITIVE	1		 // sprite will be drawn opaque (ensure that the sprite you send is a non-additive sprite)
+#define TE_EXPLFLAG_NODLIGHTS	 2		 // do not render dynamic lights
+#define TE_EXPLFLAG_NOSOUND	 4		 // do not play client explosion sound
+#define TE_EXPLFLAG_NOPARTICLES 8		 // do not draw particles
 
 
 #define	TE_TAREXPLOSION		4	 // Quake1 "tarbaby" explosion with sound
@@ -317,7 +317,7 @@ typedef void* HINSTANCE;
 // byte (scale in 0.1's)
 // byte (framerate)
 
-#define	TE_TRACER			6	   // tracer effect from point to point
+#define	TE_TRACER			6		 // tracer effect from point to point
 // coord, coord, coord (start) 
 // coord, coord, coord (end)
 
@@ -342,10 +342,10 @@ typedef void* HINSTANCE;
 // byte (brightness)
 // byte (scroll speed in 0.1's)
 
-#define	TE_SPARKS			9	   // 8 random tracers with gravity, ricochet sprite
+#define	TE_SPARKS			9		 // 8 random tracers with gravity, ricochet sprite
 // coord coord coord (position) 
 
-#define	TE_LAVASPLASH		10	  // Quake1 lava splash
+#define	TE_LAVASPLASH		10		// Quake1 lava splash
 // coord coord coord (position) 
 
 #define	TE_TELEPORT			11	// Quake1 teleport splash
@@ -356,13 +356,13 @@ typedef void* HINSTANCE;
 // byte (starting color)
 // byte (num colors)
 
-#define TE_BSPDECAL			13	   // Decal from the .BSP file
+#define TE_BSPDECAL			13		 // Decal from the .BSP file
 // coord, coord, coord (x,y,z), decal position (center of texture in world)
 // short (texture index of precached decal texture name)
 // short (entity index)
 // [optional - only included if previous short is non-zero (not the world)] short (index of model of above entity)
 
-#define TE_IMPLOSION		14  // tracers moving toward a point
+#define TE_IMPLOSION		14	// tracers moving toward a point
 // coord, coord, coord (position)
 // byte (radius)
 // byte (count)
@@ -378,7 +378,7 @@ typedef void* HINSTANCE;
 // byte (velocity along Vector in 10's)
 // byte (randomness of velocity in 10's)
 
-#define TE_BEAM				16	   // obsolete
+#define TE_BEAM				16		 // obsolete
 
 #define TE_SPRITE			17 // additive sprite, plays 1 cycle
 // coord, coord, coord (position) 
@@ -392,7 +392,7 @@ typedef void* HINSTANCE;
 // short (beam sprite index) 
 // short (end sprite index) 
 
-#define TE_BEAMTORUS		19  // screen aligned beam ring, expands to max radius over lifetime
+#define TE_BEAMTORUS		19	// screen aligned beam ring, expands to max radius over lifetime
 // coord coord coord (center position) 
 // coord coord coord (axis and radius) 
 // short (sprite index) 
@@ -405,7 +405,7 @@ typedef void* HINSTANCE;
 // byte (brightness)
 // byte (scroll speed in 0.1's)
 
-#define TE_BEAMDISK			20	   // disk that expands to max radius over lifetime
+#define TE_BEAMDISK			20		 // disk that expands to max radius over lifetime
 // coord coord coord (center position) 
 // coord coord coord (axis and radius) 
 // short (sprite index) 
@@ -418,7 +418,7 @@ typedef void* HINSTANCE;
 // byte (brightness)
 // byte (scroll speed in 0.1's)
 
-#define TE_BEAMCYLINDER		21	   // cylinder that expands to max radius over lifetime
+#define TE_BEAMCYLINDER		21		 // cylinder that expands to max radius over lifetime
 // coord coord coord (center position) 
 // coord coord coord (axis and radius) 
 // short (sprite index) 
@@ -442,7 +442,7 @@ typedef void* HINSTANCE;
 #define TE_GLOWSPRITE		23
 // coord, coord, coord (pos) short (model index) byte (scale / 10)
 
-#define TE_BEAMRING			24	   // connect a beam ring to two entities
+#define TE_BEAMRING			24		 // connect a beam ring to two entities
 // short (start entity) 
 // short (end entity) 
 // short (sprite index) 
@@ -455,7 +455,7 @@ typedef void* HINSTANCE;
 // byte (brightness)
 // byte (scroll speed in 0.1's)
 
-#define TE_STREAK_SPLASH	25  // oriented shower of tracers
+#define TE_STREAK_SPLASH	25	// oriented shower of tracers
 // coord coord coord (start position) 
 // coord coord coord (direction Vector) 
 // byte (color)
@@ -463,7 +463,7 @@ typedef void* HINSTANCE;
 // short (base speed)
 // short (ramdon velocity)
 
-#define TE_BEAMHOSE			26	   // obsolete
+#define TE_BEAMHOSE			26		 // obsolete
 
 #define TE_DLIGHT			27 // dynamic light, effect world, minor entity effect
 // coord, coord, coord (pos) 
@@ -488,13 +488,13 @@ typedef void* HINSTANCE;
 // 1 is flickery credits
 // 2 is write out (training room)
 
-// 4 bytes r,g,b,a color1   (text color)
-// 4 bytes r,g,b,a color2   (effect color)
+// 4 bytes r,g,b,a color1	 (text color)
+// 4 bytes r,g,b,a color2	 (effect color)
 // ushort 8.8 fadein time
-// ushort 8.8  fadeout time
+// ushort 8.8	fadeout time
 // ushort 8.8 hold time
-// optional ushort 8.8 fxtime   (time the highlight lags behing the leading text in effect 2)
-// string text message	   (512 chars max sz string)
+// optional ushort 8.8 fxtime	 (time the highlight lags behing the leading text in effect 2)
+// string text message		 (512 chars max sz string)
 #define TE_LINE				30
 // coord, coord, coord		startpos
 // coord, coord, coord		endpos
@@ -507,7 +507,7 @@ typedef void* HINSTANCE;
 // short life in 0.1 s
 // 3 bytes r, g, b
 
-#define TE_KILLBEAM			99	   // kill all beams attached to entity
+#define TE_KILLBEAM			99		 // kill all beams attached to entity
 // short (entity)
 
 #define TE_LARGEFUNNEL		100
@@ -521,7 +521,7 @@ typedef void* HINSTANCE;
 // byte (color)
 // byte (speed)
 
-#define	TE_SHOWLINE			102   // line of particles every 5 units, dies in 30 seconds
+#define	TE_SHOWLINE			102	 // line of particles every 5 units, dies in 30 seconds
 // coord coord coord (start position)
 // coord coord coord (end position)
 
@@ -536,7 +536,7 @@ typedef void* HINSTANCE;
 // byte (texture index of precached decal texture name)
 // short (entity index)
 
-#define TE_FIZZ				105	  // create alpha sprites inside of entity, float upwards
+#define TE_FIZZ				105		// create alpha sprites inside of entity, float upwards
 // short (entity)
 // short (sprite index)
 // byte (density)
@@ -549,7 +549,7 @@ typedef void* HINSTANCE;
 // byte (bounce sound type)
 // byte (life in 0.1's)
 
-#define TE_EXPLODEMODEL		107	  // spherical shower of models, picks from set
+#define TE_EXPLODEMODEL		107		// spherical shower of models, picks from set
 // coord, coord, coord (origin)
 // coord (velocity)
 // short (model index)
@@ -566,12 +566,12 @@ typedef void* HINSTANCE;
 // byte (life in 0.1 secs)
 // byte (flags)
 
-#define TE_GUNSHOTDECAL		109	  // decal and ricochet sound
+#define TE_GUNSHOTDECAL		109		// decal and ricochet sound
 // coord, coord, coord (position)
 // short (entity index)
 // byte (decal)
 
-#define TE_SPRITE_SPRAY		110	  // spay of alpha sprites
+#define TE_SPRITE_SPRAY		110		// spay of alpha sprites
 // coord, coord, coord (position)
 // coord, coord, coord (velocity)
 // short (sprite index)
@@ -583,14 +583,14 @@ typedef void* HINSTANCE;
 // coord, coord, coord (position)
 // byte (scale in 0.1's)
 
-#define TE_PLAYERDECAL		112	   // ???
+#define TE_PLAYERDECAL		112		 // ???
 // byte (playerindex)
 // coord, coord, coord (position)
 // short (entity)
 // byte (decal number)
 // [optional] short (model index)
 
-#define TE_BUBBLES			113	   // create alpha sprites inside of box, float upwards
+#define TE_BUBBLES			113		 // create alpha sprites inside of box, float upwards
 // coord, coord, coord (min start position)
 // coord, coord, coord (max start position)
 // coord (float height)
@@ -598,7 +598,7 @@ typedef void* HINSTANCE;
 // byte (count)
 // coord (speed)
 
-#define TE_BUBBLETRAIL		114	   // create alpha sprites along a line, float upwards
+#define TE_BUBBLETRAIL		114		 // create alpha sprites along a line, float upwards
 // coord, coord, coord (min start position)
 // coord, coord, coord (max start position)
 // coord (float height)
@@ -606,7 +606,7 @@ typedef void* HINSTANCE;
 // byte (count)
 // coord (speed)
 
-#define TE_BLOODSPRITE		115	   // spray of opaque sprite1's that fall, single sprite2 for 1..2 secs (this is a high-priority tent)
+#define TE_BLOODSPRITE		115		 // spray of opaque sprite1's that fall, single sprite2 for 1..2 secs (this is a high-priority tent)
 // coord, coord, coord (position)
 // short (sprite1 index)
 // short (sprite2 index)
@@ -631,7 +631,7 @@ typedef void* HINSTANCE;
 // coord, coord, coord (velocity)
 // short (modelindex)
 // byte (life)
-// byte (owner)  projectile won't collide with owner (if owner == 0, projectile will hit any client).
+// byte (owner)	projectile won't collide with owner (if owner == 0, projectile will hit any client).
 
 #define TE_SPRAY			120 // Throws a shower of sprites or models
 // coord, coord, coord (position)
@@ -663,13 +663,13 @@ typedef void* HINSTANCE;
 // byte (duration (in seconds) * 10) (will be randomized a bit)
 //
 // to keep network traffic low, this message has associated flags that fit into a byte:
-#define TEFIRE_FLAG_ALLFLOAT	1	   // all sprites will drift upwards as they animate
-#define TEFIRE_FLAG_SOMEFLOAT   2	   // some of the sprites will drift upwards. (50% chance)
-#define TEFIRE_FLAG_LOOP		4	   // if set, sprite plays at 15 fps, otherwise plays at whatever rate stretches the animation over the sprite's duration.
-#define TEFIRE_FLAG_ALPHA	   8	   // if set, sprite is rendered alpha blended at 50% else, opaque
-#define TEFIRE_FLAG_PLANAR	 16	   // if set, all fire sprites have same initial Z instead of randomly filling a cube.
+#define TEFIRE_FLAG_ALLFLOAT	1		 // all sprites will drift upwards as they animate
+#define TEFIRE_FLAG_SOMEFLOAT	 2		 // some of the sprites will drift upwards. (50% chance)
+#define TEFIRE_FLAG_LOOP		4		 // if set, sprite plays at 15 fps, otherwise plays at whatever rate stretches the animation over the sprite's duration.
+#define TEFIRE_FLAG_ALPHA		 8		 // if set, sprite is rendered alpha blended at 50% else, opaque
+#define TEFIRE_FLAG_PLANAR	 16		 // if set, all fire sprites have same initial Z instead of randomly filling a cube.
 
-#define TE_PLAYERATTACHMENT			124	  // attaches a TENT to a player (this is a high-priority tent)
+#define TE_PLAYERATTACHMENT			124		// attaches a TENT to a player (this is a high-priority tent)
 // byte (entity index of player)
 // coord (vertical offset) ( attachment origin.z = player origin.z + vertical offset )
 // short (model index)
@@ -678,7 +678,7 @@ typedef void* HINSTANCE;
 #define TE_KILLPLAYERATTACHMENTS	125 // will expire all TENTS attached to a player.
 // byte (entity index of player)
 
-#define TE_MULTIGUNSHOT				126	  // much more compact shotgun message
+#define TE_MULTIGUNSHOT				126		// much more compact shotgun message
 // This message is used to make a client approximate a 'spray' of gunfire.
 // Any weapon that fires more than one bullet per frame and fires in a bit of a spread is
 // a good candidate for MULTIGUNSHOT use. (shotguns)
@@ -710,16 +710,16 @@ typedef void* HINSTANCE;
 
 
 
-#define MSG_BROADCAST	   0   // unreliable to all
-#define MSG_ONE			 1   // reliable to one (msg_entity)
-#define MSG_ALL			 2   // reliable to all
-#define MSG_INIT			3   // write to the init string
-#define MSG_PVS			 4   // Ents in PVS of org
-#define MSG_PAS			 5   // Ents in PAS of org
-#define MSG_PVS_R		   6   // Reliable to PVS
-#define MSG_PAS_R		   7   // Reliable to PAS
-#define MSG_ONE_UNRELIABLE  8   // Send to one client, but don't put in reliable stream, put in unreliable datagram ( could be dropped )
-#define MSG_SPEC			9   // Sends to all spectator proxies
+#define MSG_BROADCAST		 0	 // unreliable to all
+#define MSG_ONE			 1	 // reliable to one (msg_entity)
+#define MSG_ALL			 2	 // reliable to all
+#define MSG_INIT			3	 // write to the init string
+#define MSG_PVS			 4	 // Ents in PVS of org
+#define MSG_PAS			 5	 // Ents in PAS of org
+#define MSG_PVS_R			 6	 // Reliable to PVS
+#define MSG_PAS_R			 7	 // Reliable to PAS
+#define MSG_ONE_UNRELIABLE	8	 // Send to one client, but don't put in reliable stream, put in unreliable datagram ( could be dropped )
+#define MSG_SPEC			9	 // Sends to all spectator proxies
 
 // contents of a spot in the world
 #define	CONTENTS_EMPTY -1
@@ -734,26 +734,26 @@ typedef void* HINSTANCE;
 #define	CONTENTS_FOG -19
 
 // channels
-#define CHAN_AUTO			  0
+#define CHAN_AUTO				0
 #define CHAN_WEAPON			1
 #define CHAN_VOICE			 2
-#define CHAN_ITEM			  3
-#define CHAN_BODY			  4
+#define CHAN_ITEM				3
+#define CHAN_BODY				4
 #define CHAN_STREAM			5		// allocate stream channel from the static or dynamic area
 #define CHAN_STATIC			6		// allocate channel from the static area
 #define CHAN_NETWORKVOICE_BASE 7		// voice data coming across the network
-#define CHAN_NETWORKVOICE_END  500	  // network voice data reserves slots (CHAN_NETWORKVOICE_BASE through CHAN_NETWORKVOICE_END).
+#define CHAN_NETWORKVOICE_END	500		// network voice data reserves slots (CHAN_NETWORKVOICE_BASE through CHAN_NETWORKVOICE_END).
 
 // attenuation values
 #define ATTN_NONE		0
-#define ATTN_NORM	   0.8f
-#define ATTN_IDLE	   2.0f
+#define ATTN_NORM		 0.8f
+#define ATTN_IDLE		 2.0f
 #define ATTN_STATIC	 1.25f
 
 // pitch values
-#define PITCH_NORM	   100	// non-pitch shifted
+#define PITCH_NORM		 100	// non-pitch shifted
 #define PITCH_LOW		95	 // other values are possible - 0-255, where 255 is very high
-#define PITCH_HIGH	   120
+#define PITCH_HIGH		 120
 
 // volume values
 #define VOL_NORM		1.0
@@ -762,40 +762,40 @@ typedef void* HINSTANCE;
 #define PLAT_LOW_TRIGGER	1
 
 // Trains
-#define SF_TRAIN_WAIT_RETRIGGER  1
-#define SF_TRAIN_START_ON		4	  // Train is initially moving
-#define SF_TRAIN_PASSABLE		8	  // Train is not solid -- used to make water trains
+#define SF_TRAIN_WAIT_RETRIGGER	1
+#define SF_TRAIN_START_ON		4		// Train is initially moving
+#define SF_TRAIN_PASSABLE		8		// Train is not solid -- used to make water trains
 
 // buttons
-#define IN_ATTACK   (1 << 0)
+#define IN_ATTACK	 (1 << 0)
 #define IN_JUMP	 (1 << 1)
 #define IN_DUCK	 (1 << 2)
-#define IN_FORWARD  (1 << 3)
+#define IN_FORWARD	(1 << 3)
 #define IN_BACK	 (1 << 4)
-#define IN_USE	  (1 << 5)
-#define IN_CANCEL   (1 << 6)
+#define IN_USE		(1 << 5)
+#define IN_CANCEL	 (1 << 6)
 #define IN_LEFT	 (1 << 7)
 #define IN_RIGHT	(1 << 8)
 #define IN_MOVELEFT (1 << 9)
 #define IN_MOVERIGHT (1 << 10)
-#define IN_ATTACK2  (1 << 11)
-#define IN_RUN	  (1 << 12)
-#define IN_RELOAD   (1 << 13)
+#define IN_ATTACK2	(1 << 11)
+#define IN_RUN		(1 << 12)
+#define IN_RELOAD	 (1 << 13)
 #define IN_ALT1	 (1 << 14)
 #define IN_SCORE	(1 << 15)
 
 // Break Model Defines
 
 #define BREAK_TYPEMASK	0x4F
-#define BREAK_GLASS	   0x01
-#define BREAK_METAL	   0x02
-#define BREAK_FLESH	   0x04
+#define BREAK_GLASS		 0x01
+#define BREAK_METAL		 0x02
+#define BREAK_FLESH		 0x04
 #define BREAK_WOOD		0x08
 
-#define BREAK_SMOKE	   0x10
-#define BREAK_TRANS	   0x20
+#define BREAK_SMOKE		 0x10
+#define BREAK_TRANS		 0x20
 #define BREAK_CONCRETE	0x40
-#define BREAK_2		   0x80
+#define BREAK_2			 0x80
 
 // Colliding temp entity sounds
 
@@ -809,9 +809,9 @@ typedef void* HINSTANCE;
 #define BOUNCE_SHOTSHELL 0x80
 
 // Temp entity bounce sound types
-#define TE_BOUNCE_NULL	   0
-#define TE_BOUNCE_SHELL	  1
-#define TE_BOUNCE_SHOTSHELL  2
+#define TE_BOUNCE_NULL		 0
+#define TE_BOUNCE_SHELL		1
+#define TE_BOUNCE_SHOTSHELL	2
 
 // Weapon Flags
 #define ITEM_FLAG_NOFIREUNDERWATER (1 << 5)
@@ -819,11 +819,11 @@ typedef void* HINSTANCE;
 // Rendering constants
 enum
 {
-	kRenderNormal,			   // src
-	kRenderTransColor,		   // c*a+dest*(1-a)
+	kRenderNormal,				 // src
+	kRenderTransColor,			 // c*a+dest*(1-a)
 	kRenderTransTexture,		 // src*a+dest*(1-a)
 	kRenderGlow,				 // src*a+dest -- No Z buffer checks
-	kRenderTransAlpha,		   // src*srca+dest*(1-srca)
+	kRenderTransAlpha,			 // src*srca+dest*(1-srca)
 	kRenderTransAdd,			 // src*a+dest
 };
 
@@ -845,11 +845,11 @@ enum
 	kRenderFxFlickerFast,
 	kRenderFxNoDissipation,
 	kRenderFxDistort,			// Distort/scale/translate flicker
-	kRenderFxHologram,		   // kRenderFxDistort + distance fade
+	kRenderFxHologram,			 // kRenderFxDistort + distance fade
 	kRenderFxDeadPlayer,		 // kRenderAmt is the player index
 	kRenderFxExplode,			// Scale up really big!
-	kRenderFxGlowShell,		  // Glowing Shell
-	kRenderFxClampMinScale,	  // Keep this sprite from getting very small (SPRITES only!)
+	kRenderFxGlowShell,			// Glowing Shell
+	kRenderFxClampMinScale,		// Keep this sprite from getting very small (SPRITES only!)
 };
 
 typedef int func_t;
@@ -907,24 +907,24 @@ typedef struct plane_t
 
 typedef struct
 {
-	qboolean allsolid;		   // if true, plane is not valid
+	qboolean allsolid;			 // if true, plane is not valid
 	qboolean startsolid;		 // if true, the initial point was in a solid area
 	qboolean inopen, inwater;
-	float fraction;			  // time completed, 1.0f = didn't hit anything
-	Vector endpos;			   // final position
-	plane_t plane;			   // surface normal at impact
+	float fraction;				// time completed, 1.0f = didn't hit anything
+	Vector endpos;				 // final position
+	plane_t plane;				 // surface normal at impact
 	edict_t* ent;				// entity the surface is on
 	int hitgroup;				// 0 == generic, non zero is specific body part
 } trace_t;
 
 
-#define FCVAR_ARCHIVE	  (1 << 0)	 // set to cause it to be saved to vars.rc
+#define FCVAR_ARCHIVE		(1 << 0)	 // set to cause it to be saved to vars.rc
 #define FCVAR_USERINFO	 (1 << 1)	 // changes the client's info string
-#define FCVAR_SERVER	   (1 << 2)	 // notifies players when changed
-#define FCVAR_EXTDLL	   (1 << 3)	 // defined by external DLL
+#define FCVAR_SERVER		 (1 << 2)	 // notifies players when changed
+#define FCVAR_EXTDLL		 (1 << 3)	 // defined by external DLL
 #define FCVAR_CLIENTDLL	(1 << 4)	 // defined by the client dll
-#define FCVAR_PROTECTED	(1 << 5)	 // It's a server cvar, but we don't send the data since it's a password, etc.  Sends 1 if it's not bland/zero, 0 otherwise as value
-#define FCVAR_SPONLY	   (1 << 6)	 // This cvar cannot be changed by clients connected to a multiplayer server.
+#define FCVAR_PROTECTED	(1 << 5)	 // It's a server cvar, but we don't send the data since it's a password, etc.	Sends 1 if it's not bland/zero, 0 otherwise as value
+#define FCVAR_SPONLY		 (1 << 6)	 // This cvar cannot be changed by clients connected to a multiplayer server.
 #define FCVAR_PRINTABLEONLY (1 << 7)	// This cvar's string cannot contain unprintable characters ( e.g., used for player name etc ).
 #define FCVAR_UNLOGGED	 (1 << 8)	 // If this is a FCVAR_SERVER, don't log changes to the log file / console if we are creating a log
 
@@ -932,14 +932,14 @@ typedef struct
 typedef enum
 {
 	at_notice,
-	at_console,				  // same as at_notice, but forces a ConPrintf, not a message box
+	at_console,					// same as at_notice, but forces a ConPrintf, not a message box
 	at_aiconsole,				// same as at_console, but only shown if developer level is 2!
 	at_warning,
 	at_error,
 	at_logged					// Server print to console ( only in multiplayer games ).
 } ALERT_TYPE;
 
-// 4-22-98  JOHN: added for use in pfnClientPrintf
+// 4-22-98	JOHN: added for use in pfnClientPrintf
 typedef enum
 {
 	print_console,
@@ -956,8 +956,8 @@ typedef enum
 typedef enum
 {
 	force_exactfile,			 // File on client must exactly match server's file
-	force_model_samebounds,	  // For model files only, the geometry must fit in the same bbox
-	force_model_specifybounds,   // For model files only, the geometry must fit in the specified bbox
+	force_model_samebounds,		// For model files only, the geometry must fit in the same bbox
+	force_model_specifybounds,	 // For model files only, the geometry must fit in the specified bbox
 } FORCE_TYPE;
 
 
@@ -1024,25 +1024,41 @@ typedef struct cvar_s
 #ifdef _WIN32
 #define DLLEXPORT __stdcall
 #else
-#define DLLEXPORT			   /* */
+#define DLLEXPORT				 /* */
 #endif
 
 // Returned by TraceLine
 typedef struct
 {
-	int fAllSolid;			   // if true, plane is not valid
+	int fAllSolid;				 // if true, plane is not valid
 	int fStartSolid;			 // if true, the initial point was in a solid area
 	int fInOpen;
 	int fInWater;
 	float flFraction;			// time completed, 1.0f = didn't hit anything
 	Vector vecEndPos;			// final position
 	float flPlaneDist;
-	Vector vecPlaneNormal;	   // surface normal at impact
-	edict_t* pHit;			   // entity the surface is on
-	int iHitgroup;			   // 0 == generic, non zero is specific body part
+	Vector vecPlaneNormal;		 // surface normal at impact
+	edict_t* pHit;				 // entity the surface is on
+	int iHitgroup;				 // 0 == generic, non zero is specific body part
 } TraceResult;
 
 typedef uint32_t CRC32_t;
+
+struct cmd
+{
+	short lerp_msec;
+	uint8_t msec;
+	Vector viewangles;
+	float forwardmove;
+	float sidemove;
+	float upmove;
+	uint8_t lightlevel;
+	uint16_t buttons;
+	uint8_t impulse;
+	uint8_t weaponselect;
+	int impact_index;
+	Vector impact_position;
+};
 
 typedef struct enginefuncs_s
 {
@@ -1126,11 +1142,11 @@ typedef struct enginefuncs_s
 	void (*pfnGetBonePosition) (const edict_t* pentEdict, int iBone, float* rgflOrigin, float* rgflAngles);
 	uint32_t(*pfnFunctionFromName) (const char* pName);
 	const char* (*pfnNameForFunction) (uint32_t function);
-	void (*pfnClientPrintf) (edict_t* pentEdict, PRINT_TYPE ptype, const char* szMsg);  // JOHN: engine callbacks so game DLL can print messages to individual clients
+	void (*pfnClientPrintf) (edict_t* pentEdict, PRINT_TYPE ptype, const char* szMsg);	// JOHN: engine callbacks so game DLL can print messages to individual clients
 	void (*pfnServerPrint) (const char* szMsg);
-	const char* (*pfnCmd_Args) (void);   // these 3 added 
-	const char* (*pfnCmd_Argv) (int argc);	   // so game DLL can easily 
-	int (*pfnCmd_Argc) (void);   // access client 'cmd' strings
+	const char* (*pfnCmd_Args) (void);	 // these 3 added 
+	const char* (*pfnCmd_Argv) (int argc);		 // so game DLL can easily 
+	int (*pfnCmd_Argc) (void);	 // access client 'cmd' strings
 	void (*pfnGetAttachment) (const edict_t* pentEdict, int iAttachment, float* rgflOrigin, float* rgflAngles);
 	void (*pfnCRC32_Init) (CRC32_t* pulCRC);
 	void (*pfnCRC32_ProcessBuffer) (CRC32_t* pulCRC, void* p, int len);
@@ -1143,7 +1159,7 @@ typedef struct enginefuncs_s
 	void (*pfnCrosshairAngle) (const edict_t* pClient, float pitch, float yaw);
 	uint8_t* (*pfnLoadFileForMe) (char* filename, int* pLength);
 	void (*pfnFreeFile) (void* buffer);
-	void (*pfnEndSection) (const char* pszSectionName);  // trigger_endsection
+	void (*pfnEndSection) (const char* pszSectionName);	// trigger_endsection
 	int (*pfnCompareFileTime) (char* filename1, char* filename2, int* iCompare);
 	void (*pfnGetGameDir) (char* szGetGameDir);
 	void (*pfnCvar_RegisterVariable) (cvar_t* variable);
@@ -1154,18 +1170,18 @@ typedef struct enginefuncs_s
 	void (*pfnRunPlayerMove) (edict_t *fakeclient, const float *viewangles, float forwardmove, float sidemove, float upmove, uint16_t buttons, uint8_t impulse, uint8_t msec);
 	//
 	int (*pfnNumberOfEntities) (void);
-	char* (*pfnGetInfoKeyBuffer) (edict_t* e);  // passing in null gets the serverinfo
+	char* (*pfnGetInfoKeyBuffer) (edict_t* e);	// passing in null gets the serverinfo
 	char* (*pfnInfoKeyValue) (char* infobuffer, char* key);
 	void (*pfnSetKeyValue) (char* infobuffer, char* key, char* value);
 	void (*pfnSetClientKeyValue) (int clientIndex, char* infobuffer, char* key, char* value);
 	int (*pfnIsMapValid) (char* filename);
 	void (*pfnStaticDecal) (const float* origin, int decalIndex, int entityIndex, int modelIndex);
 	int (*pfnPrecacheGeneric) (char* s);
-	int (*pfnGetPlayerUserId) (edict_t* e);	 // returns the server assigned userid for this player.  useful for logging frags, etc.  returns -1 if the edict couldn't be found in the list of clients
+	int (*pfnGetPlayerUserId) (edict_t* e);	 // returns the server assigned userid for this player.	useful for logging frags, etc.	returns -1 if the edict couldn't be found in the list of clients
 	void (*pfnBuildSoundMsg) (edict_t* entity, int channel, const char* sample, float volume, float attenuation, int fFlags, int pitch, int msg_dest, int msg_type, const float* pOrigin, edict_t* ed);
-	int (*pfnIsDedicatedServer) (void);  // is this a dedicated server?
+	int (*pfnIsDedicatedServer) (void);	// is this a dedicated server?
 	cvar_t* (*pfnCVarGetPointer) (const char* szVarName);
-	unsigned int (*pfnGetPlayerWONId) (edict_t* e);	 // returns the server assigned WONid for this player.  useful for logging frags, etc.  returns -1 if the edict couldn't be found in the list of clients
+	unsigned int (*pfnGetPlayerWONId) (edict_t* e);	 // returns the server assigned WONid for this player.	useful for logging frags, etc.	returns -1 if the edict couldn't be found in the list of clients
 
 	void (*pfnInfo_RemoveKey) (char* s, const char* key);
 	const char* (*pfnGetPhysicsKeyValue) (const edict_t* pClient, const char* key);
@@ -1265,7 +1281,7 @@ typedef struct
 	void (*pfnParmsNewLevel) (void);
 	void (*pfnParmsChangeLevel) (void);
 
-	// Returns string describing current .dll.  E.g., TeamFotrress 2, Half-Life
+	// Returns string describing current .dll.	E.g., TeamFotrress 2, Half-Life
 	const char* (*pfnGetGameDescription) (void);
 
 	// Notify dll about a player customization.
@@ -1276,7 +1292,7 @@ typedef struct
 	void (*pfnSpectatorDisconnect) (edict_t* pentEdict);
 	void (*pfnSpectatorThink) (edict_t* pentEdict);
 
-	// Notify game .dll that engine is going to shut down.  Allows mod authors to set a breakpoint.
+	// Notify game .dll that engine is going to shut down.	Allows mod authors to set a breakpoint.
 	void (*pfnSys_Error) (const char* error_string);
 
 	void (*pfnPM_Move) (struct playermove_s* ppmove, qboolean server);
@@ -1289,14 +1305,16 @@ typedef struct
 	void (*pfnRegisterEncoders) (void);
 	int (*pfnGetWeaponData) (struct edict_s* player, struct weapon_data_s* info);
 
-	void (*pfnCmdStart) (const edict_t* player, const struct cmd* cmd, unsigned int random_seed);
+
+
+	void (*pfnCmdStart) (const edict_t* player, const ::cmd* cmd, unsigned int random_seed);
 	void (*pfnCmdEnd) (const edict_t* player);
 
-	// Return 1 if the packet is valid.  Set response_buffer_size if you want to send a response packet.  Incoming, it holds the max
-	//  size of the response_buffer, so you must zero it out if you choose not to respond.
+	// Return 1 if the packet is valid.	Set response_buffer_size if you want to send a response packet.	Incoming, it holds the max
+	//	size of the response_buffer, so you must zero it out if you choose not to respond.
 	int (*pfnConnectionlessPacket) (const struct netadr_s* net_from, const char* args, char* response_buffer, int* response_buffer_size);
 
-	// Enumerates player hulls.  Returns 0 if the hull number doesn't exist, 1 otherwise
+	// Enumerates player hulls.	Returns 0 if the hull number doesn't exist, 1 otherwise
 	int (*pfnGetHullBounds) (int hullnumber, float* mins, float* maxs);
 
 	// Create baselines for certain "unplaced" items.
@@ -1307,9 +1325,9 @@ typedef struct
 	int (*pfnInconsistentFile) (const struct edict_s* player, const char* filename, char* disconnect_message);
 
 	// The game .dll should return 1 if lag compensation should be allowed ( could also just set
-	//  the sv_unlag cvar.
+	//	the sv_unlag cvar.
 	// Most games right now should return 0, until client-side weapon prediction code is written
-	//  and tested for them.
+	//	and tested for them.
 	int (*pfnAllowLagCompensation) (void);
 } DLL_FUNCTIONS;
 
@@ -1336,120 +1354,120 @@ extern enginefuncs_t g_engfuncs;
 #define PRECACHE_MODEL (*g_engfuncs.pfnPrecacheModel)
 #define PRECACHE_SOUND (*g_engfuncs.pfnPrecacheSound)
 #define PRECACHE_GENERIC (*g_engfuncs.pfnPrecacheGeneric)
-#define SET_MODEL	   (*g_engfuncs.pfnSetModel)
+#define SET_MODEL		 (*g_engfuncs.pfnSetModel)
 #define MODEL_INDEX	 (*g_engfuncs.pfnModelIndex)
-#define MODEL_FRAMES   (*g_engfuncs.pfnModelFrames)
-#define SET_SIZE	   (*g_engfuncs.pfnSetSize)
-#define CHANGE_LEVEL   (*g_engfuncs.pfnChangeLevel)
+#define MODEL_FRAMES	 (*g_engfuncs.pfnModelFrames)
+#define SET_SIZE		 (*g_engfuncs.pfnSetSize)
+#define CHANGE_LEVEL	 (*g_engfuncs.pfnChangeLevel)
 #define GET_SPAWN_PARMS (*g_engfuncs.pfnGetSpawnParms)
 #define SAVE_SPAWN_PARMS (*g_engfuncs.pfnSaveSpawnParms)
-#define VEC_TO_YAW	  (*g_engfuncs.pfnVecToYaw)
-#define VEC_TO_ANGLES   (*g_engfuncs.pfnVecToAngles)
+#define VEC_TO_YAW		(*g_engfuncs.pfnVecToYaw)
+#define VEC_TO_ANGLES	 (*g_engfuncs.pfnVecToAngles)
 #define MOVE_TO_ORIGIN (*g_engfuncs.pfnMoveToOrigin)
-#define oldCHANGE_YAW  (*g_engfuncs.pfnChangeYaw)
-#define CHANGE_PITCH   (*g_engfuncs.pfnChangePitch)
-#define MAKE_VECTORS   (*g_engfuncs.pfnMakeVectors)
-#define CREATE_ENTITY  (*g_engfuncs.pfnCreateEntity)
-#define REMOVE_ENTITY  (*g_engfuncs.pfnRemoveEntity)
+#define oldCHANGE_YAW	(*g_engfuncs.pfnChangeYaw)
+#define CHANGE_PITCH	 (*g_engfuncs.pfnChangePitch)
+#define MAKE_VECTORS	 (*g_engfuncs.pfnMakeVectors)
+#define CREATE_ENTITY	(*g_engfuncs.pfnCreateEntity)
+#define REMOVE_ENTITY	(*g_engfuncs.pfnRemoveEntity)
 #define CREATE_NAMED_ENTITY (*g_engfuncs.pfnCreateNamedEntity)
 #define MAKE_STATIC	(*g_engfuncs.pfnMakeStatic)
 #define ENT_IS_ON_FLOOR (*g_engfuncs.pfnEntIsOnFloor)
-#define DROP_TO_FLOOR  (*g_engfuncs.pfnDropToFloor)
-#define WALK_MOVE	  (*g_engfuncs.pfnWalkMove)
+#define DROP_TO_FLOOR	(*g_engfuncs.pfnDropToFloor)
+#define WALK_MOVE		(*g_engfuncs.pfnWalkMove)
 #define SET_ORIGIN	 (*g_engfuncs.pfnSetOrigin)
 #define EMIT_SOUND_DYN2 (*g_engfuncs.pfnEmitSound)
 #define BUILD_SOUND_MSG (*g_engfuncs.pfnBuildSoundMsg)
-#define TRACE_LINE	   (*g_engfuncs.pfnTraceLine)
-#define TRACE_TOSS	   (*g_engfuncs.pfnTraceToss)
+#define TRACE_LINE		 (*g_engfuncs.pfnTraceLine)
+#define TRACE_TOSS		 (*g_engfuncs.pfnTraceToss)
 #define TRACE_MONSTER_HULL (*g_engfuncs.pfnTraceMonsterHull)
-#define TRACE_HULL	   (*g_engfuncs.pfnTraceHull)
-#define GET_AIM_VECTOR   (*g_engfuncs.pfnGetAimVector)
-#define SERVER_COMMAND   (*g_engfuncs.pfnServerCommand)
-#define SERVER_EXECUTE   (*g_engfuncs.pfnServerExecute)
-#define CLIENT_COMMAND   (*g_engfuncs.pfnClientCommand)
-#define PARTICLE_EFFECT  (*g_engfuncs.pfnParticleEffect)
-#define LIGHT_STYLE	  (*g_engfuncs.pfnLightStyle)
-#define DECAL_INDEX	  (*g_engfuncs.pfnDecalIndex)
-#define POINT_CONTENTS   (*g_engfuncs.pfnPointContents)
-#define CRC32_INIT		  (*g_engfuncs.pfnCRC32_Init)
+#define TRACE_HULL		 (*g_engfuncs.pfnTraceHull)
+#define GET_AIM_VECTOR	 (*g_engfuncs.pfnGetAimVector)
+#define SERVER_COMMAND	 (*g_engfuncs.pfnServerCommand)
+#define SERVER_EXECUTE	 (*g_engfuncs.pfnServerExecute)
+#define CLIENT_COMMAND	 (*g_engfuncs.pfnClientCommand)
+#define PARTICLE_EFFECT	(*g_engfuncs.pfnParticleEffect)
+#define LIGHT_STYLE		(*g_engfuncs.pfnLightStyle)
+#define DECAL_INDEX		(*g_engfuncs.pfnDecalIndex)
+#define POINT_CONTENTS	 (*g_engfuncs.pfnPointContents)
+#define CRC32_INIT			(*g_engfuncs.pfnCRC32_Init)
 #define CRC32_PROCESS_BUFFER (*g_engfuncs.pfnCRC32_ProcessBuffer)
-#define CRC32_PROCESS_BYTE  (*g_engfuncs.pfnCRC32_ProcessByte)
+#define CRC32_PROCESS_BYTE	(*g_engfuncs.pfnCRC32_ProcessByte)
 #define CRC32_FINAL		 (*g_engfuncs.pfnCRC32_Final)
-#define RANDOM_LONG	   (*g_engfuncs.pfnRandomLong)
-#define RANDOM_FLOAT	  (*g_engfuncs.pfnRandomFloat)
-#define GETPLAYERAUTHID   (*g_engfuncs.pfnGetPlayerAuthId)
+#define RANDOM_LONG		 (*g_engfuncs.pfnRandomLong)
+#define RANDOM_FLOAT		(*g_engfuncs.pfnRandomFloat)
+#define GETPLAYERAUTHID	 (*g_engfuncs.pfnGetPlayerAuthId)
 
 inline void MESSAGE_BEGIN(const int msg_dest, const int msg_type, const float* pOrigin = nullptr, edict_t* ed = nullptr)
 {
 	g_engfuncs.pfnMessageBegin(msg_dest, msg_type, pOrigin, ed);
 }
 
-#define MESSAGE_END	  (*g_engfuncs.pfnMessageEnd)
-#define WRITE_BYTE	   (*g_engfuncs.pfnWriteByte)
-#define WRITE_CHAR	   (*g_engfuncs.pfnWriteChar)
-#define WRITE_SHORT	  (*g_engfuncs.pfnWriteShort)
-#define WRITE_LONG	   (*g_engfuncs.pfnWriteLong)
-#define WRITE_ANGLE	  (*g_engfuncs.pfnWriteAngle)
-#define WRITE_COORD	  (*g_engfuncs.pfnWriteCoord)
-#define WRITE_STRING   (*g_engfuncs.pfnWriteString)
-#define WRITE_ENTITY   (*g_engfuncs.pfnWriteEntity)
+#define MESSAGE_END		(*g_engfuncs.pfnMessageEnd)
+#define WRITE_BYTE		 (*g_engfuncs.pfnWriteByte)
+#define WRITE_CHAR		 (*g_engfuncs.pfnWriteChar)
+#define WRITE_SHORT		(*g_engfuncs.pfnWriteShort)
+#define WRITE_LONG		 (*g_engfuncs.pfnWriteLong)
+#define WRITE_ANGLE		(*g_engfuncs.pfnWriteAngle)
+#define WRITE_COORD		(*g_engfuncs.pfnWriteCoord)
+#define WRITE_STRING	 (*g_engfuncs.pfnWriteString)
+#define WRITE_ENTITY	 (*g_engfuncs.pfnWriteEntity)
 
-#define CVAR_REGISTER  (*g_engfuncs.pfnCVarRegister)
+#define CVAR_REGISTER	(*g_engfuncs.pfnCVarRegister)
 #define CVAR_GET_FLOAT (*g_engfuncs.pfnCVarGetFloat)
 #define CVAR_GET_STRING (*g_engfuncs.pfnCVarGetString)
 #define CVAR_SET_FLOAT (*g_engfuncs.pfnCVarSetFloat)
 #define CVAR_SET_STRING (*g_engfuncs.pfnCVarSetString)
 #define CVAR_GET_POINTER (*g_engfuncs.pfnCVarGetPointer)
-#define ALERT		   (*g_engfuncs.pfnAlertMessage)
-#define ENGINE_FPRINTF  (*g_engfuncs.pfnEngineFprintf)
-#define ALLOC_PRIVATE   (*g_engfuncs.pfnPvAllocEntPrivateData)
-#define GET_PRIVATE(pent)  (pent ? (pent->pvPrivateData) : nullptr);
-#define FREE_PRIVATE   (*g_engfuncs.pfnFreeEntPrivateData)
-#define ALLOC_STRING   (*g_engfuncs.pfnAllostring)
-#define FIND_ENTITY_BY_STRING   (*g_engfuncs.pfnFindEntityByString)
-#define GETENTITYILLUM   (*g_engfuncs.pfnGetEntityIllum)
+#define ALERT			 (*g_engfuncs.pfnAlertMessage)
+#define ENGINE_FPRINTF	(*g_engfuncs.pfnEngineFprintf)
+#define ALLOC_PRIVATE	 (*g_engfuncs.pfnPvAllocEntPrivateData)
+#define GET_PRIVATE(pent)	(pent ? (pent->pvPrivateData) : nullptr);
+#define FREE_PRIVATE	 (*g_engfuncs.pfnFreeEntPrivateData)
+#define ALLOC_STRING	 (*g_engfuncs.pfnAllostring)
+#define FIND_ENTITY_BY_STRING	 (*g_engfuncs.pfnFindEntityByString)
+#define GETENTITYILLUM	 (*g_engfuncs.pfnGetEntityIllum)
 #define FIND_ENTITY_IN_SPHERE (*g_engfuncs.pfnFindEntityInSphere)
-#define FIND_CLIENT_IN_PVS   (*g_engfuncs.pfnFindClientInPVS)
-#define EMIT_AMBIENT_SOUND   (*g_engfuncs.pfnEmitAmbientSound)
+#define FIND_CLIENT_IN_PVS	 (*g_engfuncs.pfnFindClientInPVS)
+#define EMIT_AMBIENT_SOUND	 (*g_engfuncs.pfnEmitAmbientSound)
 #define GET_MODEL_PTR		(*g_engfuncs.pfnGetModelPtr)
 #define REG_USER_MSG		 (*g_engfuncs.pfnRegUserMsg)
 #define GET_BONE_POSITION	(*g_engfuncs.pfnGetBonePosition)
-#define FUNCTION_FROM_NAME   (*g_engfuncs.pfnFunctionFromName)
+#define FUNCTION_FROM_NAME	 (*g_engfuncs.pfnFunctionFromName)
 #define NAME_FOR_FUNCTION	(*g_engfuncs.pfnNameForFunction)
 #define TRACE_TEXTURE		(*g_engfuncs.pfnTraceTexture)
 #define CLIENT_PRINTF		(*g_engfuncs.pfnClientPrintf)
 #define CMD_ARGS			 (*g_engfuncs.pfnCmd_Args)
 #define CMD_ARGC			 (*g_engfuncs.pfnCmd_Argc)
 #define CMD_ARGV			 (*g_engfuncs.pfnCmd_Argv)
-#define GET_ATTACHMENT	   (*g_engfuncs.pfnGetAttachment)
+#define GET_ATTACHMENT		 (*g_engfuncs.pfnGetAttachment)
 #define SET_VIEW			 (*g_engfuncs.pfnSetView)
-#define SET_CROSSHAIRANGLE   (*g_engfuncs.pfnCrosshairAngle)
+#define SET_CROSSHAIRANGLE	 (*g_engfuncs.pfnCrosshairAngle)
 #define LOAD_FILE_FOR_ME	 (*g_engfuncs.pfnLoadFileForMe)
 #define FREE_FILE			(*g_engfuncs.pfnFreeFile)
 #define COMPARE_FILE_TIME	(*g_engfuncs.pfnCompareFileTime)
 #define GET_GAME_DIR		 (*g_engfuncs.pfnGetGameDir)
 #define IS_MAP_VALID		 (*g_engfuncs.pfnIsMapValid)
-#define NUMBER_OF_ENTITIES   (*g_engfuncs.pfnNumberOfEntities)
-#define IS_DEDICATED_SERVER  (*g_engfuncs.pfnIsDedicatedServer)
+#define NUMBER_OF_ENTITIES	 (*g_engfuncs.pfnNumberOfEntities)
+#define IS_DEDICATED_SERVER	(*g_engfuncs.pfnIsDedicatedServer)
 #define PLAYER_RUN_MOVE		 (*g_engfuncs.pfnRunPlayerMove)
-#define PRECACHE_EVENT	   (*g_engfuncs.pfnPrecacheEvent)
-#define PLAYBACK_EVENT_FULL  (*g_engfuncs.pfnPlaybackEvent)
-#define ENGINE_SET_PVS	   (*g_engfuncs.pfnSetFatPVS)
-#define ENGINE_SET_PAS	   (*g_engfuncs.pfnSetFatPAS)
+#define PRECACHE_EVENT		 (*g_engfuncs.pfnPrecacheEvent)
+#define PLAYBACK_EVENT_FULL	(*g_engfuncs.pfnPlaybackEvent)
+#define ENGINE_SET_PVS		 (*g_engfuncs.pfnSetFatPVS)
+#define ENGINE_SET_PAS		 (*g_engfuncs.pfnSetFatPAS)
 #define ENGINE_CHECK_VISIBILITY (*g_engfuncs.pfnCheckVisibility)
-#define DELTA_SET			  (*g_engfuncs.pfnDeltaSetField)
+#define DELTA_SET				(*g_engfuncs.pfnDeltaSetField)
 #define DELTA_UNSET			(*g_engfuncs.pfnDeltaUnsetField)
-#define DELTA_ADDENCODER	   (*g_engfuncs.pfnDeltaAddEncoder)
-#define ENGINE_CURRENT_PLAYER  (*g_engfuncs.pfnGetCurrentPlayer)
+#define DELTA_ADDENCODER		 (*g_engfuncs.pfnDeltaAddEncoder)
+#define ENGINE_CURRENT_PLAYER	(*g_engfuncs.pfnGetCurrentPlayer)
 #define ENGINE_CANSKIP		 (*g_engfuncs.pfnCanSkipPlayer)
 #define DELTA_FINDFIELD		(*g_engfuncs.pfnDeltaFindField)
-#define DELTA_SETBYINDEX	   (*g_engfuncs.pfnDeltaSetFieldByIndex)
+#define DELTA_SETBYINDEX		 (*g_engfuncs.pfnDeltaSetFieldByIndex)
 #define DELTA_UNSETBYINDEX	 (*g_engfuncs.pfnDeltaUnsetFieldByIndex)
 #define ENGINE_GETPHYSINFO	 (*g_engfuncs.pfnGetPhysicsInfoString)
 #define ENGINE_SETGROUPMASK	(*g_engfuncs.pfnSetGroupMask)
 #define ENGINE_INSTANCE_BASELINE (*g_engfuncs.pfnCreateInstancedBaseline)
 #define ENGINE_FORCE_UNMODIFIED (*g_engfuncs.pfnForceUnmodified)
-#define PLAYER_CNX_STATS	   (*g_engfuncs.pfnGetPlayerStats)
+#define PLAYER_CNX_STATS		 (*g_engfuncs.pfnGetPlayerStats)
 
 
 #ifdef DLL_DEBUG
@@ -1507,7 +1525,7 @@ typedef struct entvars_s
 	Vector velocity;
 	Vector basevelocity;
 	Vector clbasevelocity; // Base velocity that was passed in to server physics so
-	// client can predict conveyors correctly.  Server zeroes it, so we need to store here, too.
+	// client can predict conveyors correctly.	Server zeroes it, so we need to store here, too.
 	Vector movedir;
 
 	Vector angles; // Model angles
@@ -1668,31 +1686,31 @@ struct edict_s
 	int headnode;				// -1 to use normal leaf check
 	int num_leafs;
 	short leafnums[MAX_ENT_LEAFS];
-	float freetime;			  // sv.time when the object was freed
+	float freetime;				// sv.time when the object was freed
 	void* pvPrivateData;		 // Alloced and freed by engine, used by DLLs
 	entvars_t v;				 // C exported fields from progs
 };
 
-#define MAX_WEAPON_SLOTS   5	// hud item selection slots
+#define MAX_WEAPON_SLOTS	 5	// hud item selection slots
 #define MAX_ITEM_TYPES	 6	// hud item selection slots
 
-#define MAX_ITEMS		  5	// hard coded item types
+#define MAX_ITEMS			5	// hard coded item types
 
-#define HIDEHUD_WEAPONS	  ( 1 << 0 )
-#define HIDEHUD_FLASHLIGHT   ( 1 << 1 )
-#define HIDEHUD_ALL		  ( 1 << 2 )
-#define HIDEHUD_HEALTH	   ( 1 << 3 )
+#define HIDEHUD_WEAPONS		( 1 << 0 )
+#define HIDEHUD_FLASHLIGHT	 ( 1 << 1 )
+#define HIDEHUD_ALL			( 1 << 2 )
+#define HIDEHUD_HEALTH		 ( 1 << 3 )
 
-#define MAX_AMMO_TYPES  32	  // ???
-#define MAX_AMMO_SLOTS  32	  // not really slots
+#define MAX_AMMO_TYPES	32		// ???
+#define MAX_AMMO_SLOTS	32		// not really slots
 
 #define HUD_PRINTNOTIFY	 1
 #define HUD_PRINTCONSOLE	2
-#define HUD_PRINTTALK	   3
+#define HUD_PRINTTALK		 3
 #define HUD_PRINTCENTER	 4
 
 #define WEAPON_SUIT		 31
-#define __USE_GNU		   1
+#define __USE_GNU			 1
 
 #undef DLLEXPORT
 #ifdef _WIN32
@@ -1718,15 +1736,15 @@ extern meta_globals_t* gpMetaGlobals;
 
 #define SET_META_RESULT(result) gpMetaGlobals->mres = result
 #define RETURN_META(result)		 \
-   {								\
-	  gpMetaGlobals->mres = result; \
-	  return;					   \
-   }
+	 {								\
+		gpMetaGlobals->mres = result; \
+		return;						 \
+	 }
 #define RETURN_META_VALUE(result, value) \
-   {									 \
-	  gpMetaGlobals->mres = result;	  \
-	  return (value);					\
-   }
+	 {									 \
+		gpMetaGlobals->mres = result;		\
+		return (value);					\
+	 }
 #define META_RESULT_STATUS gpMetaGlobals->status
 #define META_RESULT_PREVIOUS gpMetaGlobals->prev_mres
 #define META_RESULT_ORIG_RET(type) *reinterpret_cast<type*>(gpMetaGlobals->orig_ret)
@@ -1771,7 +1789,7 @@ extern plugin_info_t Plugin_info;
 
 typedef plugin_info_t* plid_t;
 
-#define PLID   &Plugin_info
+#define PLID	 &Plugin_info
 typedef struct hudtextparms_s
 {
 	float x;
@@ -1832,17 +1850,17 @@ C_DLLEXPORT int GetEntityAPI2_Post(DLL_FUNCTIONS* functionTable, int* interfaceV
 C_DLLEXPORT int GetNewDLLFunctions_Post(NEW_DLL_FUNCTIONS* pNewFunctionTable, int* interfaceVersion);
 C_DLLEXPORT int GetEngineFunctions(enginefuncs_t* pengfuncsFromEngine, int* interfaceVersion);
 
-#define MDLL_FUNC   gpGamedllFuncs->dllapi_table
+#define MDLL_FUNC	 gpGamedllFuncs->dllapi_table
 
 #define MDLL_GameDLLInit			MDLL_FUNC->pfnGameInit
-#define MDLL_Spawn				  MDLL_FUNC->pfnSpawn
-#define MDLL_Think				  MDLL_FUNC->pfnThink
-#define MDLL_Use				  MDLL_FUNC->pfnUse
-#define MDLL_Touch				  MDLL_FUNC->pfnTouch
-#define MDLL_Blocked			   MDLL_FUNC->pfnBlocked
-#define MDLL_KeyValue			   MDLL_FUNC->pfnKeyValue
-#define MDLL_Save				  MDLL_FUNC->pfnSave
-#define MDLL_Restore			   MDLL_FUNC->pfnRestore
+#define MDLL_Spawn					MDLL_FUNC->pfnSpawn
+#define MDLL_Think					MDLL_FUNC->pfnThink
+#define MDLL_Use					MDLL_FUNC->pfnUse
+#define MDLL_Touch					MDLL_FUNC->pfnTouch
+#define MDLL_Blocked				 MDLL_FUNC->pfnBlocked
+#define MDLL_KeyValue				 MDLL_FUNC->pfnKeyValue
+#define MDLL_Save					MDLL_FUNC->pfnSave
+#define MDLL_Restore				 MDLL_FUNC->pfnRestore
 #define MDLL_ObjectCollsionBox		 MDLL_FUNC->pfnAbsBox
 #define MDLL_SaveWriteFields		 MDLL_FUNC->pfnSaveWriteFields
 #define MDLL_SaveReadFields			MDLL_FUNC->pfnSaveReadFields
@@ -1851,25 +1869,25 @@ C_DLLEXPORT int GetEngineFunctions(enginefuncs_t* pengfuncsFromEngine, int* inte
 #define MDLL_ResetGlobalState		 MDLL_FUNC->pfnResetGlobalState
 #define MDLL_ClientConnect			MDLL_FUNC->pfnClientConnect
 #define MDLL_ClientDisconnect		 MDLL_FUNC->pfnClientDisconnect
-#define MDLL_ClientKill			   MDLL_FUNC->pfnClientKill
+#define MDLL_ClientKill				 MDLL_FUNC->pfnClientKill
 #define MDLL_ClientPutInServer		 MDLL_FUNC->pfnClientPutInServer
 #define MDLL_ClientCommand			MDLL_FUNC->pfnClientCommand
-#define MDLL_ClientUserInfoChanged	  MDLL_FUNC->pfnClientUserInfoChanged
+#define MDLL_ClientUserInfoChanged		MDLL_FUNC->pfnClientUserInfoChanged
 #define MDLL_ServerActivate			MDLL_FUNC->pfnServerActivate
 #define MDLL_ServerDeactivate		 MDLL_FUNC->pfnServerDeactivate
 #define MDLL_PlayerPreThink			MDLL_FUNC->pfnPlayerPreThink
 #define MDLL_PlayerPostThink		 MDLL_FUNC->pfnPlayerPostThink
-#define MDLL_StartFrame			   MDLL_FUNC->pfnStartFrame
+#define MDLL_StartFrame				 MDLL_FUNC->pfnStartFrame
 #define MDLL_ParmsNewLevel			MDLL_FUNC->pfnParmsNewLevel
 #define MDLL_ParmsChangeLevel		 MDLL_FUNC->pfnParmsChangeLevel
 #define MDLL_GetGameDescription		 MDLL_FUNC->pfnGetGameDescription
-#define MDLL_PlayerCustomization	  MDLL_FUNC->pfnPlayerCustomization
+#define MDLL_PlayerCustomization		MDLL_FUNC->pfnPlayerCustomization
 #define MDLL_SpectatorConnect		 MDLL_FUNC->pfnSpectatorConnect
-#define MDLL_SpectatorDisconnect	  MDLL_FUNC->pfnSpectatorDisconnect
+#define MDLL_SpectatorDisconnect		MDLL_FUNC->pfnSpectatorDisconnect
 #define MDLL_SpectatorThink			MDLL_FUNC->pfnSpectatorThink
-#define MDLL_Sys_Error			   MDLL_FUNC->pfnSys_Error
-#define MDLL_PM_Move			   MDLL_FUNC->pfnPM_Move
-#define MDLL_PM_Init			   MDLL_FUNC->pfnPM_Init
+#define MDLL_Sys_Error				 MDLL_FUNC->pfnSys_Error
+#define MDLL_PM_Move				 MDLL_FUNC->pfnPM_Move
+#define MDLL_PM_Init				 MDLL_FUNC->pfnPM_Init
 #define MDLL_PM_FindTextureType		 MDLL_FUNC->pfnPM_FindTextureType
 #define MDLL_SetupVisibility		 MDLL_FUNC->pfnSetupVisibility
 #define MDLL_UpdateClientData		 MDLL_FUNC->pfnUpdateClientData
@@ -1877,45 +1895,45 @@ C_DLLEXPORT int GetEngineFunctions(enginefuncs_t* pengfuncsFromEngine, int* inte
 #define MDLL_CreateBaseline			MDLL_FUNC->pfnCreateBaseline
 #define MDLL_RegisterEncoders		 MDLL_FUNC->pfnRegisterEncoders
 #define MDLL_GetWeaponData			MDLL_FUNC->pfnGetWeaponData
-#define MDLL_CmdStart			   MDLL_FUNC->pfnCmdStart
-#define MDLL_CmdEnd				  MDLL_FUNC->pfnCmdEnd
-#define MDLL_ConnectionlessPacket	  MDLL_FUNC->pfnConnectionlessPacket
+#define MDLL_CmdStart				 MDLL_FUNC->pfnCmdStart
+#define MDLL_CmdEnd					MDLL_FUNC->pfnCmdEnd
+#define MDLL_ConnectionlessPacket		MDLL_FUNC->pfnConnectionlessPacket
 #define MDLL_GetHullBounds			MDLL_FUNC->pfnGetHullBounds
-#define MDLL_CreateInstancedBaselines   MDLL_FUNC->pfnCreateInstancedBaselines
+#define MDLL_CreateInstancedBaselines	 MDLL_FUNC->pfnCreateInstancedBaselines
 #define MDLL_InconsistentFile		 MDLL_FUNC->pfnInconsistentFile
-#define MDLL_AllowLagCompensation	  MDLL_FUNC->pfnAllowLagCompensation
+#define MDLL_AllowLagCompensation		MDLL_FUNC->pfnAllowLagCompensation
 
-#define MNEW_FUNC   gpGamedllFuncs->newapi_table
+#define MNEW_FUNC	 gpGamedllFuncs->newapi_table
 
-#define MNEW_OnFreeEntPrivateData	  MNEW_FUNC->pfnOnFreeEntPrivateData
+#define MNEW_OnFreeEntPrivateData		MNEW_FUNC->pfnOnFreeEntPrivateData
 #define MNEW_GameShutdown			MNEW_FUNC->pfnGameShutdown
 #define MNEW_ShouldCollide			MNEW_FUNC->pfnShouldCollide
-#define MNEW_CvarValue			  MNEW_FUNC->pfnCvarValue
+#define MNEW_CvarValue				MNEW_FUNC->pfnCvarValue
 #define MNEW_CvarValue2			 MNEW_FUNC->pfnCvarValue2
 
 // convenience macros for metautil functions
 #define LOG_CONSOLE		 (*gpMetaUtilFuncs->pfnLogConsole)
 #define LOG_MESSAGE		 (*gpMetaUtilFuncs->pfnLogMessage)
 #define LOG_MMERROR		 (*gpMetaUtilFuncs->pfnLogError)
-#define LOG_DEVELOPER	  (*gpMetaUtilFuncs->pfnLogDeveloper)
+#define LOG_DEVELOPER		(*gpMetaUtilFuncs->pfnLogDeveloper)
 #define CENTER_SAY		 (*gpMetaUtilFuncs->pfnCenterSay)
-#define CENTER_SAY_PARMS   (*gpMetaUtilFuncs->pfnCenterSayParms)
-#define CENTER_SAY_VARARGS   (*gpMetaUtilFuncs->pfnCenterSayVarargs)
-#define CALL_GAME_ENTITY   (*gpMetaUtilFuncs->pfnCallGameEntity)
-#define GET_USER_MSG_ID	  (*gpMetaUtilFuncs->pfnGetUserMsgID)
-#define GET_USER_MSG_NAME   (*gpMetaUtilFuncs->pfnGetUserMsgName)
-#define GET_PLUGIN_PATH	  (*gpMetaUtilFuncs->pfnGetPluginPath)
-#define GET_GAME_INFO	  (*gpMetaUtilFuncs->pfnGetGameInfo)
-#define LOAD_PLUGIN	  (*gpMetaUtilFuncs->pfnLoadPlugin)
-#define UNLOAD_PLUGIN	  (*gpMetaUtilFuncs->pfnUnloadPlugin)
-#define UNLOAD_PLUGIN_BY_HANDLE   (*gpMetaUtilFuncs->pfnUnloadPluginByHandle)
+#define CENTER_SAY_PARMS	 (*gpMetaUtilFuncs->pfnCenterSayParms)
+#define CENTER_SAY_VARARGS	 (*gpMetaUtilFuncs->pfnCenterSayVarargs)
+#define CALL_GAME_ENTITY	 (*gpMetaUtilFuncs->pfnCallGameEntity)
+#define GET_USER_MSG_ID		(*gpMetaUtilFuncs->pfnGetUserMsgID)
+#define GET_USER_MSG_NAME	 (*gpMetaUtilFuncs->pfnGetUserMsgName)
+#define GET_PLUGIN_PATH		(*gpMetaUtilFuncs->pfnGetPluginPath)
+#define GET_GAME_INFO		(*gpMetaUtilFuncs->pfnGetGameInfo)
+#define LOAD_PLUGIN		(*gpMetaUtilFuncs->pfnLoadPlugin)
+#define UNLOAD_PLUGIN		(*gpMetaUtilFuncs->pfnUnloadPlugin)
+#define UNLOAD_PLUGIN_BY_HANDLE	 (*gpMetaUtilFuncs->pfnUnloadPluginByHandle)
 #define IS_QUERYING_CLIENT_CVAR (*gpMetaUtilFuncs->pfnIsQueryingClientCvar)
-#define MAKE_REQUESTID	  (*gpMetaUtilFuncs->pfnMakeRequestID)
+#define MAKE_REQUESTID		(*gpMetaUtilFuncs->pfnMakeRequestID)
 #define GET_HOOK_TABLES	(*gpMetaUtilFuncs->pfnGetHookTables)
 
 
 // max buffer size for printed messages
-//#define MAX_LOGMSG_LEN  1024
+//#define MAX_LOGMSG_LEN	1024
 
 #ifdef _WIN32
 #pragma once
@@ -1986,14 +2004,14 @@ inline edict_t* FIND_ENTITY_BY_TARGET(edict_t* entStart, const char* pszName)
 	return FIND_ENTITY_BY_STRING(entStart, "target", pszName);
 }
 
-   // Makes these more explicit, and easier to find
+	 // Makes these more explicit, and easier to find
 #define FILE_GLOBAL static
 
-   // Until we figure out why "const" gives the compiler problems, we'll just have to use
-   // this bogus "empty" define to mark things as constant.
+	 // Until we figure out why "const" gives the compiler problems, we'll just have to use
+	 // this bogus "empty" define to mark things as constant.
 #define CONSTANT
 
-   // More explicit than "int"
+	 // More explicit than "int"
 typedef int EOFFSET;
 
 //
@@ -2058,18 +2076,18 @@ inline entvars_t* VARS(const EOFFSET eoffset)
 
 inline int ENTINDEX(edict_t* pentEdict)
 {
-	if (!pentEdict)
-		return -1;
+	if (pentEdict && g_engfuncs.pfnIndexOfEdict)
+		return cclamp(g_engfuncs.pfnIndexOfEdict(pentEdict), 1, 32);
 
-	return g_engfuncs.pfnIndexOfEdict(pentEdict);
+	return -1;
 }
 
 inline edict_t* INDEXENT(const int iEdictNum)
 {
-	if (iEdictNum < 0)
-		return nullptr;
+	if (iEdictNum >= 0 && g_engfuncs.pfnPEntityOfEntIndex)
+		return g_engfuncs.pfnPEntityOfEntIndex(iEdictNum);
 
-	return g_engfuncs.pfnPEntityOfEntIndex(iEdictNum);
+	return nullptr;
 }
 
 // Testing the three types of "entity" for nullity
@@ -2118,46 +2136,46 @@ typedef enum
 
 extern Vector GetEntityOrigin(entvars_t* pevBModel);
 
-#define AMBIENT_SOUND_STATIC			0	   // medium radius attenuation
+#define AMBIENT_SOUND_STATIC			0		 // medium radius attenuation
 #define AMBIENT_SOUND_EVERYWHERE		1
-#define AMBIENT_SOUND_SMALLRADIUS	   2
-#define AMBIENT_SOUND_MEDIUMRADIUS	  4
-#define AMBIENT_SOUND_LARGERADIUS	   8
-#define AMBIENT_SOUND_START_SILENT	  16
-#define AMBIENT_SOUND_NOT_LOOPING	   32
+#define AMBIENT_SOUND_SMALLRADIUS		 2
+#define AMBIENT_SOUND_MEDIUMRADIUS		4
+#define AMBIENT_SOUND_LARGERADIUS		 8
+#define AMBIENT_SOUND_START_SILENT		16
+#define AMBIENT_SOUND_NOT_LOOPING		 32
 
-#define SPEAKER_START_SILENT			1	   // wait for trigger 'on' to start announcements
+#define SPEAKER_START_SILENT			1		 // wait for trigger 'on' to start announcements
 
-#define SND_SPAWNING	   (1 << 8)	 // duplicated in protocol.h we're spawing, used in some cases for ambients
-#define SND_STOP		   (1 << 5)	 // duplicated in protocol.h stop sound
+#define SND_SPAWNING		 (1 << 8)	 // duplicated in protocol.h we're spawing, used in some cases for ambients
+#define SND_STOP			 (1 << 5)	 // duplicated in protocol.h stop sound
 #define SND_CHANGE_VOL	 (1 << 6)	 // duplicated in protocol.h change sound vol
-#define SND_CHANGE_PITCH   (1 << 7)	 // duplicated in protocol.h change sound pitch
+#define SND_CHANGE_PITCH	 (1 << 7)	 // duplicated in protocol.h change sound pitch
 
 #define LFO_SQUARE		 1
-#define LFO_TRIANGLE	   2
+#define LFO_TRIANGLE		 2
 #define LFO_RANDOM		 3
 
 // func_rotating
-#define SF_BRUSH_ROTATE_Y_AXIS	  0
+#define SF_BRUSH_ROTATE_Y_AXIS		0
 #define SF_BRUSH_ROTATE_INSTANT	 1
-#define SF_BRUSH_ROTATE_BACKWARDS   2
-#define SF_BRUSH_ROTATE_Z_AXIS	  4
-#define SF_BRUSH_ROTATE_X_AXIS	  8
+#define SF_BRUSH_ROTATE_BACKWARDS	 2
+#define SF_BRUSH_ROTATE_Z_AXIS		4
+#define SF_BRUSH_ROTATE_X_AXIS		8
 #define SF_PENDULUM_AUTO_RETURN	 16
 #define SF_PENDULUM_PASSABLE		32
 
-#define SF_BRUSH_ROTATE_SMALLRADIUS  128
+#define SF_BRUSH_ROTATE_SMALLRADIUS	128
 #define SF_BRUSH_ROTATE_MEDIUMRADIUS 256
-#define SF_BRUSH_ROTATE_LARGERADIUS  512
+#define SF_BRUSH_ROTATE_LARGERADIUS	512
 
 #define PUSH_BLOCK_ONLY_X	1
 #define PUSH_BLOCK_ONLY_Y	2
 
 #define VEC_HULL_MIN		 Vector(-16.0f, -16.0f, -36.0f)
 #define VEC_HULL_MAX		 Vector(16.0f, 16.0f, 36.0f)
-#define VEC_HUMAN_HULL_MIN   Vector(-16.0f, -16.0f, 0.0f)
-#define VEC_HUMAN_HULL_MAX   Vector(16.0f, 16.0f, 72.0f)
-#define VEC_HUMAN_HULL_DUCK  Vector(16.0f, 16.0f, 36.0f)
+#define VEC_HUMAN_HULL_MIN	 Vector(-16.0f, -16.0f, 0.0f)
+#define VEC_HUMAN_HULL_MAX	 Vector(16.0f, 16.0f, 72.0f)
+#define VEC_HUMAN_HULL_DUCK	Vector(16.0f, 16.0f, 36.0f)
 
 #define VEC_VIEW			 Vector(0.0f, 0.0f, 2.0f)
 
@@ -2165,45 +2183,45 @@ extern Vector GetEntityOrigin(entvars_t* pevBModel);
 #define VEC_DUCK_HULL_MAX	Vector(16.0f, 16.0f, 18.0f)
 #define VEC_DUCK_VIEW		Vector(0.0f, 0.0f, 12.0f)
 
-#define SVC_TEMPENTITY	  23
+#define SVC_TEMPENTITY		23
 #define SVC_INTERMISSION	30
 #define SVC_CDTRACK		 32
-#define SVC_WEAPONANIM	  35
+#define SVC_WEAPONANIM		35
 #define SVC_ROOMTYPE		37
 #define SVC_DIRECTOR		51
 
-   // triggers
-#define SF_TRIGGER_ALLOWMONSTERS	1   // monsters allowed to fire this trigger
-#define SF_TRIGGER_NOCLIENTS		2   // players not allowed to fire this trigger
-#define SF_TRIGGER_PUSHABLES		4   // only pushables can fire this trigger
+	 // triggers
+#define SF_TRIGGER_ALLOWMONSTERS	1	 // monsters allowed to fire this trigger
+#define SF_TRIGGER_NOCLIENTS		2	 // players not allowed to fire this trigger
+#define SF_TRIGGER_PUSHABLES		4	 // only pushables can fire this trigger
 
-   // func breakable
-#define SF_BREAK_TRIGGER_ONLY   1	   // may only be broken by trigger
-#define SF_BREAK_TOUCH		  2	   // can be 'crashed through' by running player (plate glass)
-#define SF_BREAK_PRESSURE	   4	   // can be broken by a player standing on it
+	 // func breakable
+#define SF_BREAK_TRIGGER_ONLY	 1		 // may only be broken by trigger
+#define SF_BREAK_TOUCH			2		 // can be 'crashed through' by running player (plate glass)
+#define SF_BREAK_PRESSURE		 4		 // can be broken by a player standing on it
 #define SF_BREAK_CROWBAR		256	 // instant break if hit with crowbar
 
-   // func_pushable (it's also func_breakable, so don't collide with those flags)
-#define SF_PUSH_BREAKABLE	   128
+	 // func_pushable (it's also func_breakable, so don't collide with those flags)
+#define SF_PUSH_BREAKABLE		 128
 
 #define SF_LIGHT_START_OFF	 1
 
 #define SPAWNFLAG_NOMESSAGE	1
-#define SPAWNFLAG_NOTOUCH	  1
+#define SPAWNFLAG_NOTOUCH		1
 #define SPAWNFLAG_DROIDONLY	4
 
-#define SPAWNFLAG_USEONLY   1   // can't be touched, must be used (buttons)
+#define SPAWNFLAG_USEONLY	 1	 // can't be touched, must be used (buttons)
 
 #define TELE_PLAYER_ONLY	1
 #define TELE_SILENT		 2
 
-#define SF_TRIG_PUSH_ONCE   1
+#define SF_TRIG_PUSH_ONCE	 1
 
-   // NOTE: use EMIT_SOUND_DYN to set the pitch of a sound. Pitch of 100
-   // is no pitch shift.  Pitch > 100 up to 255 is a higher pitch, pitch < 100
-   // down to 1 is a lower pitch.   150 to 70 is the realistic range.
-   // EMIT_SOUND_DYN with pitch != 100 should be used sparingly, as it's not quite as
-   // fast as EMIT_SOUND (the pitchshift mixer is not native coded).
+	 // NOTE: use EMIT_SOUND_DYN to set the pitch of a sound. Pitch of 100
+	 // is no pitch shift.	Pitch > 100 up to 255 is a higher pitch, pitch < 100
+	 // down to 1 is a lower pitch.	 150 to 70 is the realistic range.
+	 // EMIT_SOUND_DYN with pitch != 100 should be used sparingly, as it's not quite as
+	 // fast as EMIT_SOUND (the pitchshift mixer is not native coded).
 
 void EMIT_SOUND_DYN(edict_t* entity, const int channel, const char* sample, const float volume, const float attenuation, const int flags, const int pitch);
 
@@ -2224,12 +2242,12 @@ inline void STOP_SOUND(edict_t* entity, const int channel, const char* sample)
 #define mkdir _mkdir
 #endif
 
-#define GET_INFOKEYBUFFER   (*g_engfuncs.pfnGetInfoKeyBuffer)
-#define INFOKEY_VALUE	  (*g_engfuncs.pfnInfoKeyValue)
-#define SET_CLIENT_KEYVALUE   (*g_engfuncs.pfnSetClientKeyValue)
-#define REG_SVR_COMMAND	  (*g_engfuncs.pfnAddServerCommand)
-#define SERVER_PRINT	  (*g_engfuncs.pfnServerPrint)
-#define SET_SERVER_KEYVALUE   (*g_engfuncs.pfnSetKeyValue)
+#define GET_INFOKEYBUFFER	 (*g_engfuncs.pfnGetInfoKeyBuffer)
+#define INFOKEY_VALUE		(*g_engfuncs.pfnInfoKeyValue)
+#define SET_CLIENT_KEYVALUE	 (*g_engfuncs.pfnSetClientKeyValue)
+#define REG_SVR_COMMAND		(*g_engfuncs.pfnAddServerCommand)
+#define SERVER_PRINT		(*g_engfuncs.pfnServerPrint)
+#define SET_SERVER_KEYVALUE	 (*g_engfuncs.pfnSetKeyValue)
 
 inline char* ENTITY_KEYVALUE(edict_t* entity, char* key)
 {
@@ -2708,7 +2726,7 @@ public:
 		va_list ap;
 
 		va_start(ap, format);
-		vsprintf(buffer, format, ap);
+		vsnprintf(buffer, sizeof(buffer), format, ap);
 		va_end(ap);
 
 		int enginePrintType = 0;
@@ -2731,7 +2749,7 @@ public:
 			}
 		}
 
-		cstrcat(buffer, "\n");
+		cstrcat(buffer, sizeof(buffer), "\n");
 		g_engfuncs.pfnClientPrintf(m_ent, static_cast<PRINT_TYPE>(enginePrintType), buffer);
 	}
 

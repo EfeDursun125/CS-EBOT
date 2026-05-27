@@ -81,7 +81,7 @@ typedef void (*EntityPtr_t) (entvars_t*);
 #include <errno.h>
 #include <sys/stat.h>
 
-#define DLL_ENTRYPOINT __attribute__((destructor))  void _fini (void)
+#define DLL_ENTRYPOINT __attribute__((destructor))	void _fini (void)
 #define DLL_DETACHING true
 #define DLL_RETENTRY return
 #define DLL_GIVEFNPTRSTODLL extern "C" void __attribute__((visibility("default")))
