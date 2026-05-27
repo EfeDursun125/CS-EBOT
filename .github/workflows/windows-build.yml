@@ -1,0 +1,31 @@
+name: Build For Windows
+
+on: [push]
+
+jobs:
+  windows:
+    name: Windows-MSVC-32bit
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1.1
+        with:
+          msbuild-version: latest
+
+      - name: Build Project (Release)
+        run: |
+          cd project
+          msbuild ebot.vcxproj /p:Configuration=EBOT_Release /p:Platform=Win32 /p:PlatformToolset=ClangCL /m
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ebot-windows
+          path: project/ebot_release/ebot.dll
