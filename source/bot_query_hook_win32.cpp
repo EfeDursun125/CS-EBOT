@@ -2,6 +2,7 @@
 
 #include <winsock2.h>
 #include <windows.h>
+#pragma comment(lib, "ws2_32.lib")
 #include <mutex>
 #include <memory.h>
 #include <stdio.h>
