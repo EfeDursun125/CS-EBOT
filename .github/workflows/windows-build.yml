@@ -35,7 +35,7 @@ jobs:
       - name: Build Project (Release)
         run: |
           cd project
-          msbuild ebot.vcxproj /p:Configuration=EBOT_Release /p:Platform=Win32 /p:PlatformToolset=ClangCL /t:Clean,Build /m
+          msbuild ebot.vcxproj /p:Configuration=EBOT_Release /p:Platform=Win32 /p:PlatformToolset=ClangCL /p:PrecompiledHeader=NotUsing /t:Clean,Build /m
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
