@@ -17,6 +17,11 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
+      - name: Setup LLVM Clang
+        uses: egor-tisin/setup-clang@v1
+        with:
+          version: 'latest'
+
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
         with:
