@@ -56,15 +56,9 @@ freely, subject to the following restrictions:
 /// different sections of this documentation. A good place to start is:
 /// tinythread.h.
 
-// ClangCL Windows detection (must be before platform detection)
-#if defined(__clang__) && defined(_MSC_VER) && !defined(_TTHREAD_PLATFORM_DEFINED_)
-  #define _TTHREAD_WIN32_
-  #define _TTHREAD_PLATFORM_DEFINED_
-#endif
-
 // Which platform are we on?
 #if !defined(_TTHREAD_PLATFORM_DEFINED_)
-  #if defined(_WIN32) || defined(__WIN32__) || defined(__WINDOWS__)
+  #if defined(_WIN32) || defined(__WIN32__) || defined(__WINDOWS__) || defined(_MSC_VER)
 	#define _TTHREAD_WIN32_
   #else
 	#define _TTHREAD_POSIX_
