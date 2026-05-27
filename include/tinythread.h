@@ -14,8 +14,7 @@ freely, subject to the following restrictions:
 	in a product, an acknowledgment in the product documentation would be
 	appreciated but is not required.
 
-	2. Altered source versions must be plainly marked as such, and must not be
-	misrepresented as being the original software.
+	2. Altered source versions must be misrepresented as being the original software.
 
 	3. This notice may not be removed or altered from any source
 	distribution.
@@ -57,9 +56,10 @@ freely, subject to the following restrictions:
 /// different sections of this documentation. A good place to start is:
 /// tinythread.h.
 
-// ClangCL Windows detection
-#if defined(__clang__) && defined(_MSC_VER) && !defined(_WIN32)
-  #define _WIN32
+// ClangCL Windows detection (must be before platform detection)
+#if defined(__clang__) && defined(_MSC_VER) && !defined(_TTHREAD_PLATFORM_DEFINED_)
+  #define _TTHREAD_WIN32_
+  #define _TTHREAD_PLATFORM_DEFINED_
 #endif
 
 // Which platform are we on?
