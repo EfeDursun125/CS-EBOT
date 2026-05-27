@@ -2,6 +2,9 @@ name: Build For Windows
 
 on: [push]
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   windows:
     name: Windows-ClangCL-32bit
@@ -15,14 +18,14 @@ jobs:
           submodules: recursive
 
       - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v1.1
+        uses: microsoft/setup-msbuild@v2
         with:
-          msbuild-version: latest
+          vs-version: 'latest'
 
       - name: Build Project (Release)
         run: |
           cd project
-          msbuild ebot.vcxproj /p:Configuration=EBOT_Release /p:Platform=Win32 /p:PlatformToolset=ClangCL /t:Clean /m
+          msbuild ebot.vcxproj /p:Configuration=EBOT_Release /p:Platform=Win32 /p:PlatformToolset=ClangCL /t:Clean,Build /m
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
