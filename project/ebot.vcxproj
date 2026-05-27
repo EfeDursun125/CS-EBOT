@@ -272,9 +272,7 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\source\basecode.cpp">
-      <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='EBOT_Release|Win32'">MultiThreadedDLL</RuntimeLibrary>
-    </ClCompile>
+    <ClCompile Include="..\source\basecode.cpp" />
     <ClCompile Include="..\source\clib.cpp" />
     <ClCompile Include="..\source\tinythread.cpp" />
     <ClCompile Include="..\source\combat.cpp" />
