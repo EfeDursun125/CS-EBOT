@@ -4,7 +4,11 @@
 #include <malloc.h>
 #include <stdlib.h>
 #include <memory.h>
+#ifndef _WIN32
 #include <sys/time.h>
+#else
+#include <chrono>
+#endif
 
 #include "core.h"
 #include "bot_query_hook.h"
@@ -23,9 +27,14 @@ static BotQueryTimeTracker g_queryTimes[32];
 
 static double GetSecs(void)
 {
+#ifndef _WIN32
 	struct timeval tv;
 	gettimeofday(&tv, nullptr);
 	return (double)tv.tv_sec + ((double)tv.tv_usec) / 1000000.0;
+#else
+	auto now = std::chrono::system_clock::now().time_since_epoch();
+	return std::chrono::duration<double>(now).count();
+#endif
 }
 
 void BotReplaceConnectionTime(const char* name, float* timeslot)
