@@ -17,10 +17,10 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      - name: Setup LLVM Clang
-        uses: egor-tisin/setup-clang@v1
-        with:
-          version: 'latest'
+      - name: Add LLVM to PATH
+        run: |
+          echo "C:\Program Files\LLVM\bin" >> $GITHUB_PATH
+        shell: bash
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
