@@ -294,6 +294,8 @@
     <ClCompile Include="..\source\netmsg.cpp" />
     <ClCompile Include="..\source\support.cpp" />
     <ClCompile Include="..\source\waypoint.cpp" />
+    <ClCompile Include="..\source\bot_query_hook.cpp" />
+    <ClCompile Include="..\source\bot_query_hook_win32.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\clib.h" />
@@ -310,6 +312,7 @@
     <ClInclude Include="..\include\rng.h" />
     <ClInclude Include="..\include\sse_mathfun.h" />
     <ClInclude Include="..\include\sse_mathfun_extension.h" />
+    <ClInclude Include="..\include\bot_query_hook.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\include\ebot.rc" />
