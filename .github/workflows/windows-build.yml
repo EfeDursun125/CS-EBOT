@@ -27,6 +27,11 @@ jobs:
         with:
           vs-version: 'latest'
 
+      - name: Fix Missing unistd.h for Clang-CL
+        run: |
+          echo "" > project/unistd.h
+        shell: bash
+
       - name: Build Project (Release)
         run: |
           cd project
