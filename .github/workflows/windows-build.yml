@@ -4,7 +4,7 @@ on: [push]
 
 jobs:
   windows:
-    name: Windows-MSVC-32bit
+    name: Windows-ClangCL-32bit
     runs-on: windows-latest
 
     steps:
