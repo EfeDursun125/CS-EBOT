@@ -120,6 +120,7 @@
       <BuildStlModules>false</BuildStlModules>
       <GuardEHContMetadata>false</GuardEHContMetadata>
       <SupportJustMyCode>true</SupportJustMyCode>
+      <AdditionalOptions>/clang:-mstackrealign %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -221,6 +222,7 @@
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointExceptions>false</FloatingPointExceptions>
       <GuardEHContMetadata>false</GuardEHContMetadata>
+      <AdditionalOptions>/clang:-mstackrealign %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
