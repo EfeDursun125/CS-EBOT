@@ -18,6 +18,8 @@ void Bot::DefaultUpdate(void)
 				if (!CheckVisibility(m_nearestEnemy))
 					m_isEnemyReachable = false;
 			}
+			else if (m_enemyDistance < 384.0f && chanceof(m_skill))
+				KnifeAttack();
 
 			// path matrix returns 0 if we are on the same waypoint, so basically its reachable
 			if (m_hasEnemiesNear && (Math::FltZero(m_enemyDistance) || m_isEnemyReachable))
@@ -317,7 +319,13 @@ void Bot::DefaultUpdate(void)
 			else if (IsValidWaypoint(m_zhCampPointIndex))
 				FindPath(m_currentWaypointIndex, m_zhCampPointIndex);
 			else
+			{
 				m_zhCampPointIndex = FindGoalHuman();
+				if (!IsValidWaypoint(m_zhCampPointIndex))
+					m_zhCampPointIndex = static_cast<int16_t>(crandomint(0, g_numWaypoints - 1));
+
+				m_currentGoalIndex = m_zhCampPointIndex;
+			}
 		}
 	}
 
@@ -327,6 +335,25 @@ void Bot::DefaultUpdate(void)
 		{
 			if (m_isZombieBot)
 				m_currentGoalIndex = static_cast<int16_t>(crandomint(0, g_numWaypoints - 1));
+			else
+			{
+				bool isCampSpot = false;
+				if (IsValidWaypoint(m_currentWaypointIndex))
+				{
+					const Path &zhPath = g_waypoint->m_paths[m_currentWaypointIndex];
+					isCampSpot = (zhPath.flags & WAYPOINT_ZMHMCAMP) || (zhPath.flags & WAYPOINT_HMCAMPMESH);
+				}
+
+				if (!isCampSpot)
+				{
+					m_zhCampPointIndex = -1;
+					int16_t newGoal = FindGoalHuman();
+					if (newGoal == m_currentWaypointIndex || !IsValidWaypoint(newGoal))
+						newGoal = static_cast<int16_t>(crandomint(0, g_numWaypoints - 1));
+
+					m_currentGoalIndex = newGoal;
+				}
+			}
 		}
 		else
 			FindShortestPath(m_currentWaypointIndex, m_currentGoalIndex);
