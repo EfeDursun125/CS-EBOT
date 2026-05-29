@@ -17,7 +17,6 @@
 #else
 	#include <sys/types.h>
 	#include <sys/socket.h>
-
 	#define PASCAL
 #endif
 

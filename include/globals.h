@@ -25,6 +25,8 @@
 #ifndef GLOBALS_INCLUDED
 #define GLOBALS_INCLUDED
 
+#include "tinythread.h"
+
 extern bool g_roundEnded;
 extern bool g_waypointOn;
 extern bool g_waypointsChanged;
@@ -34,8 +36,8 @@ extern bool g_analyzewaypoints;
 extern bool g_analyzeputrequirescrouch;
 extern bool g_hasDoors;
 extern bool g_isFakeCommand;
-extern bool g_isMatrixReady;
-extern bool g_isMatrixCalculating;
+extern tthread::atomic<bool> g_isMatrixReady;
+extern tthread::atomic<bool> g_isMatrixCalculating;
 
 extern float g_autoPathDistance;
 extern float g_fakePingUpdate;
@@ -62,5 +64,7 @@ extern CArray<NameItem>g_botNames;
 extern edict_t* g_helicopter;
 extern edict_t* g_hostEntity;
 extern edict_t* g_worldEdict;
+
+extern void StopMatrixThreads(void);
 
 #endif // GLOBALS_INCLUDED

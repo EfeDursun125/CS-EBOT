@@ -160,6 +160,16 @@ enum StartMsg
 	CMENU_CLASS = 3,
 };
 
+// stuck cause types
+enum StuckCause
+{
+	STUCK_CAUSE_UNKNOWN = 0,
+	STUCK_CAUSE_GEOMETRY,
+	STUCK_CAUSE_FRIEND,
+	STUCK_CAUSE_ENEMY,
+	STUCK_CAUSE_OSCILLATION
+};
+
 // visibility flags
 enum Visibility : int8_t
 {
@@ -546,11 +556,21 @@ public:
 	bool m_updateP{false};
 
 	bool m_isStuck{false}; // is bot stuck?
+	bool m_wasStuck{false}; // previous frame stuck state
 	float m_prevTime{0.0f}; // time previously checked movement speed
 	float m_prevSpeed{0.0f}; // speed some frames before
 	Vector m_prevOrigin{nullvec}; // origin some frames before
 	float m_prevVelocity{0.0f}; // velocity some frames before
 	float m_stuckTime{0.0f}; // how long bot has been stuck?
+	float m_stuckCooldownUntil{0.0f}; // cooldown timer
+	Vector m_lastStuckOrigin{nullvec}; // cooldown origin
+	Vector m_lastAvoidVel{nullvec}; // smoothed avoid velocity
+	int m_waypointStuckCount{0}; // same waypoint stuck counter
+	int16_t m_lastStuckWaypointIndex{-1}; // last waypoint we stuck at
+	int16_t m_lastDeclineWaypoint{-1}; // last waypoint we declined/blacklisted
+	float m_waypointDistance{0.0f};
+
+	StuckCause m_stuckCause{STUCK_CAUSE_UNKNOWN}; // stuck kategorisi
 
 	float m_damageTime{0.0f}; // tweak for zombie bots
 	float m_movedDistance{0.0f}; // moved distance
@@ -561,7 +581,14 @@ public:
 	int m_collisionProbeBits{0}; // bits of possible collision moves
 	int m_collideMoves[4]{0, 0, 0, 0}; // sorted array of movements (4 to allow index 3)
 	int m_collStateIndex{0}; // index into collide moves
-	CollisionState m_collisionState{CollisionState::COSTATE_UNDECIDED}; // collision state
+	CollisionState m_collisionState{CollisionState::COSTATE_UNDECIDED};
+
+	uint8_t m_failedMovesAtWaypoint{0}; // probe memory bitfield
+
+	Vector m_posHistory[8]; // oscillation ring buffer
+	int m_posHistoryIdx{0}; // ring buffer index
+	int m_posHistoryCount{0}; // ring buffer fill count
+	bool m_isOscillating{false}; // oscillation flag // collision state
 
 	uint8_t m_msecVal{0}; // stored msec val
 	float m_msecInterval{0.0f}; // used for leon hartwig's method for msec calculation
@@ -645,7 +672,7 @@ public:
 	void FindEscapePath(int16_t &srcIndex, const Vector &dangerOrigin);
 	void CalculatePing(void);
 public:
-	entvars_t *pev{nullptr}; // pev
+	entvars_t* pev{nullptr}; // pev
 
 	float m_updateTimer{0.0f}; // used to update bots
 
@@ -760,7 +787,6 @@ public:
 	void FindFriendsAndEnemiens(void);
 	void FindEnemyEntities(void);
 
-	bool IsEnemyViewable(edict_t *player);
 	bool CheckWaypoint(void);
 
 	void CheckStuck(const Vector &directionNormal, const float finterval);
@@ -828,7 +854,7 @@ public:
 	void NewRound(void);
 
 	void CheckTouchEntity(edict_t *entity);
-	void TakeBlinded(const Vector &fade, const int alpha);
+	void TakeBlinded(const int r, const int g, const int b, const int alpha);
 
 	void Kill(void);
 	void Kick(void);
@@ -1001,8 +1027,6 @@ private:
 	int16_t m_cacheWaypointIndex{-1};
 	int16_t m_lastJumpWaypoint{-1};
 	Vector m_lastWaypoint{nullvec};
-
-	int16_t m_lastDeclineWaypoint{-1};
 
 	float m_pathDisplayTime{0.0f};
 	float m_arrowDisplayTime{0.0f};

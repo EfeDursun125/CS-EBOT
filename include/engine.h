@@ -2019,7 +2019,7 @@ typedef int EOFFSET;
 //
 inline edict_t* ENT(const entvars_t* pev)
 {
-	if (pev)
+	if (pev && pev->pContainingEntity)
 		return pev->pContainingEntity;
 
 	return nullptr;
@@ -2032,7 +2032,7 @@ inline edict_t* ENT(edict_t* pent)
 
 inline edict_t* ENT(const EOFFSET eoffset)
 {
-	if (eoffset)
+	if (eoffset && g_engfuncs.pfnPEntityOfEntOffset)
 		return g_engfuncs.pfnPEntityOfEntOffset(eoffset);
 
 	return 0;
@@ -2045,7 +2045,7 @@ inline EOFFSET OFFSET(const EOFFSET eoffset)
 
 inline EOFFSET OFFSET(const edict_t* pent)
 {
-	if (pent)
+	if (pent && g_engfuncs.pfnEntOffsetOfPEntity)
 		return g_engfuncs.pfnEntOffsetOfPEntity(pent);
 
 	return 0;
@@ -2359,49 +2359,67 @@ public:
 	ConVar(const char* name, const char* initval, const VarType type = VARTYPE_NORMAL);
 	inline bool GetBool(void)
 	{
-		return m_eptr->value > 0.0f;
+		if (m_eptr)
+			return m_eptr->value > 0.0f;
+
+		return false;
 	}
 
 	inline int GetInt(void)
 	{
-		return static_cast<int>(m_eptr->value);
+		if (m_eptr)
+			return static_cast<int>(m_eptr->value);
+
+		return 0;
 	}
 
 	inline int GetFlags(void)
 	{
-		return m_eptr->flags;
+		if (m_eptr)
+			return m_eptr->flags;
+
+		return 0;
 	}
 
 	inline float GetFloat(void)
 	{
-		return m_eptr->value;
+		if (m_eptr)
+			return m_eptr->value;
+
+		return 0.0f;
 	}
 
 	inline const char* GetString(void)
 	{
-		return m_eptr->string;
+		if (m_eptr)
+			return m_eptr->string;
+
+		return nullptr;
 	}
 
 	inline const char* GetName(void)
 	{
-		return m_eptr->name;
+		if (m_eptr)
+			return m_eptr->name;
+
+		return nullptr;
 	}
 
 	inline void SetFloat(const float val)
 	{
-		if (m_eptr)
+		if (m_eptr && g_engfuncs.pfnCVarSetFloat)
 			g_engfuncs.pfnCVarSetFloat(m_eptr->name, val);
 	}
 
 	inline void SetInt(const int val)
 	{
-		if (m_eptr)
+		if (m_eptr && g_engfuncs.pfnCVarSetFloat)
 			g_engfuncs.pfnCVarSetFloat(m_eptr->name, static_cast<float>(val));
 	}
 
 	inline void SetString(const char* val)
 	{
-		if (m_eptr)
+		if (m_eptr && g_engfuncs.pfnCVarSetString)
 			g_engfuncs.pfnCVarSetString(m_eptr->name, val);
 	}
 };
@@ -2448,11 +2466,17 @@ public:
 public:
 	inline bool IsPlayer(void) const
 	{
+		if (FNullEnt(m_ent))
+			return false;
+
 		return !!(m_ent->v.flags & (FL_FAKECLIENT | FL_CLIENT));
 	}
 
 	virtual inline bool IsBot(void) const
 	{
+		if (FNullEnt(m_ent))
+			return false;
+
 		return !!(m_ent->v.flags & FL_FAKECLIENT);
 	}
 
@@ -2466,188 +2490,284 @@ public:
 
 	inline virtual bool IsAlive(void) const
 	{
-		return !m_ent->v.deadflag && m_ent->v.health > 0.0f && m_ent->v.movetype != MOVETYPE_NOCLIP;
+		if (FNullEnt(m_ent))
+			return false;
+
+		return !m_ent->v.deadflag && m_ent->v.health > 0.0f && m_ent->v.movetype != MOVETYPE_NOCLIP && m_ent->v.solid != SOLID_NOT;
 	}
 
 	inline bool IsRendered(void) const
 	{
+		if (FNullEnt(m_ent))
+			return false;
+
 		return !!(m_ent->v.effects & EF_NODRAW);
 	}
 
 	inline const char* GetClassname(void) const
 	{
+		if (FNullEnt(m_ent))
+			return nullptr;
+
 		return SDK_Utils::GetStringFromOffset(m_ent->v.classname);
 	}
 
 	inline const char* GetModel(void) const
 	{
+		if (FNullEnt(m_ent))
+			return nullptr;
+
 		return IsPlayer() ? g_engfuncs.pfnInfoKeyValue(g_engfuncs.pfnGetInfoKeyBuffer(m_ent), "model") : SDK_Utils::GetStringFromOffset(m_ent->v.model);
 	}
 
 	inline const char* GetViewModel(void) const
 	{
+		if (FNullEnt(m_ent))
+			return nullptr;
+
 		return SDK_Utils::GetStringFromOffset(m_ent->v.viewmodel);
 	}
 
 	inline const char* GetName(void) const
 	{
+		if (FNullEnt(m_ent))
+			return nullptr;
+
 		return SDK_Utils::GetStringFromOffset(m_ent->v.netname);
 	}
 
 	inline Vector GetHeadOrigin(void) const
 	{
+		if (FNullEnt(m_ent))
+			return nullptr;
+
 		return GetOrigin() + m_ent->v.view_ofs;
 	}
 
 	inline void SetOrigin(const Vector& origin) const
 	{
-		g_engfuncs.pfnSetOrigin(m_ent, origin);
+		if (!FNullEnt(m_ent) && g_engfuncs.pfnSetOrigin)
+			g_engfuncs.pfnSetOrigin(m_ent, origin);
 	}
 
 	inline const Vector& GetVelocity(void) const
 	{
+		if (FNullEnt(m_ent))
+			return nullvec;
+
 		return m_ent->v.velocity;
 	}
 
 	inline void SetVelocity(const Vector& velocity) const
 	{
-		if (!velocity.IsNull())
+		if (!FNullEnt(m_ent) && !velocity.IsNull())
 			m_ent->v.velocity = velocity;
 	}
 
 	inline const Vector& GetBodyAngles(void) const
 	{
+		if (!FNullEnt(m_ent))
+			return nullvec;
+
 		return m_ent->v.angles;
 	}
 
 	inline void SetBodyAngles(const Vector& angles) const
 	{
-		m_ent->v.angles = angles;
+		if (!FNullEnt(m_ent) && !angles.IsNull())
+			m_ent->v.angles = angles;
 	}
 
 	inline const Vector& GetViewAngles(void) const
 	{
+		if (!FNullEnt(m_ent))
+			return nullvec;
+
 		return m_ent->v.v_angle;
 	}
 
 	inline void SetViewAngles(const Vector& viewAngles) const
 	{
-		m_ent->v.v_angle = viewAngles;
+		if (!FNullEnt(m_ent) && !viewAngles.IsNull())
+			m_ent->v.v_angle = viewAngles;
 	}
 
 	inline const Vector& GetAbsMin(void) const
 	{
+		if (!FNullEnt(m_ent))
+			return nullvec;
+
 		return m_ent->v.absmin;
 	}
 
 	inline const Vector& GetAbsMax(void) const
 	{
+		if (FNullEnt(m_ent))
+			return nullvec;
+
 		return m_ent->v.absmax;
 	}
 
 	inline const Vector& GetMins(void) const
 	{
+		if (FNullEnt(m_ent))
+			return nullvec;
+
 		return m_ent->v.mins;
 	}
 
 	inline const Vector& GetMaxs(void) const
 	{
+		if (FNullEnt(m_ent))
+			return nullvec;
+
 		return m_ent->v.maxs;
 	}
 
 	inline float GetMaximumSpeed(void) const
 	{
+		if (FNullEnt(m_ent))
+			return 1.0f;
+
 		return m_ent->v.maxspeed;
 	}
 
 	inline void SetMaximumSpeed(const float maxSpeed) const
 	{
-		m_ent->v.maxspeed = maxSpeed;
+		if (!FNullEnt(m_ent))
+			m_ent->v.maxspeed = maxSpeed;
 	}
 
 	inline Entity GetOwner(void) const
 	{
+		if (!FNullEnt(m_ent))
+			return nullptr;
+
 		return m_ent->v.owner;
 	}
 
 	inline Entity GetDamageInflictor(void) const
 	{
+		if (FNullEnt(m_ent))
+			return nullptr;
+
 		return m_ent->v.dmg_inflictor;
 	}
 
 	inline float GetHealth(void) const
 	{
+		if (FNullEnt(m_ent))
+			return -1.0f;
+
 		return m_ent->v.health;
 	}
 
 	inline void SetHealth(const float health) const
 	{
-		m_ent->v.health = health;
+		if (!FNullEnt(m_ent))
+			m_ent->v.health = health;
 	}
 
 	inline const char* GetTarget(void) const
 	{
+		if (FNullEnt(m_ent))
+			return nullptr;
+
 		return SDK_Utils::GetStringFromOffset(m_ent->v.target);
 	}
 
 	inline const char* GetTargetName(void) const
 	{
+		if (FNullEnt(m_ent))
+			return nullptr;
+
 		return SDK_Utils::GetStringFromOffset(m_ent->v.targetname);
 	}
 
 	inline bool IsOnLadder(void) const
 	{
+		if (FNullEnt(m_ent))
+			return false;
+
 		return m_ent->v.movetype == MOVETYPE_FLY;
 	}
 
 	inline bool IsOnFloor(void) const
 	{
+		if (FNullEnt(m_ent))
+			return false;
+
 		return IsPlayer() ? (!!(m_ent->v.flags & (FL_ONGROUND | FL_PARTIALGROUND))) : g_engfuncs.pfnEntIsOnFloor(m_ent);
 	}
 
 	inline bool IsInWater(void) const
 	{
+		if (FNullEnt(m_ent))
+			return false;
+
 		return m_ent->v.waterlevel > 1;
 	}
 
 	inline Vector GetCenter(void) const
 	{
+		if (FNullEnt(m_ent))
+			return nullvec;
+
 		return (m_ent->v.absmin + m_ent->v.absmax) * 0.5f;
 	}
 
 	inline virtual Vector GetOrigin(void) const
 	{
+		if (FNullEnt(m_ent))
+			return nullvec;
+
 		return HasBoundingBox() ? GetCenter() : m_ent->v.rendercolor.IsNull() ? m_ent->v.absmin + (m_ent->v.size * 0.5f) : m_ent->v.origin;
 	}
 
 	inline bool HasBoundingBox(void) const
 	{
+		if (FNullEnt(m_ent))
+			return false;
+
 		return !m_ent->v.absmin.IsNull() && !m_ent->v.absmax.IsNull();
 	}
 
 	inline float GetSpeed(void) const
 	{
+		if (FNullEnt(m_ent))
+			return 0.0f;
+
 		return m_ent->v.velocity.GetLength();
 	}
 
 	inline float GetSpeed2D(void) const
 	{
+		if (FNullEnt(m_ent))
+			return 0.0f;
+
 		return m_ent->v.velocity.GetLength2D();
 	}
 
 	inline float GetFOV(void) const
 	{
+		if (FNullEnt(m_ent))
+			return 90.0f;
+
 		return m_ent->v.fov;
 	}
 
 	inline void SetFOV(const float fov) const
 	{
-		m_ent->v.fov = fov;
+		if (!FNullEnt(m_ent))
+			m_ent->v.fov = fov;
 	}
 
 	inline int GetIndex(void) const
 	{
-		return g_engfuncs.pfnIndexOfEdict(m_ent);
+		if (g_engfuncs.pfnIndexOfEdict)
+			return g_engfuncs.pfnIndexOfEdict(m_ent);
+
+		return 0;
 	}
 };
 
@@ -2722,35 +2842,38 @@ public:
 		if (IsBot())
 			return;
 
-		char buffer[2048];
-		va_list ap;
-
-		va_start(ap, format);
-		vsnprintf(buffer, sizeof(buffer), format, ap);
-		va_end(ap);
-
-		int enginePrintType = 0;
-		switch (printType)
+		if (g_engfuncs.pfnClientPrintf)
 		{
-			case PRINT_CENTER:
-			{
-				enginePrintType = 1;
-				break;
-			}
-			case PRINT_CHAT:
-			{
-				enginePrintType = 2;
-				break;
-			}
-			case PRINT_CONSOLE:
-			{
-				enginePrintType = 0;
-				break;
-			}
-		}
+			char buffer[2048];
+			va_list ap;
 
-		cstrcat(buffer, sizeof(buffer), "\n");
-		g_engfuncs.pfnClientPrintf(m_ent, static_cast<PRINT_TYPE>(enginePrintType), buffer);
+			va_start(ap, format);
+			vsnprintf(buffer, sizeof(buffer), format, ap);
+			va_end(ap);
+
+			int enginePrintType = 0;
+			switch (printType)
+			{
+				case PRINT_CENTER:
+				{
+					enginePrintType = 1;
+					break;
+				}
+				case PRINT_CHAT:
+				{
+					enginePrintType = 2;
+					break;
+				}
+				case PRINT_CONSOLE:
+				{
+					enginePrintType = 0;
+					break;
+				}
+			}
+
+			cstrcat(buffer, sizeof(buffer), "\n");
+			g_engfuncs.pfnClientPrintf(m_ent, static_cast<PRINT_TYPE>(enginePrintType), buffer);
+		}
 	}
 
 	inline bool HasFlag(const int clientFlags);

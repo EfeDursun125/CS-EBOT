@@ -675,8 +675,15 @@ struct atomic {
 	/// @param order The memory sycnhronization ordering for this operation.
 	inline void store(T desired, memory_order order = memory_order_seq_cst)
 	{
-#ifdef _TTHREAD_HAS_ATOMIC_BUILTINS_
-	  // FIXME: Use something more suitable here
+#if defined(__ATOMIC_SEQ_CST)
+	  int native_order = __ATOMIC_SEQ_CST;
+	  if (order == memory_order_relaxed) native_order = __ATOMIC_RELAXED;
+	  else if (order == memory_order_consume) native_order = __ATOMIC_CONSUME;
+	  else if (order == memory_order_acquire) native_order = __ATOMIC_ACQUIRE;
+	  else if (order == memory_order_release) native_order = __ATOMIC_RELEASE;
+	  else if (order == memory_order_acq_rel) native_order = __ATOMIC_ACQ_REL;
+	  __atomic_store_n(&mValue, desired, native_order);
+#elif defined(_TTHREAD_HAS_ATOMIC_BUILTINS_)
 	  __sync_lock_test_and_set(&mValue, desired);
 #else
 	  lock_guard<mutex> guard(mLock);
@@ -688,8 +695,15 @@ struct atomic {
 	/// @param order The memory sycnhronization ordering for this operation.
 	inline T load(memory_order order = memory_order_seq_cst) const
 	{
-#ifdef _TTHREAD_HAS_ATOMIC_BUILTINS_
-	  // FIXME: Use something more suitable here
+#if defined(__ATOMIC_SEQ_CST)
+	  int native_order = __ATOMIC_SEQ_CST;
+	  if (order == memory_order_relaxed) native_order = __ATOMIC_RELAXED;
+	  else if (order == memory_order_consume) native_order = __ATOMIC_CONSUME;
+	  else if (order == memory_order_acquire) native_order = __ATOMIC_ACQUIRE;
+	  else if (order == memory_order_release) native_order = __ATOMIC_RELEASE;
+	  else if (order == memory_order_acq_rel) native_order = __ATOMIC_ACQ_REL;
+	  return __atomic_load_n(&mValue, native_order);
+#elif defined(_TTHREAD_HAS_ATOMIC_BUILTINS_)
 	  return __sync_add_and_fetch((volatile T*)&mValue, 0);
 #else
 	  lock_guard<mutex> guard(mLock);
