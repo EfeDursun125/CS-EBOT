@@ -232,9 +232,11 @@ void Bot::FindFriendsAndEnemiens(void)
 		}
 	}
 
-	// enemyOrigin will be added with IsEnemyViewable function unlike friendOrigin
 	if (m_hasEnemiesNear)
+	{
 		m_enemySeeTime = engine->GetTime();
+		m_enemyOrigin = GetPlayerHeadOrigin(m_nearestEnemy);
+	}
 	else
 		m_isEnemyReachable = false;
 
@@ -419,7 +421,11 @@ void Bot::FireWeapon(const float distance)
 		{
 			m_buttons |= IN_ATTACK;
 			if (distance > 768.0f && ctanf((cabsf(pev->punchangle.y) + cabsf(pev->punchangle.x)) * 0.00872664625f) * (distance + (distance * 0.25f)) > 100.0f)
-				m_firePause = engine->GetTime() + crandomfloat(m_frameInterval, m_frameInterval * 3.0f);
+			{
+				// higher difficulty = less pause time (skill 1-100 -> pause 0.1s-0.4s)
+				float pauseMultiplier = crandomfloat(0.1f, 0.4f) * (1.0f - (m_skill / 125.0f));
+				m_firePause = engine->GetTime() + pauseMultiplier;
+			}
 		}
 		else // if not, toggle the buttons
 		{

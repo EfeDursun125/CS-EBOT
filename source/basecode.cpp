@@ -57,23 +57,11 @@ bool Bot::CheckVisibility(edict_t *targetEntity)
 		return false;
 
 	TraceResult tr;
-	const Vector eyes = EyePosition();
-	Vector spot = (targetEntity->v.absmin + (targetEntity->v.size * 0.5f)) + targetEntity->v.view_ofs;
-
-	const int ignoreFlags = m_isZombieBot ? TraceIgnore::Nothing : (ebot_aim_trace_consider_glass.GetBool() ? TraceIgnore::Monsters : TraceIgnore::Everything);
-	TraceLine(eyes, spot, ignoreFlags, GetEntity(), &tr);
+	TraceLine(EyePosition(), (targetEntity->v.absmin + (targetEntity->v.size * 0.5f)) + targetEntity->v.view_ofs, m_isZombieBot ? TraceIgnore::Nothing : (ebot_aim_trace_consider_glass.GetBool() ? TraceIgnore::Monsters : TraceIgnore::Everything), GetEntity(), &tr);
 	if (tr.flFraction > 0.99f || (!FNullEnt(tr.pHit) && tr.pHit == targetEntity))
-	{
-		m_enemyOrigin = spot;
 		return true;
-	}
 
 	return false;
-}
-
-bool Bot::IsEnemyViewable(edict_t *player)
-{
-	return CheckVisibility(player);
 }
 
 // this function checks buttons for use button waypoint
@@ -234,12 +222,6 @@ bool Bot::CheckReachable(void)
 
 	if (m_isZombieBot)
 	{
-		if (m_personality == Personality::Rusher && !(pev->flags & FL_DUCKING) && !(m_waypoint.flags & WAYPOINT_ZOMBIEPUSH) && !(m_waypoint.flags & WAYPOINT_FALLRISK))
-		{
-			if (CheckVisibility(m_nearestEnemy))
-				return m_isEnemyReachable = true;
-		}
-
 		if (m_navNode.IsEmpty())
 		{
 			if ((pev->origin - m_nearestEnemy->v.origin).GetLengthSquared() < squaredf(96.0f))
@@ -280,7 +262,11 @@ bool Bot::CheckReachable(void)
 	}
 
 	TraceResult tr;
-	TraceHull(pev->origin, m_nearestEnemy->v.origin, TraceIgnore::Nothing, head_hull, GetEntity(), &tr);
+
+	if ((m_isZombieBot && m_personality == Personality::Rusher) || (!m_isZombieBot && m_personality == Personality::Careful))
+		TraceLine(EyePosition(), m_nearestEnemy->v.origin + m_nearestEnemy->v.view_ofs, TraceIgnore::Nothing, GetEntity(), &tr);
+	else
+		TraceHull(pev->origin, m_nearestEnemy->v.origin, TraceIgnore::Nothing, head_hull, GetEntity(), &tr);
 
 	// we're not sure, return the current one
 	if (tr.fAllSolid)
@@ -345,7 +331,10 @@ bool Bot::IsEnemyReachableToPosition(const Vector &origin)
 				continue;
 		}
 
-		TraceHull(origin, client.ent->v.origin, TraceIgnore::Nothing, head_hull, GetEntity(), &tr);
+		if ((m_isZombieBot && m_personality == Personality::Rusher) || (!m_isZombieBot && m_personality == Personality::Careful))
+			TraceLine(origin, client.ent->v.origin, TraceIgnore::Nothing, GetEntity(), &tr);
+		else
+			TraceHull(origin, client.ent->v.origin, TraceIgnore::Nothing, head_hull, GetEntity(), &tr);
 
 		// don't take a risk
 		if (tr.fAllSolid)
@@ -411,7 +400,10 @@ bool Bot::IsFriendReachableToPosition(const Vector &origin)
 				continue;
 		}
 
-		TraceHull(origin, client.ent->v.origin, TraceIgnore::Nothing, head_hull, GetEntity(), &tr);
+		if ((m_isZombieBot && m_personality == Personality::Rusher) || (!m_isZombieBot && m_personality == Personality::Careful))
+			TraceLine(origin, client.ent->v.origin, TraceIgnore::Nothing, GetEntity(), &tr);
+		else
+			TraceHull(origin, client.ent->v.origin, TraceIgnore::Nothing, head_hull, GetEntity(), &tr);
 
 		// don't take a risk
 		if (tr.fAllSolid)
@@ -466,7 +458,10 @@ bool Bot::CanIReachToPosition(const Vector &origin)
 	}
 
 	TraceResult tr;
-	TraceHull(pev->origin, origin, TraceIgnore::Nothing, head_hull, GetEntity(), &tr);
+	if ((m_isZombieBot && m_personality == Personality::Rusher) || (!m_isZombieBot && m_personality == Personality::Careful))
+		TraceLine(pev->origin, origin, TraceIgnore::Nothing, GetEntity(), &tr);
+	else
+		TraceHull(pev->origin, origin, TraceIgnore::Nothing, head_hull, GetEntity(), &tr);
 
 	if (tr.fAllSolid)
 		return false;
@@ -569,8 +564,6 @@ void Bot::BaseUpdate(void)
 	if (FNullEnt(GetEntity()))
 		return;
 
-	m_isAlive = IsAlive(GetEntity());
-
 	const float tempTimer = engine->GetTime();
 	if (m_baseUpdate < tempTimer)
 	{
@@ -616,7 +609,10 @@ void Bot::BaseUpdate(void)
 			else
 			{
 				m_isSlowThink = true;
-				CheckSlowThink();
+
+				if (m_isAlive)
+					CheckSlowThink();
+
 				m_slowThinkTimer = tempTimer + crandomfloat(0.4f, 0.6f);
 			}
 		}
@@ -629,136 +625,186 @@ void Bot::BaseUpdate(void)
 		if (m_pathInterval < 0.0001f)
 			return;
 
-		if (pev->flags && pev->flags & FL_FROZEN)
+		m_isAlive = IsAlive(GetEntity());
+		if (m_isAlive)
 		{
-			m_msecVal = 0;
-			pev->buttons = 0;
-			pev->impulse = 0;
-			m_moveSpeed = 0.0f;
-			m_strafeSpeed = 0.0f;
-		}
-		else
-		{
-			m_msecVal = static_cast<uint8_t>((tempTimer - m_msecInterval) * 1000.0f);
-			if (m_msecVal > static_cast<uint8_t>(255))
-				m_msecVal = static_cast<uint8_t>(255);
-
-			pev->buttons = static_cast<int>(m_buttons);
-			pev->impulse = static_cast<int>(m_impulse);
-
-			m_msecInterval = tempTimer;
-
-			if (m_navNode.CanFollowPath() && CheckWaypoint())
+			if (pev->flags && pev->flags & FL_FROZEN)
 			{
+				m_msecVal = 0;
+				pev->buttons = 0;
+				pev->impulse = 0;
+				m_moveSpeed = 0.0f;
 				m_strafeSpeed = 0.0f;
-				m_moveSpeed = pev->maxspeed;
-				DoWaypointNav();
-				Vector directionOld;
-				if (IsOnLadder() || IsInWater())
-					directionOld = ((m_destOrigin + pev->velocity * -m_pathInterval) - (pev->origin + pev->velocity * m_pathInterval)).Normalize();
-				else
-					directionOld = ((m_destOrigin + pev->velocity * -m_pathInterval) - (pev->origin + pev->velocity * m_pathInterval)).Normalize2D();
+			}
+			else
+			{
+				m_msecVal = static_cast<uint8_t>((tempTimer - m_msecInterval) * 1000.0f);
+				if (m_msecVal > static_cast<uint8_t>(255))
+					m_msecVal = static_cast<uint8_t>(255);
 
-				if (directionOld.GetLengthSquared() > 0.0001f)
+				pev->buttons = static_cast<int>(m_buttons);
+				pev->impulse = static_cast<int>(m_impulse);
+
+				m_msecInterval = tempTimer;
+
+				if (m_navNode.CanFollowPath())
 				{
-					m_moveAngles = directionOld.ToAngles();
-					m_moveAngles.x = -m_moveAngles.x; // invert for engine
-					m_moveAngles.ClampAngles();
+					m_strafeSpeed = 0.0f;
+					m_moveSpeed = pev->maxspeed;
+					DoWaypointNav();
+					Vector directionOld;
+					if (IsOnLadder() || IsInWater())
+						directionOld = ((m_destOrigin + pev->velocity * -m_pathInterval) - (pev->origin + pev->velocity * m_pathInterval)).Normalize();
+					else
+						directionOld = ((m_destOrigin + pev->velocity * -m_pathInterval) - (pev->origin + pev->velocity * m_pathInterval)).Normalize2D();
+
+					if (directionOld.GetLengthSquared() > 0.0001f)
+					{
+						m_moveAngles = directionOld.ToAngles();
+						m_moveAngles.x = -m_moveAngles.x; // invert for engine
+						m_moveAngles.ClampAngles();
+					}
+
+					CheckStuck(directionOld, m_pathInterval);
+
+					if (m_isSlowThink)
+						CheckWaypoint();
+				}
+			}
+
+			if (m_updateLooking)
+			{
+				if (!m_lookVelocity.IsNull())
+				{
+					m_lookAt.x += m_lookVelocity.x * m_pathInterval;
+					m_lookAt.y += m_lookVelocity.y * m_pathInterval;
+					m_lookAt.z += m_lookVelocity.z * m_pathInterval;
 				}
 
-				CheckStuck(directionOld, m_pathInterval);
-			}
-		}
-
-		if (m_updateLooking)
-		{
-			if (!m_lookVelocity.IsNull())
-			{
-				m_lookAt.x += m_lookVelocity.x * m_pathInterval;
-				m_lookAt.y += m_lookVelocity.y * m_pathInterval;
-				m_lookAt.z += m_lookVelocity.z * m_pathInterval;
-			}
-
-			const float lockn = 0.128f / m_pathInterval;
-			if (m_hasEnemiesNear)
-			{
-				m_updateY = true;
-				m_updateP = true;
-			}
-			else if (!m_updateY && !m_updateP)
-			{
-				if (m_lastAt != m_lookAt)
+				const float lockn = 0.128f / m_pathInterval;
+				if (m_hasEnemiesNear)
 				{
 					m_updateY = true;
 					m_updateP = true;
-					m_lastAt = m_lookAt;
 				}
-				else
+				else if (!m_updateY && !m_updateP)
 				{
-					if (IsInViewCone(m_lookAt))
-					{
-						if ((m_isAlive || m_notStarted) && g_engfuncs.pfnRunPlayerMove)
-							g_engfuncs.pfnRunPlayerMove(GetEntity(), m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, m_buttons, m_impulse, m_msecVal);
-
-						return;
-					}
-					else
+					if (m_lastAt != m_lookAt)
 					{
 						m_updateY = true;
 						m_updateP = true;
+						m_lastAt = m_lookAt;
+					}
+					else
+					{
+						if (IsInViewCone(m_lookAt))
+						{
+							if (g_engfuncs.pfnRunPlayerMove)
+							{
+								if (!m_moveAngles)
+									m_moveAngles = nullvec;
+
+								if (!m_moveSpeed)
+									m_moveSpeed = 0.0f;
+
+								if (!m_strafeSpeed)
+									m_strafeSpeed = 0.0f;
+
+								if (!m_buttons)
+									m_buttons = 0;
+								
+								if (!m_impulse)
+									m_impulse = 0;
+
+								if (!m_msecVal)
+									m_msecVal = 0;
+
+								g_engfuncs.pfnRunPlayerMove(GetEntity(), m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, m_buttons, m_impulse, m_msecVal);
+							}
+
+							return;
+						}
+						else
+						{
+							m_updateY = true;
+							m_updateP = true;
+						}
 					}
 				}
+
+				// adjust all body and view angles to face an absolute vector
+				Vector direction = (m_lookAt - EyePosition()).ToAngles();
+				direction.x = -direction.x; // invert for engine
+
+				if (m_updateY)
+				{
+					const float angleDiffYaw = AngleNormalize(direction.y - pev->v_angle.y);
+					if (cabsf(angleDiffYaw) < lockn)
+					{
+						m_lookYawVel = 0.0f;
+						pev->v_angle.y = AngleNormalize(direction.y);
+						m_updateY = false;
+					}
+					else
+					{
+						const float fskill = static_cast<float>(m_skill);
+						const float accelerate = fskill * 60.0f;
+						m_lookYawVel += m_pathInterval * cclampf((fskill * 6.0f * angleDiffYaw) - (fskill * 0.6f * m_lookYawVel), -accelerate, accelerate);
+						pev->v_angle.y += m_pathInterval * m_lookYawVel;
+					}
+				}
+
+				if (m_updateP)
+				{
+					const float angleDiffPitch = AngleNormalize(direction.x - pev->v_angle.x);
+					if (cabsf(angleDiffPitch) < lockn)
+					{
+						m_lookPitchVel = 0.0f;
+						pev->v_angle.x = AngleNormalize(direction.x);
+						m_updateP = false;
+					}
+					else
+					{
+						const float fskill = static_cast<float>(m_skill);
+						const float accelerate = fskill * 60.0f;
+						m_lookPitchVel += m_pathInterval * cclampf(fskill * 12.0f * angleDiffPitch - (fskill * 1.2f * m_lookPitchVel), -accelerate, accelerate);
+						pev->v_angle.x += m_pathInterval * m_lookPitchVel;
+					}
+				}
+
+				pev->v_angle.y += pev->punchangle.y;
+				pev->v_angle.x -= pev->punchangle.x;
+
+				// set the body angles to point the gun correctly
+				pev->v_angle.ClampAngles();
+				pev->angles.x = -pev->v_angle.x * 0.33333333333f;
+				pev->angles.y = pev->v_angle.y;
+				pev->angles.ClampAngles();
 			}
-
-			// adjust all body and view angles to face an absolute vector
-			Vector direction = (m_lookAt - EyePosition()).ToAngles() - pev->punchangle * 2.0f;
-			direction.x = -direction.x; // invert for engine
-
-			if (m_updateY)
-			{
-				const float angleDiffYaw = AngleNormalize(direction.y - pev->v_angle.y);
-				if (cabsf(angleDiffYaw) < lockn)
-				{
-					m_lookYawVel = 0.0f;
-					pev->v_angle.y = AngleNormalize(direction.y);
-					m_updateY = false;
-				}
-				else
-				{
-					const float fskill = static_cast<float>(m_skill);
-					const float accelerate = fskill * 60.0f;
-					m_lookYawVel += m_pathInterval * cclampf((fskill * 6.0f * angleDiffYaw) - (fskill * 0.6f * m_lookYawVel), -accelerate, accelerate);
-					pev->v_angle.y += m_pathInterval * m_lookYawVel;
-				}
-			}
-
-			if (m_updateP)
-			{
-				const float angleDiffPitch = AngleNormalize(direction.x - pev->v_angle.x);
-				if (cabsf(angleDiffPitch) < lockn)
-				{
-					m_lookPitchVel = 0.0f;
-					pev->v_angle.x = AngleNormalize(direction.x);
-					m_updateP = false;
-				}
-				else
-				{
-					const float fskill = static_cast<float>(m_skill);
-					const float accelerate = fskill * 60.0f;
-					m_lookPitchVel += m_pathInterval * cclampf(fskill * 12.0f * angleDiffPitch - (fskill * 1.2f * m_lookPitchVel), -accelerate, accelerate);
-					pev->v_angle.x += m_pathInterval * m_lookPitchVel;
-				}
-			}
-
-			// set the body angles to point the gun correctly
-			pev->v_angle.ClampAngles();
-			pev->angles.x = -pev->v_angle.x * 0.33333333333f;
-			pev->angles.y = pev->v_angle.y;
-			pev->angles.ClampAngles();
 		}
 
-		if (g_engfuncs.pfnRunPlayerMove != nullptr)
+		if (g_engfuncs.pfnRunPlayerMove)
+		{
+			if (!m_moveAngles)
+				m_moveAngles = nullvec;
+
+			if (!m_moveSpeed)
+				m_moveSpeed = 0.0f;
+
+			if (!m_strafeSpeed)
+				m_strafeSpeed = 0.0f;
+
+			if (!m_buttons)
+				m_buttons = 0;
+
+			if (!m_impulse)
+				m_impulse = 0;
+
+			if (!m_msecVal)
+				m_msecVal = 0;
+
 			g_engfuncs.pfnRunPlayerMove(GetEntity(), m_moveAngles, m_moveSpeed, m_strafeSpeed, 0.0f, m_buttons, m_impulse, m_msecVal);
+		}
 	}
 }
 
@@ -800,8 +846,16 @@ inline int GetMaxClip(const int &id)
 
 void Bot::CheckSlowThink(void)
 {
+	m_index = GetIndex() - 1;
+	CalculatePing();
+
 	const float tempTimer = engine->GetTime();
-	if (m_waypointTime < tempTimer)
+	if (m_waypointDistance > ((pev->origin - m_waypointOrigin).GetLengthSquared() * 2.0f))
+	{
+		m_navNode.Clear();
+		FindWaypoint();
+	}
+	else if (m_waypointTime < tempTimer)
 	{
 		if ((m_currentWaypointIndex == m_zhCampPointIndex || m_currentWaypointIndex == m_myMeshWaypoint) && IsValidWaypoint(m_currentWaypointIndex))
 			m_waypointTime = tempTimer + 7.0f;
@@ -812,10 +866,7 @@ void Bot::CheckSlowThink(void)
 			return;
 		}
 	}
-	else
-		CalculatePing();
-
-	if (m_isZombieBot)
+	else if (m_isZombieBot)
 		SelectKnife();
 	else
 	{
@@ -831,9 +882,9 @@ void Bot::CheckSlowThink(void)
 			}
 			else
 			{
-				WeaponSelect *selectTab = &g_weaponSelect[0];
 				int i, id;
 				int chosenWeaponIndex = -1;
+				WeaponSelect *selectTab = &g_weaponSelect[0];
 				for (i = Const_NumWeapons; i; i--)
 				{
 					id = selectTab[i].id;
@@ -862,6 +913,9 @@ void Bot::CheckSlowThink(void)
 
 	if (!g_roundEnded && m_randomAttackTimer < tempTimer && g_DelayTimer < tempTimer) // simulate players with random knife attacks
 	{
+		if (m_currentWeapon == Weapon::Knife)
+			SelectWeaponByName("weapon_knife");
+
 		extern ConVar ebot_ignore_enemies;
 		if (!ebot_ignore_enemies.GetBool())
 		{
@@ -900,6 +954,17 @@ void Bot::CheckSlowThink(void)
 	else
 	{
 		m_team = GetTeam(GetEntity());
+		if (m_team != Team::Counter && m_team != Team::Terrorist)
+		{
+			m_notStarted = true;
+			if (crandomint(0, 1))
+				m_startAction = CMENU_TEAM;
+			else
+				m_startAction = CMENU_CLASS;
+
+			return;
+		}
+
 		if (m_isZombieBot != IsZombieEntity(GetEntity()))
 		{
 			m_isZombieBot = IsZombieEntity(GetEntity());
@@ -936,9 +1001,6 @@ void Bot::CheckSlowThink(void)
 			}
 		}
 	}
-
-	m_isAlive = IsAlive(GetEntity());
-	m_index = GetIndex() - 1;
 
 	// zp & biohazard flashlight support
 	if (ebot_force_flashlight.GetBool())
@@ -1511,9 +1573,9 @@ void Bot::DebugModeMsg(void)
 
 // this function gets called by network message handler, when screenfade message
 // get's send it's used to make bot blind froumd the grenade
-void Bot::TakeBlinded(const Vector &fade, const int alpha)
+void Bot::TakeBlinded(const int r, const int g, const int b, const int alpha)
 {
-	if (fade.x != 255 || fade.y != 255 || fade.z != 255 || alpha <= 170)
+	if (r != 255 || g != 255 || b != 255 || alpha <= 170)
 		return;
 
 	SetProcess(Process::Blind, "i'm blind", false, engine->GetTime() + crandomfloat(3.2f, 6.4f));

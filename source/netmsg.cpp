@@ -87,9 +87,9 @@ void NetworkMsg::Execute(void)
 					break;
 				}
 			}
+
 			break;
 		}
-
 		case NETMSG_SHOWMENU:
 		{
 			if (m_args.Size() < 4 || !m_bot)
@@ -97,6 +97,9 @@ void NetworkMsg::Execute(void)
 
 			const char* x = m_args[3].strVal;
 			if (!x)
+				break;
+
+			if (!x[1])
 				break;
 
 			switch (x[1])
@@ -109,14 +112,15 @@ void NetworkMsg::Execute(void)
 						case 1616:
 						{
 							m_bot->m_startAction = CMENU_TEAM;
-							break;
+							return;
 						}
 						case 1593:
 						{
 							m_bot->m_startAction = CMENU_CLASS;
-							break;
+							return;
 						}
 					}
+
 					break;
 				}
 				case 'I':
@@ -129,9 +133,10 @@ void NetworkMsg::Execute(void)
 						case 2200:
 						{
 							m_bot->m_startAction = CMENU_TEAM;
-							break;
+							return;
 						}
 					}
+
 					break;
 				}
 				case 'C':
@@ -139,13 +144,15 @@ void NetworkMsg::Execute(void)
 					if (charToInt(const_cast<char*>(x)) == 787)
 					{
 						m_bot->m_startAction = CMENU_CLASS;
+						return;
 					}
-					break;
 				}
+
+				break;
 			}
+
 			break;
 		}
-
 		case NETMSG_WLIST:
 		{
 			if (m_args.Size() < 9)
@@ -161,67 +168,47 @@ void NetworkMsg::Execute(void)
 			weaponProp.flags = m_args[8].longVal;
 
 			if (weaponProp.id >= 0 && weaponProp.id < Const_MaxWeapons)
-			{
 				g_weaponDefs[weaponProp.id] = weaponProp;
-			}
+
 			break;
 		}
-
 		case NETMSG_CURWEAPON:
 		{
 			if (m_args.Size() < 3 || !m_bot)
 				break;
 
-			const int state = m_args[0].longVal;
 			const int id = m_args[1].longVal;
-			const int clip = m_args[2].longVal;
-
 			if (id >= 0 && id < Const_MaxWeapons)
 			{
-				if (state != 0)
+				if (m_args[0].longVal != 0)
 					m_bot->m_currentWeapon = id;
-				m_bot->m_ammoInClip[id] = clip;
+				m_bot->m_ammoInClip[id] = m_args[2].longVal;
 			}
+
 			break;
 		}
-
 		case NETMSG_AMMOX:
 		{
 			if (m_args.Size() < 2 || !m_bot)
 				break;
 
 			const int index = m_args[0].longVal;
-			const int value = m_args[1].longVal;
 			if (index >= 0 && index < Const_MaxWeapons)
-			{
-				m_bot->m_ammo[index] = value;
-			}
+				m_bot->m_ammo[index] = m_args[1].longVal;
+
 			break;
 		}
-
 		case NETMSG_AMMOPICK:
 		{
 			if (m_args.Size() < 2 || !m_bot)
 				break;
 
 			const int index = m_args[0].longVal;
-			const int value = m_args[1].longVal;
 			if (index >= 0 && index < Const_MaxWeapons)
-			{
-				m_bot->m_ammo[index] = value;
-			}
+				m_bot->m_ammo[index] = m_args[1].longVal;
+
 			break;
 		}
-
-		case NETMSG_DAMAGE:
-		{
-			if (m_args.Size() < 3 || !m_bot)
-				break;
-
-			m_bot->IgnoreCollisionShortly();
-			break;
-		}
-
 		case NETMSG_DEATH:
 		{
 			if (m_args.Size() < 2)
@@ -239,36 +226,27 @@ void NetworkMsg::Execute(void)
 				victimer->m_navNode.Destroy();
 				victimer->m_currentWeapon = 0;
 			}
+
 			break;
 		}
-
 		case NETMSG_SCREENFADE:
 		{
 			if (m_args.Size() < 7 || !m_bot)
 				break;
 
-			const uint8_t r = m_args[3].longVal;
-			const uint8_t g = m_args[4].longVal;
-			const uint8_t b = m_args[5].longVal;
-			const uint8_t alpha = m_args[6].longVal;
-
-			m_bot->TakeBlinded(Vector(r, g, b), alpha);
+			m_bot->TakeBlinded(m_args[3].longVal, m_args[4].longVal, m_args[5].longVal, m_args[6].longVal);
 			break;
 		}
-
 		case NETMSG_HLTV:
 		{
 			if (m_args.Size() < 2)
 				break;
 
-			const int numPlayers = m_args[0].longVal;
-			const int fov = m_args[1].longVal;
-
-			if (!numPlayers && !fov)
+			if (!m_args[0].longVal && !m_args[1].longVal)
 				RoundInit();
+
 			break;
 		}
-
 		case NETMSG_TEXTMSG:
 		{
 			if (m_args.Size() < 2)
@@ -278,33 +256,37 @@ void NetworkMsg::Execute(void)
 			if (!x)
 				break;
 
+			if (!x[1])
+				break;
+
 			switch (x[1])
 			{
 				case 'C':
 				{
-					if (!cstrncmp(x, "#CTs_Win", 9))
+					if (!cstrncmp(x, "#CTs_Win", 8))
 						RoundEndMessage();
 					break;
 				}
 				case 'T':
 				{
-					if (!cstrncmp(x, "#Terrorists_Win", 16))
+					if (!cstrncmp(x, "#Terrorists_Win", 15))
 						RoundEndMessage();
 					break;
 				}
 				case 'R':
 				{
-					if (!cstrncmp(x, "#Round_Draw", 12))
+					if (!cstrncmp(x, "#Round_Draw", 11))
 						RoundEndMessage();
 					break;
 				}
 				case 'G':
 				{
-					if (!cstrncmp(x, "#Game_Commencing", 17) || !cstrncmp(x, "#Game_will_restart_in", 22))
+					if (!cstrncmp(x, "#Game_Commencing", 16) || !cstrncmp(x, "#Game_will_restart_in", 22))
 						RoundEndMessage();
 					break;
 				}
 			}
+
 			break;
 		}
 	}

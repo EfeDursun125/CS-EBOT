@@ -23,6 +23,7 @@
 //
 
 #include "../include/core.h"
+#include "../include/studiohdr.h"
 
 //
 // TODO:
@@ -186,24 +187,40 @@ Vector GetBottomOrigin(edict_t* ent)
 	return bottomOrigin;
 }
 
+inline Vector FallBackOrigin(edict_t* ent)
+{
+	Vector headOrigin = GetTopOrigin(ent);
+	if (!(ent->v.flags & FL_DUCKING))
+		headOrigin.z -= (headOrigin.z - GetEntityOrigin(ent).z) * 0.4f;
+	else
+		headOrigin.z -= 1.0f;
+}
+
 Vector GetPlayerHeadOrigin(edict_t* ent)
 {
 	if (FNullEnt(ent))
 		return nullvec;
 
-	Vector headOrigin = GetTopOrigin(ent);
+	void* modelPtr = g_engfuncs.pfnGetModelPtr(ent);
+	if (!modelPtr)
+		return FallBackOrigin(ent);
 
-	if (!(ent->v.flags & FL_DUCKING))
-	{
-		const Vector origin = GetEntityOrigin(ent);
-		float hbDistance = headOrigin.z - origin.z;
-		hbDistance *= 0.4f;
-		headOrigin.z -= hbDistance;
-	}
-	else
-		headOrigin.z -= 1.0f;
+	studiohdr_t* studio = reinterpret_cast<studiohdr_t*>(modelPtr);
 
-	return headOrigin;
+	// 0x49445354 = 'I' 'D' 'S' 'T'
+	if (studio->id != 0x49445354)
+		return FallBackOrigin(ent);
+
+	int headHitbox = getHitboxByName(studio, "head");
+	if (headHitbox < 0)
+		return FallBackOrigin(ent);
+
+	mstudiohitbox_t* hitbox = getHitbox(studio, headHitbox);
+	Vector boneOrigin;
+	g_engfuncs.pfnGetBonePosition(ent, hitbox->bone, boneOrigin, nullptr);
+	boneOrigin += hitbox->bbmax * 0.5f;
+
+	return boneOrigin;
 }
 
 int Find(char* buffer, const char chr, const int startIndex)

@@ -1115,8 +1115,6 @@ void Waypoint::Add(const int flags, const Vector& waypointOrigin, const float an
 		}
 	}
 
-	m_lastDeclineWaypoint = index;
-
 	if (placeNew)
 	{
 		if (g_numWaypoints >= Const_MaxWaypoints)
@@ -1928,30 +1926,38 @@ void Waypoint::InitTypes(void)
 	AddZMCamps();
 }
 
-// forward declaration for mutex used in matrix calculation
-static tthread::mutex calcMutex{};
+// static array to keep track of matrix calculation threads
+static CArray<tthread::thread*> g_matrixThreads;
+
+// expose StopMatrixThreads to ensure clean shutdown and no orphaned threads
+void StopMatrixThreads(void)
+{
+	int i;
+
+	g_isMatrixCalculating = false;
+	for (i = 0; i < g_matrixThreads.Size(); i++)
+	{
+		tthread::thread* t = g_matrixThreads[i];
+		if (t)
+		{
+			if (t->joinable())
+				t->join();
+
+			delete t;
+		}
+	}
+
+	g_matrixThreads.Destroy();
+
+	// if calculation was in progress but didn't finish, free the incomplete matrix to avoid leaking memory/garbage
+	if (!g_isMatrixReady)
+		g_waypoint->m_distMatrix.Destroy();
+}
 
 void Waypoint::InitPathMatrix(void)
 {
 	// signal any running calculation to stop
-	if (g_isMatrixCalculating)
-	{
-		g_isMatrixCalculating = false;
-		// wait for the calculation thread to finish (max 500ms to avoid freezing)
-		int timeout = 50; // 50 * 10ms = 500ms max wait
-		while (!calcMutex.try_lock() && timeout > 0)
-		{
-			timeout--;
-#ifdef PLATFORM_WIN32
-			Sleep(10);
-#else
-			usleep(10000);
-#endif
-		}
-
-		if (timeout > 0)
-			calcMutex.unlock();
-	}
+	StopMatrixThreads();
 
 	g_isMatrixReady = false;
 	m_distMatrix.Destroy();
@@ -1982,187 +1988,27 @@ void Waypoint::InitPathMatrix(void)
 	SavePathMatrix();
 }
 
-void CalculateMatrix(void* arg)
+struct MatrixWorkerArgs
 {
-	if (calcMutex.try_lock())
+	Waypoint* wpt;
+	int16_t* distMatrix;
+	tthread::atomic<int>* nextStartNode;
+	int16_t num;
+};
+
+void MatrixWorker(Waypoint* wpt, int16_t* distMatrix, tthread::atomic<int>& nextStartNode, int16_t num)
+{
+	constexpr int16_t INF = static_cast<int16_t>(32766);
+	constexpr int16_t pnum = static_cast<int16_t>(Const_MaxPathIndex);
+
+	int* dist = new(std::nothrow) int[num];
+	int8_t* visited = new(std::nothrow) int8_t[num];
+	int* heapKey = new(std::nothrow) int[num + 1];
+	int16_t* heapId = new(std::nothrow) int16_t[num + 1];
+	int* position = new(std::nothrow) int[num];
+
+	if (!dist || !visited || !heapKey || !heapId || !position)
 	{
-		g_isMatrixCalculating = true;
-		Waypoint* wpt = static_cast<Waypoint*>(arg);
-		if (!wpt || !wpt->m_distMatrix.IsAllocated())
-		{
-			ServerPrint("wpt or m_distMatrix is null in %s at %i", __FILE__, __LINE__);
-			g_isMatrixCalculating = false;
-			calcMutex.unlock();
-			return;
-		}
-
-		int16_t* distMatrix = wpt ? wpt->m_distMatrix.Get() : nullptr;
-		if (!distMatrix)
-		{
-			ServerPrint("distMatrix is null in %s at %i", __FILE__, __LINE__);
-			g_isMatrixCalculating = false;
-			calcMutex.unlock();
-			return;
-		}
-
-		constexpr int16_t INF = static_cast<int16_t>(32766);
-		const int16_t num = static_cast<int16_t>(g_numWaypoints);
-		constexpr int16_t pnum = static_cast<int16_t>(Const_MaxPathIndex);
-
-		int* dist = new(std::nothrow) int[num];
-		int8_t* visited = new(std::nothrow) int8_t[num];
-		int* heapKey = new(std::nothrow) int[num + 1];
-		int16_t* heapId = new(std::nothrow) int16_t[num + 1];
-		int* position = new(std::nothrow) int[num];
-
-		if (!dist || !visited || !heapKey || !heapId || !position)
-		{
-			if (dist)
-				delete[] dist;
-
-			if (visited)
-				delete[] visited;
-
-			if (heapKey)
-				delete[] heapKey;
-
-			if (heapId)
-				delete[] heapId;
-
-			if (position)
-				delete[] position;
-
-			ServerPrint("matrix problem in %s at %i", __FILE__, __LINE__);
-			g_isMatrixCalculating = false;
-			calcMutex.unlock();
-			return;
-		}
-
-		auto heapSwap = [&](int a, int b)
-		{
-			int16_t tid = heapId[a];
-			int tkey = heapKey[a];
-			heapId[a] = heapId[b];
-			heapKey[a] = heapKey[b];
-			heapId[b] = tid;
-			heapKey[b] = tkey;
-			position[heapId[a]] = a;
-			position[heapId[b]] = b;
-		};
-
-		auto heapUp = [&](int idx)
-		{
-			int parent;
-			while (idx > 1)
-			{
-				parent = idx >> 1;
-				if (heapKey[parent] <= heapKey[idx])
-					break;
-
-				heapSwap(parent, idx);
-				idx = parent;
-			}
-		};
-
-		auto heapDown = [&](int idx, int heapSize)
-		{
-			int left, right, smallest;
-			for (;;)
-			{
-				left = idx << 1;
-				right = left + 1;
-				smallest = idx;
-
-				if (left <= heapSize && heapKey[left] < heapKey[smallest])
-					smallest = left;
-
-				if (right <= heapSize && heapKey[right] < heapKey[smallest])
-					smallest = right;
-
-				if (smallest == idx)
-					break;
-
-				heapSwap(smallest, idx);
-				idx = smallest;
-			}
-		};
-
-		int8_t c;
-		int16_t s, i, u, j, v;
-		int heapSize, w, nd, val;
-		for (s = 0; s < num && g_isMatrixCalculating; ++s)
-		{
-			for (i = 0; i < num; ++i)
-			{
-				dist[i] = INF;
-				visited[i] = 0;
-				position[i] = -1;
-			}
-
-			heapSize = 0;
-			dist[s] = 0;
-			heapSize = 1;
-			heapId[1] = s;
-			heapKey[1] = 0;
-			position[s] = 1;
-
-			while (heapSize > 0)
-			{
-				u = heapId[1];
-				if (heapSize > 1)
-				{
-					heapId[1] = heapId[heapSize];
-					heapKey[1] = heapKey[heapSize];
-					position[heapId[1]] = 1;
-				}
-
-				position[u] = -1;
-				--heapSize;
-				heapDown(1, heapSize);
-
-				if (visited[u])
-					continue;
-
-				visited[u] = 1;
-
-				for (c = 0; c < pnum; ++c)
-				{
-					v = wpt->m_paths[u].index[c];
-					if (!IsValidWaypoint(v))
-						continue;
-
-					w = static_cast<int>(GetVectorDistanceSSE(wpt->m_paths[u].origin, wpt->m_paths[v].origin));
-					nd = dist[u] + w;
-					if (nd < dist[v])
-					{
-						dist[v] = nd;
-						if (position[v] == -1)
-						{
-							++heapSize;
-							heapId[heapSize] = v;
-							heapKey[heapSize] = dist[v];
-							position[v] = heapSize;
-							heapUp(heapSize);
-						}
-						else
-						{
-							heapKey[position[v]] = dist[v];
-							heapUp(position[v]);
-						}
-					}
-				}
-			}
-
-			for (j = 0; j < num; ++j)
-			{
-				val = dist[j];
-				if (val >= INF)
-					val = INF;
-
-				*(distMatrix + (s * num) + j) = static_cast<int16_t>(val);
-			}
-		}
-
 		if (dist)
 			delete[] dist;
 
@@ -2178,61 +2024,316 @@ void CalculateMatrix(void* arg)
 		if (position)
 			delete[] position;
 
-		// check if we were signaled to stop
-		if (!g_isMatrixCalculating)
-		{
-			calcMutex.unlock();
-			return;
-		}
-
-		g_isMatrixReady = true;
-
-		const char* waypointDir = GetWaypointDir();
-		if (!waypointDir)
-		{
-			ServerPrint("waypointDir is null in %s at %i", __FILE__, __LINE__);
-			g_isMatrixCalculating = false;
-			calcMutex.unlock();
-			return;
-		}
-
-		const char* mapName = GetMapName();
-		if (!mapName)
-		{
-			ServerPrint("mapName is null in %s at %i", __FILE__, __LINE__);
-			g_isMatrixCalculating = false;
-			calcMutex.unlock();
-			return;
-		}
-
-		// create matrix directory
-		char matrixFilePath[1024];
-		FormatBuffer(matrixFilePath, "%smatrix", waypointDir);
-		CreatePath(matrixFilePath);
-
-		FormatBuffer(matrixFilePath, "%smatrix/%s.emt", waypointDir, mapName);
-		File fp(matrixFilePath, "wb");
-
-		// unable to open file
-		if (!fp.IsValid())
-		{
-			g_isMatrixCalculating = false;
-			calcMutex.unlock();
-			return;
-		}
-
-		// write number of waypoints
-		fp.Write(&g_numWaypoints, sizeof(int16_t));
-
-		// write path & distance matrix
-		fp.Write(wpt->m_distMatrix.Get(), sizeof(int16_t), g_numWaypoints * g_numWaypoints);
-
-		// and close the file
-		fp.Close();
-
-		g_isMatrixCalculating = false;
-		calcMutex.unlock();
+		return;
 	}
+
+	auto heapSwap = [&](int a, int b)
+	{
+		int16_t tid = heapId[a];
+		int tkey = heapKey[a];
+		heapId[a] = heapId[b];
+		heapKey[a] = heapKey[b];
+		heapId[b] = tid;
+		heapKey[b] = tkey;
+		position[heapId[a]] = a;
+		position[heapId[b]] = b;
+	};
+
+	auto heapUp = [&](int idx)
+	{
+		int parent;
+		while (idx > 1)
+		{
+			parent = idx >> 1;
+			if (heapKey[parent] <= heapKey[idx])
+				break;
+
+			heapSwap(parent, idx);
+			idx = parent;
+		}
+	};
+
+	auto heapDown = [&](int idx, int heapSize)
+	{
+		int left, right, smallest;
+		for (;;)
+		{
+			left = idx << 1;
+			right = left + 1;
+			smallest = idx;
+
+			if (left <= heapSize && heapKey[left] < heapKey[smallest])
+				smallest = left;
+
+			if (right <= heapSize && heapKey[right] < heapKey[smallest])
+				smallest = right;
+
+			if (smallest == idx)
+				break;
+
+			heapSwap(smallest, idx);
+			idx = smallest;
+		}
+	};
+
+	int s;
+	while (g_isMatrixCalculating && (s = nextStartNode++) < num)
+	{
+		int16_t i, u, j, v;
+		int heapSize, w, nd, val;
+		int8_t c;
+
+		for (i = 0; i < num; ++i)
+		{
+			dist[i] = INF;
+			visited[i] = 0;
+			position[i] = -1;
+		}
+
+		heapSize = 0;
+		dist[s] = 0;
+		heapSize = 1;
+		heapId[1] = s;
+		heapKey[1] = 0;
+		position[s] = 1;
+
+		while (heapSize > 0)
+		{
+			u = heapId[1];
+			if (heapSize > 1)
+			{
+				heapId[1] = heapId[heapSize];
+				heapKey[1] = heapKey[heapSize];
+				position[heapId[1]] = 1;
+			}
+
+			position[u] = -1;
+			--heapSize;
+			heapDown(1, heapSize);
+
+			if (visited[u])
+				continue;
+
+			visited[u] = 1;
+
+			for (c = 0; c < pnum; ++c)
+			{
+				v = wpt->m_paths[u].index[c];
+				if (!IsValidWaypoint(v))
+					continue;
+
+				w = static_cast<int>(GetVectorDistanceSSE(wpt->m_paths[u].origin, wpt->m_paths[v].origin));
+				nd = dist[u] + w;
+
+				if (nd < dist[v])
+				{
+					dist[v] = nd;
+					if (position[v] == -1)
+					{
+						++heapSize;
+						heapId[heapSize] = v;
+						heapKey[heapSize] = dist[v];
+						position[v] = heapSize;
+						heapUp(heapSize);
+					}
+					else
+					{
+						heapKey[position[v]] = dist[v];
+						heapUp(position[v]);
+					}
+				}
+			}
+		}
+
+		for (j = 0; j < num; ++j)
+		{
+			val = dist[j];
+			if (val >= INF)
+				val = INF;
+
+			*(distMatrix + (s * num) + j) = static_cast<int16_t>(val);
+		}
+	}
+
+	delete[] dist;
+	delete[] visited;
+	delete[] heapKey;
+	delete[] heapId;
+	delete[] position;
+}
+
+void MatrixWorkerWrapper(void* arg)
+{
+	MatrixWorkerArgs* args = static_cast<MatrixWorkerArgs*>(arg);
+	if (!args)
+		return;
+
+	MatrixWorker(args->wpt, args->distMatrix, *args->nextStartNode, args->num);
+	delete args;
+}
+
+void CalculateMatrix(void* arg)
+{
+	g_isMatrixCalculating = true;
+	Waypoint* wpt = static_cast<Waypoint*>(arg);
+	if (!wpt || !wpt->m_distMatrix.IsAllocated())
+	{
+		ServerPrint("wpt or m_distMatrix is null in %s at %i", __FILE__, __LINE__);
+		g_isMatrixCalculating = false;
+		return;
+	}
+
+	int16_t* distMatrix = wpt->m_distMatrix.Get();
+	if (!distMatrix)
+	{
+		ServerPrint("distMatrix is null in %s at %i", __FILE__, __LINE__);
+		g_isMatrixCalculating = false;
+		return;
+	}
+
+	const int16_t num = static_cast<int16_t>(g_numWaypoints);
+	tthread::atomic<int> nextStartNode(0);
+
+	unsigned int numThreads = tthread::thread::hardware_concurrency();
+	if (numThreads > 1)
+		ServerPrint("FOUND %i THREADS FOR MATRIX CALCULATIONS", numThreads);
+	else
+	{
+		MatrixWorker(wpt, distMatrix, nextStartNode, 1);
+		return;
+	}
+
+	CArray<tthread::thread*> workers;
+	bool success = true;
+
+	// pre-allocate workers capacity to avoid Push failures due to Resize inside the loop
+	if (!workers.Resize(numThreads, true))
+		success = false;
+
+	if (success)
+	{
+		unsigned int t;
+		for (t = 0; t < numThreads; t++)
+		{
+			MatrixWorkerArgs* args = new(std::nothrow) MatrixWorkerArgs{wpt, distMatrix, &nextStartNode, num};
+			if (!args)
+			{
+				success = false;
+				break;
+			}
+
+			tthread::thread* w = new(std::nothrow) tthread::thread(MatrixWorkerWrapper, static_cast<void*>(args));
+			if (!w || !w->joinable())
+			{
+				delete args;
+				if (w)
+					delete w;
+
+				success = false;
+				break;
+			}
+
+			if (!workers.Push(w, false))
+			{
+				delete args;
+				delete w;
+
+				success = false;
+				break;
+			}
+		}
+	}
+
+	if (!success)
+	{
+		// clean up any partially created workers
+		int i;
+		for (i = 0; i < workers.Size(); i++)
+		{
+			tthread::thread* w = workers[i];
+			if (w)
+			{
+				if (w->joinable())
+					w->join();
+
+				delete w;
+			}
+		}
+
+		workers.Destroy();
+
+		// fallback to single-threaded calculation on the active thread
+		ServerPrint("WARNING: FAILED TO SPAWN MATRIX WORKERS! FALLING BACK TO SINGLE-THREADED CALCULATION.");
+		MatrixWorker(wpt, distMatrix, nextStartNode, num);
+	}
+	else
+	{
+		// ioin all successfully running worker threads
+		int i;
+		for (i = 0; i < workers.Size(); i++)
+		{
+			tthread::thread* w = workers[i];
+			if (w)
+			{
+				if (w->joinable())
+					w->join();
+
+				delete w;
+			}
+		}
+
+		workers.Destroy();
+	}
+
+	// check if we were signaled to stop
+	if (!g_isMatrixCalculating)
+	{
+		return;
+	}
+
+	g_isMatrixReady = true;
+
+	const char* waypointDir = GetWaypointDir();
+	if (!waypointDir)
+	{
+		ServerPrint("waypointDir is null in %s at %i", __FILE__, __LINE__);
+		g_isMatrixCalculating = false;
+		return;
+	}
+
+	const char* mapName = GetMapName();
+	if (!mapName)
+	{
+		ServerPrint("mapName is null in %s at %i", __FILE__, __LINE__);
+		g_isMatrixCalculating = false;
+		return;
+	}
+
+	// create matrix directory
+	char matrixFilePath[1024];
+	FormatBuffer(matrixFilePath, "%smatrix", waypointDir);
+	CreatePath(matrixFilePath);
+
+	FormatBuffer(matrixFilePath, "%smatrix/%s.emt", waypointDir, mapName);
+	File fp(matrixFilePath, "wb");
+
+	// unable to open file
+	if (!fp.IsValid())
+	{
+		g_isMatrixCalculating = false;
+		return;
+	}
+
+	// write number of waypoints
+	fp.Write(&g_numWaypoints, sizeof(int16_t));
+
+	// write path & distance matrix
+	fp.Write(wpt->m_distMatrix.Get(), sizeof(int16_t), g_numWaypoints * g_numWaypoints);
+
+	// and close the file
+	fp.Close();
+
+	g_isMatrixCalculating = false;
 }
 
 void Waypoint::SavePathMatrix(void)
@@ -2243,8 +2344,32 @@ void Waypoint::SavePathMatrix(void)
 	if (g_isMatrixCalculating)
 		return;
 
-	tthread::thread matrixThread(&CalculateMatrix, static_cast<void*>(Waypoint::GetObjectPtr()));
-	matrixThread.detach();
+	// pre-resize g_matrixThreads to ensure Push doesn't fail due to allocation limits
+	bool success = true;
+	if (g_matrixThreads.Capacity() <= g_matrixThreads.Size())
+	{
+		if (!g_matrixThreads.Resize(g_matrixThreads.Size() + 1, false))
+			success = false;
+	}
+
+	tthread::thread* mainThread = nullptr;
+	if (success)
+	{
+		mainThread = new(std::nothrow) tthread::thread(CalculateMatrix, static_cast<void*>(Waypoint::GetObjectPtr()));
+		if (!mainThread || !mainThread->joinable() || !g_matrixThreads.Push(mainThread, false))
+		{
+			if (mainThread)
+				delete mainThread;
+
+			success = false;
+		}
+	}
+
+	if (!success)
+	{
+		ServerPrint("WARNING: FAILED TO CREATE BACKGROUND MATRIX THREAD! FALLING BACK TO SYNCHRONOUS CALCULATION.");
+		CalculateMatrix(static_cast<void*>(Waypoint::GetObjectPtr()));
+	}
 }
 
 bool Waypoint::LoadPathMatrix(void)
@@ -3781,8 +3906,6 @@ Waypoint::Waypoint(void)
 	m_cacheWaypointIndex = -1;
 	m_lastJumpWaypoint = -1;
 	m_findWPIndex = -1;
-
-	m_lastDeclineWaypoint = -1;
 
 	m_lastWaypoint = nullvec;
 	m_isOnLadder = false;

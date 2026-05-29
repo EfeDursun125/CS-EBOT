@@ -2549,7 +2549,7 @@ exportc int GetEngineFunctions(enginefuncs_t* functionTable, int* /*interfaceVer
 				g_netMsg->SetId(NETMSG_CURWEAPON, GET_USER_MSG_ID(PLID, "CurWeapon", nullptr));
 				g_netMsg->SetId(NETMSG_AMMOX, GET_USER_MSG_ID(PLID, "AmmoX", nullptr));
 				g_netMsg->SetId(NETMSG_AMMOPICK, GET_USER_MSG_ID(PLID, "AmmoPickup", nullptr));
-				g_netMsg->SetId(NETMSG_DAMAGE, GET_USER_MSG_ID(PLID, "Damage", nullptr));
+				//g_netMsg->SetId(NETMSG_DAMAGE, GET_USER_MSG_ID(PLID, "Damage", nullptr));
 				//g_netMsg->SetId(NETMSG_MONEY, GET_USER_MSG_ID(PLID, "Money", nullptr));
 				//g_netMsg->SetId(NETMSG_STATUSICON, GET_USER_MSG_ID(PLID, "StatusIcon", nullptr));
 				g_netMsg->SetId(NETMSG_DEATH, GET_USER_MSG_ID(PLID, "DeathMsg", nullptr));
@@ -2606,7 +2606,7 @@ exportc int GetEngineFunctions(enginefuncs_t* functionTable, int* /*interfaceVer
 					g_netMsg->HandleMessageIfRequired(msgType, NETMSG_CURWEAPON);
 					g_netMsg->HandleMessageIfRequired(msgType, NETMSG_AMMOX);
 					g_netMsg->HandleMessageIfRequired(msgType, NETMSG_AMMOPICK);
-					g_netMsg->HandleMessageIfRequired(msgType, NETMSG_DAMAGE);
+					//g_netMsg->HandleMessageIfRequired(msgType, NETMSG_DAMAGE);
 					//g_netMsg->HandleMessageIfRequired(msgType, NETMSG_MONEY);
 					//g_netMsg->HandleMessageIfRequired(msgType, NETMSG_STATUSICON);
 					g_netMsg->HandleMessageIfRequired(msgType, NETMSG_SCREENFADE);

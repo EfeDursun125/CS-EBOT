@@ -36,8 +36,8 @@ bool g_analyzewaypoints = false;
 bool g_analyzeputrequirescrouch = false;
 bool g_hasDoors = false;
 bool g_isFakeCommand = false;
-bool g_isMatrixReady = false;
-bool g_isMatrixCalculating = false;
+tthread::atomic<bool> g_isMatrixReady(false);
+tthread::atomic<bool> g_isMatrixCalculating(false);
 
 float g_autoPathDistance = 250.0f;
 float g_fakePingUpdate = 0.0f;

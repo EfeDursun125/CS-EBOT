@@ -64,7 +64,8 @@ BotControl::~BotControl(void)
 // this function calls gamedll player() function, in case to create player entity in game
 void BotControl::CallGameEntity(entvars_t* vars)
 {
-	CALL_GAME_ENTITY(PLID, "player", vars);
+	if (vars)
+		CALL_GAME_ENTITY(PLID, "player", vars);
 }
 
 // this function completely prepares bot entity (edict) for creation, creates team, skill, sets name etc, and
@@ -144,14 +145,17 @@ int BotControl::CreateBot(char name[32], int skill, int personality, const int t
 			bool nameUnique = false;
 			int attempts = 0;
 
-			auto isPureLowercaseSingleWord = [](const char* str) -> bool {
+			auto isPureLowercaseSingleWord = [](const char* str) -> bool
+			{
 				if (!str || str[0] == '\0')
 					return false;
+
 				for (int i = 0; str[i] != '\0'; i++)
 				{
 					if (str[i] < 'a' || str[i] > 'z')
 						return false;
 				}
+
 				return true;
 			};
 
@@ -164,9 +168,7 @@ int BotControl::CreateBot(char name[32], int skill, int personality, const int t
 				const char* baseName = g_botNames[idx].name;
 
 				if (!isPureLowercaseSingleWord(baseName))
-				{
 					snprintf(bName, sizeof(bName), "%s", baseName);
-				}
 				else
 				{
 					if (crandomfloat(0.0f, 1.0f) < 0.55f)
@@ -177,6 +179,7 @@ int BotControl::CreateBot(char name[32], int skill, int personality, const int t
 						{
 							if (idx2 != idx && isPureLowercaseSingleWord(g_botNames[idx2].name))
 								break;
+
 							idx2 = crandomint(0, g_botNames.Size() - 1);
 							safety++;
 						}
@@ -199,14 +202,10 @@ int BotControl::CreateBot(char name[32], int skill, int personality, const int t
 							snprintf(bName, sizeof(bName), "%s%s%s", n1, sep, n2);
 						}
 						else
-						{
 							snprintf(bName, sizeof(bName), "%s", n1);
-						}
 					}
 					else
-					{
 						snprintf(bName, sizeof(bName), "%s", baseName);
-					}
 
 					if (crandomfloat(0.0f, 1.0f) < 0.18f)
 					{
@@ -235,11 +234,12 @@ int BotControl::CreateBot(char name[32], int skill, int personality, const int t
 							cstrcat(bName, sizeof(bName), numStr);
 					}
 
-					if (crandomfloat(0.0f, 1.0f) < 0.04f)
+					if (crandomfloat(0.0f, 1.0f) < 0.36f)
 					{
 						const char* wrappers[] = {
 							"xxX", "Xxx", "xXx", "xx", "XX", "xX", "Xx", "[]", "<>", "--", "__", "-->", "<--", ".."
 						};
+
 						int wIdx = crandomint(0, 13);
 						const char* w = wrappers[wIdx];
 						int wLen = cstrlen(w);
@@ -297,7 +297,7 @@ int BotControl::CreateBot(char name[32], int skill, int personality, const int t
 
 					float caseRand = crandomfloat(0.0f, 1.0f);
 					int bNameLen = cstrlen(bName);
-					if (caseRand < 0.10f)
+					if (caseRand < 0.11f)
 					{
 						for (int j = 0; j < bNameLen; j++)
 						{
@@ -305,7 +305,7 @@ int BotControl::CreateBot(char name[32], int skill, int personality, const int t
 								bName[j] -= 32;
 						}
 					}
-					else if (caseRand < 0.20f)
+					else if (caseRand < 0.22f)
 					{
 						bool nextUpper = true;
 						for (int j = 0; j < bNameLen; j++)
@@ -891,7 +891,7 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 	}
 
 	MDLL_ClientPutInServer(bot);
-	bot->v.flags |= FL_FAKECLIENT;
+	bot->v.flags |= (FL_CLIENT | FL_FAKECLIENT);
 
 	// initialize all the variables for this bot...
 	m_notStarted = true;	// hasn't joined game yet
@@ -922,7 +922,8 @@ Bot::Bot(edict_t* bot, const int skill, const int personality, const int team, c
 			m_personality = Personality::Normal;
 	}
 
-	for (int i = 0; i <= Const_MaxWeapons; i++)
+	int i;
+	for (i = 0; i <= Const_MaxWeapons; i++)
 	{
 		m_ammoInClip[i] = 0;
 		m_ammo[i] = 0;
@@ -985,11 +986,13 @@ void Bot::NewRound(void)
 		m_notStarted = false;
 	else // if bot died, clear all weapon stuff and force buying again
 	{
-		for (int i = 0; i <= Const_MaxWeapons; i++)
+		int i;
+		for (i = 0; i <= Const_MaxWeapons; i++)
 		{
 			m_ammoInClip[i] = 0;
 			m_ammo[i] = 0;
 		}
+
 		m_currentWeapon = 0;
 	}
 
@@ -1067,6 +1070,9 @@ void Bot::NewRound(void)
 // base code courtesy of Lazy (from bots-united forums!)
 void Bot::Kill(void)
 {
+	if (!g_engfuncs.pfnCreateNamedEntity)
+		return;
+
 	edict_t* hurtEntity = g_engfuncs.pfnCreateNamedEntity(MAKE_STRING("trigger_hurt"));
 	if (FNullEnt(hurtEntity))
 		return;
@@ -1076,9 +1082,7 @@ void Bot::Kill(void)
 	// This corrupts the CWeaponBox and crashes the engine (CWeaponBox::Kill) on round restart.
 	const char* weaponClassName = "worldspawn";
 	if (m_currentWeapon > 0 && m_currentWeapon < Const_MaxWeapons && !IsNullString(g_weaponDefs[m_currentWeapon].className))
-	{
 		weaponClassName = g_weaponDefs[m_currentWeapon].className;
-	}
 
 	hurtEntity->v.classname = MAKE_STRING(weaponClassName);
 	hurtEntity->v.dmg_inflictor = GetEntity();
@@ -1087,7 +1091,8 @@ void Bot::Kill(void)
 	hurtEntity->v.dmgtime = 2.0f;
 	hurtEntity->v.effects |= EF_NODRAW;
 
-	g_engfuncs.pfnSetOrigin(hurtEntity, Vector(-4000.0f, -4000.0f, -4000.0f));
+	if (g_engfuncs.pfnSetOrigin)
+		g_engfuncs.pfnSetOrigin(hurtEntity, Vector(-4000.0f, -4000.0f, -4000.0f));
 
 	KeyValueData kv;
 	kv.szClassName = const_cast<char*>(weaponClassName);
@@ -1101,7 +1106,8 @@ void Bot::Kill(void)
 	MDLL_Spawn(hurtEntity);
 	MDLL_Touch(hurtEntity, GetEntity());
 
-	g_engfuncs.pfnRemoveEntity(hurtEntity);
+	if (g_engfuncs.pfnRemoveEntity)
+		g_engfuncs.pfnRemoveEntity(hurtEntity);
 }
 
 void Bot::Kick(void)
