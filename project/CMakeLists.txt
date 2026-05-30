@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 3.16)
-cmake_policy(SET CMP0210 NEW)
 
 # Set clang++ as the default C++ compiler if available
 find_program(CLANG_CXX clang++)
